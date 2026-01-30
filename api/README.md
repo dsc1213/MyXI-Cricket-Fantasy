@@ -33,6 +33,8 @@ JWT_EXPIRES_IN=7d
 - `PATCH /users/:id` (self/admin/master)
   - header: `Authorization: Bearer <token>`
   - body: `{ name?, gameName?, email?, password?, status?, role? }`
+- `DELETE /users/:id` (master only)
+  - header: `Authorization: Bearer <token>`
 
 ## Tournaments + Matches
 - `GET /tournaments`

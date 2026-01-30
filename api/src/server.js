@@ -3,6 +3,7 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import { buildAuth } from './middleware/auth.js'
 
 dotenv.config()
 
@@ -21,6 +22,18 @@ let nextTournamentId = 1
 const matches = []
 let nextMatchId = 1
 const teamSelections = []
+
+const resetStore = () => {
+  users.length = 0
+  tournaments.length = 0
+  matches.length = 0
+  teamSelections.length = 0
+  nextUserId = 1
+  nextTournamentId = 1
+  nextMatchId = 1
+  seedMasterAdmin()
+}
+
 
 const seedMasterAdmin = () => {
   const email = process.env.MASTER_ADMIN_EMAIL
@@ -47,29 +60,8 @@ const seedMasterAdmin = () => {
 
 seedMasterAdmin()
 
-const getUserFromHeader = (req) => {
-  const auth = req.header('authorization') || ''
-  const [scheme, token] = auth.split(' ')
-  if (scheme !== 'Bearer' || !token) return null
-  try {
-    const payload = jwt.verify(token, jwtSecret)
-    return users.find((user) => user.id === payload.sub) || null
-  } catch {
-    return null
-  }
-}
-
-const requireRole = (roles) => (req, res, next) => {
-  const user = getUserFromHeader(req)
-  if (!user) {
-    return res.status(401).json({ message: 'Unauthorized' })
-  }
-  if (!roles.includes(user.role)) {
-    return res.status(403).json({ message: 'Forbidden' })
-  }
-  req.currentUser = user
-  return next()
-}
+const getUserById = (id) => users.find((user) => user.id === id) || null
+const { authenticate, requireRole } = buildAuth({ getUserById, jwtSecret })
 
 const canManageUser = (currentUser, targetUser) => {
   if (!currentUser || !targetUser) return false
@@ -271,11 +263,8 @@ app.get('/tournaments/:id/matches', (req, res) => {
   return res.json(list)
 })
 
-app.post('/matches/:id/team', (req, res) => {
-  const currentUser = getUserFromHeader(req)
-  if (!currentUser) {
-    return res.status(401).json({ message: 'Unauthorized' })
-  }
+app.post('/matches/:id/team', authenticate, (req, res) => {
+  const currentUser = req.currentUser
   const matchId = Number(req.params.id)
   if (Number.isNaN(matchId)) {
     return res.status(400).json({ message: 'Invalid match id' })
@@ -373,11 +362,8 @@ app.get('/users', requireRole(['admin', 'master_admin']), (req, res) => {
   )
 })
 
-app.patch('/users/:id', (req, res) => {
-  const currentUser = getUserFromHeader(req)
-  if (!currentUser) {
-    return res.status(401).json({ message: 'Unauthorized' })
-  }
+app.patch('/users/:id', authenticate, (req, res) => {
+  const currentUser = req.currentUser
   const userId = Number(req.params.id)
   if (Number.isNaN(userId)) {
     return res.status(400).json({ message: 'Invalid user id' })
@@ -428,7 +414,22 @@ app.patch('/users/:id', (req, res) => {
   })
 })
 
-app.listen(port, () => {
-  // eslint-disable-next-line no-console
-  console.log(`API listening on ${port}`)
+
+app.delete('/users/:id', requireRole(['master_admin']), (req, res) => {
+  const userId = Number(req.params.id)
+  if (Number.isNaN(userId)) {
+    return res.status(400).json({ message: 'Invalid user id' })
+  }
+  const index = users.findIndex((user) => user.id === userId)
+  if (index == -1) {
+    return res.status(404).json({ message: 'User not found' })
+  }
+  if (users[index].role === 'master_admin') {
+    return res.status(400).json({ message: 'Cannot delete master admin' })
+  }
+  const removed = users.splice(index, 1)[0]
+  return res.json({ id: removed.id, deleted: true })
 })
+
+
+export { app, resetStore }

@@ -6,6 +6,7 @@
 - [ ] Configure env variables list
 
 ## Phase 1 — Core Auth + Roles
+- [x] Refactor auth helpers into middleware
 - [x] Auth UI: register page
 - [x] Auth UI: login page
 - [x] Auth UI: pending approval page
@@ -16,6 +17,7 @@
 - [x] Roles: middleware guards for master/admin/user
 - [x] User management: search/list endpoint
 - [x] User management: update endpoint (self/admin/master)
+- [x] User management: delete endpoint (master only)
 
 ## Phase 2 — Tournaments + Matches
 - [x] Tournament selection (WC 2026, IPL 2026)
@@ -51,3 +53,4 @@
 - [ ] Rate limiting for auth endpoints
 - [ ] Admin audit log (promote/demote/score overrides)
 - [ ] Tests (API + basic UI smoke)
+- [x] API unit tests (auth/users)

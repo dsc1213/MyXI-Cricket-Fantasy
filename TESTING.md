@@ -73,6 +73,19 @@ curl -X POST http://localhost:4000/matches/1/team \
   -d '{"playingXi":["p1","p2","p3","p4","p5","p6","p7","p8","p9","p10","p11"],"backups":["b1","b2"]}'
 ```
 
+10) Delete user (master admin)
+```
+curl -X DELETE http://localhost:4000/users/2 \
+  -H "Authorization: Bearer <MASTER_TOKEN>"
+```
+
+## API unit tests
+
+```
+cd api
+npm test
+```
+
 ## UI smoke
 1) Start web
 ```
