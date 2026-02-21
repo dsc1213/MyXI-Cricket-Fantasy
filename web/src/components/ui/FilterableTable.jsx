@@ -1,0 +1,161 @@
+import { useMemo, useState } from 'react'
+
+function isSortablePrimitive(value) {
+  return (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  )
+}
+
+function normalizeSortValue(value) {
+  if (value == null) return ''
+  if (typeof value === 'string') return value.toLowerCase()
+  if (typeof value === 'boolean') return value ? 1 : 0
+  if (typeof value === 'number') return value
+  if (value instanceof Date) return value.getTime()
+  return String(value).toLowerCase()
+}
+
+function FilterableTable({
+  columns,
+  rows,
+  searchPlaceholder = 'Search...',
+  emptyText = 'No rows found',
+}) {
+  const [query, setQuery] = useState('')
+  const [sortState, setSortState] = useState({ key: '', direction: 'asc' })
+
+  const getColumnRawValue = (column, row, index) => {
+    if (typeof column.sortValue === 'function') return column.sortValue(row, index)
+    return row[column.key]
+  }
+
+  const isColumnSortable = (column, sourceRows) => {
+    if (column.sortable === false) return false
+    if (column.sortable === true) return true
+    const sample = sourceRows.find((row) => row != null)
+    if (!sample) return false
+    return isSortablePrimitive(getColumnRawValue(column, sample, 0))
+  }
+
+  const filteredRows = useMemo(() => {
+    const text = query.trim().toLowerCase()
+    if (!text) return rows
+    return rows.filter((row) => {
+      const source =
+        row.searchText ||
+        columns
+          .map((column) => {
+            if (typeof column.search === 'function') {
+              return column.search(row)
+            }
+            const value = row[column.key]
+            return value == null ? '' : String(value)
+          })
+          .join(' ')
+      return source.toLowerCase().includes(text)
+    })
+  }, [columns, query, rows])
+
+  const sortedRows = useMemo(() => {
+    if (!sortState.key) return filteredRows
+    const sortColumn = columns.find((column) => column.key === sortState.key)
+    if (!sortColumn) return filteredRows
+    const directionFactor = sortState.direction === 'asc' ? 1 : -1
+    return [...filteredRows]
+      .map((row, index) => ({
+        row,
+        index,
+        value: normalizeSortValue(getColumnRawValue(sortColumn, row, index)),
+      }))
+      .sort((a, b) => {
+        if (a.value === b.value) return a.index - b.index
+        return a.value > b.value ? directionFactor : -directionFactor
+      })
+      .map((item) => item.row)
+  }, [columns, filteredRows, sortState])
+
+  const onToggleSort = (column) => {
+    if (!isColumnSortable(column, filteredRows)) return
+    setSortState((prev) => {
+      if (prev.key !== column.key) return { key: column.key, direction: 'asc' }
+      return {
+        key: column.key,
+        direction: prev.direction === 'asc' ? 'desc' : 'asc',
+      }
+    })
+  }
+
+  return (
+    <div className="catalog-table-shell">
+      <div className="catalog-table-tools">
+        <input
+          type="text"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={searchPlaceholder}
+          aria-label={searchPlaceholder}
+        />
+        <small>{`${filteredRows.length} rows`}</small>
+      </div>
+
+      <div className="catalog-table-wrap">
+        <table className="catalog-table">
+          <thead>
+            <tr>
+              {columns.map((column) => {
+                const sortable = isColumnSortable(column, filteredRows)
+                const isActive = sortState.key === column.key
+                const icon = isActive
+                  ? sortState.direction === 'asc'
+                    ? '▲'
+                    : '▼'
+                  : '▲▼'
+                return (
+                  <th key={column.key}>
+                    {sortable ? (
+                      <button
+                        type="button"
+                        className={`table-sort-trigger ${isActive ? 'active' : ''}`.trim()}
+                        onClick={() => onToggleSort(column)}
+                      >
+                        <span>{column.label}</span>
+                        {!column.hideSortIcon && (
+                          <span className="table-sort-icon">{icon}</span>
+                        )}
+                      </button>
+                    ) : (
+                      <span>{column.label}</span>
+                    )}
+                  </th>
+                )
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {sortedRows.length ? (
+              sortedRows.map((row) => (
+                <tr key={row.id}>
+                  {columns.map((column) => (
+                    <td key={`${row.id}-${column.key}`}>
+                      {typeof column.render === 'function'
+                        ? column.render(row)
+                        : row[column.key]}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={columns.length}>{emptyText}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+export default FilterableTable

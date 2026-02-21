@@ -1,0 +1,62 @@
+/* Align right column height with team columns */
+.team-grid-2 {
+  align-items: stretch;
+}
+
+.right-column {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 100%;
+  gap: 0.6rem;
+}
+
+.myxi-card {
+  flex: 0 0 60%;
+  min-height: 0;
+}
+
+.backups-card {
+  flex: 1 1 40%;
+  min-height: 0;
+}
+
+.slot-chip.compact {
+  font-size: 0.64rem;
+  padding: 0.2rem 0.35rem;
+}
+
+.slot-chip.compact small {
+  font-size: 0.6rem;
+}
+
+.backup-chip.slot-chip.compact {
+  font-size: 0.64rem;
+  padding: 0.2rem 0.35rem;
+}
+
+.player-meta {
+  display: flex;
+  align-items: center;
+}
+
+.player-chip.slot-chip.compact {
+  background: rgba(15, 23, 42, 0.06);
+  text-align: left;
+  padding: 0.22rem 0.45rem;
+}
+
+.player-chip.slot-chip.compact span,
+.player-chip.slot-chip.compact small {
+  text-align: left;
+}
+
+.backup-chip.empty {
+  background: rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  font-size: 0.64rem;
+  padding: 0.24rem 0.45rem;
+  text-align: center;
+  display: grid;
+  place-items: center;
+}

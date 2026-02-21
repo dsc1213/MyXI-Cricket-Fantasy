@@ -4,8 +4,8 @@ function Pending() {
       <div className="pending-card">
         <h2>Approval pending</h2>
         <p>
-          Your request is with the master admin. You will be able to join
-          tournaments once approved.
+          Your request is with the master admin. You will be able to join tournaments once
+          approved.
         </p>
         <div className="pending-meta">
           <div>

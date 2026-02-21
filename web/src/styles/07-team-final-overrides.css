@@ -1,0 +1,265 @@
+/* Team page final visual/layout overrides */
+.app.app-team {
+  gap: 1rem;
+  padding: 1.2rem clamp(1rem, 2.2vw, 2.2rem) 1.1rem;
+}
+
+.app.app-team .main.main-team {
+  align-items: flex-start;
+  padding-top: 0.38rem;
+}
+
+.app.app-team .footer {
+  padding-top: 0.9rem;
+}
+
+.team-shell.premium-fit {
+  width: 100%;
+  padding: 0;
+  gap: 0.85rem;
+}
+
+.team-shell-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  min-height: 34px;
+}
+
+.team-grid-2.compact-fit {
+  grid-template-columns: 1fr 1fr 390px;
+  gap: 0.65rem;
+}
+
+.team-column {
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  box-shadow: var(--panel-shadow);
+}
+
+.team-column-header h3,
+.myxi-header h3,
+.backups-title h4,
+.team-bar-title {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
+
+.player-tile {
+  min-height: 48px;
+  padding: 0.4rem 0.56rem;
+  border-radius: 12px;
+  border: 1px solid var(--tile-border);
+  background: var(--tile-bg);
+  box-shadow: none;
+}
+
+.player-tile:hover {
+  border-color: var(--tile-hover-border);
+}
+
+.player-tile.selected {
+  background: var(--tile-selected-bg);
+  border-color: var(--tile-selected-border);
+}
+
+.player-tile.backup-selected {
+  background: var(--tile-backup-bg);
+  border-color: var(--tile-backup-border);
+}
+
+.player-chip.slot-chip.compact {
+  background: transparent;
+  box-shadow: none;
+  padding: 0.1rem 0.22rem;
+}
+
+.player-chip.slot-chip.compact span {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: capitalize;
+  color: var(--text-primary);
+}
+
+.player-chip.slot-chip.compact small {
+  font-size: 0.6rem;
+  color: var(--chip-subtext);
+}
+
+.player-chip.slot-chip.compact small .country-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  white-space: nowrap;
+}
+
+.player-chip.slot-chip.compact small .country-text > span {
+  display: inline;
+}
+
+.player-chip.slot-chip.compact small .country-text > span:first-child {
+  font-size: 0.58rem;
+  line-height: 1;
+}
+
+.player-chip.slot-chip.compact small .country-flag {
+  font-size: 0.66rem;
+}
+
+.team-column .player-chip.slot-chip.compact {
+  background: transparent;
+  border-color: transparent;
+}
+
+.tile-btn {
+  width: 25px;
+  height: 25px;
+  border-radius: 8px;
+  background: var(--tile-btn-bg);
+  color: var(--tile-btn-text);
+  border-color: var(--tile-btn-border);
+}
+
+@media (max-width: 900px) {
+  .team-shell-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+.tile-btn.backup {
+  border-style: solid;
+}
+
+.right-column {
+  gap: 0.45rem;
+}
+
+.myxi-card {
+  padding: 0.55rem 0.65rem;
+  background: var(--myxi-bg);
+  border-color: var(--panel-border);
+  box-shadow: var(--panel-shadow);
+}
+
+.myxi-meta {
+  margin-top: 0;
+  color: var(--text-muted);
+}
+
+.myxi-slots {
+  align-content: start;
+  gap: 0.22rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  justify-content: stretch;
+}
+
+.myxi-slots .player-chip.slot-chip.compact {
+  width: 100%;
+  min-width: 0;
+  background: var(--myxi-chip-bg);
+  border: 1px solid var(--myxi-chip-border);
+  border-radius: 10px;
+}
+
+.myxi-slots .player-chip.slot-chip.compact span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.backups-card .player-chip.slot-chip.compact span {
+  font-size: 0.62rem;
+  letter-spacing: 0.02em;
+}
+
+.backups-card .player-chip.slot-chip.compact small .country-text > span:first-child {
+  font-size: 0.56rem;
+}
+
+.backups-card {
+  padding: 0.55rem 0.65rem;
+  background: var(--backups-bg);
+  border-color: var(--panel-border);
+  box-shadow: var(--panel-shadow);
+}
+
+.team-bar {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--panel-shadow);
+}
+
+.team-bar-rules,
+.team-bar-divider,
+.backup-note,
+.empty {
+  color: var(--text-muted);
+}
+
+.count-pill {
+  background: var(--count-pill-bg);
+  color: var(--count-pill-text);
+}
+
+.badge.light {
+  background: var(--badge-light-bg);
+  color: var(--badge-light-text);
+}
+
+.brand-text span {
+  color: var(--brand-subtext);
+}
+
+.brand-mark {
+  background: var(--brand-mark-bg);
+}
+
+.logo-simple {
+  color: var(--logo-accent);
+}
+
+.nav-tabs {
+  background: var(--nav-tabs-bg);
+  box-shadow: var(--nav-tabs-shadow);
+}
+
+.nav-tabs .tab {
+  color: var(--nav-tab-color);
+}
+
+.nav-tabs .tab.active {
+  background: var(--nav-tab-active-bg);
+  color: var(--nav-tab-active-color);
+}
+
+.ghost {
+  border-color: var(--ghost-border);
+  color: var(--ghost-text);
+  background: transparent;
+}
+
+.show-mobile {
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+body.dark-theme .team-bar .show-mobile {
+  background: rgba(33, 49, 79, 0.92);
+  border-color: var(--panel-border);
+  color: var(--text-primary);
+}
+
+.footer {
+  color: var(--footer-text);
+  border-top-color: var(--footer-border);
+}
+
+@media (max-width: 900px) {
+  .app::before {
+    height: 13vh;
+  }
+}

@@ -1,0 +1,294 @@
+.loading-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.loading-dots span {
+  width: 0.38rem;
+  height: 0.38rem;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.35;
+  animation: loading-dot-pulse 1s ease-in-out infinite;
+}
+
+.loading-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.loading-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.loading-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.global-api-loader {
+  position: fixed;
+  top: 1rem;
+  right: 1.25rem;
+  z-index: 2100;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.42rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  background: rgba(255, 255, 255, 0.88);
+  color: rgba(15, 23, 42, 0.8);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(8px);
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.global-api-loader.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+body.dark-theme .global-api-loader {
+  border-color: rgba(202, 218, 241, 0.28);
+  background: rgba(30, 45, 74, 0.92);
+  color: rgba(231, 239, 250, 0.92);
+  box-shadow: 0 10px 24px rgba(8, 12, 24, 0.42);
+}
+
+@keyframes loading-dot-pulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.88);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.session-warning-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2300;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.25);
+  backdrop-filter: blur(2px);
+}
+
+.session-warning-card {
+  width: min(420px, calc(100vw - 2rem));
+  padding: 1rem 1.1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  background: #ffffff;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.25);
+}
+
+.session-warning-card h3 {
+  margin: 0;
+}
+
+.session-warning-card p {
+  margin: 0.45rem 0 0;
+}
+
+.session-warning-actions {
+  margin-top: 0.85rem;
+  display: flex;
+  gap: 0.55rem;
+  justify-content: flex-end;
+}
+
+body.dark-theme .session-warning-card {
+  border-color: rgba(177, 198, 232, 0.25);
+  background: #182641;
+  color: rgba(241, 246, 255, 0.95);
+}
+
+.cricket-route-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 2200;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 15% 0%, rgba(247, 201, 104, 0.22), transparent 46%),
+    radial-gradient(circle at 88% 8%, rgba(84, 127, 214, 0.2), transparent 46%),
+    rgba(246, 239, 224, 0.72);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+
+.cricket-route-loader.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.cricket-route-loader-card {
+  width: min(440px, calc(100vw - 2rem));
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.2);
+  padding: 0.95rem 1rem 0.9rem;
+  display: grid;
+  gap: 0.42rem;
+  text-align: center;
+}
+
+.cricket-route-loader-card p {
+  margin: 0;
+  color: rgba(15, 23, 42, 0.62);
+  font-size: 0.88rem;
+}
+
+.cricket-route-loader-scene {
+  position: relative;
+  height: 120px;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background:
+    linear-gradient(to top, rgba(97, 151, 84, 0.38) 0 34%, rgba(212, 185, 133, 0.5) 34% 100%);
+  overflow: hidden;
+}
+
+.cricket-route-loader-scene .pitch {
+  position: absolute;
+  left: 47%;
+  top: 10px;
+  width: 28px;
+  height: 100px;
+  transform: translateX(-50%);
+  border-radius: 8px;
+  background: rgba(238, 226, 196, 0.75);
+}
+
+.cricket-route-loader-scene .stump {
+  position: absolute;
+  bottom: 26px;
+  width: 6px;
+  height: 28px;
+  border-radius: 2px;
+  background: #f8efe0;
+}
+
+.cricket-route-loader-scene .stump-1 {
+  left: calc(50% - 12px);
+}
+
+.cricket-route-loader-scene .stump-2 {
+  left: calc(50% - 3px);
+}
+
+.cricket-route-loader-scene .stump-3 {
+  left: calc(50% + 6px);
+}
+
+.cricket-route-loader-scene .ball {
+  position: absolute;
+  left: 22px;
+  bottom: 28px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #d53220;
+  box-shadow: inset -1px -1px 0 rgba(255, 255, 255, 0.45);
+  animation: ball-bowl 0.95s ease-in-out infinite;
+}
+
+.cricket-route-loader-scene.mode-hit .batsman {
+  position: absolute;
+  right: 94px;
+  bottom: 26px;
+  width: 8px;
+  height: 30px;
+  border-radius: 4px;
+  background: #142640;
+}
+
+.cricket-route-loader-scene.mode-hit .bat {
+  position: absolute;
+  right: 74px;
+  bottom: 52px;
+  width: 22px;
+  height: 6px;
+  border-radius: 4px;
+  transform-origin: left center;
+  background: #91683e;
+  animation: bat-hit 0.95s ease-in-out infinite;
+}
+
+.cricket-route-loader-scene.mode-hit .ball {
+  animation: ball-hit 0.95s ease-in-out infinite;
+}
+
+body.dark-theme .cricket-route-loader {
+  background:
+    radial-gradient(circle at 15% 0%, rgba(247, 201, 104, 0.18), transparent 46%),
+    radial-gradient(circle at 88% 8%, rgba(84, 127, 214, 0.18), transparent 46%),
+    rgba(13, 22, 39, 0.72);
+}
+
+body.dark-theme .cricket-route-loader-card {
+  border-color: rgba(182, 203, 236, 0.32);
+  background: rgba(24, 38, 63, 0.9);
+  color: rgba(238, 246, 255, 0.95);
+  box-shadow: 0 18px 44px rgba(6, 10, 20, 0.48);
+}
+
+body.dark-theme .cricket-route-loader-card p {
+  color: rgba(219, 233, 251, 0.78);
+}
+
+@keyframes ball-bowl {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  78% {
+    transform: translate(172px, 0) scale(0.94);
+  }
+  88% {
+    transform: translate(180px, -4px) scale(0.9);
+  }
+  100% {
+    transform: translate(186px, 0) scale(0.88);
+  }
+}
+
+@keyframes bat-hit {
+  0%,
+  100% {
+    transform: rotate(-6deg);
+  }
+  44% {
+    transform: rotate(-32deg);
+  }
+  70% {
+    transform: rotate(-2deg);
+  }
+}
+
+@keyframes ball-hit {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  60% {
+    transform: translate(162px, 0) scale(0.95);
+  }
+  100% {
+    transform: translate(286px, -58px) scale(0.76);
+  }
+}

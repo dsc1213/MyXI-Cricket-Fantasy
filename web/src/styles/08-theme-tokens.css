@@ -1,0 +1,273 @@
+/* Shared page theming via centralized tokens */
+.hero-card,
+.auth-panel,
+.auth-aside,
+.pending-card,
+.team-card,
+.admin-card,
+.leaderboard-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--panel-shadow);
+}
+
+.eyebrow,
+.lead,
+.card-header,
+.stat-grid p,
+.card-footer,
+.team-note,
+.form label,
+.form-footer,
+.pending-card p,
+.pending-meta span,
+.leaderboard-row.header {
+  color: var(--text-muted);
+}
+
+.link-button {
+  color: var(--ghost-text);
+}
+
+.form input,
+.team-card textarea,
+.admin-card input,
+.admin-card select,
+.admin-card textarea {
+  background: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--input-text);
+}
+
+.admin-header select {
+  border-radius: 10px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--input-text);
+  padding: 0.35rem 0.55rem;
+}
+
+.form input::placeholder,
+.team-card textarea::placeholder,
+.admin-card input::placeholder,
+.admin-card textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.auth-aside,
+.pill-grid span,
+.leaderboard-row:not(.header) {
+  border-color: var(--panel-border);
+}
+
+.app.app-lower-content .auth-panel {
+  padding: 1.45rem;
+}
+
+.app.app-lower-content .auth-aside {
+  padding: 0.7rem 0.85rem;
+}
+
+.app.app-lower-content .auth-panel h2,
+.app.app-lower-content .pending-card h2,
+.app.app-lower-content .admin-header h2 {
+  margin: 0 0 0.35rem;
+  font-size: clamp(1.55rem, 2.4vw, 2rem);
+}
+
+.app.app-lower-content .lead {
+  font-size: 0.95rem;
+  max-width: 34rem;
+  margin-top: 0.25rem;
+}
+
+.app.app-lower-content .pending-card {
+  max-width: 440px;
+  padding: 1.7rem;
+  border-radius: 22px;
+}
+
+.app.app-lower-content .pending-meta {
+  margin: 1rem 0;
+}
+
+.app.app-lower-content .admin {
+  gap: 1.2rem;
+}
+
+.app.app-lower-content .admin-header {
+  align-items: center;
+}
+
+.app.app-lower-content .admin-grid {
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.8fr);
+  gap: 0.75rem;
+}
+
+.app.app-lower-content .admin-card {
+  padding: 0.7rem;
+  gap: 0.75rem;
+}
+
+.app.app-lower-content .admin-side-note {
+  max-height: 320px;
+  align-content: start;
+}
+
+.app.app-lower-content .admin-side-note p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.app.app-lower-content .leaderboard-card {
+  padding: 0.65rem;
+}
+
+.leaderboard-card .leaderboard-row:not(.header):nth-child(odd) {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.leaderboard-card .leaderboard-row:not(.header):nth-child(even) {
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.leaderboard-link {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  color: inherit;
+  font-weight: 600;
+}
+
+body.dark-theme .leaderboard-card .leaderboard-row:not(.header):nth-child(odd) {
+  background: rgba(26, 44, 72, 0.54);
+}
+
+body.dark-theme .leaderboard-card .leaderboard-row:not(.header):nth-child(even) {
+  background: rgba(41, 60, 94, 0.62);
+}
+
+.app.theme-dark .backup-chip.empty {
+  background: rgba(33, 49, 79, 0.88);
+  border: 1px solid var(--panel-border);
+  color: var(--text-muted);
+}
+
+@media (max-width: 900px) {
+  .app.app-lower-content .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app.app-lower-content .pending-card {
+    max-width: 100%;
+    padding: 1.3rem;
+  }
+}
+
+@media (min-width: 901px) {
+  .tile-grid.two-col {
+    margin-top: 0.6rem;
+  }
+}
+
+@media (max-height: 860px) and (min-width: 901px) {
+  .app.app-team {
+    padding-top: 0.9rem;
+    padding-bottom: 0.8rem;
+    gap: 0.75rem;
+  }
+
+  .app.app-team .footer {
+    font-size: 0.72rem;
+    padding-top: 0.65rem;
+  }
+
+  .team-bar {
+    padding: 0.35rem 0.65rem;
+  }
+
+  .team-column {
+    padding: 0.45rem;
+  }
+
+  .tile-grid.two-col {
+    gap: 0.28rem;
+  }
+
+  .player-tile {
+    min-height: 39px;
+    padding: 0.25rem 0.38rem;
+  }
+
+  .myxi-card,
+  .backups-card {
+    padding: 0.45rem 0.55rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .app.app-team .main.main-team {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 900px) {
+  .team-grid-2.compact-fit {
+    grid-template-columns: 1fr;
+  }
+
+  .tile-grid.two-col {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.35rem;
+  }
+
+  .player-chip.slot-chip.compact {
+    max-width: none;
+  }
+
+  .modal-card {
+    width: min(94vw, 460px);
+  }
+
+  .modal-body .myxi-slots {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+  }
+
+  .modal-body .backups-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .modal-body .player-chip.slot-chip.compact,
+  .modal-body .backup-chip.empty {
+    width: 100%;
+  }
+}
+
+@media (min-width: 901px) {
+  .right-column {
+    display: grid;
+    grid-template-rows: 60% 40%;
+  }
+
+  .right-column .myxi-card {
+    position: static !important;
+    inset: auto !important;
+    transform: none !important;
+    max-height: none;
+    overflow: hidden;
+    display: grid;
+  }
+
+  .right-column .backups-card {
+    max-height: none;
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 1250px) and (min-width: 901px) {
+  .team-grid-2.compact-fit {
+    grid-template-columns: 1fr 1fr minmax(300px, 330px);
+    gap: 0.45rem;
+  }
+}

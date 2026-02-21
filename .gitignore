@@ -23,3 +23,17 @@ web/.vite/
 # Logs
 logs/
 *.log
+
+# Local docs (not for commit)
+ARCHITECTURE.md
+FLOWS.md
+UI_EXPECTATIONS.md
+/mocks/
+api/mocks/mock-state.json
+api/mocks/state/
+api/mocks/mockData.js
+api/mocks/mockStateStore.js
+web/src/data/mockData.js
+
+# Workspace settings
+.vscode/
