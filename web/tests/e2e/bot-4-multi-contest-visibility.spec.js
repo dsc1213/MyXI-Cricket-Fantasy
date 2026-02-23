@@ -23,7 +23,7 @@ test.describe('4) Multi-contest visibility', () => {
       for (const bot of bots) await deleteUserIfPresent(request, bot.gameName)
       for (const bot of bots) await registerAndActivateBot(request, bot)
 
-      const tournaments = await apiCall(request, 'GET', '/mock/tournaments', undefined, 200)
+      const tournaments = await apiCall(request, 'GET', '/tournaments', undefined, 200)
       const selectedTournaments = (tournaments || []).slice(0, 3)
       expect(selectedTournaments.length).toBe(3)
 
@@ -55,7 +55,7 @@ test.describe('4) Multi-contest visibility', () => {
         const contestMatches = await apiCall(
           request,
           'GET',
-          `/mock/contests/${contest.contestId}/matches?userId=${gameName}`,
+          `/contests/${contest.contestId}/matches?userId=${gameName}`,
           undefined,
           200,
         )
@@ -63,7 +63,7 @@ test.describe('4) Multi-contest visibility', () => {
         const board = await apiCall(
           request,
           'GET',
-          `/mock/contests/${contest.contestId}/leaderboard`,
+          `/contests/${contest.contestId}/leaderboard`,
           undefined,
           200,
         )
@@ -72,7 +72,7 @@ test.describe('4) Multi-contest visibility', () => {
         const participants = await apiCall(
           request,
           'GET',
-          `/mock/contests/${contest.contestId}/participants?matchId=${activeMatchId}&userId=master`,
+          `/contests/${contest.contestId}/participants?matchId=${activeMatchId}&userId=master`,
           undefined,
           200,
         )

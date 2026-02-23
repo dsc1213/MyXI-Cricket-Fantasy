@@ -25,6 +25,7 @@ logs/
 *.log
 
 # Local docs (not for commit)
+AGENTS.md
 ARCHITECTURE.md
 FLOWS.md
 UI_EXPECTATIONS.md

@@ -122,6 +122,7 @@ function ParticipantsCard({
         rows={participants}
         rowKey={(row) => row.id}
         emptyText="No participants found"
+        showEmptyRow={false}
         wrapperClassName="participants-table-wrap"
         tableClassName="participants-table"
       />

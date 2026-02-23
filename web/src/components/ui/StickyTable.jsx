@@ -24,6 +24,7 @@ function StickyTable({
   rowClassName = '',
   onRowClick,
   emptyText = 'No rows',
+  showEmptyRow = true,
   wrapperClassName = '',
   tableClassName = '',
 }) {
@@ -124,9 +125,11 @@ function StickyTable({
               </tr>
             ))
           ) : (
-            <tr>
-              <td colSpan={columns.length}>{emptyText}</td>
-            </tr>
+            showEmptyRow ? (
+              <tr>
+                <td colSpan={columns.length}>{emptyText}</td>
+              </tr>
+            ) : null
           )}
         </tbody>
       </table>

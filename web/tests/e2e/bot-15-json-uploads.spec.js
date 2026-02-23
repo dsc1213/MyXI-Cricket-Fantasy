@@ -7,7 +7,7 @@ const createTournamentViaApi = async ({ request, tournamentId, name }) =>
   apiCall(
     request,
     'POST',
-    '/mock/admin/tournaments',
+    '/admin/tournaments',
     {
       actorUserId: 'master',
       tournamentId,
@@ -85,7 +85,7 @@ test.describe('15) JSON uploads and UI validation', () => {
         page.locator(`.catalog-table tbody input[value="json-player-b-${tag}"]`),
       ).toBeVisible()
     } finally {
-      await request.fetch(`http://127.0.0.1:4000/mock/admin/team-squads/${teamCode}`, {
+      await request.fetch(`http://127.0.0.1:4000/admin/team-squads/${teamCode}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         data: { actorUserId: 'master' },
@@ -139,7 +139,7 @@ test.describe('15) JSON uploads and UI validation', () => {
       await page.getByRole('button', { name: 'Save tournament' }).click()
       await expect(page.getByRole('button', { name: 'Admin Manager' })).toBeVisible()
 
-      const catalog = await apiCall(request, 'GET', '/mock/admin/tournaments/catalog', undefined, 200)
+      const catalog = await apiCall(request, 'GET', '/admin/tournaments/catalog', undefined, 200)
       expect((catalog || []).some((row) => row.id === tournamentId)).toBe(true)
 
       await page.goto('/home')
@@ -150,7 +150,7 @@ test.describe('15) JSON uploads and UI validation', () => {
       await page.goto('/fantasy')
       await expect(page.getByText(tournamentName)).toBeVisible()
     } finally {
-      await request.fetch(`http://127.0.0.1:4000/mock/admin/tournaments/${tournamentId}`, {
+      await request.fetch(`http://127.0.0.1:4000/admin/tournaments/${tournamentId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         data: { actorUserId: 'master' },
@@ -177,7 +177,7 @@ test.describe('15) JSON uploads and UI validation', () => {
       const contest = await apiCall(
         request,
         'POST',
-        '/mock/admin/contests',
+        '/admin/contests',
         {
           name: contestName,
           tournamentId,
@@ -207,13 +207,13 @@ test.describe('15) JSON uploads and UI validation', () => {
       await expect(page.locator('.catalog-table tbody tr', { hasText: contestName })).toBeVisible()
     } finally {
       if (contestId) {
-        await request.fetch(`http://127.0.0.1:4000/mock/admin/contests/${contestId}`, {
+        await request.fetch(`http://127.0.0.1:4000/admin/contests/${contestId}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           data: { actorUserId: 'master' },
         })
       }
-      await request.fetch(`http://127.0.0.1:4000/mock/admin/tournaments/${tournamentId}`, {
+      await request.fetch(`http://127.0.0.1:4000/admin/tournaments/${tournamentId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         data: { actorUserId: 'master' },
@@ -228,14 +228,14 @@ test.describe('15) JSON uploads and UI validation', () => {
     const beforeStats = await apiCall(
       request,
       'GET',
-      '/mock/player-stats?tournamentId=t20wc-2026',
+      '/player-stats?tournamentId=t20wc-2026',
       undefined,
       200,
     )
     const beforeLeaderboard = await apiCall(
       request,
       'GET',
-      '/mock/contests/huntercherry/leaderboard',
+      '/contests/huntercherry/leaderboard',
       undefined,
       200,
     )
@@ -275,7 +275,7 @@ test.describe('15) JSON uploads and UI validation', () => {
     const afterStats = await apiCall(
       request,
       'GET',
-      '/mock/player-stats?tournamentId=t20wc-2026',
+      '/player-stats?tournamentId=t20wc-2026',
       undefined,
       200,
     )
@@ -287,7 +287,7 @@ test.describe('15) JSON uploads and UI validation', () => {
     const afterLeaderboard = await apiCall(
       request,
       'GET',
-      '/mock/contests/huntercherry/leaderboard',
+      '/contests/huntercherry/leaderboard',
       undefined,
       200,
     )

@@ -6,6 +6,8 @@ let resetStore
 
 beforeAll(async () => {
   process.env.NODE_ENV = 'test'
+  process.env.MOCK_API = 'true'
+  process.env.DB_PROVIDER = 'mock'
   process.env.MASTER_ADMIN_EMAIL = 'master@myxi.local'
   process.env.MASTER_ADMIN_PASSWORD = 'demo123'
   process.env.MASTER_ADMIN_NAME = 'Master Admin'
@@ -29,7 +31,7 @@ describe('WCT20 mock consistency', () => {
     includePlayerNames = [],
   }) => {
     const teamPoolRes = await request(app).get(
-      `/mock/team-pool?contestId=${contestId}&matchId=${matchId}&userId=${userId}`,
+      `/team-pool?contestId=${contestId}&matchId=${matchId}&userId=${userId}&actorUserId=${userId}`,
     )
     expect(teamPoolRes.status).toBe(200)
     const allPlayers = [
@@ -43,10 +45,11 @@ describe('WCT20 mock consistency', () => {
       new Set([...includeIds, ...allPlayers.map((player) => player.id)]),
     ).slice(0, 11)
     expect(playingXi.length).toBe(11)
-    const saveRes = await request(app).post('/mock/team-selection/save').send({
+    const saveRes = await request(app).post('/team-selection/save').send({
       contestId,
       matchId,
       userId,
+      actorUserId: userId,
       playingXi,
       backups: [],
     })
@@ -62,9 +65,9 @@ describe('WCT20 mock consistency', () => {
     })
 
     const participantsRes = await request(app).get(
-      '/mock/contests/huntercherry/participants?matchId=m1',
+      '/contests/huntercherry/participants?matchId=m1',
     )
-    const leaderboardRes = await request(app).get('/mock/contests/huntercherry/leaderboard')
+    const leaderboardRes = await request(app).get('/contests/huntercherry/leaderboard')
 
     expect(participantsRes.status).toBe(200)
     expect(leaderboardRes.status).toBe(200)
@@ -83,7 +86,7 @@ describe('WCT20 mock consistency', () => {
   })
 
   it('shows non-zero leaderboard totals for completed contests even before manual score upload', async () => {
-    const matchesRes = await request(app).get('/mock/contests/ipl-last-over/matches?userId=kiran11')
+    const matchesRes = await request(app).get('/contests/ipl-last-over/matches?userId=kiran11')
     expect(matchesRes.status).toBe(200)
     const firstMatchId = (matchesRes.body || [])[0]?.id
     expect(firstMatchId).toBeTruthy()
@@ -94,7 +97,7 @@ describe('WCT20 mock consistency', () => {
       includePlayerNames: ['Virat Kohli'],
     })
 
-    const leaderboardRes = await request(app).get('/mock/contests/ipl-last-over/leaderboard')
+    const leaderboardRes = await request(app).get('/contests/ipl-last-over/leaderboard')
     expect(leaderboardRes.status).toBe(200)
     const rows = leaderboardRes.body.rows || []
     expect(rows.length).toBeGreaterThan(0)
@@ -103,14 +106,14 @@ describe('WCT20 mock consistency', () => {
 
   it('keeps no-team participant points in sync with empty eye preview', async () => {
     const matchesRes = await request(app).get(
-      '/mock/contests/huntercherry/matches?userId=master',
+      '/contests/huntercherry/matches?userId=master',
     )
     expect(matchesRes.status).toBe(200)
     const noTeamMatch = (matchesRes.body || []).find((row) => !row.hasTeam)
     expect(noTeamMatch).toBeTruthy()
 
     const participantsRes = await request(app).get(
-      `/mock/contests/huntercherry/participants?matchId=${noTeamMatch.id}&userId=master`,
+      `/contests/huntercherry/participants?matchId=${noTeamMatch.id}&userId=master`,
     )
     expect(participantsRes.status).toBe(200)
     const masterRow = (participantsRes.body.participants || []).find(
@@ -119,7 +122,7 @@ describe('WCT20 mock consistency', () => {
     expect(masterRow).toBeFalsy()
 
     const picksRes = await request(app).get(
-      `/mock/users/master/picks?tournamentId=t20wc-2026&contestId=huntercherry&matchId=${noTeamMatch.id}`,
+      `/users/master/picks?tournamentId=t20wc-2026&contestId=huntercherry&matchId=${noTeamMatch.id}`,
     )
     expect(picksRes.status).toBe(200)
     expect(Array.isArray(picksRes.body.picksDetailed)).toBe(true)
@@ -132,7 +135,7 @@ describe('WCT20 mock consistency', () => {
     const userId = 'master'
 
     const matchesRes = await request(app).get(
-      `/mock/contests/${contestId}/matches?team=IND&status=all&userId=${userId}`,
+      `/contests/${contestId}/matches?team=IND&status=all&userId=${userId}`,
     )
     expect(matchesRes.status).toBe(200)
     const selectedMatches = (matchesRes.body || []).slice(0, 3)
@@ -142,7 +145,7 @@ describe('WCT20 mock consistency', () => {
 
     const saveXi = async (matchId, extraNames = []) => {
       const teamPoolRes = await request(app).get(
-        `/mock/team-pool?contestId=${contestId}&matchId=${matchId}&userId=${userId}`,
+        `/team-pool?contestId=${contestId}&matchId=${matchId}&userId=${userId}&actorUserId=${userId}`,
       )
       expect(teamPoolRes.status).toBe(200)
       const allPlayers = [
@@ -157,10 +160,11 @@ describe('WCT20 mock consistency', () => {
         11,
       )
       expect(xiIds.length).toBe(11)
-      const saveRes = await request(app).post('/mock/team-selection/save').send({
+      const saveRes = await request(app).post('/team-selection/save').send({
         contestId,
         matchId,
         userId,
+        actorUserId: userId,
         playingXi: xiIds,
         backups: [],
       })
@@ -172,7 +176,7 @@ describe('WCT20 mock consistency', () => {
     await saveXi(m3.id, ['Suryakumar Yadav'])
 
     const applyScore = async (matchId, playerStats) => {
-      const scoreRes = await request(app).post('/mock/admin/match-scores/upsert').send({
+      const scoreRes = await request(app).post('/admin/match-scores/upsert').send({
         tournamentId,
         contestId,
         matchId,
@@ -221,7 +225,7 @@ describe('WCT20 mock consistency', () => {
 
     const verifyMatchConsistency = async (matchId) => {
       const participantsRes = await request(app).get(
-        `/mock/contests/${contestId}/participants?matchId=${matchId}&userId=${userId}`,
+        `/contests/${contestId}/participants?matchId=${matchId}&userId=${userId}`,
       )
       expect(participantsRes.status).toBe(200)
       const masterParticipant = (participantsRes.body?.participants || []).find(
@@ -230,7 +234,7 @@ describe('WCT20 mock consistency', () => {
       expect(masterParticipant).toBeTruthy()
 
       const picksRes = await request(app).get(
-        `/mock/users/${userId}/picks?tournamentId=${tournamentId}&contestId=${contestId}&matchId=${matchId}`,
+        `/users/${userId}/picks?tournamentId=${tournamentId}&contestId=${contestId}&matchId=${matchId}`,
       )
       expect(picksRes.status).toBe(200)
       const eyeTotal = (picksRes.body?.picksDetailed || []).reduce(
@@ -248,18 +252,18 @@ describe('WCT20 mock consistency', () => {
     expect(m2Total).toBeGreaterThan(0)
     expect(m3Total).toBeGreaterThan(0)
 
-    const statsRes = await request(app).get(`/mock/player-stats?tournamentId=${tournamentId}`)
+    const statsRes = await request(app).get(`/player-stats?tournamentId=${tournamentId}`)
     expect(statsRes.status).toBe(200)
     const skyRow = (statsRes.body || []).find((row) => row.name === 'Suryakumar Yadav')
     expect(skyRow).toBeTruthy()
     const expectedSkyPointsFromMatches = 20 + 2 + 2 + 40 + 3 + 4 + 3
     expect(Number(skyRow.points || 0)).toBe(expectedSkyPointsFromMatches)
 
-    const leaderboardRes = await request(app).get(`/mock/contests/${contestId}/leaderboard`)
+    const leaderboardRes = await request(app).get(`/contests/${contestId}/leaderboard`)
     expect(leaderboardRes.status).toBe(200)
     const leaderboardRows = leaderboardRes.body?.rows || []
     const participantsForM1Res = await request(app).get(
-      `/mock/contests/${contestId}/participants?matchId=${m1.id}&userId=${userId}`,
+      `/contests/${contestId}/participants?matchId=${m1.id}&userId=${userId}`,
     )
     expect(participantsForM1Res.status).toBe(200)
     const participantRows = participantsForM1Res.body?.participants || []
@@ -273,7 +277,7 @@ describe('WCT20 mock consistency', () => {
     expect(leaderboardSharedUser).toBeTruthy()
 
     const matchScoresRes = await request(app).get(
-      `/mock/contests/${contestId}/users/${sharedUser.userId}/match-scores`,
+      `/contests/${contestId}/users/${sharedUser.userId}/match-scores`,
     )
     expect(matchScoresRes.status).toBe(200)
     const matchScoreTotal = (matchScoresRes.body?.rows || []).reduce(
@@ -285,7 +289,7 @@ describe('WCT20 mock consistency', () => {
 
   it('returns match-specific country squads for team pool', async () => {
     const m1Res = await request(app).get(
-      '/mock/team-pool?contestId=huntercherry&matchId=m1&userId=rahul-xi',
+      '/team-pool?contestId=huntercherry&matchId=m1&userId=kiran11&actorUserId=kiran11',
     )
     expect(m1Res.status).toBe(200)
     expect(m1Res.body.activeMatch.home).toBe('IND')
@@ -296,7 +300,7 @@ describe('WCT20 mock consistency', () => {
     expect(m1Res.body.teams.teamB.players.some((player) => player.name === 'Monank Patel')).toBe(true)
 
     const m7Res = await request(app).get(
-      '/mock/team-pool?contestId=huntercherry&matchId=m11&userId=rahul-xi',
+      '/team-pool?contestId=huntercherry&matchId=m11&userId=kiran11&actorUserId=kiran11',
     )
     expect(m7Res.status).toBe(200)
     expect(m7Res.body.activeMatch.home).toBe('AUS')
@@ -317,14 +321,14 @@ describe('WCT20 mock consistency', () => {
     })
 
     const beforeRes = await request(app).get(
-      `/mock/contests/huntercherry/users/${targetUserId}/match-scores`,
+      `/contests/huntercherry/users/${targetUserId}/match-scores`,
     )
     expect(beforeRes.status).toBe(200)
     const beforeM1 = (beforeRes.body.rows || []).find((row) => row.matchId === 'm1')
     expect(beforeM1).toBeTruthy()
 
     const upsertRes = await request(app)
-      .post('/mock/admin/match-scores/upsert')
+      .post('/admin/match-scores/upsert')
       .send({
         tournamentId: 't20wc-2026',
         contestId: 'huntercherry',
@@ -360,7 +364,7 @@ describe('WCT20 mock consistency', () => {
     expect(upsertRes.status).toBe(200)
 
     const afterRes = await request(app).get(
-      `/mock/contests/huntercherry/users/${targetUserId}/match-scores`,
+      `/contests/huntercherry/users/${targetUserId}/match-scores`,
     )
     expect(afterRes.status).toBe(200)
     const afterM1 = (afterRes.body.rows || []).find((row) => row.matchId === 'm1')
@@ -369,7 +373,7 @@ describe('WCT20 mock consistency', () => {
   }, 20000)
 
   it('publishes wide WCT20 player stats pool across squads', async () => {
-    const res = await request(app).get('/mock/player-stats?tournamentId=t20wc-2026')
+    const res = await request(app).get('/player-stats?tournamentId=t20wc-2026')
     expect(res.status).toBe(200)
     const rows = res.body || []
     expect(rows.length).toBeGreaterThanOrEqual(280)
@@ -459,12 +463,12 @@ describe('WCT20 mock consistency', () => {
       },
     }
 
-    const upsertRes = await request(app).post('/mock/admin/match-lineups/upsert').send(validPayload)
+    const upsertRes = await request(app).post('/admin/match-lineups/upsert').send(validPayload)
     expect(upsertRes.status).toBe(200)
     expect(upsertRes.body.ok).toBe(true)
 
     const fetchRes = await request(app).get(
-      '/mock/admin/match-lineups/t20wc-2026/m1?contestId=huntercherry',
+      '/admin/match-lineups/t20wc-2026/m1?contestId=huntercherry',
     )
     expect(fetchRes.status).toBe(200)
     expect(fetchRes.body.saved).toBeTruthy()
@@ -549,7 +553,7 @@ describe('WCT20 mock consistency', () => {
       },
     }
 
-    const res = await request(app).post('/mock/admin/match-lineups/upsert').send(invalidPayload)
+    const res = await request(app).post('/admin/match-lineups/upsert').send(invalidPayload)
     expect(res.status).toBe(400)
     expect(res.body.message).toContain('is not in squad')
   })

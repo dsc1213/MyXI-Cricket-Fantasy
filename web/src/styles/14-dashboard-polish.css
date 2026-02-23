@@ -474,6 +474,31 @@
   min-width: 0;
 }
 
+.manual-entry-layout.empty {
+  grid-template-rows: auto;
+  height: auto;
+}
+
+.manual-empty-state {
+  border: 1px dashed var(--input-border);
+  border-radius: 12px;
+  padding: 0.7rem 0.8rem;
+  display: grid;
+  gap: 0.2rem;
+  width: 100%;
+  max-width: 560px;
+  background: color-mix(in oklab, var(--panel-bg) 88%, transparent);
+}
+
+.manual-empty-state strong {
+  font-size: 0.85rem;
+}
+
+.manual-empty-state span {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
 .manual-team-tabs {
   display: inline-flex;
   gap: 0.35rem;

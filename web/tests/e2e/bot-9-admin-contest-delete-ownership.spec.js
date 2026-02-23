@@ -39,7 +39,7 @@ test.describe('9) Admin contest delete ownership', () => {
       contestId = contest.id
 
       const forbiddenDelete = await request.fetch(
-        `http://127.0.0.1:4000/mock/admin/contests/${contestId}`,
+        `http://127.0.0.1:4000/admin/contests/${contestId}`,
         {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
@@ -51,7 +51,7 @@ test.describe('9) Admin contest delete ownership', () => {
       await apiCall(
         request,
         'DELETE',
-        `/mock/admin/contests/${contestId}`,
+        `/admin/contests/${contestId}`,
         { actorUserId: 'admin' },
         200,
       )
@@ -59,7 +59,7 @@ test.describe('9) Admin contest delete ownership', () => {
       const verifyGone = await apiCall(
         request,
         'GET',
-        `/mock/admin/contests/catalog?tournamentId=t20wc-2026`,
+        `/admin/contests/catalog?tournamentId=t20wc-2026`,
         undefined,
         200,
       )

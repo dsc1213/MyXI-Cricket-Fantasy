@@ -25,23 +25,37 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
-      'no-restricted-syntax': [
+      'max-len': [
         'warn',
         {
-          selector: "JSXOpeningElement[name.name='button']",
-          message: 'Use reusable `Button` component instead of native <button>.',
-        },
-        {
-          selector: "JSXOpeningElement[name.name='select']",
-          message: 'Use reusable `SelectField` component instead of native <select>.',
+          code: 100,
+          ignoreUrls: true,
+          ignoreStrings: true,
+          ignoreTemplateLiterals: true,
+          ignoreRegExpLiterals: true,
         },
       ],
+      'max-lines': [
+        'warn',
+        {
+          max: 500,
+          skipBlankLines: true,
+          skipComments: true,
+        },
+      ],
+      'no-restricted-syntax': 'off',
     },
   },
   {
-    files: ['src/components/ui/**/*.{js,jsx}'],
+    files: [
+      'src/lib/api.js',
+      'src/pages/Dashboard.jsx',
+      'src/pages/FantasyHub.jsx',
+      'src/pages/dashboard/AdminManagerPanel.jsx',
+      'src/pages/dashboard/SquadManagerPanel.jsx',
+    ],
     rules: {
-      'no-restricted-syntax': 'off',
+      'max-lines': 'off',
     },
   },
   prettier,

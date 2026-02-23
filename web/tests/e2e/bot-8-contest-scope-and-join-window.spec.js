@@ -26,7 +26,7 @@ test.describe('8) Contest scope and join window rules', () => {
       const options = await apiCall(
         request,
         'GET',
-        '/mock/admin/contest-match-options?tournamentId=t20wc-2026',
+        '/admin/contest-match-options?tournamentId=t20wc-2026',
         undefined,
         200,
       )
@@ -50,21 +50,21 @@ test.describe('8) Contest scope and join window rules', () => {
       await apiCall(
         request,
         'POST',
-        '/mock/admin/contests/sync',
+        '/admin/contests/sync',
         { tournamentId: 't20wc-2026', enabledIds: [openContestId, 'huntercherry'] },
         200,
       )
       await apiCall(
         request,
         'DELETE',
-        `/mock/admin/contests/${openContestId}`,
+        `/admin/contests/${openContestId}`,
         { actorUserId: 'master' },
         200,
       )
       const recreatedOpen = await apiCall(
         request,
         'POST',
-        '/mock/admin/contests',
+        '/admin/contests',
         {
           name: `bot-scope-open-${Date.now()}`,
           tournamentId: 't20wc-2026',
@@ -81,7 +81,7 @@ test.describe('8) Contest scope and join window rules', () => {
       await apiCall(
         request,
         'POST',
-        `/mock/contests/${openContestId}/join`,
+        `/contests/${openContestId}/join`,
         { userId: bot.gameName },
         200,
       )
@@ -89,7 +89,7 @@ test.describe('8) Contest scope and join window rules', () => {
       const scopedMatches = await apiCall(
         request,
         'GET',
-        `/mock/contests/${openContestId}/matches?userId=${bot.gameName}`,
+        `/contests/${openContestId}/matches?userId=${bot.gameName}`,
         undefined,
         200,
       )
@@ -106,7 +106,7 @@ test.describe('8) Contest scope and join window rules', () => {
       await apiCall(
         request,
         'POST',
-        '/mock/admin/contests',
+        '/admin/contests',
         {
           name: `bot-scope-closed-${Date.now()}`,
           tournamentId: 't20wc-2026',

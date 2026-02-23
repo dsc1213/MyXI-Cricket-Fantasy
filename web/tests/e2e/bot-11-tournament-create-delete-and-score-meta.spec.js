@@ -23,7 +23,7 @@ test.describe('11) Tournament CRUD and score metadata', () => {
       const createTournament = await apiCall(
         request,
         'POST',
-        '/mock/admin/tournaments',
+        '/admin/tournaments',
         {
           actorUserId: 'master',
           tournamentId,
@@ -59,7 +59,7 @@ test.describe('11) Tournament CRUD and score metadata', () => {
       const createdContest = await apiCall(
         request,
         'POST',
-        '/mock/admin/contests',
+        '/admin/contests',
         {
           name: `Bot Contest ${Date.now()}`,
           tournamentId,
@@ -77,7 +77,7 @@ test.describe('11) Tournament CRUD and score metadata', () => {
       await apiCall(
         request,
         'POST',
-        `/mock/contests/${contestId}/join`,
+        `/contests/${contestId}/join`,
         { userId: bot.gameName },
         200,
       )
@@ -85,7 +85,7 @@ test.describe('11) Tournament CRUD and score metadata', () => {
       const saveScore = await apiCall(
         request,
         'POST',
-        '/mock/admin/match-scores/upsert',
+        '/admin/match-scores/upsert',
         {
           tournamentId,
           contestId,
@@ -110,7 +110,7 @@ test.describe('11) Tournament CRUD and score metadata', () => {
       const contests = await apiCall(
         request,
         'GET',
-        `/mock/contests?game=Fantasy&tournamentId=${tournamentId}&userId=master`,
+        `/contests?game=Fantasy&tournamentId=${tournamentId}&userId=master`,
         undefined,
         200,
       )
@@ -121,7 +121,7 @@ test.describe('11) Tournament CRUD and score metadata', () => {
       const deleteTournament = await apiCall(
         request,
         'DELETE',
-        `/mock/admin/tournaments/${tournamentId}`,
+        `/admin/tournaments/${tournamentId}`,
         { actorUserId: 'master' },
         200,
       )
@@ -130,7 +130,7 @@ test.describe('11) Tournament CRUD and score metadata', () => {
       const catalogAfter = await apiCall(
         request,
         'GET',
-        '/mock/admin/tournaments/catalog',
+        '/admin/tournaments/catalog',
         undefined,
         200,
       )
@@ -138,13 +138,13 @@ test.describe('11) Tournament CRUD and score metadata', () => {
     } finally {
       await deleteUserIfPresent(request, bot.gameName)
       if (contestId) {
-        await request.fetch(`http://127.0.0.1:4000/mock/admin/contests/${contestId}`, {
+        await request.fetch(`http://127.0.0.1:4000/admin/contests/${contestId}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           data: { actorUserId: 'master' },
         })
       }
-      await request.fetch(`http://127.0.0.1:4000/mock/admin/tournaments/${tournamentId}`, {
+      await request.fetch(`http://127.0.0.1:4000/admin/tournaments/${tournamentId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         data: { actorUserId: 'master' },

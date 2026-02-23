@@ -28,7 +28,7 @@ test.describe('6) Contest manager score update', () => {
       for (const bot of bots) await deleteUserIfPresent(request, bot.gameName)
       for (const bot of bots) await registerAndActivateBot(request, bot)
 
-      const tournaments = await apiCall(request, 'GET', '/mock/tournaments', undefined, 200)
+      const tournaments = await apiCall(request, 'GET', '/tournaments', undefined, 200)
       tournamentId = tournaments[0].id
       const contest = await createContest({
         request,
@@ -51,7 +51,7 @@ test.describe('6) Contest manager score update', () => {
       await expect(page.getByRole('button', { name: 'Score Updates' })).toBeVisible()
       await expect(page.getByRole('button', { name: 'Admin Manager' })).toHaveCount(0)
 
-      const scopedOk = await request.fetch('http://127.0.0.1:4000/mock/admin/match-scores/upsert', {
+      const scopedOk = await request.fetch('http://127.0.0.1:4000/admin/match-scores/upsert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         data: {
@@ -64,7 +64,7 @@ test.describe('6) Contest manager score update', () => {
       })
       expect(scopedOk.status()).toBe(200)
 
-      const forbidden = await request.fetch('http://127.0.0.1:4000/mock/admin/match-scores/upsert', {
+      const forbidden = await request.fetch('http://127.0.0.1:4000/admin/match-scores/upsert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         data: {
@@ -78,11 +78,11 @@ test.describe('6) Contest manager score update', () => {
       expect(forbidden.status()).toBe(403)
 
       await patchUserByGameName(request, abc.gameName, { role: 'admin' }, masterActorUserId)
-      const abcUser = await apiCall(request, 'GET', '/mock/admin/users', undefined, 200)
+      const abcUser = await apiCall(request, 'GET', '/admin/users', undefined, 200)
       const targetCde = (abcUser || []).find((u) => u.gameName === cde.gameName)
 
       const promoteAttempt = await request.fetch(
-        `http://127.0.0.1:4000/mock/admin/users/${targetCde.id}`,
+        `http://127.0.0.1:4000/admin/users/${targetCde.id}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },

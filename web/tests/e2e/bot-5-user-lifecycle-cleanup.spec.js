@@ -32,7 +32,7 @@ test.describe('5) User lifecycle cleanup', () => {
       const options = await apiCall(
         request,
         'GET',
-        `/mock/admin/contest-match-options?tournamentId=${tournamentId}`,
+        `/admin/contest-match-options?tournamentId=${tournamentId}`,
         undefined,
         200,
       )
@@ -44,7 +44,7 @@ test.describe('5) User lifecycle cleanup', () => {
       const contest = await apiCall(
         request,
         'POST',
-        '/mock/admin/contests',
+        '/admin/contests',
         {
           name: `bot-cleanup-${Date.now()}`,
           tournamentId,
@@ -61,7 +61,7 @@ test.describe('5) User lifecycle cleanup', () => {
       await apiCall(
         request,
         'POST',
-        `/mock/contests/${contestId}/join`,
+        `/contests/${contestId}/join`,
         { userId: bot.gameName },
         200,
       )
@@ -75,7 +75,7 @@ test.describe('5) User lifecycle cleanup', () => {
       await apiCall(
         request,
         'DELETE',
-        `/mock/admin/users/${target.id}`,
+        `/admin/users/${target.id}`,
         { actorUserId },
         200,
       )

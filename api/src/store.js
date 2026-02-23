@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs'
-import { flowSeedMatchScores, mockUsers } from '../mocks/mockData.js'
+import { getSeedUsers, getSeedMatchScores } from './services/seedStore.service.js'
 
 const users = []
 let nextUserId = 1
@@ -66,8 +66,8 @@ const seedMasterAdmin = () => {
   })
 }
 
-const seedMockUsers = () => {
-  mockUsers.forEach((item) => {
+const seedInitialUsers = () => {
+  getSeedUsers().forEach((item) => {
     const existing = users.find((user) => user.email === item.email)
     if (existing) return
     const normalizedUserId = normalizeUserIdentifier(item.userId || item.gameName)
@@ -103,8 +103,8 @@ const resetStore = () => {
   nextScoringRuleId = 1
   nextMatchScoreId = 1
   seedMasterAdmin()
-  seedMockUsers()
-  ;(flowSeedMatchScores || []).forEach((row) => {
+  seedInitialUsers()
+  getSeedMatchScores().forEach((row) => {
     matchScores.push({
       ...row,
       active: row.active !== false,
@@ -130,7 +130,7 @@ export {
   getUserById,
   syncUserIdentifiers,
   seedMasterAdmin,
-  seedMockUsers,
+  seedInitialUsers,
   syncIdCountersFromData,
   resetStore,
 }

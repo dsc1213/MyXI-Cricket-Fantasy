@@ -70,6 +70,9 @@ function UploadPanel({
     { key: 'bowling', label: 'Bowl' },
     { key: 'fielding', label: 'Field' },
   ]
+  const manualPlayersCount =
+    (manualTeamPool?.teamAPlayers?.length || 0) + (manualTeamPool?.teamBPlayers?.length || 0)
+  const hasManualPlayers = manualPlayersCount > 0
   const [activeManualCategory, setActiveManualCategory] = useState('batting')
   const activeColumns = categoryColumns[activeManualCategory] || categoryColumns.batting
   const getMatchOptionLabel = (item) => {
@@ -282,9 +285,14 @@ function UploadPanel({
           )}
 
           {uploadTab === 'manual' ? (
-            <div className="manual-entry-layout">
+            <div className={`manual-entry-layout ${hasManualPlayers ? '' : 'empty'}`.trim()}>
               {isLoadingManualPool ? (
                 <p className="team-note">Loading playing XI...</p>
+              ) : !hasManualPlayers ? (
+                <div className="manual-empty-state">
+                  <strong>No player rows yet</strong>
+                  <span>Select tournament and match to load playing XI.</span>
+                </div>
               ) : (
                 <>
                   <div className="manual-entry-grid">

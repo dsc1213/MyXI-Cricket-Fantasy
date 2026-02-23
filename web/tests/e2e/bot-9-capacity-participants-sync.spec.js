@@ -30,7 +30,7 @@ test.describe('9) Capacity and participants sync', () => {
       const options = await apiCall(
         request,
         'GET',
-        `/mock/admin/contest-match-options?tournamentId=${tournamentId}`,
+        `/admin/contest-match-options?tournamentId=${tournamentId}`,
         undefined,
         200,
       )
@@ -43,7 +43,7 @@ test.describe('9) Capacity and participants sync', () => {
       const contest = await apiCall(
         request,
         'POST',
-        '/mock/admin/contests',
+        '/admin/contests',
         {
           name: contestName,
           tournamentId,
@@ -57,8 +57,8 @@ test.describe('9) Capacity and participants sync', () => {
       )
       contestId = contest.id
 
-      await apiCall(request, 'POST', `/mock/contests/${contestId}/join`, { userId: botA.gameName }, 200)
-      await apiCall(request, 'POST', `/mock/contests/${contestId}/join`, { userId: botB.gameName }, 200)
+      await apiCall(request, 'POST', `/contests/${contestId}/join`, { userId: botA.gameName }, 200)
+      await apiCall(request, 'POST', `/contests/${contestId}/join`, { userId: botB.gameName }, 200)
 
       await loginUi(page, 'sreecharan')
       await page.goto('/fantasy')

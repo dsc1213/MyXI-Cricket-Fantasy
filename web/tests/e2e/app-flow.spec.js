@@ -242,7 +242,7 @@ test.describe('Admin master scenarios', () => {
   }) => {
     await ensureMasterLogin(page)
     const joinedContests = await page.request.fetch(
-      'http://127.0.0.1:4000/mock/contests?tournamentId=t20wc-2026&joined=true&userId=master',
+      'http://127.0.0.1:4000/contests?tournamentId=t20wc-2026&joined=true&userId=master',
     )
     const rows = await joinedContests.json().catch(() => [])
     const targetContest = (rows || [])[0]

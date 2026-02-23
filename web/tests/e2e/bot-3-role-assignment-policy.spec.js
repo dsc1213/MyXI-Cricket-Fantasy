@@ -34,7 +34,7 @@ test.describe('3) Role assignment policy', () => {
 
       const efgUser = await findUserByGameName(request, efg.gameName)
       const adminAssignContestManager = await request.fetch(
-        `http://127.0.0.1:4000/mock/admin/users/${efgUser.id}`,
+        `http://127.0.0.1:4000/admin/users/${efgUser.id}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -46,7 +46,7 @@ test.describe('3) Role assignment policy', () => {
       const efgUserAfterAdmin = await apiCall(
         request,
         'GET',
-        '/mock/admin/users',
+        '/admin/users',
         undefined,
         200,
       )
@@ -55,7 +55,7 @@ test.describe('3) Role assignment policy', () => {
 
       const targetCde = (efgUserAfterAdmin || []).find((user) => user.gameName === cde.gameName)
       const forbiddenPromote = await request.fetch(
-        `http://127.0.0.1:4000/mock/admin/users/${targetCde.id}`,
+        `http://127.0.0.1:4000/admin/users/${targetCde.id}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },

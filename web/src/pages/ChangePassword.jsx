@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { changePassword } from '../lib/api.js'
+import { getStoredUser } from '../lib/auth.js'
 
 function ChangePassword() {
+  const stored = getStoredUser()
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -23,7 +25,12 @@ function ChangePassword() {
       setIsSaving(true)
       setErrorText('')
       setSuccessText('')
-      await changePassword({ currentPassword, newPassword })
+      await changePassword({
+        actorUserId: stored?.id,
+        actorRole: stored?.role,
+        currentPassword,
+        newPassword,
+      })
       setSuccessText('Password updated')
       setCurrentPassword('')
       setNewPassword('')

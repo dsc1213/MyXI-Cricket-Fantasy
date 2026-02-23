@@ -41,10 +41,20 @@ test.describe('1) Auth wiring', () => {
       await apiCall(
         request,
         'PATCH',
-        `/mock/admin/users/${created.id}`,
+        `/admin/users/${created.id}`,
         { actorUserId, status: 'active' },
         200,
       )
+
+      await page.goto('/forgot-password')
+      await expect(page.getByLabel('User ID or Email')).toHaveAttribute(
+        'placeholder',
+        'userId or email',
+      )
+      await expect(page.getByRole('button', { name: 'Generate reset token' })).toBeVisible()
+      await page.getByLabel('User ID or Email').fill(bot.gameName)
+      await page.getByRole('button', { name: 'Generate reset token' }).click()
+      await expect(page.getByText('Reset token generated. Use it to set a new password.')).toBeVisible()
 
       await loginUi(page, bot.gameName, PASSWORD)
       const forgotRes = await apiCall(

@@ -19,7 +19,7 @@ const normalizeRole = (role) => {
 }
 
 const buildAuth = ({ getUserById, jwtSecret }) => {
-  const authenticate = (req, res, next) => {
+  const authenticate = async (req, res, next) => {
     const auth = req.header('authorization') || ''
     const [scheme, token] = auth.split(' ')
     const cookieToken = parseCookieToken(req.header('cookie') || '')
@@ -29,7 +29,7 @@ const buildAuth = ({ getUserById, jwtSecret }) => {
     }
     try {
       const payload = jwt.verify(jwtToken, jwtSecret)
-      const user = getUserById(payload.sub)
+      const user = await Promise.resolve(getUserById(payload.sub))
       if (!user) {
         return res.status(401).json({ message: 'Unauthorized' })
       }
@@ -42,7 +42,7 @@ const buildAuth = ({ getUserById, jwtSecret }) => {
   }
 
   const requireRole = (roles) => (req, res, next) => {
-    authenticate(req, res, () => {
+    void authenticate(req, res, () => {
       const currentRole = normalizeRole(req.currentUser.role)
       const normalizedRoles = roles.map(normalizeRole)
       if (!normalizedRoles.includes(currentRole)) {

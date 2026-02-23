@@ -85,7 +85,7 @@ const logoutUi = async (page) => {
   })
 }
 
-const getAdminUsers = (request) => apiCall(request, 'GET', '/mock/admin/users', undefined, 200)
+const getAdminUsers = (request) => apiCall(request, 'GET', '/admin/users', undefined, 200)
 
 const findUserByGameName = async (request, gameName) => {
   const users = await getAdminUsers(request)
@@ -101,7 +101,7 @@ const ensureMasterRole = async (request) => {
   await apiCall(
     request,
     'PATCH',
-    `/mock/admin/users/${masterUser.id}`,
+    `/admin/users/${masterUser.id}`,
     {
       actorUserId: MASTER_USER,
       role: 'master_admin',
@@ -117,7 +117,7 @@ const deleteUserIfPresent = async (request, gameName) => {
   await apiCall(
     request,
     'DELETE',
-    `/mock/admin/users/${existing.id}`,
+    `/admin/users/${existing.id}`,
     { actorUserId: MASTER_USER },
     200,
   )
@@ -136,7 +136,7 @@ const createContest = async ({
     const options = await apiCall(
       request,
       'GET',
-      `/mock/admin/contest-match-options?tournamentId=${tournamentId}`,
+      `/admin/contest-match-options?tournamentId=${tournamentId}`,
       undefined,
       200,
     )
@@ -148,7 +148,7 @@ const createContest = async ({
   return apiCall(
     request,
     'POST',
-    '/mock/admin/contests',
+    '/admin/contests',
     {
       name,
       tournamentId,
@@ -169,7 +169,7 @@ const saveSelection = async ({ request, contestId, userId, matchId = 'm1' }) => 
     const matches = await apiCall(
       request,
       'GET',
-      `/mock/contests/${contestId}/matches?userId=${encodeURIComponent(userId)}`,
+      `/contests/${contestId}/matches?userId=${encodeURIComponent(userId)}`,
       undefined,
       200,
     )
@@ -178,7 +178,7 @@ const saveSelection = async ({ request, contestId, userId, matchId = 'm1' }) => 
   const pool = await apiCall(
     request,
     'GET',
-    `/mock/team-pool?contestId=${contestId}&matchId=${resolvedMatchId}&userId=${userId}`,
+    `/team-pool?contestId=${contestId}&matchId=${resolvedMatchId}&userId=${userId}`,
     undefined,
     200,
   )
@@ -193,7 +193,7 @@ const saveSelection = async ({ request, contestId, userId, matchId = 'm1' }) => 
   await apiCall(
     request,
     'POST',
-    '/mock/team-selection/save',
+    '/team-selection/save',
     {
       contestId,
       matchId: resolvedMatchId,
@@ -222,7 +222,7 @@ const expectUserVisibleInLeaderboard = async ({ request, contestId, userName }) 
   const board = await apiCall(
     request,
     'GET',
-    `/mock/contests/${contestId}/leaderboard`,
+    `/contests/${contestId}/leaderboard`,
     undefined,
     200,
   )
@@ -279,7 +279,7 @@ test.describe('Core bot user role and contest flows', () => {
         await apiCall(
           request,
           'PATCH',
-          `/mock/admin/users/${created.id}`,
+          `/admin/users/${created.id}`,
           { actorUserId: MASTER_USER, status: 'active' },
           200,
         )
@@ -291,7 +291,7 @@ test.describe('Core bot user role and contest flows', () => {
           200,
         )
       }
-      const tournaments = await apiCall(request, 'GET', '/mock/tournaments', undefined, 200)
+      const tournaments = await apiCall(request, 'GET', '/tournaments', undefined, 200)
       expect((tournaments || []).length).toBeGreaterThanOrEqual(3)
       const selectedTournaments = tournaments.slice(0, 3)
 
@@ -333,7 +333,7 @@ test.describe('Core bot user role and contest flows', () => {
         await apiCall(
           request,
           'PATCH',
-          `/mock/admin/users/${botCdeAfterMasterRole.id}`,
+          `/admin/users/${botCdeAfterMasterRole.id}`,
           {
             actorUserId: MASTER_USER,
             role: 'contest_manager',
@@ -376,7 +376,7 @@ test.describe('Core bot user role and contest flows', () => {
       await openAdminUsersTab(page)
 
       const promoteAttempt = await request.fetch(
-        `http://127.0.0.1:4000/mock/admin/users/${botCdeAfterMasterRole.id}`,
+        `http://127.0.0.1:4000/admin/users/${botCdeAfterMasterRole.id}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -394,7 +394,7 @@ test.describe('Core bot user role and contest flows', () => {
       await apiCall(
         request,
         'PATCH',
-        `/mock/admin/users/${botEfg.id}`,
+        `/admin/users/${botEfg.id}`,
         {
           actorUserId: BOT_USERS[0].gameName,
           contestManagerContestId: efgContest.contestId,
@@ -432,7 +432,7 @@ test.describe('Core bot user role and contest flows', () => {
       await apiCall(
         request,
         'DELETE',
-        `/mock/admin/users/${botEfg.id}`,
+        `/admin/users/${botEfg.id}`,
         { actorUserId: MASTER_USER },
         200,
       )
@@ -441,7 +441,7 @@ test.describe('Core bot user role and contest flows', () => {
       await apiCall(
         request,
         'DELETE',
-        `/mock/admin/users/${botCde.id}`,
+        `/admin/users/${botCde.id}`,
         { actorUserId: MASTER_USER },
         200,
       )
@@ -450,7 +450,7 @@ test.describe('Core bot user role and contest flows', () => {
       await apiCall(
         request,
         'DELETE',
-        `/mock/admin/users/${botAbc.id}`,
+        `/admin/users/${botAbc.id}`,
         { actorUserId: MASTER_USER },
         200,
       )
@@ -478,7 +478,7 @@ test.describe('Core bot user role and contest flows', () => {
           await apiCall(
             request,
             'DELETE',
-            `/mock/admin/users/${existing.id}`,
+            `/admin/users/${existing.id}`,
             { actorUserId: MASTER_USER },
             200,
           )
@@ -490,7 +490,7 @@ test.describe('Core bot user role and contest flows', () => {
       for (const contestId of createdContestIds) {
         try {
           const response = await request.fetch(
-            `http://127.0.0.1:4000/mock/admin/contests/${contestId}`,
+            `http://127.0.0.1:4000/admin/contests/${contestId}`,
             {
               method: 'DELETE',
               headers: { 'Content-Type': 'application/json' },

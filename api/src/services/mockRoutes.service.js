@@ -1,4 +1,4 @@
-const registerMockRoutes = (router, ctx) => {
+const registerMockProviderRoutes = (router, ctx) => {
   const normalizeIdentity = (value) => (value || '').toString().trim().toLowerCase()
   const findIdentityConflict = ({ email, gameName, excludeUserId = null }) => {
     const normalizedEmail = normalizeIdentity(email)
@@ -20,7 +20,7 @@ const registerMockRoutes = (router, ctx) => {
     enabledTournamentIds,
     users,
     appendAuditLog,
-    persistMock,
+    persistState,
     mockContests,
     contestJoins,
     mockContestCatalog,
@@ -198,15 +198,15 @@ const registerMockRoutes = (router, ctx) => {
     return Date.now() < firstStartMs
   }
 
-  router.get('/mock/page-load-data', getMockPageLoadData)
-  router.get('/mock/bootstrap', getMockPageLoadData)
+  router.get('/page-load-data', getMockPageLoadData)
+  router.get('/bootstrap', getMockPageLoadData)
 
-  router.get('/mock/tournaments', (req, res) => {
+  router.get('/tournaments', (req, res) => {
     const list = getTournamentCatalogRows().filter((item) => enabledTournamentIds.has(item.id))
     return res.json(list)
   })
 
-  router.get('/mock/admin/users', (req, res) => {
+  router.get('/admin/users', (req, res) => {
     const rows = users.map((user) => ({
       id: user.id,
       name: user.name,
@@ -223,7 +223,7 @@ const registerMockRoutes = (router, ctx) => {
     return res.json(rows)
   })
 
-  router.patch('/mock/admin/users/:id', (req, res) => {
+  router.patch('/admin/users/:id', (req, res) => {
     const actor = resolveAdminActor(req)
     if (!canAccessAdminUsers(actor)) {
       return res
@@ -320,7 +320,7 @@ const registerMockRoutes = (router, ctx) => {
       tournamentId: 'global',
       module: 'users',
     })
-    persistMock()
+    persistState()
     return res.json({
       id: target.id,
       name: target.name,
@@ -336,7 +336,7 @@ const registerMockRoutes = (router, ctx) => {
     })
   })
 
-  router.delete('/mock/admin/users/:id', (req, res) => {
+  router.delete('/admin/users/:id', (req, res) => {
     const actor = resolveAdminActor(req)
     if (!actor || actor.role !== 'master_admin') {
       return res.status(403).json({ message: 'Only master can delete users' })
@@ -360,11 +360,11 @@ const registerMockRoutes = (router, ctx) => {
       tournamentId: 'global',
       module: 'users',
     })
-    persistMock()
+    persistState()
     return res.json({ ok: true, removedId: removed.id })
   })
 
-  router.get('/mock/admin/tournaments/catalog', (req, res) => {
+  router.get('/admin/tournaments/catalog', (req, res) => {
     const rows = getTournamentCatalogRows().map((item) => ({
       ...item,
       enabled: enabledTournamentIds.has(item.id),
@@ -379,7 +379,7 @@ const registerMockRoutes = (router, ctx) => {
     return res.json(rows)
   })
 
-  router.get('/mock/admin/team-squads', (req, res) => {
+  router.get('/admin/team-squads', (req, res) => {
     const teamCode = normalizeTeamCode(req.query.teamCode || '')
     const rows = teamCode
       ? teamSquads.filter((item) => item.teamCode === teamCode)
@@ -402,7 +402,7 @@ const registerMockRoutes = (router, ctx) => {
     return res.json(payload)
   })
 
-  router.post('/mock/admin/team-squads', (req, res) => {
+  router.post('/admin/team-squads', (req, res) => {
     const actor = resolveAdminActor(req)
     if (!canManageTournaments(actor)) {
       return res.status(403).json({ message: 'Only admin/master can manage squads' })
@@ -448,7 +448,7 @@ const registerMockRoutes = (router, ctx) => {
       tournamentId: 'global',
       module: 'squads',
     })
-    persistMock()
+    persistState()
     return res.status(existingIndex === -1 ? 201 : 200).json({
       ok: true,
       squad: {
@@ -459,7 +459,7 @@ const registerMockRoutes = (router, ctx) => {
     })
   })
 
-  router.delete('/mock/admin/team-squads/:teamCode', (req, res) => {
+  router.delete('/admin/team-squads/:teamCode', (req, res) => {
     const actor = resolveAdminActor(req)
     if (!canManageTournaments(actor)) {
       return res.status(403).json({ message: 'Only admin/master can manage squads' })
@@ -478,11 +478,11 @@ const registerMockRoutes = (router, ctx) => {
       tournamentId: 'global',
       module: 'squads',
     })
-    persistMock()
+    persistState()
     return res.json({ ok: true, removedId: removed.teamCode })
   })
 
-  router.post('/mock/admin/tournaments', (req, res) => {
+  router.post('/admin/tournaments', (req, res) => {
     const actor = resolveAdminActor(req)
     if (!canManageTournaments(actor)) {
       return res.status(403).json({ message: 'Only admin/master can create tournaments' })
@@ -592,7 +592,7 @@ const registerMockRoutes = (router, ctx) => {
       tournamentId: nextId,
       module: 'tournaments',
     })
-    persistMock()
+    persistState()
     return res.status(201).json({
       ok: true,
       tournament: tournamentRow,
@@ -600,7 +600,7 @@ const registerMockRoutes = (router, ctx) => {
     })
   })
 
-  router.delete('/mock/admin/tournaments/:id', (req, res) => {
+  router.delete('/admin/tournaments/:id', (req, res) => {
     const actor = resolveAdminActor(req)
     if (!canManageTournaments(actor)) {
       return res.status(403).json({ message: 'Only admin/master can delete tournaments' })
@@ -641,7 +641,7 @@ const registerMockRoutes = (router, ctx) => {
       tournamentId,
       module: 'tournaments',
     })
-    persistMock()
+    persistState()
     return res.json({
       ok: true,
       removedTournamentId: tournamentId,
@@ -649,7 +649,7 @@ const registerMockRoutes = (router, ctx) => {
     })
   })
 
-  router.post('/mock/admin/tournaments/enable', (req, res) => {
+  router.post('/admin/tournaments/enable', (req, res) => {
     const actor = resolveAdminActor(req)
     if (!canManageTournaments(actor)) {
       return res.status(403).json({ message: 'Only admin/master can manage tournaments' })
@@ -672,11 +672,11 @@ const registerMockRoutes = (router, ctx) => {
         module: 'tournaments',
       })
     }
-    persistMock()
+    persistState()
     return res.json({ ok: true, tournaments: enabled })
   })
 
-  router.post('/mock/admin/tournaments/disable', (req, res) => {
+  router.post('/admin/tournaments/disable', (req, res) => {
     const actor = resolveAdminActor(req)
     if (!canManageTournaments(actor)) {
       return res.status(403).json({ message: 'Only admin/master can manage tournaments' })
@@ -699,11 +699,11 @@ const registerMockRoutes = (router, ctx) => {
         module: 'tournaments',
       })
     }
-    persistMock()
+    persistState()
     return res.json({ ok: true, tournaments: enabled })
   })
 
-  router.post('/mock/admin/contests', (req, res) => {
+  router.post('/admin/contests', (req, res) => {
     const {
       name,
       tournamentId,
@@ -776,11 +776,11 @@ const registerMockRoutes = (router, ctx) => {
       tournamentId: contest.tournamentId,
       module: 'contests',
     })
-    persistMock()
+    persistState()
     return res.status(201).json(contest)
   })
 
-  router.delete('/mock/admin/contests/:contestId', (req, res) => {
+  router.delete('/admin/contests/:contestId', (req, res) => {
     const actor = resolveAdminActor(req)
     if (!canAccessAdminUsers(actor)) {
       return res.status(403).json({ message: 'Only admin/master can delete contests' })
@@ -811,11 +811,11 @@ const registerMockRoutes = (router, ctx) => {
       tournamentId: removed.tournamentId || 'global',
       module: 'contests',
     })
-    persistMock()
+    persistState()
     return res.json({ ok: true, removedId: removed.id })
   })
 
-  router.get('/mock/admin/contests/catalog', (req, res) => {
+  router.get('/admin/contests/catalog', (req, res) => {
     const tournamentId = (req.query.tournamentId || '').toString()
     const enabledContestIds = new Set(mockContests.map((item) => item.id))
     const rows = Array.from(mockContestCatalog.values())
@@ -828,7 +828,7 @@ const registerMockRoutes = (router, ctx) => {
     return res.json(rows)
   })
 
-  router.get('/mock/admin/contest-match-options', (req, res) => {
+  router.get('/admin/contest-match-options', (req, res) => {
     const tournamentId = (req.query.tournamentId || '').toString()
     const rows = buildMatches(100, tournamentId || 't20wc-2026').map((match) => ({
       id: match.id,
@@ -850,7 +850,7 @@ const registerMockRoutes = (router, ctx) => {
     return res.json(rows)
   })
 
-  router.post('/mock/admin/contests/sync', (req, res) => {
+  router.post('/admin/contests/sync', (req, res) => {
     const tournamentId = (req.body?.tournamentId || '').toString()
     const enabledIds = Array.isArray(req.body?.enabledIds)
       ? req.body.enabledIds.map((id) => id.toString())
@@ -896,7 +896,7 @@ const registerMockRoutes = (router, ctx) => {
         module: 'contests',
       })
     }
-    persistMock()
+    persistState()
     return res.json({
       ok: true,
       tournamentId,
@@ -906,7 +906,7 @@ const registerMockRoutes = (router, ctx) => {
     })
   })
 
-  router.get('/mock/contests', (req, res) => {
+  router.get('/contests', (req, res) => {
     const game = (req.query.game || '').toString()
     const tournamentId = (req.query.tournamentId || '').toString()
     const joined = (req.query.joined || '').toString()
@@ -943,7 +943,7 @@ const registerMockRoutes = (router, ctx) => {
     return res.json(rows)
   })
 
-  router.post('/mock/contests/:contestId/join', (req, res) => {
+  router.post('/contests/:contestId/join', (req, res) => {
     const contestId = (req.params.contestId || '').toString()
     const userId = (req.body?.userId || '').toString()
     if (!contestId || !userId) {
@@ -967,11 +967,11 @@ const registerMockRoutes = (router, ctx) => {
     }
     joinedSet.add(contestId)
     saveJoinedSetForUser(userId, joinedSet)
-    persistMock()
+    persistState()
     return res.json({ ok: true, contestId, userId, joined: true })
   })
 
-  router.post('/mock/contests/:contestId/leave', (req, res) => {
+  router.post('/contests/:contestId/leave', (req, res) => {
     const contestId = (req.params.contestId || '').toString()
     const userId = (req.body?.userId || '').toString()
     if (!contestId || !userId) {
@@ -982,11 +982,11 @@ const registerMockRoutes = (router, ctx) => {
     const joinedSet = getJoinedSetForUser(userId)
     joinedSet.delete(contestId)
     saveJoinedSetForUser(userId, joinedSet)
-    persistMock()
+    persistState()
     return res.json({ ok: true, contestId, userId, joined: false })
   })
 
-  router.get('/mock/contests/:contestId', (req, res) => {
+  router.get('/contests/:contestId', (req, res) => {
     const contest = mockContests.find((item) => item.id === req.params.contestId)
     if (!contest) {
       return res.status(404).json({ message: 'Contest not found' })
@@ -998,7 +998,7 @@ const registerMockRoutes = (router, ctx) => {
     })
   })
 
-  router.get('/mock/contests/:contestId/matches', (req, res) => {
+  router.get('/contests/:contestId/matches', (req, res) => {
     const contest = mockContests.find((item) => item.id === req.params.contestId)
     if (!contest) {
       return res.status(404).json({ message: 'Contest not found' })
@@ -1050,7 +1050,7 @@ const registerMockRoutes = (router, ctx) => {
     return res.json(rows)
   })
 
-  router.get('/mock/contests/:contestId/participants', (req, res) => {
+  router.get('/contests/:contestId/participants', (req, res) => {
     const contest = mockContests.find((item) => item.id === req.params.contestId)
     if (!contest) {
       return res.status(404).json({ message: 'Contest not found' })
@@ -1121,7 +1121,7 @@ const registerMockRoutes = (router, ctx) => {
     })
   })
 
-  router.get('/mock/contests/:contestId/leaderboard', (req, res) => {
+  router.get('/contests/:contestId/leaderboard', (req, res) => {
     const contest = mockContests.find((item) => item.id === req.params.contestId)
     if (!contest) {
       return res.status(404).json({ message: 'Contest not found' })
@@ -1142,7 +1142,7 @@ const registerMockRoutes = (router, ctx) => {
     })
   })
 
-  router.get('/mock/contests/:contestId/users/:userId/match-scores', (req, res) => {
+  router.get('/contests/:contestId/users/:userId/match-scores', (req, res) => {
     const contest = mockContests.find((item) => item.id === req.params.contestId)
     if (!contest) {
       return res.status(404).json({ message: 'Contest not found' })
@@ -1176,15 +1176,15 @@ const registerMockRoutes = (router, ctx) => {
     })
   })
 
-  router.get('/mock/tournaments/pretty', (req, res) => {
+  router.get('/tournaments/pretty', (req, res) => {
     return res.json(prettyTournament)
   })
 
-  router.get('/mock/players', (req, res) => {
+  router.get('/players', (req, res) => {
     return res.json(allKnownPlayers)
   })
 
-  router.get('/mock/player-stats', (req, res) => {
+  router.get('/player-stats', (req, res) => {
     const tournamentId = (req.query.tournamentId || '').toString()
     const aggregateIndex = getTournamentPlayerStatsIndex(tournamentId)
     const rows = allKnownPlayers.map((player) => {
@@ -1205,7 +1205,7 @@ const registerMockRoutes = (router, ctx) => {
     return res.json(rows)
   })
 
-  router.get('/mock/team-pool', (req, res) => {
+  router.get('/team-pool', (req, res) => {
     const contestId = (req.query.contestId || '').toString()
     const tournamentId = (req.query.tournamentId || '').toString()
     const matchId = (req.query.matchId || 'm1').toString()
@@ -1263,7 +1263,7 @@ const registerMockRoutes = (router, ctx) => {
     })
   })
 
-  router.get('/mock/admin/match-lineups/:tournamentId/:matchId', (req, res) => {
+  router.get('/admin/match-lineups/:tournamentId/:matchId', (req, res) => {
     const tournamentId = (req.params.tournamentId || '').toString()
     const matchId = (req.params.matchId || '').toString()
     const contestId = (req.query.contestId || '').toString()
@@ -1298,7 +1298,7 @@ const registerMockRoutes = (router, ctx) => {
     })
   })
 
-  router.post('/mock/admin/match-lineups/upsert', (req, res) => {
+  router.post('/admin/match-lineups/upsert', (req, res) => {
     const tournamentId = (req.body?.tournamentId || '').toString()
     const contestId = (req.body?.contestId || '').toString()
     const matchId = (req.body?.matchId || '').toString()
@@ -1382,14 +1382,14 @@ const registerMockRoutes = (router, ctx) => {
       tournamentId,
       module: 'lineups',
     })
-    persistMock()
+    persistState()
     return res.json({
       ok: true,
       saved: payload,
     })
   })
 
-  router.post('/mock/team-selection/save', (req, res) => {
+  router.post('/team-selection/save', (req, res) => {
     const contestId = (req.body?.contestId || '').toString()
     const matchId = (req.body?.matchId || '').toString()
     const userId = (req.body?.userId || '').toString()
@@ -1430,7 +1430,7 @@ const registerMockRoutes = (router, ctx) => {
       updatedAt: new Date().toISOString(),
     }
     mockTeamSelections.set(selectionKey(payload), payload)
-    persistMock()
+    persistState()
     return res.json({
       ok: true,
       message: 'Team saved',
@@ -1438,7 +1438,7 @@ const registerMockRoutes = (router, ctx) => {
     })
   })
 
-  router.get('/mock/match-options', (req, res) => {
+  router.get('/match-options', (req, res) => {
     const tournamentId = (req.query.tournamentId || 't20wc-2026').toString()
     const options = buildMatches(30, tournamentId).map((match) => ({
       id: match.id,
@@ -1450,7 +1450,7 @@ const registerMockRoutes = (router, ctx) => {
     return res.json(options)
   })
 
-  router.get('/mock/admin/match-score-context', (req, res) => {
+  router.get('/admin/match-score-context', (req, res) => {
     const tournamentId = (
       req.query.tournamentId ||
       mockTournaments[0]?.id ||
@@ -1467,7 +1467,7 @@ const registerMockRoutes = (router, ctx) => {
     })
   })
 
-  router.get('/mock/admin/match-scores/:tournamentId/:matchId', (req, res) => {
+  router.get('/admin/match-scores/:tournamentId/:matchId', (req, res) => {
     const tournamentId = (req.params.tournamentId || '').toString()
     const matchId = (req.params.matchId || '').toString()
     const activeScore = matchScores
@@ -1480,7 +1480,7 @@ const registerMockRoutes = (router, ctx) => {
     return res.json(activeScore || null)
   })
 
-  router.get('/mock/users/:userId/picks', (req, res) => {
+  router.get('/users/:userId/picks', (req, res) => {
     const { userId } = req.params
     const tournamentId = (req.query.tournamentId || '').toString()
     const contestId = (req.query.contestId || '').toString()
@@ -1621,7 +1621,7 @@ const registerMockRoutes = (router, ctx) => {
     }
   }
 
-  router.post('/mock/admin/match-scores/upsert', (req, res) => {
+  router.post('/admin/match-scores/upsert', (req, res) => {
     const {
       tournamentId,
       contestId,
@@ -1684,7 +1684,7 @@ const registerMockRoutes = (router, ctx) => {
       tournamentId: tournamentId.toString(),
       module: 'scoring',
     })
-    persistMock()
+    persistState()
 
     return res.json({
       ok: true,
@@ -1697,17 +1697,17 @@ const registerMockRoutes = (router, ctx) => {
     })
   })
 
-  router.post('/mock/scoring-rules/save', (req, res) => {
+  router.post('/scoring-rules/save', (req, res) => {
     const { rules } = req.body || {}
     if (!rules || typeof rules !== 'object') {
       return res.status(400).json({ message: 'Rules payload required' })
     }
     dashboardMockData.pointsRuleTemplate = rules
-    persistMock()
+    persistState()
     return res.json({ ok: true, savedAt: new Date().toISOString() })
   })
 
-  router.post('/mock/match-scores/process-excel', (req, res) => {
+  router.post('/match-scores/process-excel', (req, res) => {
     const { fileName } = req.body || {}
     if (!fileName) {
       return res.status(400).json({ message: 'Excel file required before processing' })
@@ -1729,7 +1729,7 @@ const registerMockRoutes = (router, ctx) => {
     })
   })
 
-  router.post('/mock/match-scores/save', (req, res) => {
+  router.post('/match-scores/save', (req, res) => {
     const {
       payloadText,
       fileName,
@@ -1815,7 +1815,7 @@ const registerMockRoutes = (router, ctx) => {
       tournamentId: tournamentId ? tournamentId.toString() : 'global',
       module: 'scoring',
     })
-    persistMock()
+    persistState()
     return res.json({
       ok: true,
       savedAt: new Date().toISOString(),
@@ -1831,7 +1831,7 @@ const registerMockRoutes = (router, ctx) => {
     })
   })
 
-  router.get('/mock/admin/player-overrides/context', (req, res) => {
+  router.get('/admin/player-overrides/context', (req, res) => {
     const contestId = (req.query.contestId || 'huntercherry').toString()
     const matchId = (req.query.matchId || 'm1').toString()
     const contest = mockContests.find((item) => item.id === contestId)
@@ -1871,7 +1871,7 @@ const registerMockRoutes = (router, ctx) => {
     })
   })
 
-  router.post('/mock/admin/player-overrides/save', (req, res) => {
+  router.post('/admin/player-overrides/save', (req, res) => {
     const {
       userId,
       outPlayer,
@@ -1932,7 +1932,7 @@ const registerMockRoutes = (router, ctx) => {
       tournamentId: targetContest?.tournamentId || 'global',
       module: 'overrides',
     })
-    persistMock()
+    persistState()
 
     return res.json({
       ok: true,
@@ -1943,4 +1943,4 @@ const registerMockRoutes = (router, ctx) => {
   })
 }
 
-export { registerMockRoutes }
+export { registerMockProviderRoutes }

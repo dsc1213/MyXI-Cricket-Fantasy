@@ -53,19 +53,19 @@ function ForgotPassword() {
     <section className="auth">
       <div className="auth-panel">
         <h2>Forgot password</h2>
-        <p>Request reset token and set a new password.</p>
+        <p>Enter your userId or email to generate a one-time reset token.</p>
         <form className="form" onSubmit={onRequestToken}>
           <label>
             User ID or Email
             <input
               type="text"
-              placeholder="kiran11 or user@email.com"
+              placeholder="userId or email"
               value={identifier}
               onChange={(event) => setIdentifier(event.target.value)}
             />
           </label>
           <button type="submit" className="ghost small" disabled={isRequesting}>
-            {isRequesting ? 'Requesting...' : 'Request reset token'}
+            {isRequesting ? 'Generating...' : 'Generate reset token'}
           </button>
         </form>
 
@@ -111,10 +111,9 @@ function ForgotPassword() {
         </div>
       </div>
       <div className="auth-aside">
-        <h3>Mock reset flow</h3>
+        <h3>Password reset flow</h3>
         <p>
-          In this setup, reset token is returned directly from API to speed up QA and
-          development.
+          Generate a reset token first. Then paste token + new password to regain access.
         </p>
       </div>
     </section>

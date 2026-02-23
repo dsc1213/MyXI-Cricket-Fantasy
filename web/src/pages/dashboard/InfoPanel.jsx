@@ -6,7 +6,7 @@ function InfoPanel({ rows }) {
           {rows.length === 0 ? (
             <div className="player-row">
               <strong>No data yet</strong>
-              <span>Mock API data for this panel is currently empty.</span>
+              <span>No records are available for this panel.</span>
             </div>
           ) : (
             rows.map((row) => (

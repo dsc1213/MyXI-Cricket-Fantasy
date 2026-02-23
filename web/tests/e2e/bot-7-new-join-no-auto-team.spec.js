@@ -26,7 +26,7 @@ test.describe('7) New join has no auto team', () => {
       const options = await apiCall(
         request,
         'GET',
-        `/mock/admin/contest-match-options?tournamentId=${tournamentId}`,
+        `/admin/contest-match-options?tournamentId=${tournamentId}`,
         undefined,
         200,
       )
@@ -39,7 +39,7 @@ test.describe('7) New join has no auto team', () => {
       const contest = await apiCall(
         request,
         'POST',
-        '/mock/admin/contests',
+        '/admin/contests',
         {
           name: `bot-noauto-${Date.now()}`,
           tournamentId,
@@ -56,7 +56,7 @@ test.describe('7) New join has no auto team', () => {
       await apiCall(
         request,
         'POST',
-        `/mock/contests/${contestId}/join`,
+        `/contests/${contestId}/join`,
         { userId: bot.gameName },
         200,
       )

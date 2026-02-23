@@ -30,6 +30,8 @@ function Profile() {
       const updated = await updateUserProfile({
         id: stored.id,
         payload: {
+          actorUserId: stored.id,
+          actorRole: stored.role,
           name: form.name,
           gameName: form.gameName,
           email: form.email,

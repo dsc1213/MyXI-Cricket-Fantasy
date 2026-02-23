@@ -98,7 +98,8 @@ const clearGetResponseCache = () => {
 }
 
 const rawApiRequest = async (path, options = {}) => {
-  const normalizedPath = path.startsWith('/mock/') ? path.replace('/mock', '') : path
+  const normalizedPath = path
+  const method = (options.method || 'GET').toString().toUpperCase()
   const candidates = [`${API_BASE}${normalizedPath}`]
   if (!normalizedPath.startsWith('/api/')) {
     candidates.push(`${API_BASE}/api${normalizedPath}`)
@@ -116,6 +117,10 @@ const rawApiRequest = async (path, options = {}) => {
       })
       const data = await response.json().catch(() => ({}))
       if (response.status === 404) {
+        if (method !== 'GET') {
+          const message = data?.message || 'Request failed: 404'
+          throw new Error(message)
+        }
         lastError = new Error(`Request failed: 404`)
         continue
       }
@@ -165,7 +170,7 @@ const ensureFreshSession = async () => {
 }
 
 async function request(path, options = {}) {
-  const normalizedPath = path.startsWith('/mock/') ? path.replace('/mock', '') : path
+  const normalizedPath = path
   const method = (options.method || 'GET').toUpperCase()
   const dedupeKey = method === 'GET' ? `${method}:${normalizedPath}` : null
   const cacheTtlMs =
@@ -253,10 +258,10 @@ const resetPassword = ({ token, newPassword }) =>
     body: JSON.stringify({ token, newPassword }),
   })
 
-const changePassword = ({ currentPassword, newPassword }) =>
+const changePassword = ({ actorUserId, actorRole, currentPassword, newPassword }) =>
   request('/auth/change-password', {
     method: 'POST',
-    body: JSON.stringify({ currentPassword, newPassword }),
+    body: JSON.stringify({ actorUserId, actorRole, currentPassword, newPassword }),
   })
 
 const refreshSession = () =>
@@ -271,23 +276,23 @@ const logout = () =>
 
 const fetchDashboardPageLoadData = async () => {
   try {
-    return await request('/mock/page-load-data')
+    return await request('/page-load-data')
   } catch (error) {
     if ((error?.message || '').includes('404')) {
-      return request('/mock/bootstrap')
+      return request('/bootstrap')
     }
     throw error
   }
 }
 
 const saveScoringRules = (rules) =>
-  request('/mock/scoring-rules/save', {
+  request('/scoring-rules/save', {
     method: 'POST',
     body: JSON.stringify({ rules }),
   })
 
 const processExcelMatchScores = ({ fileName }) =>
-  request('/mock/match-scores/process-excel', {
+  request('/match-scores/process-excel', {
     method: 'POST',
     body: JSON.stringify({ fileName }),
   })
@@ -303,7 +308,7 @@ const saveMatchScores = ({
   userId,
   teamScore,
 }) =>
-  request('/mock/match-scores/save', {
+  request('/match-scores/save', {
     method: 'POST',
     body: JSON.stringify({
       payloadText,
@@ -318,7 +323,7 @@ const saveMatchScores = ({
     }),
   })
 
-const fetchTournaments = () => request('/mock/tournaments')
+const fetchTournaments = () => request('/tournaments')
 
 const fetchContests = ({ game, tournamentId, joined, userId } = {}) => {
   const params = new URLSearchParams()
@@ -327,22 +332,22 @@ const fetchContests = ({ game, tournamentId, joined, userId } = {}) => {
   if (typeof joined === 'boolean') params.set('joined', String(joined))
   if (userId) params.set('userId', userId)
   const query = params.toString()
-  return request(`/mock/contests${query ? `?${query}` : ''}`)
+  return request(`/contests${query ? `?${query}` : ''}`)
 }
 
 const joinContest = ({ contestId, userId }) =>
-  request(`/mock/contests/${contestId}/join`, {
+  request(`/contests/${contestId}/join`, {
     method: 'POST',
     body: JSON.stringify({ userId }),
   })
 
 const leaveContest = ({ contestId, userId }) =>
-  request(`/mock/contests/${contestId}/leave`, {
+  request(`/contests/${contestId}/leave`, {
     method: 'POST',
     body: JSON.stringify({ userId }),
   })
 
-const fetchContest = (contestId) => request(`/mock/contests/${contestId}`)
+const fetchContest = (contestId) => request(`/contests/${contestId}`)
 
 const fetchContestMatches = ({ contestId, status, team, userId } = {}) => {
   const params = new URLSearchParams()
@@ -350,7 +355,7 @@ const fetchContestMatches = ({ contestId, status, team, userId } = {}) => {
   if (team) params.set('team', team)
   if (userId) params.set('userId', userId)
   const query = params.toString()
-  return request(`/mock/contests/${contestId}/matches${query ? `?${query}` : ''}`)
+  return request(`/contests/${contestId}/matches${query ? `?${query}` : ''}`)
 }
 
 const fetchContestParticipants = ({ contestId, matchId, userId } = {}) => {
@@ -358,18 +363,18 @@ const fetchContestParticipants = ({ contestId, matchId, userId } = {}) => {
   if (matchId) params.set('matchId', matchId)
   if (userId) params.set('userId', userId)
   const query = params.toString()
-  return request(`/mock/contests/${contestId}/participants${query ? `?${query}` : ''}`)
+  return request(`/contests/${contestId}/participants${query ? `?${query}` : ''}`)
 }
 
 const fetchContestLeaderboard = (contestId) =>
-  request(`/mock/contests/${contestId}/leaderboard`)
+  request(`/contests/${contestId}/leaderboard`)
 
 const fetchContestUserMatchScores = ({ contestId, userId, compareUserId } = {}) => {
   const params = new URLSearchParams()
   if (compareUserId) params.set('compareUserId', compareUserId)
   const query = params.toString()
   return request(
-    `/mock/contests/${contestId}/users/${userId}/match-scores${query ? `?${query}` : ''}`,
+    `/contests/${contestId}/users/${userId}/match-scores${query ? `?${query}` : ''}`,
   )
 }
 
@@ -387,7 +392,7 @@ const fetchTeamPool = ({
   if (userId) params.set('userId', userId)
   if (actorUserId) params.set('actorUserId', actorUserId)
   const query = params.toString()
-  return request(`/mock/team-pool${query ? `?${query}` : ''}`)
+  return request(`/team-pool${query ? `?${query}` : ''}`)
 }
 
 const saveTeamSelection = ({
@@ -398,7 +403,7 @@ const saveTeamSelection = ({
   playingXi,
   backups,
 }) =>
-  request('/mock/team-selection/save', {
+  request('/team-selection/save', {
     method: 'POST',
     body: JSON.stringify({ contestId, matchId, userId, actorUserId, playingXi, backups }),
   })
@@ -409,24 +414,24 @@ const fetchUserPicks = ({ userId, tournamentId, contestId, matchId } = {}) => {
   if (contestId) params.set('contestId', contestId)
   if (matchId) params.set('matchId', matchId)
   const query = params.toString()
-  return request(`/mock/users/${userId}/picks${query ? `?${query}` : ''}`)
+  return request(`/users/${userId}/picks${query ? `?${query}` : ''}`)
 }
 
-const fetchPlayers = () => request('/mock/players')
+const fetchPlayers = () => request('/players')
 const fetchPlayerStats = ({ tournamentId } = {}) => {
   const params = new URLSearchParams()
   if (tournamentId) params.set('tournamentId', tournamentId)
   const query = params.toString()
-  return request(`/mock/player-stats${query ? `?${query}` : ''}`)
+  return request(`/player-stats${query ? `?${query}` : ''}`)
 }
-const fetchMatchOptions = () => request('/mock/match-options')
-const fetchPrettyTournaments = () => request('/mock/tournaments/pretty')
+const fetchMatchOptions = () => request('/match-options')
+const fetchPrettyTournaments = () => request('/tournaments/pretty')
 const fetchPlayerOverrideContext = ({ contestId, matchId } = {}) => {
   const params = new URLSearchParams()
   if (contestId) params.set('contestId', contestId)
   if (matchId) params.set('matchId', matchId)
   const query = params.toString()
-  return request(`/mock/admin/player-overrides/context${query ? `?${query}` : ''}`)
+  return request(`/admin/player-overrides/context${query ? `?${query}` : ''}`)
 }
 const savePlayerOverride = ({
   userId,
@@ -436,7 +441,7 @@ const savePlayerOverride = ({
   matchId,
   actorUserId,
 }) =>
-  request('/mock/admin/player-overrides/save', {
+  request('/admin/player-overrides/save', {
     method: 'POST',
     body: JSON.stringify({ userId, outPlayer, inPlayer, contestId, matchId, actorUserId }),
   })
@@ -444,7 +449,7 @@ const fetchManualScoreContext = ({ tournamentId } = {}) => {
   const params = new URLSearchParams()
   if (tournamentId) params.set('tournamentId', tournamentId)
   const query = params.toString()
-  return request(`/mock/admin/match-score-context${query ? `?${query}` : ''}`)
+  return request(`/admin/match-score-context${query ? `?${query}` : ''}`)
 }
 const upsertManualMatchScores = ({
   tournamentId,
@@ -454,7 +459,7 @@ const upsertManualMatchScores = ({
   teamScore,
   playerStats,
 }) =>
-  request('/mock/admin/match-scores/upsert', {
+  request('/admin/match-scores/upsert', {
     method: 'POST',
     body: JSON.stringify({
       tournamentId,
@@ -465,35 +470,35 @@ const upsertManualMatchScores = ({
       playerStats,
     }),
   })
-const fetchAdminUsers = () => request('/mock/admin/users')
+const fetchAdminUsers = () => request('/admin/users')
 const updateAdminUser = ({ id, payload }) =>
-  request(`/mock/admin/users/${id}`, {
+  request(`/admin/users/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(payload || {}),
   })
 const deleteAdminUser = ({ id, actorUserId }) =>
-  request(`/mock/admin/users/${id}`, {
+  request(`/admin/users/${id}`, {
     method: 'DELETE',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
-const fetchTournamentCatalog = () => request('/mock/admin/tournaments/catalog')
+const fetchTournamentCatalog = () => request('/admin/tournaments/catalog')
 const enableTournaments = (ids = [], actorUserId = '') =>
-  request('/mock/admin/tournaments/enable', {
+  request('/admin/tournaments/enable', {
     method: 'POST',
     body: JSON.stringify({ ids, ...(actorUserId ? { actorUserId } : {}) }),
   })
 const disableTournaments = (ids = [], actorUserId = '') =>
-  request('/mock/admin/tournaments/disable', {
+  request('/admin/tournaments/disable', {
     method: 'POST',
     body: JSON.stringify({ ids, ...(actorUserId ? { actorUserId } : {}) }),
   })
 const createAdminTournament = (payload) =>
-  request('/mock/admin/tournaments', {
+  request('/admin/tournaments', {
     method: 'POST',
     body: JSON.stringify(payload || {}),
   })
 const deleteAdminTournament = ({ id, actorUserId }) =>
-  request(`/mock/admin/tournaments/${id}`, {
+  request(`/admin/tournaments/${id}`, {
     method: 'DELETE',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
@@ -501,20 +506,20 @@ const fetchAdminTeamSquads = (teamCode = '') => {
   const params = new URLSearchParams()
   if (teamCode) params.set('teamCode', teamCode)
   const query = params.toString()
-  return request(`/mock/admin/team-squads${query ? `?${query}` : ''}`)
+  return request(`/admin/team-squads${query ? `?${query}` : ''}`)
 }
 const upsertAdminTeamSquad = (payload) =>
-  request('/mock/admin/team-squads', {
+  request('/admin/team-squads', {
     method: 'POST',
     body: JSON.stringify(payload || {}),
   })
 const deleteAdminTeamSquad = ({ teamCode, actorUserId }) =>
-  request(`/mock/admin/team-squads/${teamCode}`, {
+  request(`/admin/team-squads/${teamCode}`, {
     method: 'DELETE',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
 const createAdminContest = (payload) =>
-  request('/mock/admin/contests', {
+  request('/admin/contests', {
     method: 'POST',
     body: JSON.stringify(payload || {}),
   })
@@ -522,10 +527,10 @@ const fetchContestMatchOptions = (tournamentId = '') => {
   const params = new URLSearchParams()
   if (tournamentId) params.set('tournamentId', tournamentId)
   const query = params.toString()
-  return request(`/mock/admin/contest-match-options${query ? `?${query}` : ''}`)
+  return request(`/admin/contest-match-options${query ? `?${query}` : ''}`)
 }
 const deleteAdminContest = (contestId, actorUserId = '') =>
-  request(`/mock/admin/contests/${contestId}`, {
+  request(`/admin/contests/${contestId}`, {
     method: 'DELETE',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
@@ -533,10 +538,10 @@ const fetchContestCatalog = (tournamentId = '') => {
   const params = new URLSearchParams()
   if (tournamentId) params.set('tournamentId', tournamentId)
   const query = params.toString()
-  return request(`/mock/admin/contests/catalog${query ? `?${query}` : ''}`)
+  return request(`/admin/contests/catalog${query ? `?${query}` : ''}`)
 }
 const syncContestSelections = ({ tournamentId, enabledIds }) =>
-  request('/mock/admin/contests/sync', {
+  request('/admin/contests/sync', {
     method: 'POST',
     body: JSON.stringify({ tournamentId, enabledIds }),
   })

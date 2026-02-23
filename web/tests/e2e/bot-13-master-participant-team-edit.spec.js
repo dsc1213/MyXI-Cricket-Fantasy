@@ -34,7 +34,7 @@ test.describe('13) Master participant team edit and join gate', () => {
       const options = await apiCall(
         request,
         'GET',
-        '/mock/admin/contest-match-options?tournamentId=t20wc-2026',
+        '/admin/contest-match-options?tournamentId=t20wc-2026',
         undefined,
         200,
       )
@@ -55,7 +55,7 @@ test.describe('13) Master participant team edit and join gate', () => {
       await apiCall(
         request,
         'POST',
-        `/mock/contests/${contestId}/join`,
+        `/contests/${contestId}/join`,
         { userId: bot.gameName },
         200,
       )

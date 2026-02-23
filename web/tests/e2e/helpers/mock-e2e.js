@@ -27,40 +27,16 @@ export const apiCall = async (request, method, path, body, expectedStatus = 200)
 }
 
 export const loginUi = async (page, userId, password = PASSWORD) => {
-  const response = await page.request.fetch('http://127.0.0.1:4000/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    data: {
-      userId,
-      password,
-    },
+  await page.context().clearCookies()
+  await page.goto('/login', { waitUntil: 'domcontentloaded', timeout: 45000 })
+  await page.evaluate(() => {
+    window.localStorage.removeItem('myxi-user')
+    window.localStorage.removeItem('myxi-token')
   })
-  if (response.status() !== 200) {
-    const body = await response.text()
-    throw new Error(`UI login bootstrap failed for ${userId}: ${response.status()} ${body}`)
-  }
-  const session = await response.json()
-  const gotoWithRetry = async (url) => {
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      try {
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 })
-        return
-      } catch (error) {
-        if (attempt === 1) throw error
-      }
-    }
-  }
-  await gotoWithRetry('/login')
-  await page.evaluate((sessionData) => {
-    window.localStorage.setItem(
-      'myxi-user',
-      JSON.stringify({
-        ...sessionData,
-        token: undefined,
-      }),
-    )
-  }, session)
-  await gotoWithRetry('/home')
+  await page.goto('/login', { waitUntil: 'domcontentloaded', timeout: 45000 })
+  await page.getByLabel('User ID or Email').fill(userId)
+  await page.getByLabel('Password').fill(password)
+  await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page).toHaveURL(/\/home/, { timeout: 15000 })
 }
 
@@ -94,7 +70,7 @@ export const saveRolesFromUsersTab = async (page) => {
   await expect(page.getByText('Roles saved')).toBeVisible()
 }
 
-export const getAdminUsers = (request) => apiCall(request, 'GET', '/mock/admin/users', undefined, 200)
+export const getAdminUsers = (request) => apiCall(request, 'GET', '/admin/users', undefined, 200)
 
 export const findUserByGameName = async (request, gameName) => {
   const users = await getAdminUsers(request)
@@ -113,7 +89,7 @@ export const deleteUserIfPresent = async (request, gameName) => {
   const existing = await findUserByGameName(request, gameName)
   if (!existing) return
   const actorUserId = await getMasterActorUserId(request)
-  await apiCall(request, 'DELETE', `/mock/admin/users/${existing.id}`, { actorUserId }, 200)
+  await apiCall(request, 'DELETE', `/admin/users/${existing.id}`, { actorUserId }, 200)
 }
 
 export const createBotUsers = (tag) => [
@@ -145,7 +121,7 @@ export const registerAndActivateBot = async (request, botUser) => {
   await apiCall(
     request,
     'PATCH',
-    `/mock/admin/users/${created.id}`,
+    `/admin/users/${created.id}`,
     { actorUserId, status: 'active' },
     200,
   )
@@ -165,7 +141,7 @@ export const createContest = async ({
     const options = await apiCall(
       request,
       'GET',
-      `/mock/admin/contest-match-options?tournamentId=${tournamentId}`,
+      `/admin/contest-match-options?tournamentId=${tournamentId}`,
       undefined,
       200,
     )
@@ -177,7 +153,7 @@ export const createContest = async ({
   return apiCall(
     request,
     'POST',
-    '/mock/admin/contests',
+    '/admin/contests',
     {
       name,
       tournamentId,
@@ -195,7 +171,7 @@ export const createContest = async ({
 export const deleteContestIfPresent = async (request, contestId, actorUserId = 'master') => {
   if (!contestId) return
   try {
-    await request.fetch(`http://127.0.0.1:4000/mock/admin/contests/${contestId}`, {
+    await request.fetch(`http://127.0.0.1:4000/admin/contests/${contestId}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       data: actorUserId ? { actorUserId } : {},
@@ -211,7 +187,7 @@ export const saveSelection = async ({ request, contestId, userId, matchId = 'm1'
     const matches = await apiCall(
       request,
       'GET',
-      `/mock/contests/${contestId}/matches?userId=${encodeURIComponent(userId)}`,
+      `/contests/${contestId}/matches?userId=${encodeURIComponent(userId)}`,
       undefined,
       200,
     )
@@ -220,7 +196,7 @@ export const saveSelection = async ({ request, contestId, userId, matchId = 'm1'
   const pool = await apiCall(
     request,
     'GET',
-    `/mock/team-pool?contestId=${contestId}&matchId=${resolvedMatchId}&userId=${userId}`,
+    `/team-pool?contestId=${contestId}&matchId=${resolvedMatchId}&userId=${userId}`,
     undefined,
     200,
   )
@@ -235,7 +211,7 @@ export const saveSelection = async ({ request, contestId, userId, matchId = 'm1'
   await apiCall(
     request,
     'POST',
-    '/mock/team-selection/save',
+    '/team-selection/save',
     {
       contestId,
       matchId: resolvedMatchId,
@@ -253,7 +229,7 @@ export const patchUserByGameName = async (request, targetGameName, payload = {},
   return apiCall(
     request,
     'PATCH',
-    `/mock/admin/users/${target.id}`,
+    `/admin/users/${target.id}`,
     {
       ...payload,
       actorUserId,

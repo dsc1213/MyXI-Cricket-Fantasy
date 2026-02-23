@@ -61,7 +61,7 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       const savedManual = await apiCall(
         request,
         'GET',
-        `/mock/admin/team-squads?teamCode=${teamCode}`,
+        `/admin/team-squads?teamCode=${teamCode}`,
         undefined,
         200,
       )
@@ -98,7 +98,7 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       const savedJson = await apiCall(
         request,
         'GET',
-        `/mock/admin/team-squads?teamCode=${teamCode}`,
+        `/admin/team-squads?teamCode=${teamCode}`,
         undefined,
         200,
       )
@@ -106,7 +106,7 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       expect(savedJson[0]?.squad?.some((p) => p.name === `mocke2ebot-player-3-${tag}`)).toBe(true)
     } finally {
       try {
-        await request.fetch(`http://127.0.0.1:4000/mock/admin/team-squads/${teamCode}`, {
+        await request.fetch(`http://127.0.0.1:4000/admin/team-squads/${teamCode}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           data: { actorUserId: 'master' },
@@ -159,7 +159,7 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       const catalogAfterManual = await apiCall(
         request,
         'GET',
-        '/mock/admin/tournaments/catalog',
+        '/admin/tournaments/catalog',
         undefined,
         200,
       )
@@ -206,14 +206,14 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       const catalogAfterJson = await apiCall(
         request,
         'GET',
-        '/mock/admin/tournaments/catalog',
+        '/admin/tournaments/catalog',
         undefined,
         200,
       )
       expect(catalogAfterJson.some((row) => row.id === jsonTournamentId)).toBe(true)
     } finally {
       try {
-        await request.fetch(`http://127.0.0.1:4000/mock/admin/tournaments/${jsonTournamentId}`, {
+        await request.fetch(`http://127.0.0.1:4000/admin/tournaments/${jsonTournamentId}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           data: { actorUserId: 'master' },
@@ -222,7 +222,7 @@ test.describe('12) Squad manager + tournament manager flows', () => {
         // best effort cleanup
       }
       try {
-        await request.fetch(`http://127.0.0.1:4000/mock/admin/tournaments/${manualTournamentId}`, {
+        await request.fetch(`http://127.0.0.1:4000/admin/tournaments/${manualTournamentId}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           data: { actorUserId: 'master' },

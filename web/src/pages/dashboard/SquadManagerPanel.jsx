@@ -76,7 +76,7 @@ function buildPlayerRow(index, seed = {}) {
 function SquadManagerPanel() {
   const currentUser = getStoredUser()
   const [rows, setRows] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [, setIsLoading] = useState(true)
   const [errorText, setErrorText] = useState('')
   const [notice, setNotice] = useState('')
   const [mode, setMode] = useState('manual')

@@ -7,6 +7,8 @@ let resetStore
 
 beforeAll(async () => {
   process.env.NODE_ENV = 'test'
+  process.env.MOCK_API = 'true'
+  process.env.DB_PROVIDER = 'mock'
   process.env.MASTER_ADMIN_EMAIL = 'admin@myxi.local'
   process.env.MASTER_ADMIN_PASSWORD = 'change-me'
   process.env.MASTER_ADMIN_NAME = 'Admin'
@@ -156,10 +158,12 @@ describe('auth', () => {
     })
     const token = await loginMaster()
     const del = await request(app)
-      .delete(`/users/${reg.body.id}`)
+      .delete(`/admin/users/${reg.body.id}`)
       .set('Authorization', `Bearer ${token}`)
+      .send({ actorUserId: 'master' })
     expect(del.status).toBe(200)
-    expect(del.body.deleted).toBe(true)
+    expect(del.body.ok).toBe(true)
+    expect(del.body.removedId).toBe(Number(reg.body.id))
   })
 
   it('supports forgot password and reset password flow', async () => {
@@ -260,7 +264,7 @@ describe('role flows', () => {
     expect(login.body.role).toBe('master_admin')
 
     const usersRes = await request(app)
-      .get('/users')
+      .get('/admin/users')
       .set('Authorization', `Bearer ${login.body.token}`)
     expect(usersRes.status).toBe(200)
   })
@@ -271,13 +275,14 @@ describe('role flows', () => {
     expect(login.body.role).toBe('admin')
 
     const listRes = await request(app)
-      .get('/users')
+      .get('/admin/users')
       .set('Authorization', `Bearer ${login.body.token}`)
     expect(listRes.status).toBe(200)
 
     const deleteRes = await request(app)
-      .delete('/users/1003')
+      .delete('/admin/users/1003')
       .set('Authorization', `Bearer ${login.body.token}`)
+      .send({ actorUserId: 'rahulxi' })
     expect(deleteRes.status).toBe(403)
   })
 
@@ -291,9 +296,15 @@ describe('role flows', () => {
     expect(login.body.role).toBe('user')
 
     const usersRes = await request(app)
-      .get('/users')
+      .get('/admin/users')
       .set('Authorization', `Bearer ${login.body.token}`)
-    expect(usersRes.status).toBe(403)
+    expect(usersRes.status).toBe(200)
+
+    const deleteRes = await request(app)
+      .delete('/admin/users/1003')
+      .set('Authorization', `Bearer ${login.body.token}`)
+      .send({ actorUserId: 'player' })
+    expect(deleteRes.status).toBe(403)
   })
 
   it('contest-admin flow: contest manager can save scores for assigned contest only', async () => {
@@ -303,7 +314,7 @@ describe('role flows', () => {
     expect(login.body.contestManagerContestId).toBeTruthy()
 
     const assignedContestId = login.body.contestManagerContestId
-    const okRes = await request(app).post('/mock/admin/match-scores/upsert').send({
+    const okRes = await request(app).post('/admin/match-scores/upsert').send({
       tournamentId: 't20wc-2026',
       contestId: assignedContestId,
       matchId: 'm1',
@@ -313,7 +324,7 @@ describe('role flows', () => {
     expect(okRes.status).toBe(200)
     expect(okRes.body.ok).toBe(true)
 
-    const forbiddenRes = await request(app).post('/mock/admin/match-scores/upsert').send({
+    const forbiddenRes = await request(app).post('/admin/match-scores/upsert').send({
       tournamentId: 't20wc-2026',
       contestId: 'wc-super-six',
       matchId: 'm1',
