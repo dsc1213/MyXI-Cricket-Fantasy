@@ -240,10 +240,26 @@ const login = ({ userId, password }) =>
     body: JSON.stringify({ userId, email: userId, password }),
   })
 
-const register = ({ name, gameName, phone, location, email, password }) =>
+const register = ({
+  name,
+  gameName,
+  phone,
+  location,
+  email,
+  password,
+  securityAnswers,
+}) =>
   request('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ name, gameName, phone, location, email, password }),
+    body: JSON.stringify({
+      name,
+      gameName,
+      phone,
+      location,
+      email,
+      password,
+      securityAnswers,
+    }),
   })
 
 const forgotPassword = ({ userId }) =>
@@ -252,10 +268,16 @@ const forgotPassword = ({ userId }) =>
     body: JSON.stringify({ userId, email: userId }),
   })
 
-const resetPassword = ({ token, newPassword }) =>
+const fetchAccountStatus = ({ userId }) =>
+  request('/auth/status', {
+    method: 'POST',
+    body: JSON.stringify({ userId, email: userId }),
+  })
+
+const resetPassword = ({ userId, answers, newPassword }) =>
   request('/auth/reset-password', {
     method: 'POST',
-    body: JSON.stringify({ token, newPassword }),
+    body: JSON.stringify({ userId, email: userId, answers, newPassword }),
   })
 
 const changePassword = ({ actorUserId, actorRole, currentPassword, newPassword }) =>
@@ -577,6 +599,7 @@ export {
   refreshSession,
   logout,
   register,
+  fetchAccountStatus,
   forgotPassword,
   resetPassword,
   changePassword,

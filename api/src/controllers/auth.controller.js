@@ -70,6 +70,11 @@ const createAuthController = ({ authService }) => {
     return res.json(result)
   })
 
+  const accountStatus = handle(async (req, res) => {
+    const result = await authService.getUserStatus(req.body || {})
+    return res.json(result)
+  })
+
   const resetPassword = handle(async (req, res) => {
     const result = await authService.resetPassword(req.body || {})
     return res.json(result)
@@ -103,6 +108,7 @@ const createAuthController = ({ authService }) => {
     login,
     logout,
     refresh,
+    accountStatus,
     forgotPassword,
     resetPassword,
     changePassword,

@@ -9,18 +9,21 @@ const BOT_USERS = [
     gameName: 'mocke2ebot-abc',
     email: 'mocke2ebot-abc@myxi.local',
     password: PASSWORD,
+    securityAnswers: ['abc-school', 'abc-cricketer', 'abc-city'],
   },
   {
     name: 'cde',
     gameName: 'mocke2ebot-cde',
     email: 'mocke2ebot-cde@myxi.local',
     password: PASSWORD,
+    securityAnswers: ['cde-school', 'cde-cricketer', 'cde-city'],
   },
   {
     name: 'efg',
     gameName: 'mocke2ebot-efg',
     email: 'mocke2ebot-efg@myxi.local',
     password: PASSWORD,
+    securityAnswers: ['efg-school', 'efg-cricketer', 'efg-city'],
   },
 ]
 

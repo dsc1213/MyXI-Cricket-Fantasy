@@ -18,6 +18,11 @@ const getNextTournamentId = () => nextTournamentId++
 const getNextMatchId = () => nextMatchId++
 const getNextScoringRuleId = () => nextScoringRuleId++
 const getNextMatchScoreId = () => nextMatchScoreId++
+const defaultSecurityAnswersFor = (userId) => [
+  `${userId}-school`,
+  `${userId}-cricketer`,
+  `${userId}-city`,
+]
 
 const syncIdCountersFromData = () => {
   nextUserId = Math.max(1, ...users.map((item) => Number(item.id) || 0)) + 1
@@ -71,6 +76,10 @@ const seedInitialUsers = () => {
     const existing = users.find((user) => user.email === item.email)
     if (existing) return
     const normalizedUserId = normalizeUserIdentifier(item.userId || item.gameName)
+    const securityAnswers = Array.isArray(item.securityAnswers)
+      ? item.securityAnswers
+      : defaultSecurityAnswersFor(normalizedUserId)
+    const [answer1, answer2, answer3] = securityAnswers
     users.push({
       id: item.id,
       name: item.name,
@@ -79,6 +88,9 @@ const seedInitialUsers = () => {
       email: item.email,
       phone: (item.phone || '').toString().trim(),
       passwordHash: bcrypt.hashSync(item.password, 10),
+      securityAnswer1Hash: bcrypt.hashSync((answer1 || '').toString().trim().toLowerCase(), 10),
+      securityAnswer2Hash: bcrypt.hashSync((answer2 || '').toString().trim().toLowerCase(), 10),
+      securityAnswer3Hash: bcrypt.hashSync((answer3 || '').toString().trim().toLowerCase(), 10),
       status: item.status,
       role: item.role,
       contestManagerContestId: item.contestManagerContestId || null,

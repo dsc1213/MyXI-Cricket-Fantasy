@@ -35,6 +35,11 @@ const loginMaster = async () => {
 const loginBy = async (userId, password = 'demo123') => {
   return request(app).post('/auth/login').send({ userId, password })
 }
+const securityAnswersFor = (userId) => [
+  `${userId}-school`,
+  `${userId}-cricketer`,
+  `${userId}-city`,
+]
 
 describe('auth', () => {
   it('registers a user as pending', async () => {
@@ -43,6 +48,7 @@ describe('auth', () => {
       gameName: 'TestXI',
       email: 'user@myxi.local',
       password: 'pass1234',
+      securityAnswers: securityAnswersFor('testxi'),
     })
     expect(res.status).toBe(201)
     expect(res.body.status).toBe('pending')
@@ -54,6 +60,7 @@ describe('auth', () => {
       gameName: 'adminclone',
       email: 'admin@myxi.local',
       password: 'pass1234',
+      securityAnswers: securityAnswersFor('adminclone'),
     })
     expect(res.status).toBe(409)
     expect((res.body.message || '').toLowerCase()).toContain('already exists')
@@ -65,6 +72,7 @@ describe('auth', () => {
       gameName: 'player',
       email: 'new-admin@myxi.local',
       password: 'pass1234',
+      securityAnswers: securityAnswersFor('player'),
     })
     expect(res.status).toBe(409)
     expect((res.body.message || '').toLowerCase()).toContain('already exists')
@@ -133,6 +141,7 @@ describe('auth', () => {
       gameName: 'UserTwo',
       email: 'user2@myxi.local',
       password: 'pass1234',
+      securityAnswers: securityAnswersFor('usertwo'),
     })
     const token = await loginMaster()
     const approve = await request(app)
@@ -155,6 +164,7 @@ describe('auth', () => {
       gameName: 'UserThree',
       email: 'user3@myxi.local',
       password: 'pass1234',
+      securityAnswers: securityAnswersFor('userthree'),
     })
     const token = await loginMaster()
     const del = await request(app)
@@ -172,6 +182,7 @@ describe('auth', () => {
       gameName: 'resetuser',
       email: 'reset@myxi.local',
       password: 'oldpass123',
+      securityAnswers: securityAnswersFor('resetuser'),
     })
     expect(registerRes.status).toBe(201)
 
@@ -180,16 +191,19 @@ describe('auth', () => {
     })
     expect(forgotRes.status).toBe(200)
     expect(forgotRes.body.ok).toBe(true)
-    expect(forgotRes.body.resetToken).toBeTruthy()
+    expect(Array.isArray(forgotRes.body.questions)).toBe(true)
+    expect(forgotRes.body.questions.length).toBe(3)
 
     const invalidReset = await request(app).post('/auth/reset-password').send({
-      token: 'bad-token',
+      userId: 'resetuser',
+      answers: ['wrong-1', 'wrong-2', 'wrong-3'],
       newPassword: 'newpass123',
     })
-    expect(invalidReset.status).toBe(400)
+    expect(invalidReset.status).toBe(401)
 
     const resetRes = await request(app).post('/auth/reset-password').send({
-      token: forgotRes.body.resetToken,
+      userId: 'resetuser',
+      answers: securityAnswersFor('resetuser'),
       newPassword: 'newpass123',
     })
     expect(resetRes.status).toBe(200)
@@ -228,6 +242,7 @@ describe('auth', () => {
       gameName: 'pendinguser',
       email: 'pending@myxi.local',
       password: 'pass1234',
+      securityAnswers: securityAnswersFor('pendinguser'),
     })
     expect(reg.status).toBe(201)
 

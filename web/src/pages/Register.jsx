@@ -12,6 +12,9 @@ function Register() {
     location: '',
     email: '',
     password: '',
+    securityAnswer1: '',
+    securityAnswer2: '',
+    securityAnswer3: '',
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorText, setErrorText] = useState('')
@@ -25,7 +28,10 @@ function Register() {
       setIsSubmitting(true)
       setErrorText('')
       setSuccessText('')
-      await register(form)
+      await register({
+        ...form,
+        securityAnswers: [form.securityAnswer1, form.securityAnswer2, form.securityAnswer3],
+      })
       setSuccessText('Account submitted. Wait for admin approval.')
       setTimeout(() => navigate('/pending'), 700)
     } catch (error) {
@@ -93,6 +99,33 @@ function Register() {
               placeholder="Create a password"
               value={form.password}
               onChange={(event) => update('password', event.target.value)}
+            />
+          </label>
+          <label>
+            Security Question 1: What was your first school name?
+            <input
+              type="text"
+              placeholder="Answer 1"
+              value={form.securityAnswer1}
+              onChange={(event) => update('securityAnswer1', event.target.value)}
+            />
+          </label>
+          <label>
+            Security Question 2: Who is your favorite cricketer?
+            <input
+              type="text"
+              placeholder="Answer 2"
+              value={form.securityAnswer2}
+              onChange={(event) => update('securityAnswer2', event.target.value)}
+            />
+          </label>
+          <label>
+            Security Question 3: What city were you born in?
+            <input
+              type="text"
+              placeholder="Answer 3"
+              value={form.securityAnswer3}
+              onChange={(event) => update('securityAnswer3', event.target.value)}
             />
           </label>
           {!!errorText && <p className="error-text">{errorText}</p>}

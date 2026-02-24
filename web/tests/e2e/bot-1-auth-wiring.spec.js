@@ -27,6 +27,9 @@ test.describe('1) Auth wiring', () => {
       await page.getByLabel('Email').fill(bot.email)
       await page.getByLabel('Location').fill('Hyderabad')
       await page.getByLabel('Password').fill(PASSWORD)
+      await page.getByLabel(/Security Question 1/).fill(bot.securityAnswers[0])
+      await page.getByLabel(/Security Question 2/).fill(bot.securityAnswers[1])
+      await page.getByLabel(/Security Question 3/).fill(bot.securityAnswers[2])
       await page.getByRole('button', { name: 'Submit for approval' }).click()
       await expect(page).toHaveURL(/\/pending/, { timeout: 15000 })
 
@@ -51,32 +54,20 @@ test.describe('1) Auth wiring', () => {
         'placeholder',
         'userId or email',
       )
-      await expect(page.getByRole('button', { name: 'Generate reset token' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Load security questions' })).toBeVisible()
       await page.getByLabel('User ID or Email').fill(bot.gameName)
-      await page.getByRole('button', { name: 'Generate reset token' }).click()
-      await expect(page.getByText('Reset token generated. Use it to set a new password.')).toBeVisible()
+      await page.getByRole('button', { name: 'Load security questions' }).click()
+      await expect(page.getByText('Security questions loaded')).toBeVisible()
+      await page.getByLabel(/What was your first school name/).fill(bot.securityAnswers[0])
+      await page.getByLabel(/Who is your favorite cricketer/).fill(bot.securityAnswers[1])
+      await page.getByLabel(/What city were you born in/).fill(bot.securityAnswers[2])
+      const uiNewPassword = 'demo1234'
+      await page.getByLabel('New password').fill(uiNewPassword)
+      await page.getByLabel('Confirm password').fill(uiNewPassword)
+      await page.getByRole('button', { name: 'Update password' }).click()
+      await expect(page.getByText('Password updated. Redirecting to login...')).toBeVisible()
 
-      await loginUi(page, bot.gameName, PASSWORD)
-      const forgotRes = await apiCall(
-        request,
-        'POST',
-        '/auth/forgot-password',
-        { userId: bot.gameName },
-        200,
-      )
-      const token = forgotRes?.resetToken
-      expect(token).toBeTruthy()
-
-      const newPassword = 'demo1234'
-      await apiCall(
-        request,
-        'POST',
-        '/auth/reset-password',
-        { token, newPassword },
-        200,
-      )
-
-      await loginUi(page, bot.gameName, newPassword)
+      await loginUi(page, bot.gameName, uiNewPassword)
     } finally {
       await deleteUserIfPresent(request, bot.gameName)
     }

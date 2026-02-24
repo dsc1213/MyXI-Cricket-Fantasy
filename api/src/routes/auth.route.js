@@ -33,6 +33,7 @@ const registerAuthRoutes = (
   router.post('/auth/login', authController.login)
   router.post('/auth/logout', authController.logout)
   router.post('/auth/refresh', authenticate, authController.refresh)
+  router.post('/auth/status', authController.accountStatus)
   router.post('/auth/forgot-password', authController.forgotPassword)
   router.post('/auth/reset-password', authController.resetPassword)
   router.post('/auth/change-password', authenticate, authController.changePassword)

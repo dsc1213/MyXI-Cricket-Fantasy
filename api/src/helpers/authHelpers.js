@@ -21,6 +21,9 @@ const mapDbUserToDomain = (row) => {
     createdAt: row.created_at,
     resetToken: row.reset_token || null,
     resetTokenExpiresAt: row.reset_token_expires_at || null,
+    securityAnswer1Hash: row.security_answer_1_hash || null,
+    securityAnswer2Hash: row.security_answer_2_hash || null,
+    securityAnswer3Hash: row.security_answer_3_hash || null,
   }
 }
 

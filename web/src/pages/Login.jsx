@@ -21,6 +21,13 @@ function Login() {
       navigate('/home', { replace: true })
     } catch (error) {
       if ((error.message || '').toLowerCase().includes('not approved')) {
+        setStoredUser({
+          userId,
+          gameName: userId,
+          email: userId.includes('@') ? userId : '',
+          status: 'pending',
+          role: 'user',
+        })
         navigate('/pending')
         return
       }

@@ -98,23 +98,33 @@ export const createBotUsers = (tag) => [
     gameName: `mocke2ebot-abc-${tag}`,
     email: `mocke2ebot-abc-${tag}@myxi.local`,
     password: PASSWORD,
+    securityAnswers: ['abc-school', 'abc-cricketer', 'abc-city'],
   },
   {
     name: 'cde',
     gameName: `mocke2ebot-cde-${tag}`,
     email: `mocke2ebot-cde-${tag}@myxi.local`,
     password: PASSWORD,
+    securityAnswers: ['cde-school', 'cde-cricketer', 'cde-city'],
   },
   {
     name: 'efg',
     gameName: `mocke2ebot-efg-${tag}`,
     email: `mocke2ebot-efg-${tag}@myxi.local`,
     password: PASSWORD,
+    securityAnswers: ['efg-school', 'efg-cricketer', 'efg-city'],
   },
 ]
 
 export const registerAndActivateBot = async (request, botUser) => {
-  await apiCall(request, 'POST', '/auth/register', botUser, 201)
+  const seed = (botUser?.gameName || botUser?.email || 'bot').toString().toLowerCase()
+  const payload = {
+    ...botUser,
+    securityAnswers: Array.isArray(botUser?.securityAnswers)
+      ? botUser.securityAnswers
+      : [`${seed}-school`, `${seed}-cricketer`, `${seed}-city`],
+  }
+  await apiCall(request, 'POST', '/auth/register', payload, 201)
   const actorUserId = await getMasterActorUserId(request)
   const created = await findUserByGameName(request, botUser.gameName)
   if (!created) throw new Error(`Failed to find registered user ${botUser.gameName}`)

@@ -7,6 +7,12 @@ const createHttpError = (statusCode, message) => {
   return error
 }
 
+const SECURITY_QUESTIONS = [
+  { key: 'q1', prompt: 'What was your first school name?' },
+  { key: 'q2', prompt: 'Who is your favorite cricketer?' },
+  { key: 'q3', prompt: 'What city were you born in?' },
+]
+
 const createAuthService = ({
   users,
   bcrypt,
@@ -21,6 +27,35 @@ const createAuthService = ({
     (process.env.MOCK_API || '').toString().trim().toLowerCase() === 'true'
   const shouldUseDbAuth = () => !isSeedProviderEnabled() && shouldUsePostgres()
   const normalizeIdentity = (value) => (value || '').toString().trim().toLowerCase()
+  const normalizeSecurityAnswer = (value) => (value || '').toString().trim().toLowerCase()
+  const normalizeSecurityAnswersPayload = (payload) => {
+    if (Array.isArray(payload)) {
+      return payload.slice(0, 3).map((item) => normalizeSecurityAnswer(item))
+    }
+    if (payload && typeof payload === 'object') {
+      return [
+        normalizeSecurityAnswer(payload.q1),
+        normalizeSecurityAnswer(payload.q2),
+        normalizeSecurityAnswer(payload.q3),
+      ]
+    }
+    return []
+  }
+  const getSecurityAnswerHashesFromUser = (user) => [
+    user?.securityAnswer1Hash || user?.security_answer_1_hash || null,
+    user?.securityAnswer2Hash || user?.security_answer_2_hash || null,
+    user?.securityAnswer3Hash || user?.security_answer_3_hash || null,
+  ]
+  const requireValidSecurityAnswers = (answers) => {
+    const normalized = normalizeSecurityAnswersPayload(answers)
+    if (
+      normalized.length !== 3 ||
+      normalized.some((item) => !item || item.length < 2)
+    ) {
+      throw createHttpError(400, 'All 3 security answers are required')
+    }
+    return normalized
+  }
   const hasIdentity = (identitySet, values = []) =>
     values.some((value) => value && identitySet.has(value))
   const inferPrivilegedRole = ({ user, identifier }) => {
@@ -62,7 +97,8 @@ const createAuthService = ({
       const normalizedGameName = normalizeIdentity(gameName)
       const result = await dbQuery(
         `select id, name, user_id, game_name, email, phone, location, password_hash, role, status,
-                contest_manager_contest_id, created_at, reset_token, reset_token_expires_at
+                contest_manager_contest_id, created_at, reset_token, reset_token_expires_at,
+                security_answer_1_hash, security_answer_2_hash, security_answer_3_hash
          from users
          where (($1 <> '' and lower(email) = $1) or ($2 <> '' and lower(game_name) = $2))
            and ($3::bigint is null or id <> $3::bigint)
@@ -89,7 +125,8 @@ const createAuthService = ({
     if (shouldUseDbAuth()) {
       const result = await dbQuery(
         `select id, name, user_id, game_name, email, phone, location, password_hash, role, status,
-                contest_manager_contest_id, created_at, reset_token, reset_token_expires_at
+                contest_manager_contest_id, created_at, reset_token, reset_token_expires_at,
+                security_answer_1_hash, security_answer_2_hash, security_answer_3_hash
          from users
          where lower(email) = $1 or lower(user_id) = $1 or lower(game_name) = $1
          limit 1`,
@@ -113,7 +150,8 @@ const createAuthService = ({
     if (shouldUseDbAuth()) {
       const result = await dbQuery(
         `select id, name, user_id, game_name, email, phone, location, password_hash, role, status,
-                contest_manager_contest_id, created_at, reset_token, reset_token_expires_at
+                contest_manager_contest_id, created_at, reset_token, reset_token_expires_at,
+                security_answer_1_hash, security_answer_2_hash, security_answer_3_hash
          from users
          where id = $1
          limit 1`,
@@ -124,7 +162,16 @@ const createAuthService = ({
     return users.find((item) => Number(item?.id) === numericId) || null
   }
 
-  const registerUser = async ({ name, userId, gameName, location, email, phone, password }) => {
+  const registerUser = async ({
+    name,
+    userId,
+    gameName,
+    location,
+    email,
+    phone,
+    password,
+    securityAnswers,
+  }) => {
     const requestedUserId = (userId || gameName || '').toString().trim()
     if (!name || !requestedUserId || !email || !password) {
       throw createHttpError(400, 'Missing required fields')
@@ -139,12 +186,16 @@ const createAuthService = ({
     }
 
     const passwordHash = bcrypt.hashSync(password, 10)
+    const normalizedAnswers = requireValidSecurityAnswers(securityAnswers)
+    const securityAnswerHashes = normalizedAnswers.map((item) => bcrypt.hashSync(item, 10))
     if (shouldUseDbAuth()) {
       const inserted = await dbQuery(
         `insert into users
-          (name, user_id, game_name, location, email, phone, password_hash, status, role)
-         values ($1, $2, $3, $4, $5, $6, $7, 'pending', 'user')
-         returning id, name, user_id, game_name, location, email, phone, status`,
+          (name, user_id, game_name, location, email, phone, password_hash, status, role,
+           security_answer_1_hash, security_answer_2_hash, security_answer_3_hash)
+         values ($1, $2, $3, $4, $5, $6, $7, 'pending', 'user', $8, $9, $10)
+         returning id, name, user_id, game_name, location, email, phone, status,
+                   security_answer_1_hash, security_answer_2_hash, security_answer_3_hash`,
         [
           name.toString().trim(),
           requestedUserId,
@@ -153,6 +204,9 @@ const createAuthService = ({
           normalizedEmail,
           (phone || '').toString().trim(),
           passwordHash,
+          securityAnswerHashes[0],
+          securityAnswerHashes[1],
+          securityAnswerHashes[2],
         ],
       )
       return mapDbUserToDomain(inserted.rows[0])
@@ -167,6 +221,9 @@ const createAuthService = ({
       email: normalizedEmail,
       phone: (phone || '').toString().trim(),
       passwordHash,
+      securityAnswer1Hash: securityAnswerHashes[0],
+      securityAnswer2Hash: securityAnswerHashes[1],
+      securityAnswer3Hash: securityAnswerHashes[2],
       status: 'pending',
       role: 'user',
       createdAt: new Date().toISOString(),
@@ -263,74 +320,63 @@ const createAuthService = ({
     }
   }
 
+  const getUserStatus = async ({ userId, email }) => {
+    const identifier = (email || userId || '').toString().trim().toLowerCase()
+    if (!identifier) throw createHttpError(400, 'Missing required fields')
+    const user = await findUserByIdentifier(identifier)
+    if (!user) throw createHttpError(404, 'User not found')
+    return {
+      id: user.id,
+      userId: user.userId || user.gameName,
+      gameName: user.gameName,
+      email: user.email,
+      status: user.status,
+      role: normalizeRole(user.role),
+      contestManagerContestId: user.contestManagerContestId || null,
+    }
+  }
+
   const forgotPassword = async ({ userId, email }) => {
     const identifier = (email || userId || '').toString().trim().toLowerCase()
     if (!identifier) throw createHttpError(400, 'Missing required fields')
     const user = await findUserByIdentifier(identifier)
-    if (!user) {
-      return {
-        ok: true,
-        message: 'If the account exists, a reset token has been generated in mock mode.',
-      }
-    }
-
-    const token = `rst_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-6)}`
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()
-    if (shouldUseDbAuth()) {
-      await dbQuery(
-        `update users
-         set reset_token = $2, reset_token_expires_at = $3
-         where id = $1`,
-        [user.id, token, expiresAt],
-      )
-    } else {
-      user.resetToken = token
-      user.resetTokenExpiresAt = expiresAt
-      persistState()
+    if (!user) throw createHttpError(404, 'User not found')
+    const hashes = getSecurityAnswerHashesFromUser(user)
+    if (hashes.some((value) => !value)) {
+      throw createHttpError(400, 'Security questions are not configured for this account')
     }
     return {
       ok: true,
-      message: 'Reset token generated. Use it to set a new password.',
-      resetToken: token,
-      expiresAt,
+      message: 'Security questions loaded. Submit correct answers to reset password.',
+      questions: SECURITY_QUESTIONS,
     }
   }
 
-  const resetPassword = async ({ token, newPassword }) => {
-    if (!token || !newPassword) throw createHttpError(400, 'Missing required fields')
+  const resetPassword = async ({ userId, email, answers, newPassword }) => {
+    const identifier = (email || userId || '').toString().trim().toLowerCase()
+    if (!identifier || !newPassword) throw createHttpError(400, 'Missing required fields')
     if (newPassword.length < 6) throw createHttpError(400, 'Password must be at least 6 characters')
-
-    let user = null
-    if (shouldUseDbAuth()) {
-      const result = await dbQuery(
-        `select id, reset_token_expires_at
-         from users
-         where reset_token = $1
-         limit 1`,
-        [token],
-      )
-      user = result.rows[0] || null
-    } else {
-      user = users.find((item) => item.resetToken === token) || null
-    }
-    if (!user) throw createHttpError(400, 'Invalid or expired reset token')
-
-    const expiryTime = new Date(user.resetTokenExpiresAt || user.reset_token_expires_at || '').getTime()
-    if (!expiryTime || Number.isNaN(expiryTime) || expiryTime < Date.now()) {
-      throw createHttpError(400, 'Invalid or expired reset token')
+    const user = await findUserByIdentifier(identifier)
+    if (!user) throw createHttpError(404, 'User not found')
+    const normalizedAnswers = requireValidSecurityAnswers(answers)
+    const answerHashes = getSecurityAnswerHashesFromUser(user)
+    if (
+      answerHashes.length !== 3 ||
+      answerHashes.some((value) => !value) ||
+      !normalizedAnswers.every((value, index) => bcrypt.compareSync(value, answerHashes[index]))
+    ) {
+      throw createHttpError(401, 'Security answers do not match')
     }
 
     if (shouldUseDbAuth()) {
       await dbQuery(
         `update users
-         set password_hash = $2, reset_token = null, reset_token_expires_at = null
+         set password_hash = $2
          where id = $1`,
         [user.id, bcrypt.hashSync(newPassword, 10)],
       )
     } else {
       user.passwordHash = bcrypt.hashSync(newPassword, 10)
-      delete user.resetToken
-      delete user.resetTokenExpiresAt
       persistState()
     }
     return { ok: true, message: 'Password updated successfully' }
@@ -432,7 +478,8 @@ const createAuthService = ({
              updated_at = now()
          where id = $1
          returning id, name, user_id, game_name, email, phone, location, password_hash, role, status,
-                   contest_manager_contest_id, created_at, reset_token, reset_token_expires_at`,
+                   contest_manager_contest_id, created_at, reset_token, reset_token_expires_at,
+                   security_answer_1_hash, security_answer_2_hash, security_answer_3_hash`,
         [target.id, nextName, nextGameName, nextEmail, nextPhone, nextLocation],
       )
       return mapDbUserToDomain(result.rows[0])
@@ -452,6 +499,7 @@ const createAuthService = ({
     registerUser,
     loginUser,
     refreshUserSession,
+    getUserStatus,
     forgotPassword,
     resetPassword,
     changePassword,
