@@ -1,4 +1,3 @@
-
 // ES module, dependency-injected controller for all core endpoints
 const createCoreController = ({
   tournamentService,
@@ -57,7 +56,12 @@ const createCoreController = ({
       if (!tournamentId || !playerStats) {
         return res.status(400).json({ error: 'tournamentId and playerStats required' })
       }
-      const data = await matchService.uploadScore(id, tournamentId, playerStats, uploadedBy)
+      const data = await matchService.uploadScore(
+        id,
+        tournamentId,
+        playerStats,
+        uploadedBy,
+      )
       res.json(data)
     } catch (error) {
       res.status(500).json({ error: error.message })
