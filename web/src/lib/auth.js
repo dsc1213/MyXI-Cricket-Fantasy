@@ -11,7 +11,8 @@ const normalizeUser = (user) => {
   return {
     ...user,
     role: normalizeRole(user.role),
-    token: undefined,
+    // Preserve token if present
+    token: user.token,
     tokenExpiresAt: Number.isFinite(tokenExpiresAt) && tokenExpiresAt > 0 ? tokenExpiresAt : null,
   }
 }

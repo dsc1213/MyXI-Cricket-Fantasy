@@ -43,37 +43,43 @@ const securityAnswersFor = (userId) => [
 
 describe('auth', () => {
   it('registers a user as pending', async () => {
-    const res = await request(app).post('/auth/register').send({
-      name: 'Test User',
-      gameName: 'TestXI',
-      email: 'user@myxi.local',
-      password: 'pass1234',
-      securityAnswers: securityAnswersFor('testxi'),
-    })
+    const res = await request(app)
+      .post('/auth/register')
+      .send({
+        name: 'Test User',
+        gameName: 'TestXI',
+        email: 'user@myxi.local',
+        password: 'pass1234',
+        securityAnswers: securityAnswersFor('testxi'),
+      })
     expect(res.status).toBe(201)
     expect(res.body.status).toBe('pending')
   })
 
   it('rejects register when email already exists', async () => {
-    const res = await request(app).post('/auth/register').send({
-      name: 'Another Admin',
-      gameName: 'adminclone',
-      email: 'admin@myxi.local',
-      password: 'pass1234',
-      securityAnswers: securityAnswersFor('adminclone'),
-    })
+    const res = await request(app)
+      .post('/auth/register')
+      .send({
+        name: 'Another Admin',
+        gameName: 'adminclone',
+        email: 'admin@myxi.local',
+        password: 'pass1234',
+        securityAnswers: securityAnswersFor('adminclone'),
+      })
     expect(res.status).toBe(409)
     expect((res.body.message || '').toLowerCase()).toContain('already exists')
   })
 
   it('rejects register when game name already exists', async () => {
-    const res = await request(app).post('/auth/register').send({
-      name: 'Another Admin',
-      gameName: 'player',
-      email: 'new-admin@myxi.local',
-      password: 'pass1234',
-      securityAnswers: securityAnswersFor('player'),
-    })
+    const res = await request(app)
+      .post('/auth/register')
+      .send({
+        name: 'Another Admin',
+        gameName: 'player',
+        email: 'new-admin@myxi.local',
+        password: 'pass1234',
+        securityAnswers: securityAnswersFor('player'),
+      })
     expect(res.status).toBe(409)
     expect((res.body.message || '').toLowerCase()).toContain('already exists')
   })
@@ -136,13 +142,15 @@ describe('auth', () => {
   })
 
   it('approves a user then allows login', async () => {
-    const reg = await request(app).post('/auth/register').send({
-      name: 'User Two',
-      gameName: 'UserTwo',
-      email: 'user2@myxi.local',
-      password: 'pass1234',
-      securityAnswers: securityAnswersFor('usertwo'),
-    })
+    const reg = await request(app)
+      .post('/auth/register')
+      .send({
+        name: 'User Two',
+        gameName: 'UserTwo',
+        email: 'user2@myxi.local',
+        password: 'pass1234',
+        securityAnswers: securityAnswersFor('usertwo'),
+      })
     const token = await loginMaster()
     const approve = await request(app)
       .post('/auth/approve-user')
@@ -159,13 +167,15 @@ describe('auth', () => {
   })
 
   it('master admin can delete a user', async () => {
-    const reg = await request(app).post('/auth/register').send({
-      name: 'User Three',
-      gameName: 'UserThree',
-      email: 'user3@myxi.local',
-      password: 'pass1234',
-      securityAnswers: securityAnswersFor('userthree'),
-    })
+    const reg = await request(app)
+      .post('/auth/register')
+      .send({
+        name: 'User Three',
+        gameName: 'UserThree',
+        email: 'user3@myxi.local',
+        password: 'pass1234',
+        securityAnswers: securityAnswersFor('userthree'),
+      })
     const token = await loginMaster()
     const del = await request(app)
       .delete(`/admin/users/${reg.body.id}`)
@@ -177,13 +187,15 @@ describe('auth', () => {
   })
 
   it('supports forgot password and reset password flow', async () => {
-    const registerRes = await request(app).post('/auth/register').send({
-      name: 'Reset User',
-      gameName: 'resetuser',
-      email: 'reset@myxi.local',
-      password: 'oldpass123',
-      securityAnswers: securityAnswersFor('resetuser'),
-    })
+    const registerRes = await request(app)
+      .post('/auth/register')
+      .send({
+        name: 'Reset User',
+        gameName: 'resetuser',
+        email: 'reset@myxi.local',
+        password: 'oldpass123',
+        securityAnswers: securityAnswersFor('resetuser'),
+      })
     expect(registerRes.status).toBe(201)
 
     const forgotRes = await request(app).post('/auth/forgot-password').send({
@@ -194,18 +206,22 @@ describe('auth', () => {
     expect(Array.isArray(forgotRes.body.questions)).toBe(true)
     expect(forgotRes.body.questions.length).toBe(3)
 
-    const invalidReset = await request(app).post('/auth/reset-password').send({
-      userId: 'resetuser',
-      answers: ['wrong-1', 'wrong-2', 'wrong-3'],
-      newPassword: 'newpass123',
-    })
+    const invalidReset = await request(app)
+      .post('/auth/reset-password')
+      .send({
+        userId: 'resetuser',
+        answers: ['wrong-1', 'wrong-2', 'wrong-3'],
+        newPassword: 'newpass123',
+      })
     expect(invalidReset.status).toBe(401)
 
-    const resetRes = await request(app).post('/auth/reset-password').send({
-      userId: 'resetuser',
-      answers: securityAnswersFor('resetuser'),
-      newPassword: 'newpass123',
-    })
+    const resetRes = await request(app)
+      .post('/auth/reset-password')
+      .send({
+        userId: 'resetuser',
+        answers: securityAnswersFor('resetuser'),
+        newPassword: 'newpass123',
+      })
     expect(resetRes.status).toBe(200)
     expect(resetRes.body.ok).toBe(true)
 
@@ -237,13 +253,15 @@ describe('auth', () => {
   })
 
   it('blocks pending users from login until approved', async () => {
-    const reg = await request(app).post('/auth/register').send({
-      name: 'Pending User',
-      gameName: 'pendinguser',
-      email: 'pending@myxi.local',
-      password: 'pass1234',
-      securityAnswers: securityAnswersFor('pendinguser'),
-    })
+    const reg = await request(app)
+      .post('/auth/register')
+      .send({
+        name: 'Pending User',
+        gameName: 'pendinguser',
+        email: 'pending@myxi.local',
+        password: 'pass1234',
+        securityAnswers: securityAnswersFor('pendinguser'),
+      })
     expect(reg.status).toBe(201)
 
     const pendingLogin = await request(app).post('/auth/login').send({
@@ -329,23 +347,27 @@ describe('role flows', () => {
     expect(login.body.contestManagerContestId).toBeTruthy()
 
     const assignedContestId = login.body.contestManagerContestId
-    const okRes = await request(app).post('/admin/match-scores/upsert').send({
-      tournamentId: 't20wc-2026',
-      contestId: assignedContestId,
-      matchId: 'm1',
-      userId: 'contestmgr',
-      playerStats: [{ playerName: 'Suryakumar Yadav', runs: 22 }],
-    })
+    const okRes = await request(app)
+      .post('/admin/match-scores/upsert')
+      .send({
+        tournamentId: 't20wc-2026',
+        contestId: assignedContestId,
+        matchId: 'm1',
+        userId: 'contestmgr',
+        playerStats: [{ playerName: 'Suryakumar Yadav', runs: 22 }],
+      })
     expect(okRes.status).toBe(200)
     expect(okRes.body.ok).toBe(true)
 
-    const forbiddenRes = await request(app).post('/admin/match-scores/upsert').send({
-      tournamentId: 't20wc-2026',
-      contestId: 'wc-super-six',
-      matchId: 'm1',
-      userId: 'contestmgr',
-      playerStats: [{ playerName: 'Suryakumar Yadav', runs: 22 }],
-    })
+    const forbiddenRes = await request(app)
+      .post('/admin/match-scores/upsert')
+      .send({
+        tournamentId: 't20wc-2026',
+        contestId: 'wc-super-six',
+        matchId: 'm1',
+        userId: 'contestmgr',
+        playerStats: [{ playerName: 'Suryakumar Yadav', runs: 22 }],
+      })
     expect(forbiddenRes.status).toBe(403)
   }, 60000)
 })

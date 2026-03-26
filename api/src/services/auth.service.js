@@ -1,5 +1,8 @@
 import { dbQuery, shouldUsePostgres } from '../db.js'
 import { mapDbUserToDomain, normalizeRole } from '../helpers/authHelpers.js'
+import { createRepositoryFactory } from '../repositories/repository.factory.js'
+
+const factory = createRepositoryFactory()
 
 const createHttpError = (statusCode, message) => {
   const error = new Error(message)
@@ -13,19 +16,25 @@ const SECURITY_QUESTIONS = [
   { key: 'q3', prompt: 'What city were you born in?' },
 ]
 
-const createAuthService = ({
-  users,
-  bcrypt,
-  jwt,
-  jwtSecret,
-  jwtExpiresIn,
-  getNextUserId,
-  persistState,
-  appendAuditLog,
-}) => {
-  const isSeedProviderEnabled = () =>
-    (process.env.MOCK_API || '').toString().trim().toLowerCase() === 'true'
-  const shouldUseDbAuth = () => !isSeedProviderEnabled() && shouldUsePostgres()
+// Validates and normalizes security answers (array or object). Throws 400 if invalid.
+function requireValidSecurityAnswers(input) {
+  let arr = []
+  if (Array.isArray(input)) {
+    arr = input.map((v) => (v || '').toString().trim().toLowerCase())
+  } else if (input && typeof input === 'object') {
+    arr = [input.q1, input.q2, input.q3].map((v) =>
+      (v || '').toString().trim().toLowerCase(),
+    )
+  }
+  if (arr.length !== 3 || arr.some((v) => !v)) {
+    const error = new Error('All 3 security answers are required')
+    error.statusCode = 400
+    throw error
+  }
+  return arr
+}
+
+const createAuthService = ({ bcrypt, jwt, jwtSecret, jwtExpiresIn, appendAuditLog }) => {
   const normalizeIdentity = (value) => (value || '').toString().trim().toLowerCase()
   const normalizeSecurityAnswer = (value) => (value || '').toString().trim().toLowerCase()
   const normalizeSecurityAnswersPayload = (payload) => {
@@ -46,16 +55,6 @@ const createAuthService = ({
     user?.securityAnswer2Hash || user?.security_answer_2_hash || null,
     user?.securityAnswer3Hash || user?.security_answer_3_hash || null,
   ]
-  const requireValidSecurityAnswers = (answers) => {
-    const normalized = normalizeSecurityAnswersPayload(answers)
-    if (
-      normalized.length !== 3 ||
-      normalized.some((item) => !item || item.length < 2)
-    ) {
-      throw createHttpError(400, 'All 3 security answers are required')
-    }
-    return normalized
-  }
   const hasIdentity = (identitySet, values = []) =>
     values.some((value) => value && identitySet.has(value))
   const inferPrivilegedRole = ({ user, identifier }) => {
@@ -67,11 +66,22 @@ const createAuthService = ({
       .trim()
       .toLowerCase()
 
-    const masterIdentities = new Set(['master', 'master@myxi.local', 'sreecharan', 'sree@myxi.local'])
-    const adminIdentities = new Set(['admin', 'admin@myxi.local', 'rahulxi', 'rahul@myxi.local'])
+    const masterIdentities = new Set([
+      'master',
+      'master@myxi.local',
+      'sreecharan',
+      'sree@myxi.local',
+    ])
+    const adminIdentities = new Set([
+      'admin',
+      'admin@myxi.local',
+      'rahulxi',
+      'rahul@myxi.local',
+    ])
     const contestManagerIdentities = new Set(['contestmgr', 'contestmgr@myxi.local'])
 
-    if (masterAdminEmail && identityValues.includes(masterAdminEmail)) return 'master_admin'
+    if (masterAdminEmail && identityValues.includes(masterAdminEmail))
+      return 'master_admin'
     if (hasIdentity(masterIdentities, identityValues)) return 'master_admin'
     if (hasIdentity(adminIdentities, identityValues)) return 'admin'
     if (hasIdentity(contestManagerIdentities, identityValues)) return 'contest_manager'
@@ -92,74 +102,35 @@ const createAuthService = ({
     return { token, tokenExpiresAt }
   }
   const findIdentityConflict = async ({ email, gameName, excludeUserId = null }) => {
-    if (shouldUseDbAuth()) {
-      const normalizedEmail = normalizeIdentity(email)
-      const normalizedGameName = normalizeIdentity(gameName)
-      const result = await dbQuery(
-        `select id, name, user_id, game_name, email, phone, location, password_hash, role, status,
-                contest_manager_contest_id, created_at, reset_token, reset_token_expires_at,
-                security_answer_1_hash, security_answer_2_hash, security_answer_3_hash
-         from users
-         where (($1 <> '' and lower(email) = $1) or ($2 <> '' and lower(game_name) = $2))
-           and ($3::bigint is null or id <> $3::bigint)
-         limit 1`,
-        [normalizedEmail, normalizedGameName, excludeUserId == null ? null : Number(excludeUserId)],
-      )
-      return mapDbUserToDomain(result.rows[0])
-    }
+    const repo = await factory.getUserRepository()
     const normalizedEmail = normalizeIdentity(email)
     const normalizedGameName = normalizeIdentity(gameName)
-    return users.find((user) => {
-      if (excludeUserId != null && Number(user?.id) === Number(excludeUserId)) return false
-      const userEmail = normalizeIdentity(user?.email)
-      const userGameName = normalizeIdentity(user?.gameName)
-      return (
-        (normalizedEmail && userEmail === normalizedEmail) ||
-        (normalizedGameName && userGameName === normalizedGameName)
-      )
-    })
+
+    const existingEmail = normalizedEmail ? await repo.findByEmail(normalizedEmail) : null
+    const existingGameName = normalizedGameName
+      ? await repo.findByGameName(normalizedGameName)
+      : null
+
+    const conflict = existingEmail || existingGameName
+    if (!conflict) return null
+
+    // Check exclude
+    if (excludeUserId != null && Number(conflict.id) === Number(excludeUserId))
+      return null
+
+    return conflict
   }
   const findUserByIdentifier = async (identifier = '') => {
     const input = normalizeIdentity(identifier)
     if (!input) return null
-    if (shouldUseDbAuth()) {
-      const result = await dbQuery(
-        `select id, name, user_id, game_name, email, phone, location, password_hash, role, status,
-                contest_manager_contest_id, created_at, reset_token, reset_token_expires_at,
-                security_answer_1_hash, security_answer_2_hash, security_answer_3_hash
-         from users
-         where lower(email) = $1 or lower(user_id) = $1 or lower(game_name) = $1
-         limit 1`,
-        [input],
-      )
-      return mapDbUserToDomain(result.rows[0])
-    }
-    return (
-      users.find((item) => {
-        return (
-          item.email?.toLowerCase() === input ||
-          item.userId?.toLowerCase() === input ||
-          item.gameName?.toLowerCase() === input
-        )
-      }) || null
-    )
+    const repo = await factory.getUserRepository()
+    return await repo.findByIdentifier(input)
   }
   const findUserById = async (id) => {
     const numericId = Number(id)
     if (!Number.isFinite(numericId) || numericId <= 0) return null
-    if (shouldUseDbAuth()) {
-      const result = await dbQuery(
-        `select id, name, user_id, game_name, email, phone, location, password_hash, role, status,
-                contest_manager_contest_id, created_at, reset_token, reset_token_expires_at,
-                security_answer_1_hash, security_answer_2_hash, security_answer_3_hash
-         from users
-         where id = $1
-         limit 1`,
-        [numericId],
-      )
-      return mapDbUserToDomain(result.rows[0])
-    }
-    return users.find((item) => Number(item?.id) === numericId) || null
+    const repo = await factory.getUserRepository()
+    return await repo.findById(numericId)
   }
 
   const registerUser = async ({
@@ -177,43 +148,21 @@ const createAuthService = ({
       throw createHttpError(400, 'Missing required fields')
     }
     const normalizedEmail = email.toString().trim().toLowerCase()
-    const existing = await findIdentityConflict({
-      email: normalizedEmail,
-      gameName: requestedUserId,
-    })
-    if (existing) {
+
+    const repo = await factory.getUserRepository()
+    const existingEmail = await repo.findByEmail(normalizedEmail)
+    const existingGameName = await repo.findByGameName(requestedUserId)
+    if (existingEmail || existingGameName) {
       throw createHttpError(409, 'User already exists with same email or user id')
     }
 
     const passwordHash = bcrypt.hashSync(password, 10)
     const normalizedAnswers = requireValidSecurityAnswers(securityAnswers)
-    const securityAnswerHashes = normalizedAnswers.map((item) => bcrypt.hashSync(item, 10))
-    if (shouldUseDbAuth()) {
-      const inserted = await dbQuery(
-        `insert into users
-          (name, user_id, game_name, location, email, phone, password_hash, status, role,
-           security_answer_1_hash, security_answer_2_hash, security_answer_3_hash)
-         values ($1, $2, $3, $4, $5, $6, $7, 'pending', 'user', $8, $9, $10)
-         returning id, name, user_id, game_name, location, email, phone, status,
-                   security_answer_1_hash, security_answer_2_hash, security_answer_3_hash`,
-        [
-          name.toString().trim(),
-          requestedUserId,
-          requestedUserId,
-          (location || '').toString().trim(),
-          normalizedEmail,
-          (phone || '').toString().trim(),
-          passwordHash,
-          securityAnswerHashes[0],
-          securityAnswerHashes[1],
-          securityAnswerHashes[2],
-        ],
-      )
-      return mapDbUserToDomain(inserted.rows[0])
-    }
+    const securityAnswerHashes = normalizedAnswers.map((item) =>
+      bcrypt.hashSync(item, 10),
+    )
 
-    const user = {
-      id: getNextUserId(),
+    const userData = {
       name: name.toString().trim(),
       userId: requestedUserId,
       gameName: requestedUserId,
@@ -224,13 +173,12 @@ const createAuthService = ({
       securityAnswer1Hash: securityAnswerHashes[0],
       securityAnswer2Hash: securityAnswerHashes[1],
       securityAnswer3Hash: securityAnswerHashes[2],
+      securityAnswers: normalizedAnswers,
       status: 'pending',
       role: 'user',
-      createdAt: new Date().toISOString(),
     }
-    users.push(user)
-    persistState()
-    return user
+    const createdUser = await repo.createUser(userData)
+    return createdUser
   }
 
   const loginUser = async ({ email, userId, password }) => {
@@ -246,7 +194,10 @@ const createAuthService = ({
 
     if (user.status !== 'active') {
       if (user.status === 'pending') {
-        throw createHttpError(403, 'User not approved yet. Wait for master admin approval.')
+        throw createHttpError(
+          403,
+          'User not approved yet. Wait for master admin approval.',
+        )
       }
       if (user.status === 'rejected') {
         throw createHttpError(403, 'User registration was rejected.')
@@ -254,37 +205,23 @@ const createAuthService = ({
       throw createHttpError(403, 'User is not active.')
     }
 
+    const repo = await factory.getUserRepository()
     let normalizedRole = normalizeRole(user.role)
     const inferredRole = inferPrivilegedRole({ user, identifier: input })
     if (inferredRole && normalizedRole === 'user') {
       normalizedRole = inferredRole
-      if (shouldUseDbAuth()) {
-        const nextContestScope =
-          inferredRole === 'contest_manager' && !user.contestManagerContestId
-            ? 'huntercherry'
-            : user.contestManagerContestId
-        await dbQuery(
-          `update users
-           set role = $2,
-               contest_manager_contest_id = $3
-           where id = $1`,
-          [user.id, inferredRole, nextContestScope],
-        )
-        user.role = inferredRole
-        user.contestManagerContestId = nextContestScope
-      } else {
-        user.role = inferredRole
-        if (inferredRole === 'contest_manager' && !user.contestManagerContestId) {
-          user.contestManagerContestId = 'huntercherry'
-        }
-        persistState()
-      }
+      const nextContestScope =
+        inferredRole === 'contest_manager' && !user.contestManagerContestId
+          ? 'huntercherry'
+          : user.contestManagerContestId
+      await repo.update(user.id, {
+        role: inferredRole,
+        contestManagerContestId: nextContestScope,
+      })
+      user.role = inferredRole
+      user.contestManagerContestId = nextContestScope
     } else if (normalizedRole !== user.role) {
-      if (shouldUseDbAuth()) {
-        await dbQuery(`update users set role = $2 where id = $1`, [user.id, normalizedRole])
-      } else {
-        persistState()
-      }
+      await repo.update(user.id, { role: normalizedRole })
       user.role = normalizedRole
     }
 
@@ -355,7 +292,8 @@ const createAuthService = ({
   const resetPassword = async ({ userId, email, answers, newPassword }) => {
     const identifier = (email || userId || '').toString().trim().toLowerCase()
     if (!identifier || !newPassword) throw createHttpError(400, 'Missing required fields')
-    if (newPassword.length < 6) throw createHttpError(400, 'Password must be at least 6 characters')
+    if (newPassword.length < 6)
+      throw createHttpError(400, 'Password must be at least 6 characters')
     const user = await findUserByIdentifier(identifier)
     if (!user) throw createHttpError(404, 'User not found')
     const normalizedAnswers = requireValidSecurityAnswers(answers)
@@ -363,68 +301,55 @@ const createAuthService = ({
     if (
       answerHashes.length !== 3 ||
       answerHashes.some((value) => !value) ||
-      !normalizedAnswers.every((value, index) => bcrypt.compareSync(value, answerHashes[index]))
+      !normalizedAnswers.every((value, index) =>
+        bcrypt.compareSync(value, answerHashes[index]),
+      )
     ) {
       throw createHttpError(401, 'Security answers do not match')
     }
 
-    if (shouldUseDbAuth()) {
-      await dbQuery(
-        `update users
-         set password_hash = $2
-         where id = $1`,
-        [user.id, bcrypt.hashSync(newPassword, 10)],
-      )
-    } else {
-      user.passwordHash = bcrypt.hashSync(newPassword, 10)
-      persistState()
-    }
+    const repo = await factory.getUserRepository()
+    await repo.updatePassword(user.id, bcrypt.hashSync(newPassword, 10))
     return { ok: true, message: 'Password updated successfully' }
   }
 
   const changePassword = async ({ user, currentPassword, newPassword }) => {
-    if (!currentPassword || !newPassword) throw createHttpError(400, 'Missing required fields')
-    if (newPassword.length < 6) throw createHttpError(400, 'Password must be at least 6 characters')
+    if (!currentPassword || !newPassword)
+      throw createHttpError(400, 'Missing required fields')
+    if (newPassword.length < 6)
+      throw createHttpError(400, 'Password must be at least 6 characters')
     if (user?.id == null) throw createHttpError(401, 'Unauthorized')
     let targetUser = user
     if (!targetUser?.passwordHash && targetUser?.id != null) {
       targetUser = await findUserById(targetUser.id)
     }
-    if (!targetUser?.passwordHash || !bcrypt.compareSync(currentPassword, targetUser.passwordHash)) {
+    if (
+      !targetUser?.passwordHash ||
+      !bcrypt.compareSync(currentPassword, targetUser.passwordHash)
+    ) {
       throw createHttpError(401, 'Current password is incorrect')
     }
 
     const passwordHash = bcrypt.hashSync(newPassword, 10)
-    if (shouldUseDbAuth()) {
-      await dbQuery(`update users set password_hash = $2 where id = $1`, [targetUser.id, passwordHash])
-    } else {
-      targetUser.passwordHash = passwordHash
-      persistState()
-    }
+    // Always use the repository for updating password (mock or db)
+    const repo = await factory.getUserRepository()
+    await repo.updatePassword(targetUser.id, passwordHash)
     return { ok: true, message: 'Password updated successfully' }
   }
 
   const approveUser = async ({ userId, status }) => {
     if (!userId || !status) throw createHttpError(400, 'Missing required fields')
-    if (!['active', 'rejected'].includes(status)) throw createHttpError(400, 'Invalid status')
+    if (!['active', 'rejected'].includes(status))
+      throw createHttpError(400, 'Invalid status')
 
-    let user = null
-    if (shouldUseDbAuth()) {
-      const result = await dbQuery(`select id, role from users where id = $1 limit 1`, [Number(userId)])
-      user = result.rows[0] || null
-    } else {
-      user = users.find((item) => item.id === Number(userId)) || null
-    }
+    const repo = await factory.getUserRepository()
+    const user = await repo.findById(Number(userId))
     if (!user) throw createHttpError(404, 'User not found')
-    if (user.role === 'master_admin') throw createHttpError(400, 'Cannot modify master admin')
+    if (user.role === 'master_admin')
+      throw createHttpError(400, 'Cannot modify master admin')
 
-    if (shouldUseDbAuth()) {
-      await dbQuery(`update users set status = $2 where id = $1`, [user.id, status])
-      return { id: user.id, status }
-    }
-    user.status = status
-    persistState()
-    return { id: user.id, status: user.status }
+    await repo.update(user.id, { status })
+    return { id: user.id, status }
   }
 
   const updateUserProfile = async ({
@@ -466,33 +391,16 @@ const createAuthService = ({
       throw createHttpError(409, 'User already exists with same email or user id')
     }
 
-    if (shouldUseDbAuth()) {
-      const result = await dbQuery(
-        `update users
-         set name = $2,
-             user_id = $3,
-             game_name = $3,
-             email = $4,
-             phone = $5,
-             location = $6,
-             updated_at = now()
-         where id = $1
-         returning id, name, user_id, game_name, email, phone, location, password_hash, role, status,
-                   contest_manager_contest_id, created_at, reset_token, reset_token_expires_at,
-                   security_answer_1_hash, security_answer_2_hash, security_answer_3_hash`,
-        [target.id, nextName, nextGameName, nextEmail, nextPhone, nextLocation],
-      )
-      return mapDbUserToDomain(result.rows[0])
-    }
-
-    target.name = nextName
-    target.userId = nextGameName
-    target.gameName = nextGameName
-    target.email = nextEmail
-    target.phone = nextPhone
-    target.location = nextLocation
-    persistState()
-    return target
+    const repo = await factory.getUserRepository()
+    await repo.update(target.id, {
+      name: nextName,
+      userId: nextGameName,
+      gameName: nextGameName,
+      email: nextEmail,
+      phone: nextPhone,
+      location: nextLocation,
+    })
+    return await repo.findById(target.id)
   }
 
   return {

@@ -4,7 +4,8 @@ const registerMockProviderRoutes = (router, ctx) => {
     const normalizedEmail = normalizeIdentity(email)
     const normalizedGameName = normalizeIdentity(gameName)
     return users.find((user) => {
-      if (excludeUserId != null && Number(user?.id) === Number(excludeUserId)) return false
+      if (excludeUserId != null && Number(user?.id) === Number(excludeUserId))
+        return false
       const userEmail = normalizeIdentity(user?.email)
       const userGameName = normalizeIdentity(user?.gameName)
       return (
@@ -137,22 +138,27 @@ const registerMockProviderRoutes = (router, ctx) => {
     return entries
   }
   const computeContestLastScoreMeta = (contest) => {
-    const contestMatchIds = new Set(getContestMatches(contest).map((match) => match.id.toString()))
+    const contestMatchIds = new Set(
+      getContestMatches(contest).map((match) => match.id.toString()),
+    )
     const latest = [...matchScores]
       .filter(
         (row) =>
           row?.active !== false &&
-          (row?.tournamentId || '').toString() === (contest?.tournamentId || '').toString() &&
+          (row?.tournamentId || '').toString() ===
+            (contest?.tournamentId || '').toString() &&
           contestMatchIds.has((row?.matchId || '').toString()),
       )
-      .sort((a, b) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime())[0]
+      .sort(
+        (a, b) =>
+          new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime(),
+      )[0]
     return {
       lastScoreUpdatedAt: latest?.createdAt || null,
       lastScoreUpdatedBy: latest?.uploadedBy || null,
     }
   }
-  const normalizeActorId = (value = '') =>
-    value.toString().trim().toLowerCase()
+  const normalizeActorId = (value = '') => value.toString().trim().toLowerCase()
   const getJoinedSetForUser = (userId = '') => {
     const normalized = normalizeActorId(userId)
     if (!normalized) return new Set()
@@ -188,6 +194,7 @@ const registerMockProviderRoutes = (router, ctx) => {
       .sort((a, b) => Number(a.matchNo || 0) - Number(b.matchNo || 0))
     const firstMatch = contestMatches[0] || null
     if (!firstMatch) return false
+    if (normalizeMatchStatus(firstMatch.status) !== 'notstarted') return false
     const firstStartAt =
       (firstMatch.startAt || '').toString().trim() ||
       `${(firstMatch.date || '2099-01-01').toString()}T00:00:00.000Z`
@@ -202,7 +209,9 @@ const registerMockProviderRoutes = (router, ctx) => {
   router.get('/bootstrap', getMockPageLoadData)
 
   router.get('/tournaments', (req, res) => {
-    const list = getTournamentCatalogRows().filter((item) => enabledTournamentIds.has(item.id))
+    const list = getTournamentCatalogRows().filter((item) =>
+      enabledTournamentIds.has(item.id),
+    )
     return res.json(list)
   })
 
@@ -226,9 +235,7 @@ const registerMockProviderRoutes = (router, ctx) => {
   router.patch('/admin/users/:id', (req, res) => {
     const actor = resolveAdminActor(req)
     if (!canAccessAdminUsers(actor)) {
-      return res
-        .status(403)
-        .json({ message: 'Only admin/master can manage users' })
+      return res.status(403).json({ message: 'Only admin/master can manage users' })
     }
     const id = Number(req.params.id)
     const target = users.find((item) => item.id === id)
@@ -248,8 +255,7 @@ const registerMockProviderRoutes = (router, ctx) => {
       role,
       status,
       contestManagerContestId,
-    } =
-      req.body || {}
+    } = req.body || {}
     const requestedUserId =
       typeof userId === 'string' && userId.trim()
         ? userId.trim()
@@ -258,14 +264,18 @@ const registerMockProviderRoutes = (router, ctx) => {
           : target.userId || target.gameName
     const nextGameName = requestedUserId
     const nextEmail =
-      typeof email === 'string' && email.trim() ? email.trim().toLowerCase() : target.email
+      typeof email === 'string' && email.trim()
+        ? email.trim().toLowerCase()
+        : target.email
     const conflict = findIdentityConflict({
       email: nextEmail,
       gameName: nextGameName,
       excludeUserId: target.id,
     })
     if (conflict) {
-      return res.status(409).json({ message: 'User already exists with same email or user id' })
+      return res
+        .status(409)
+        .json({ message: 'User already exists with same email or user id' })
     }
     if (typeof name === 'string' && name.trim()) target.name = name.trim()
     target.gameName = nextGameName
@@ -348,10 +358,32 @@ const registerMockProviderRoutes = (router, ctx) => {
       return res.status(400).json({ message: 'Cannot delete master admin' })
     }
     const [removed] = users.splice(index, 1)
-    const removedKey = normalizeActorId(removed?.gameName || '')
-    if (removedKey && Object.hasOwn(contestJoins, removedKey)) {
-      delete contestJoins[removedKey]
+    const removedKeys = new Set(
+      [removed?.id, removed?.userId, removed?.gameName, removed?.email]
+        .filter(Boolean)
+        .map((value) => normalizeActorId(value)),
+    )
+    removedKeys.forEach((removedKey) => {
+      if (removedKey && Object.hasOwn(contestJoins, removedKey)) {
+        delete contestJoins[removedKey]
+      }
+    })
+    for (const [key, selection] of mockTeamSelections.entries()) {
+      const selectionKeys = new Set(
+        [selection?.userId]
+          .filter(Boolean)
+          .map((value) => normalizeActorId(value)),
+      )
+      const shouldDelete = [...selectionKeys].some((value) => removedKeys.has(value))
+      if (shouldDelete) {
+        mockTeamSelections.delete(key)
+      }
     }
+    removedKeys.forEach((removedKey) => {
+      if (removedKey && Object.hasOwn(sampleUserPicks, removedKey)) {
+        delete sampleUserPicks[removedKey]
+      }
+    })
     appendAuditLog({
       actor: actor.gameName || actor.name || 'Admin',
       action: 'Deleted user',
@@ -373,7 +405,8 @@ const registerMockProviderRoutes = (router, ctx) => {
           contest.tournamentId === item.id &&
           contest.status?.toLowerCase() !== 'completed',
       ),
-      contestsCount: mockContests.filter((contest) => contest.tournamentId === item.id).length,
+      contestsCount: mockContests.filter((contest) => contest.tournamentId === item.id)
+        .length,
       matchesCount: buildMatches(200, item.id).length,
     }))
     return res.json(rows)
@@ -389,7 +422,9 @@ const registerMockProviderRoutes = (router, ctx) => {
         teamCode: item.teamCode,
         teamName: item.teamName || item.teamCode,
         playersCount: normalizeSquadEntries(item.squad || []).length,
-        activePlayersCount: normalizeSquadEntries(item.squad || []).filter((p) => p.active).length,
+        activePlayersCount: normalizeSquadEntries(item.squad || []).filter(
+          (p) => p.active,
+        ).length,
         squad: normalizeSquadEntries(item.squad || []),
         tournamentType: item.tournamentType || 'international',
         country: item.country || '',
@@ -412,7 +447,10 @@ const registerMockProviderRoutes = (router, ctx) => {
     const source = (req.body?.source || 'manual').toString().trim().toLowerCase()
     const rawSquad = Array.isArray(req.body?.squad) ? req.body.squad : []
     const normalizedSquad = normalizeSquadEntries(rawSquad)
-    const tournamentType = (req.body?.tournamentType || 'international').toString().trim().toLowerCase()
+    const tournamentType = (req.body?.tournamentType || 'international')
+      .toString()
+      .trim()
+      .toLowerCase()
     const country = (req.body?.country || '').toString().trim()
     const league = (req.body?.league || '').toString().trim()
     const tournament = (req.body?.tournament || '').toString().trim()
@@ -496,17 +534,24 @@ const registerMockProviderRoutes = (router, ctx) => {
       matches = [],
       jsonPayload = null,
     } = req.body || {}
-    const payload = jsonPayload && typeof jsonPayload === 'object' ? jsonPayload : req.body || {}
+    const payload =
+      jsonPayload && typeof jsonPayload === 'object' ? jsonPayload : req.body || {}
     const payloadName = (payload.name || name || '').toString().trim()
     const payloadSeason = (payload.season || season || '2026').toString().trim()
-    const rawMatches = Array.isArray(payload.matches) ? payload.matches : Array.isArray(matches) ? matches : []
+    const rawMatches = Array.isArray(payload.matches)
+      ? payload.matches
+      : Array.isArray(matches)
+        ? matches
+        : []
     if (!payloadName) {
       return res.status(400).json({ message: 'Tournament name is required' })
     }
     if (!rawMatches.length) {
       return res.status(400).json({ message: 'At least one match is required' })
     }
-    const idBase = normalizeTournamentId(tournamentId || `${payloadName}-${payloadSeason}`)
+    const idBase = normalizeTournamentId(
+      tournamentId || `${payloadName}-${payloadSeason}`,
+    )
     const nextId = idBase || `tournament-${Date.now()}`
     if (getTournamentCatalogRows().some((item) => item.id === nextId)) {
       return res.status(409).json({ message: 'Tournament already exists' })
@@ -543,8 +588,12 @@ const registerMockProviderRoutes = (router, ctx) => {
           squadB: Array.isArray(row?.squadB)
             ? row.squadB.map((item) => item.toString())
             : [...fallbackSquadB],
-          playingXiA: Array.isArray(row?.playingXiA) ? row.playingXiA.map((item) => item.toString()) : [],
-          playingXiB: Array.isArray(row?.playingXiB) ? row.playingXiB.map((item) => item.toString()) : [],
+          playingXiA: Array.isArray(row?.playingXiA)
+            ? row.playingXiA.map((item) => item.toString())
+            : [],
+          playingXiB: Array.isArray(row?.playingXiB)
+            ? row.playingXiB.map((item) => item.toString())
+            : [],
           locked: status === 'notstarted',
           hasTeam: false,
         }
@@ -560,8 +609,7 @@ const registerMockProviderRoutes = (router, ctx) => {
       name: payloadName,
       season: payloadSeason,
       source: source.toString(),
-      createdBy:
-        (createdBy || actor?.gameName || actor?.email || 'admin').toString(),
+      createdBy: (createdBy || actor?.gameName || actor?.email || 'admin').toString(),
       lastUpdatedAt: new Date().toISOString(),
     }
     mockTournaments.push(tournamentRow)
@@ -620,7 +668,9 @@ const registerMockProviderRoutes = (router, ctx) => {
     contestsToRemove.forEach((id) => mockContestCatalog.delete(id))
     Object.keys(contestJoins).forEach((userKey) => {
       const joined = Array.isArray(contestJoins[userKey]) ? contestJoins[userKey] : []
-      contestJoins[userKey] = joined.filter((contestId) => !contestsToRemove.includes(contestId))
+      contestJoins[userKey] = joined.filter(
+        (contestId) => !contestsToRemove.includes(contestId),
+      )
     })
     enabledTournamentIds.delete(tournamentId)
     catalogRows.splice(catalogIndex, 1)
@@ -660,7 +710,9 @@ const registerMockProviderRoutes = (router, ctx) => {
         enabledTournamentIds.add(id)
       }
     })
-    const enabled = getTournamentCatalogRows().filter((item) => enabledTournamentIds.has(item.id))
+    const enabled = getTournamentCatalogRows().filter((item) =>
+      enabledTournamentIds.has(item.id),
+    )
     dashboardMockData.tournaments = enabled
     if (ids.length) {
       appendAuditLog({
@@ -687,7 +739,9 @@ const registerMockProviderRoutes = (router, ctx) => {
         enabledTournamentIds.delete(id)
       }
     })
-    const enabled = getTournamentCatalogRows().filter((item) => enabledTournamentIds.has(item.id))
+    const enabled = getTournamentCatalogRows().filter((item) =>
+      enabledTournamentIds.has(item.id),
+    )
     dashboardMockData.tournaments = enabled
     if (ids.length) {
       appendAuditLog({
@@ -717,20 +771,15 @@ const registerMockProviderRoutes = (router, ctx) => {
     if (!name || !tournamentId) {
       return res.status(400).json({ message: 'name and tournamentId are required' })
     }
-    const existsTournament = getTournamentCatalogRows().find((item) => item.id === tournamentId)
+    const existsTournament = getTournamentCatalogRows().find(
+      (item) => item.id === tournamentId,
+    )
     if (!existsTournament || !enabledTournamentIds.has(tournamentId)) {
       return res.status(400).json({ message: 'Tournament is not enabled' })
     }
     const allowedMatchIds = new Set(
       buildMatches(100, tournamentId.toString())
-        .filter((match) => {
-          const startAt =
-            (match.startAt || '').toString().trim() ||
-            `${(match.date || '2099-01-01').toString()}T00:00:00.000Z`
-          const startMs = new Date(startAt).getTime()
-          if (Number.isFinite(startMs)) return Date.now() < startMs
-          return normalizeMatchStatus(match.status) === 'notstarted'
-        })
+        .filter((match) => normalizeMatchStatus(match.status) === 'notstarted')
         .map((match) => match.id),
     )
     const normalizedMatchIds = Array.from(
@@ -789,7 +838,9 @@ const registerMockProviderRoutes = (router, ctx) => {
     const index = mockContests.findIndex((item) => item.id === id)
     if (index === -1) return res.status(404).json({ message: 'Contest not found' })
     const target = mockContests[index]
-    const actorKey = normalizeActorId(actor?.gameName || actor?.email || actor?.name || '')
+    const actorKey = normalizeActorId(
+      actor?.gameName || actor?.email || actor?.name || '',
+    )
     const createdByKey = normalizeActorId(target?.createdBy || '')
     const isMaster = actor?.role === 'master_admin'
     const isOwner = Boolean(actorKey) && actorKey === createdByKey
@@ -830,7 +881,16 @@ const registerMockProviderRoutes = (router, ctx) => {
 
   router.get('/admin/contest-match-options', (req, res) => {
     const tournamentId = (req.query.tournamentId || '').toString()
-    const rows = buildMatches(100, tournamentId || 't20wc-2026').map((match) => ({
+    let matches = []
+    if (
+      Array.isArray(customTournamentMatches[tournamentId]) &&
+      customTournamentMatches[tournamentId].length > 0
+    ) {
+      matches = customTournamentMatches[tournamentId]
+    } else {
+      matches = buildMatches(100, tournamentId || 't20wc-2026')
+    }
+    const rows = matches.map((match) => ({
       id: match.id,
       matchNo: match.matchNo,
       name: `${match.home} vs ${match.away}`,
@@ -839,11 +899,6 @@ const registerMockProviderRoutes = (router, ctx) => {
       status: match.status,
       tournamentId: tournamentId || 't20wc-2026',
       selectable: (() => {
-        const startAt =
-          (match.startAt || '').toString().trim() ||
-          `${(match.date || '2099-01-01').toString()}T00:00:00.000Z`
-        const startMs = new Date(startAt).getTime()
-        if (Number.isFinite(startMs)) return Date.now() < startMs
         return normalizeMatchStatus(match.status) === 'notstarted'
       })(),
     }))
@@ -918,28 +973,25 @@ const registerMockProviderRoutes = (router, ctx) => {
       const tournamentOk = !tournamentId || contest.tournamentId === tournamentId
       const isJoined = userId ? userJoinedSet.has(contest.id) : Boolean(contest.joined)
       const joinedOk =
-        !joined ||
-        (joined === 'true' && isJoined) ||
-        (joined === 'false' && !isJoined)
+        !joined || (joined === 'true' && isJoined) || (joined === 'false' && !isJoined)
       return gameOk && tournamentOk && joinedOk
     })
-    const rows = list
-      .map((contest) => {
-        const joinedCount = getContestJoinedCount(contest.id)
-        const maxPlayers = Number(contest.teams || 0)
-        const hasCapacity = maxPlayers <= 0 || joinedCount < maxPlayers
-        const joinOpen = isContestJoinOpen(contest)
-        const scoreMeta = computeContestLastScoreMeta(contest)
-        return {
-          ...contest,
-          joined: userId ? userJoinedSet.has(contest.id) : Boolean(contest.joined),
-          joinedCount,
-          maxPlayers,
-          hasCapacity,
-          joinOpen: joinOpen && hasCapacity,
-          ...scoreMeta,
-        }
-      })
+    const rows = list.map((contest) => {
+      const joinedCount = getContestJoinedCount(contest.id)
+      const maxPlayers = Number(contest.teams || 0)
+      const hasCapacity = maxPlayers <= 0 || joinedCount < maxPlayers
+      const joinOpen = isContestJoinOpen(contest)
+      const scoreMeta = computeContestLastScoreMeta(contest)
+      return {
+        ...contest,
+        joined: userId ? userJoinedSet.has(contest.id) : Boolean(contest.joined),
+        joinedCount,
+        maxPlayers,
+        hasCapacity,
+        joinOpen: joinOpen && hasCapacity,
+        ...scoreMeta,
+      }
+    })
     return res.json(rows)
   })
 
@@ -1067,16 +1119,15 @@ const registerMockProviderRoutes = (router, ctx) => {
     const hasUploadedScore = Object.keys(scoreIndex).length > 0
     const fallbackScoreIndex =
       !hasUploadedScore && activeMatch.status !== 'notstarted'
-        ? [...getMatchRosters(activeMatch).teamA, ...getMatchRosters(activeMatch).teamB].reduce(
-            (acc, player) => {
-              const key = normalizeUserKey(player.name)
-              acc[key] =
-                12 +
-                ((nameHash(player.name) + Number(activeMatch.matchNo || 1) * 17) % 79)
-              return acc
-            },
-            {},
-          )
+        ? [
+            ...getMatchRosters(activeMatch).teamA,
+            ...getMatchRosters(activeMatch).teamB,
+          ].reduce((acc, player) => {
+            const key = normalizeUserKey(player.name)
+            acc[key] =
+              12 + ((nameHash(player.name) + Number(activeMatch.matchNo || 1) * 17) % 79)
+            return acc
+          }, {})
         : {}
     const effectiveScoreIndex = hasUploadedScore ? scoreIndex : fallbackScoreIndex
     const usersPool = getContestUserPool({
@@ -1214,7 +1265,9 @@ const registerMockProviderRoutes = (router, ctx) => {
     if (!actor) {
       return res.status(401).json({ message: 'Valid actorUserId required for team pool' })
     }
-    const actorKey = normalizeActorId(actor?.userId || actor?.gameName || actor?.email || '')
+    const actorKey = normalizeActorId(
+      actor?.userId || actor?.gameName || actor?.email || '',
+    )
     const targetKey = normalizeActorId(userId)
     const isSelfRead = actorKey && targetKey && actorKey === targetKey
     if (!isSelfRead && actor.role !== 'master_admin') {
@@ -1279,7 +1332,9 @@ const registerMockProviderRoutes = (router, ctx) => {
         message: 'contestId does not belong to tournamentId',
       })
     }
-    const activeMatch = buildMatches(100, tournamentId).find((item) => item.id === matchId)
+    const activeMatch = buildMatches(100, tournamentId).find(
+      (item) => item.id === matchId,
+    )
     if (!activeMatch) return res.status(404).json({ message: 'Match not found' })
     const saved =
       mockMatchLineups.get(
@@ -1324,7 +1379,9 @@ const registerMockProviderRoutes = (router, ctx) => {
         message: 'contestId does not belong to tournamentId',
       })
     }
-    const activeMatch = buildMatches(100, tournamentId).find((item) => item.id === matchId)
+    const activeMatch = buildMatches(100, tournamentId).find(
+      (item) => item.id === matchId,
+    )
     if (!activeMatch) return res.status(404).json({ message: 'Match not found' })
 
     const teamCodes = [activeMatch.home, activeMatch.away]
@@ -1405,7 +1462,9 @@ const registerMockProviderRoutes = (router, ctx) => {
     if (!actor) {
       return res.status(401).json({ message: 'Valid actorUserId required for team save' })
     }
-    const actorKey = normalizeActorId(actor?.userId || actor?.gameName || actor?.email || '')
+    const actorKey = normalizeActorId(
+      actor?.userId || actor?.gameName || actor?.email || '',
+    )
     const targetKey = normalizeActorId(userId)
     const isSelfEdit = actorKey && targetKey && actorKey === targetKey
     if (!isSelfEdit && actor.role !== 'master_admin') {
@@ -1507,29 +1566,32 @@ const registerMockProviderRoutes = (router, ctx) => {
                 (item) => item.id === matchId,
               ) || null
             if (!activeMatch || activeMatch.status === 'notstarted') return {}
-            return [...getMatchRosters(activeMatch).teamA, ...getMatchRosters(activeMatch).teamB].reduce(
-              (acc, player) => {
-                const key = normalizeUserKey(player.name)
-                acc[key] =
-                  12 +
-                  ((nameHash(player.name) + Number(activeMatch.matchNo || 1) * 17) % 79)
-                return acc
-              },
-              {},
-            )
+            return [
+              ...getMatchRosters(activeMatch).teamA,
+              ...getMatchRosters(activeMatch).teamB,
+            ].reduce((acc, player) => {
+              const key = normalizeUserKey(player.name)
+              acc[key] =
+                12 +
+                ((nameHash(player.name) + Number(activeMatch.matchNo || 1) * 17) % 79)
+              return acc
+            }, {})
           })()
         : {}
     const effectiveMatchPointsByName = hasUploadedMatchPoints
       ? matchPointsByName
       : fallbackMatchPointsByName
     const pointsByPlayerId = getTournamentPlayerStatsIndex(tournamentId)
-    const picks = selection?.playingXi?.map((id) => idToName.get(id)).filter(Boolean) || []
+    const picks =
+      selection?.playingXi?.map((id) => idToName.get(id)).filter(Boolean) || []
     const backups =
       selection?.backups?.map((id) => idToName.get(id)).filter(Boolean) || []
     const picksDetailed = picks.map((name) => {
       const found = allKnownPlayers.find((item) => item.name === name)
       const matchPoints = Number(effectiveMatchPointsByName[normalizeUserKey(name)] || 0)
-      const livePoints = found?.id ? Number(pointsByPlayerId[found.id]?.totalPoints || 0) : 0
+      const livePoints = found?.id
+        ? Number(pointsByPlayerId[found.id]?.totalPoints || 0)
+        : 0
       return {
         name,
         role: found?.role || '-',
@@ -1540,7 +1602,9 @@ const registerMockProviderRoutes = (router, ctx) => {
     const backupsDetailed = backups.map((name) => {
       const found = allKnownPlayers.find((item) => item.name === name)
       const matchPoints = Number(effectiveMatchPointsByName[normalizeUserKey(name)] || 0)
-      const livePoints = found?.id ? Number(pointsByPlayerId[found.id]?.totalPoints || 0) : 0
+      const livePoints = found?.id
+        ? Number(pointsByPlayerId[found.id]?.totalPoints || 0)
+        : 0
       return {
         name,
         role: found?.role || '-',
@@ -1631,9 +1695,7 @@ const registerMockProviderRoutes = (router, ctx) => {
       playerStats: incomingRows,
     } = req.body || {}
     if (!tournamentId || !matchId) {
-      return res
-        .status(400)
-        .json({ message: 'tournamentId and matchId required' })
+      return res.status(400).json({ message: 'tournamentId and matchId required' })
     }
     const actor = resolveActorUser(userId)
     if (!actor) {
@@ -1762,14 +1824,19 @@ const registerMockProviderRoutes = (router, ctx) => {
       if (actor.role === 'contest_manager') {
         const assignedContestId = (actor.contestManagerContestId || '').toString().trim()
         const assignedContest = mockContests.find((item) => item.id === assignedContestId)
-        if (!assignedContest || assignedContest.tournamentId !== tournamentId.toString()) {
+        if (
+          !assignedContest ||
+          assignedContest.tournamentId !== tournamentId.toString()
+        ) {
           return res.status(403).json({
-            message: 'Not allowed. Score manager can update only assigned contest scores.',
+            message:
+              'Not allowed. Score manager can update only assigned contest scores.',
           })
         }
         if (requestedContestId && requestedContestId !== assignedContestId) {
           return res.status(403).json({
-            message: 'Not allowed. Score manager can update only assigned contest scores.',
+            message:
+              'Not allowed. Score manager can update only assigned contest scores.',
           })
         }
       } else if (!canWriteScoresForContest(actor, scopedContestId)) {

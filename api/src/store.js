@@ -23,64 +23,53 @@ const defaultSecurityAnswersFor = (userId) => [
   `${userId}-cricketer`,
   `${userId}-city`,
 ]
+let cachedMasterAdminSeed = null
+let cachedMasterAdminSeedKey = ''
+let cachedInitialUsersSeed = null
 
-const syncIdCountersFromData = () => {
-  nextUserId = Math.max(1, ...users.map((item) => Number(item.id) || 0)) + 1
-  nextTournamentId =
-    Math.max(1, ...tournaments.map((item) => Number(item.id) || 0)) + 1
-  nextMatchId = Math.max(1, ...matches.map((item) => Number(item.id) || 0)) + 1
-  nextScoringRuleId =
-    Math.max(1, ...scoringRules.map((item) => Number(item.id) || 0)) + 1
-  nextMatchScoreId =
-    Math.max(1, ...matchScores.map((item) => Number(item.id) || 0)) + 1
-}
-
-const getUserById = (id) => users.find((user) => user.id === id) || null
-const normalizeUserIdentifier = (value) => (value || '').toString().trim()
-const syncUserIdentifiers = () => {
-  users.forEach((user) => {
-    const fromUserId = normalizeUserIdentifier(user.userId)
-    const fromGameName = normalizeUserIdentifier(user.gameName)
-    const normalized = fromUserId || fromGameName
-    if (!normalized) return
-    user.userId = normalized
-    user.gameName = normalized
-  })
-}
-
-const seedMasterAdmin = () => {
+const cloneValue = (value) => JSON.parse(JSON.stringify(value))
+const getMasterAdminSeedKey = () =>
+  [
+    process.env.MASTER_ADMIN_EMAIL || '',
+    process.env.MASTER_ADMIN_PASSWORD || '',
+    process.env.MASTER_ADMIN_NAME || '',
+    process.env.MASTER_ADMIN_USER_ID || '',
+  ].join('::')
+const buildMasterAdminSeed = () => {
   const email = process.env.MASTER_ADMIN_EMAIL
   const password = process.env.MASTER_ADMIN_PASSWORD
   const name = process.env.MASTER_ADMIN_NAME || 'Master Admin'
   const defaultUserIdFromEmail = (email || '').split('@')[0] || 'admin'
   const userId = process.env.MASTER_ADMIN_USER_ID || defaultUserIdFromEmail
-  if (!email || !password) return
-  const existing = users.find((user) => user.email === email)
-  if (existing) return
-  const passwordHash = bcrypt.hashSync(password, 10)
-  users.push({
-    id: getNextUserId(),
+  if (!email || !password) return null
+  return {
+    id: 1,
     name,
     userId,
     gameName: userId,
     email,
-    passwordHash,
+    passwordHash: bcrypt.hashSync(password, 10),
     status: 'active',
     role: 'master_admin',
     createdAt: new Date().toISOString(),
-  })
+  }
 }
-
-const seedInitialUsers = () => {
-  getSeedUsers().forEach((item) => {
-    const existing = users.find((user) => user.email === item.email)
-    if (existing) return
+const getMasterAdminSeed = () => {
+  const key = getMasterAdminSeedKey()
+  if (!cachedMasterAdminSeed || cachedMasterAdminSeedKey !== key) {
+    cachedMasterAdminSeed = buildMasterAdminSeed()
+    cachedMasterAdminSeedKey = key
+  }
+  return cachedMasterAdminSeed ? cloneValue(cachedMasterAdminSeed) : null
+}
+const buildInitialUsersSeed = () =>
+  getSeedUsers().map((item) => {
     const normalizedUserId = normalizeUserIdentifier(item.userId || item.gameName)
     const securityAnswers = Array.isArray(item.securityAnswers)
       ? item.securityAnswers
       : defaultSecurityAnswersFor(normalizedUserId)
     const [answer1, answer2, answer3] = securityAnswers
-    users.push({
+    return {
       id: item.id,
       name: item.name,
       userId: normalizedUserId,
@@ -95,9 +84,62 @@ const seedInitialUsers = () => {
       role: item.role,
       contestManagerContestId: item.contestManagerContestId || null,
       createdAt: new Date().toISOString(),
+    }
+  })
+const getInitialUsersSeed = () => {
+  if (!cachedInitialUsersSeed) {
+    cachedInitialUsersSeed = buildInitialUsersSeed()
+  }
+  return cloneValue(cachedInitialUsersSeed)
+}
+
+const syncIdCountersFromData = () => {
+  nextUserId = Math.max(1, ...users.map((item) => Number(item.id) || 0)) + 1
+  nextTournamentId =
+    Math.max(1, ...tournaments.map((item) => Number(item.id) || 0)) + 1
+  nextMatchId = Math.max(1, ...matches.map((item) => Number(item.id) || 0)) + 1
+  nextScoringRuleId =
+    Math.max(1, ...scoringRules.map((item) => Number(item.id) || 0)) + 1
+  nextMatchScoreId =
+    Math.max(1, ...matchScores.map((item) => Number(item.id) || 0)) + 1
+}
+
+const getUserById = (id) => users.find((user) => user.id.toString() === id.toString()) || null
+const normalizeUserIdentifier = (value) => (value || '').toString().trim()
+const syncUserIdentifiers = () => {
+  users.forEach((user) => {
+    const fromUserId = normalizeUserIdentifier(user.userId)
+    const fromGameName = normalizeUserIdentifier(user.gameName)
+    const normalized = fromUserId || fromGameName
+    if (!normalized) return
+    user.userId = normalized
+    user.gameName = normalized
+  })
+}
+
+const seedMasterAdmin = () => {
+  const masterAdmin = getMasterAdminSeed()
+  if (!masterAdmin) return
+  const existing = users.find((user) => user.email === masterAdmin.email)
+  if (existing) return
+  const nextId = getNextUserId()
+  users.push({
+    ...masterAdmin,
+    id: nextId,
+    createdAt: new Date().toISOString(),
+  })
+}
+
+const seedInitialUsers = () => {
+  getInitialUsersSeed().forEach((seededUser) => {
+    const existing = users.find((user) => user.email === seededUser.email)
+    if (existing) return
+    users.push({
+      ...seededUser,
+      createdAt: new Date().toISOString(),
     })
-    if (item.id >= nextUserId) {
-      nextUserId = item.id + 1
+    if (seededUser.id >= nextUserId) {
+      nextUserId = seededUser.id + 1
     }
   })
 }

@@ -7,11 +7,13 @@ import {
   seedMasterAdmin,
   seedInitialUsers,
   getUserById,
-  resetStore,
+  resetStore as resetStoreTables,
   syncUserIdentifiers,
 } from './store.js'
 import { initDataState, isAutoSeedTeamsRequested } from './services/stateStore.service.js'
 import { createRouter } from './routes/index.js'
+import { resetMockState } from '../mocks/mockStateStore.js'
+import { resetMockProviderContexts } from './services/mockProviderContext.service.js'
 
 dotenv.config()
 
@@ -96,6 +98,13 @@ const routerConfig = {
   seedProviderEnabled: dataState.enabled,
   autoSeedTeams,
   persistSeedState: dataState.persist,
+}
+
+const resetStore = () => {
+  resetMockState()
+  resetStoreTables()
+  resetMockProviderContexts()
+  syncUserIdentifiers()
 }
 
 app.use(createRouter(routerConfig))

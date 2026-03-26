@@ -111,6 +111,7 @@ test.describe('Admin master scenarios', () => {
     if (!(await hundredCheckbox.isChecked())) {
       await hundredCheckbox.check()
       await page.getByRole('button', { name: 'Add to Tournaments' }).click()
+      await expect(page.getByText('Dashboard feed unavailable')).toHaveCount(0)
     }
 
     await gotoWithRetry(page, '/fantasy')
@@ -128,6 +129,7 @@ test.describe('Admin master scenarios', () => {
       })
       await expect(removeConfirm).toBeVisible()
       await removeConfirm.click({ force: true })
+      await expect(page.getByText('Dashboard feed unavailable')).toHaveCount(0)
     }
 
     await page.goto('/fantasy')

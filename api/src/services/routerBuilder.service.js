@@ -7,6 +7,7 @@ import { createMockService } from './mock.service.js'
 import { shouldHandleProviderPath } from './providerPathMatcher.service.js'
 import { registerAuthRoutes } from '../routes/auth.route.js'
 import { createMockProviderContext } from './mockProviderContext.service.js'
+import { setMockContext } from '../repositories/repository.factory.js'
 
 const createRouter = ({
   authenticate,
@@ -36,22 +37,25 @@ const createRouter = ({
     return next()
   })
 
-  const mockContext = createMockProviderContext({
-    seedProviderEnabled,
-    autoSeedTeams,
-    persistSeedState,
-  })
+  const mockContext = {
+    ...createMockProviderContext({
+      seedProviderEnabled,
+      autoSeedTeams,
+      persistSeedState,
+    }),
+    bcrypt,
+  }
+
+  // Inject mock context into repository factory for mock mode
+  setMockContext(mockContext)
 
   registerAuthRoutes(router, {
-    users: mockContext.users,
     bcrypt,
     jwt,
     jwtSecret,
     jwtExpiresIn,
-    getNextUserId: mockContext.getNextUserId,
     authenticate,
     requireRole,
-    persistState: mockContext.persistState,
     appendAuditLog: mockContext.appendAuditLog,
   })
 

@@ -36,9 +36,9 @@ const registerAuthRoutes = (
   router.post('/auth/status', authController.accountStatus)
   router.post('/auth/forgot-password', authController.forgotPassword)
   router.post('/auth/reset-password', authController.resetPassword)
-  router.post('/auth/change-password', authenticate, authController.changePassword)
+  router.post('/auth/change-password', authController.changePassword)
   router.post('/auth/approve-user', requireRole(['master_admin']), authController.approveUser)
-  router.patch('/users/:id', authenticate, authController.updateProfile)
+  router.patch('/users/:id', authController.updateProfile)
 }
 
 export { registerAuthRoutes }

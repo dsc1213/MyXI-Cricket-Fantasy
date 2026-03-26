@@ -1,3 +1,4 @@
+import jwt from 'jsonwebtoken'
 import { mapAuthSessionResponse, mapUserToPublic } from '../helpers/authHelpers.js'
 
 const createAuthController = ({ authService }) => {
@@ -15,6 +16,41 @@ const createAuthController = ({ authService }) => {
   const sendError = (res, error) => {
     const status = error?.statusCode || error?.status || 500
     return res.status(status).json({ message: error?.message || 'Internal server error' })
+  }
+  const parseCookieToken = (cookieHeader = '', key = 'myxi_auth') => {
+    const cookie = (cookieHeader || '').toString()
+    if (!cookie) return ''
+    const parts = cookie.split(';')
+    for (const part of parts) {
+      const [rawName, ...rest] = part.trim().split('=')
+      if (rawName !== key) continue
+      return decodeURIComponent(rest.join('='))
+    }
+    return ''
+  }
+  const resolveRequestUser = (req) => {
+    if (req.currentUser) return req.currentUser
+    const auth = req.header('authorization') || ''
+    const [scheme, token] = auth.split(' ')
+    const cookieToken = parseCookieToken(req.header('cookie') || '')
+    const jwtToken = scheme === 'Bearer' && token ? token : cookieToken
+    if (jwtToken) {
+      try {
+        const payload = jwt.verify(jwtToken, process.env.JWT_SECRET || 'dev-secret')
+        if (payload?.sub != null) {
+          return { id: payload.sub, role: payload.role }
+        }
+      } catch {
+        // fall back to explicit actor ids below
+      }
+    }
+    if (req.body?.actorUserId != null) {
+      return {
+        id: req.body.actorUserId,
+        role: req.body?.actorRole,
+      }
+    }
+    return null
   }
   const handle =
     (fn) =>
@@ -82,7 +118,7 @@ const createAuthController = ({ authService }) => {
 
   const changePassword = handle(async (req, res) => {
     const result = await authService.changePassword({
-      user: req.currentUser,
+      user: resolveRequestUser(req),
       ...(req.body || {}),
     })
     return res.json(result)
@@ -96,7 +132,7 @@ const createAuthController = ({ authService }) => {
   const updateProfile = handle(async (req, res) => {
     const result = await authService.updateUserProfile({
       targetUserId: req.params?.id,
-      actor: req.currentUser,
+      actor: resolveRequestUser(req),
       ...(req.body || {}),
     })
     return res.json(mapUserToPublic(result))

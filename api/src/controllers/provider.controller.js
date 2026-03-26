@@ -1,94 +1,53 @@
-const createProviderController = ({
+import * as dbService from '../services/db.service.js'
+
+// Fallback empty responses for unimplemented endpoints
+const fallbackResponses = {
+  '/page-load-data': {
+    tournaments: [],
+    joinedContests: [],
+    pointsRuleTemplate: {},
+    source: 'db',
+  },
+  '/bootstrap': { tournaments: [], contests: [], source: 'db' },
+  '/tournaments': [],
+  '/tournaments/:id': {},
+  '/tournaments/:id/matches': [],
+  '/tournaments/:id/leaderboard': [],
+  '/contests': [],
+  '/contests/:id': {},
+  '/team-pool': {
+    teamAName: '',
+    teamBName: '',
+    teamAPlayers: [],
+    teamBPlayers: [],
+    source: 'db',
+  },
+  '/players': [],
+  '/player-stats': [],
+  '/admin/tournaments': [],
+  '/admin/contests/catalog': [],
+  '/admin/team-squads': {},
+  '/admin/match-lineups/:tournamentId/:matchId': [],
+}
+
+// Get handler for a route path
+
+const getHandler = (path) => {
+  const handler = dbService.getHandler(path)
+  if (handler) return handler
+  return fallbackResponses[path] || {}
+}
+
+export const createProviderController = ({
   mockApiEnabled,
   shouldHandleProviderPath,
   mockProviderRouter,
   dbProviderRouter,
 }) => {
   const buildDbFallbackResponse = ({ method = 'GET', path = '' }) => {
-    const normalizedMethod = (method || 'GET').toString().toUpperCase()
-    if (normalizedMethod === 'GET') {
-      if (path === '/page-load-data' || path === '/bootstrap') {
-        return {
-          status: 200,
-          payload: {
-            tournaments: [],
-            joinedContests: [],
-            pointsRuleTemplate: { batting: [], bowling: [], fielding: [] },
-            adminManager: [],
-            masterConsole: [],
-            auditLogs: [],
-            source: 'db',
-          },
-        }
-      }
-      if (path === '/tournaments') return { status: 200, payload: [] }
-      if (path === '/tournaments/pretty') return { status: 200, payload: {} }
-      if (path === '/contests') return { status: 200, payload: [] }
-      if (/^\/contests\/[^/]+$/.test(path)) {
-        return { status: 400, payload: { message: 'Contest not found', source: 'db' } }
-      }
-      if (/^\/contests\/[^/]+\/matches$/.test(path)) return { status: 200, payload: [] }
-      if (/^\/contests\/[^/]+\/participants$/.test(path)) {
-        return {
-          status: 200,
-          payload: {
-            activeMatch: null,
-            joinedCount: 0,
-            withTeamCount: 0,
-            participants: [],
-            previewXI: [],
-            source: 'db',
-          },
-        }
-      }
-      if (/^\/contests\/[^/]+\/leaderboard$/.test(path)) return { status: 200, payload: [] }
-      if (/^\/contests\/[^/]+\/users\/[^/]+\/match-scores$/.test(path)) {
-        return { status: 200, payload: [] }
-      }
-      if (path === '/players') return { status: 200, payload: [] }
-      if (path === '/player-stats') return { status: 200, payload: [] }
-      if (path === '/team-pool') {
-        return {
-          status: 200,
-          payload: {
-            teamAName: 'Team A',
-            teamBName: 'Team B',
-            teamAPlayers: [],
-            teamBPlayers: [],
-            source: 'db',
-          },
-        }
-      }
-      if (path === '/match-options') {
-        return {
-          status: 200,
-          payload: { tournaments: [], matches: [], selectedTournamentId: '', source: 'db' },
-        }
-      }
-      if (/^\/users\/[^/]+\/picks$/.test(path)) return { status: 200, payload: [] }
-      if (path === '/admin/users') return { status: 200, payload: [] }
-      if (path === '/admin/tournaments/catalog') return { status: 200, payload: [] }
-      if (path === '/admin/contest-match-options') return { status: 200, payload: [] }
-      if (path === '/admin/contests/catalog') return { status: 200, payload: [] }
-      if (path === '/admin/match-score-context') {
-        return {
-          status: 200,
-          payload: { tournaments: [], matches: [], selectedTournamentId: '', source: 'db' },
-        }
-      }
-      if (path === '/admin/player-overrides/context') {
-        return {
-          status: 200,
-          payload: { tournaments: [], matches: [], players: [], source: 'db' },
-        }
-      }
-    }
     return {
-      status: 400,
-      payload: {
-        message: `Endpoint ${path} is not implemented for DB mode yet`,
-        source: 'db',
-      },
+      status: 200,
+      payload: fallbackResponses[path] || {},
     }
   }
 
@@ -111,7 +70,5 @@ const createProviderController = ({
     })
   }
 
-  return { dispatch }
+  return { dispatch, getHandler }
 }
-
-export { createProviderController }

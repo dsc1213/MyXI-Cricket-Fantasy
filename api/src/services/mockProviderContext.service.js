@@ -30,6 +30,12 @@ import {
   normalizePlayerStatRows,
 } from '../scoring.js'
 
+const providerContextResetters = new Set()
+
+const resetMockProviderContexts = () => {
+  providerContextResetters.forEach((resetter) => resetter())
+}
+
 const createMockProviderContext = ({
   seedProviderEnabled = true,
   autoSeedTeams = false,
@@ -44,14 +50,33 @@ const createMockProviderContext = ({
       .trim()
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '')
-  const allKnownPlayers = [...players].filter(
+  const baseKnownPlayers = [...players].filter(
     (player, index, arr) => arr.findIndex((item) => item.id === player.id) === index,
   )
+  const allKnownPlayers = [...baseKnownPlayers]
   const normalizedPlayerMap = new Map(
     allKnownPlayers.map((player) => [normalizePlayerName(player.name), player]),
   )
   const idToPlayerName = new Map(allKnownPlayers.map((player) => [player.id, player.name]))
   const allPlayerNames = Array.from(new Set(allKnownPlayers.map((player) => player.name)))
+  const resetContextState = () => {
+    mockTeamSelections.clear()
+    mockMatchLineups.clear()
+    dynamicPlayerId = 100000
+    allKnownPlayers.length = 0
+    allKnownPlayers.push(...baseKnownPlayers)
+    normalizedPlayerMap.clear()
+    idToPlayerName.clear()
+    const uniqueNames = new Set()
+    allKnownPlayers.forEach((player) => {
+      normalizedPlayerMap.set(normalizePlayerName(player.name), player)
+      idToPlayerName.set(player.id, player.name)
+      uniqueNames.add(player.name)
+    })
+    allPlayerNames.length = 0
+    allPlayerNames.push(...uniqueNames)
+  }
+  providerContextResetters.add(resetContextState)
   const ensureDynamicPlayer = ({ name = '', team = '', role = 'BAT' }) => {
     const normalized = normalizePlayerName(name)
     if (!normalized) return null
@@ -73,10 +98,24 @@ const createMockProviderContext = ({
     allPlayerNames.push(created.name)
     return created
   }
+  const registerKnownPlayer = (player) => {
+    if (!player?.id || !player?.name) return player || null
+    if (!allKnownPlayers.some((item) => item.id === player.id)) {
+      allKnownPlayers.push(player)
+    }
+    normalizedPlayerMap.set(normalizePlayerName(player.name), player)
+    idToPlayerName.set(player.id, player.name)
+    if (!allPlayerNames.includes(player.name)) {
+      allPlayerNames.push(player.name)
+    }
+    return player
+  }
   const getTeamRoster = (teamCode) => {
     const roster = buildSquadPlayersForTeam(teamCode)
-    if (roster.length) return roster
-    return players.filter((player) => player.team === teamCode)
+    if (roster.length) return roster.map((player) => registerKnownPlayer(player))
+    return players
+      .filter((player) => player.team === teamCode)
+      .map((player) => registerKnownPlayer(player))
   }
   const getMatchRosters = (match) => {
     const fallbackA = getTeamRoster(match?.home || 'IND')
@@ -937,6 +976,16 @@ const createMockProviderContext = ({
           : false,
       )
       .map(([userId]) => userId)
+    const selectionUsersForContest = Array.from(mockTeamSelections.values())
+      .filter(
+        (selection) =>
+          (selection?.contestId || '').toString() === (contest?.id || '').toString(),
+      )
+      .map((selection) => (selection?.userId || '').toString())
+      .filter(Boolean)
+    const explicitUserIds = Array.from(
+      new Set([...joinedUsersForContest, ...selectionUsersForContest]),
+    )
     const knownUsers = users
       .filter((user) => Boolean(user?.gameName))
       .map((user) => ({
@@ -944,12 +993,22 @@ const createMockProviderContext = ({
         name: user.gameName,
       }))
     const seededUserMap = new Map()
-    if (joinedUsersForContest.length) {
-      joinedUsersForContest.forEach((joinedUserId) => {
+    if (explicitUserIds.length) {
+      explicitUserIds.forEach((joinedUserId) => {
         const normalized = normalizeUserKey(joinedUserId)
         const found =
           knownUsers.find((user) => normalizeUserKey(user.userId) === normalized) || null
-        seededUserMap.set(joinedUserId, found || { userId: joinedUserId, name: joinedUserId })
+        const actor = found ? null : resolveActorUser(joinedUserId)
+        if (found) {
+          seededUserMap.set(joinedUserId, found)
+          return
+        }
+        if (actor?.gameName) {
+          seededUserMap.set(joinedUserId, {
+            userId: actor.gameName,
+            name: actor.gameName,
+          })
+        }
       })
     } else {
       knownUsers.forEach((user) => seededUserMap.set(user.userId, user))
@@ -981,7 +1040,7 @@ const createMockProviderContext = ({
       .map((user) => user.userId)
     e2eBotIds.reverse().forEach((userId) => liftUserToFront(userId))
     if (viewerUserId) liftUserToFront(viewerUserId)
-    const scopedUsers = joinedUsersForContest.length
+    const scopedUsers = explicitUserIds.length
       ? prioritizedUsers
       : prioritizedUsers.slice(0, targetCount)
     return scopedUsers.map((seededUser, index) => ({
@@ -1069,4 +1128,4 @@ const createMockProviderContext = ({
   }
 }
 
-export { createMockProviderContext }
+export { createMockProviderContext, resetMockProviderContexts }

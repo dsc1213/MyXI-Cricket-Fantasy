@@ -1,7 +1,9 @@
 import { registerCoreRoutes } from '../routes/coreRoutes.js'
 
 const createCoreService = (dependencies) => {
-  const register = (router) => registerCoreRoutes(router, dependencies)
+  // Accept injected controller instance
+  const register = (router, coreController) =>
+    registerCoreRoutes(router, { ...dependencies, coreController })
   return { register }
 }
 

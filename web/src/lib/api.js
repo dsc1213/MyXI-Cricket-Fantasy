@@ -55,7 +55,8 @@ const updateStoredSessionExpiry = (tokenExpiresAt) => {
       'myxi-user',
       JSON.stringify({
         ...parsed,
-        token: undefined,
+        // Preserve token if present
+        token: parsed.token,
         tokenExpiresAt: Number(tokenExpiresAt || 0) || null,
       }),
     )
@@ -105,14 +106,28 @@ const rawApiRequest = async (path, options = {}) => {
     candidates.push(`${API_BASE}/api${normalizedPath}`)
   }
   let lastError = null
+  // Get token from localStorage if present
+  let token = null
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = window.localStorage.getItem('myxi-user')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed?.token) token = parsed.token
+      }
+    } catch {}
+  }
   for (const url of candidates) {
     try {
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(options.headers || {}),
+      }
+      // Always send Authorization header if token is present
+      if (token) headers['Authorization'] = `Bearer ${token}`
       const response = await fetch(url, {
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(options.headers || {}),
-        },
+        headers,
         ...options,
       })
       const data = await response.json().catch(() => ({}))
@@ -197,16 +212,31 @@ async function request(path, options = {}) {
         await ensureFreshSession()
       }
 
+      let hasRetriedAfterRefresh = false
       try {
-        const data = await rawApiRequest(normalizedPath, options)
-        if (data?.tokenExpiresAt) updateStoredSessionExpiry(data.tokenExpiresAt)
-        if (canUseGetCache) {
-          setCachedGetResponse(dedupeKey, data)
-        } else if (method !== 'GET') {
-          // Any write can change downstream read models. Keep this simple and safe.
-          clearGetResponseCache()
+        while (true) {
+          try {
+            const data = await rawApiRequest(normalizedPath, options)
+            if (data?.tokenExpiresAt) updateStoredSessionExpiry(data.tokenExpiresAt)
+            if (canUseGetCache) {
+              setCachedGetResponse(dedupeKey, data)
+            } else if (method !== 'GET') {
+              // Any write can change downstream read models. Keep this simple and safe.
+              clearGetResponseCache()
+            }
+            return data
+          } catch (error) {
+            const text = (error?.message || '').toLowerCase()
+            const canRetryWithSessionRefresh =
+              !normalizedPath.startsWith('/auth/') &&
+              !hasRetriedAfterRefresh &&
+              text.includes('unauthorized')
+            if (!canRetryWithSessionRefresh) throw error
+            hasRetriedAfterRefresh = true
+            const refreshed = await rawApiRequest('/auth/refresh', { method: 'POST' })
+            if (refreshed?.tokenExpiresAt) updateStoredSessionExpiry(refreshed.tokenExpiresAt)
+          }
         }
-        return data
       } catch (error) {
         const text = (error?.message || '').toLowerCase()
         if (
@@ -234,11 +264,17 @@ async function request(path, options = {}) {
   return pending
 }
 
-const login = ({ userId, password }) =>
-  request('/auth/login', {
+const login = ({ userId, password }) => {
+  // If userId looks like an email, send as email; else as userId
+  const isEmail = typeof userId === 'string' && userId.includes('@')
+  const payload = isEmail
+    ? { email: userId, password }
+    : { userId, password }
+  return request('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ userId, email: userId, password }),
+    body: JSON.stringify(payload),
   })
+}
 
 const register = ({
   name,
