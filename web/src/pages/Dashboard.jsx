@@ -48,7 +48,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [uploadTab, setUploadTab] = useState('manual')
   const [allContests, setAllContests] = useState([])
-  const [manualGameType, setManualGameType] = useState('Fantasy')
   const [manualContestId, setManualContestId] = useState('')
   const [manualTeamPool, setManualTeamPool] = useState({
     teamAName: 'Team A',
@@ -157,30 +156,17 @@ function Dashboard({ defaultPanel = 'joined' }) {
     }
   }, [manualTournamentId])
 
-  const manualGameOptions = useMemo(
-    () => Array.from(new Set((allContests || []).map((item) => item.game).filter(Boolean))),
-    [allContests],
-  )
-
-  useEffect(() => {
-    if (!manualGameOptions.length) return
-    if (!manualGameOptions.includes(manualGameType)) {
-      setManualGameType(manualGameOptions[0])
-    }
-  }, [manualGameOptions, manualGameType])
-
   const filteredManualContests = useMemo(() => {
     const contestManagerScopeId =
       currentUser?.role === 'contest_manager'
         ? currentUser?.contestManagerContestId || ''
         : ''
     return (allContests || []).filter((contest) => {
-      const gameOk = !manualGameType || contest.game === manualGameType
       const tournamentOk = !manualTournamentId || contest.tournamentId === manualTournamentId
       const scopeOk = !contestManagerScopeId || contest.id === contestManagerScopeId
-      return gameOk && tournamentOk && scopeOk
+      return tournamentOk && scopeOk
     })
-  }, [allContests, manualGameType, manualTournamentId, currentUser])
+  }, [allContests, manualTournamentId, currentUser])
 
   useEffect(() => {
     if (!filteredManualContests.length) {
@@ -496,8 +482,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
       <UploadPanel
         uploadTab={uploadTab}
         setUploadTab={setUploadTab}
-        manualGameType={manualGameType}
-        setManualGameType={setManualGameType}
         uploadPayloadText={uploadPayloadText}
         setUploadPayloadText={setUploadPayloadText}
         manualScoreContext={manualScoreContext}
@@ -505,7 +489,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
         setManualTournamentId={setManualTournamentId}
         manualMatchId={manualMatchId}
         setManualMatchId={setManualMatchId}
-        manualGameOptions={manualGameOptions}
         manualTeamPool={manualTeamPool}
         manualPlayerStats={manualPlayerStats}
         onManualStatChange={onManualStatChange}

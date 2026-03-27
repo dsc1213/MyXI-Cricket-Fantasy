@@ -33,6 +33,7 @@ function EditActionIcon() {
 }
 
 function ParticipantsCard({
+  contestMode = '',
   contestId,
   activeMatch,
   participants,
@@ -42,8 +43,11 @@ function ParticipantsCard({
   isLoggedIn = false,
 }) {
   const hasNoRows = participants.length === 0
-  const canViewTeams = normalizeMatchStatus(activeMatch?.status) !== 'notstarted'
-  const canEditTeams = normalizeMatchStatus(activeMatch?.status) === 'notstarted'
+  const isFixedRosterContest = contestMode === 'fixed_roster'
+  const canViewTeams =
+    isFixedRosterContest || normalizeMatchStatus(activeMatch?.status) !== 'notstarted'
+  const canEditTeams =
+    !isFixedRosterContest && normalizeMatchStatus(activeMatch?.status) === 'notstarted'
   const columns = [
     {
       key: 'name',
@@ -61,7 +65,7 @@ function ParticipantsCard({
       label: 'Team',
       render: (player) => (
         <div className="top-actions">
-          {canEditFullTeams && (
+          {!isFixedRosterContest && canEditFullTeams && (
             <Button
               variant="ghost"
               size="small"
@@ -98,7 +102,7 @@ function ParticipantsCard({
 
   return (
     <article
-      className={`admin-card participants-card ${!canViewTeams ? 'prestart' : ''} ${
+      className={`admin-card participants-card ${isFixedRosterContest ? 'fixed-roster' : ''} ${!canViewTeams ? 'prestart' : ''} ${
         hasNoRows ? 'no-rows' : ''
       }`.trim()}
     >
@@ -107,14 +111,23 @@ function ParticipantsCard({
         <span>For </span>
         <MatchLabel home={activeMatch?.home} away={activeMatch?.away} value={activeMatch?.name || 'Match'} />
       </p>
+      {isFixedRosterContest && (
+        <p className="team-note participants-subnote">
+          Viewing each participant&apos;s fixed tournament roster filtered to this match.
+        </p>
+      )}
       {!!activeMatch && normalizeMatchStatus(activeMatch.status) === 'notstarted' && (
         <p className="team-note participants-subnote">
-          Player teams are disabled until this match starts.
+          {isFixedRosterContest
+            ? 'Rosters are read-only before the tournament starts.'
+            : 'Player teams are disabled until this match starts.'}
         </p>
       )}
       {Number(joinedCount || 0) > 0 && participants.length === 0 && (
         <p className="team-note participants-subnote">
-          Joined users have not submitted teams for this match yet.
+          {isFixedRosterContest
+            ? 'No participant has owned players in this match.'
+            : 'Joined users have not submitted teams for this match yet.'}
         </p>
       )}
       <StickyTable

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { fetchPlayerStats, fetchTournaments } from '../lib/api.js'
 import TournamentPageTabs from '../components/TournamentPageTabs.jsx'
-import { CountryText } from '../components/ui/CountryFlag.jsx'
+import PlayerAvatar from '../components/ui/PlayerAvatar.jsx'
 import SelectField from '../components/ui/SelectField.jsx'
 import StickyTable from '../components/ui/StickyTable.jsx'
 
@@ -72,12 +72,25 @@ function CricketerStats() {
         key: 'name',
         label: 'Player',
         sortValue: (row) => row.name || '',
+        render: (row) => (
+          <div className="player-cell">
+            <PlayerAvatar name={row.name} imageUrl={row.imageUrl || ''} />
+            <strong>{row.name}</strong>
+          </div>
+        ),
       },
       {
         key: 'team',
         label: 'Team',
-        sortValue: (row) => row.team || '',
-        render: (row) => <CountryText value={row.team} />,
+        sortValue: (row) => row.teamName || row.team || '',
+        render: (row) => (
+          <div className="stats-team-cell">
+            <strong>{row.teamCode || row.team || '-'}</strong>
+            {row.teamName && row.teamName !== row.teamCode ? (
+              <span>{row.teamName}</span>
+            ) : null}
+          </div>
+        ),
       },
       {
         key: 'runs',

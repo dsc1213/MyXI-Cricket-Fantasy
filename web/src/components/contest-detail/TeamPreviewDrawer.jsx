@@ -1,13 +1,16 @@
 import { useEffect } from 'react'
 import { MatchLabel } from '../ui/CountryFlag.jsx'
+import PlayerAvatar from '../ui/PlayerAvatar.jsx'
 
 function TeamPreviewDrawer({
+  contestMode = '',
   previewPlayer,
   activeMatch,
   previewXI,
   previewBackups,
   onClose,
 }) {
+  const isFixedRosterContest = contestMode === 'fixed_roster'
   useEffect(() => {
     document.body.classList.toggle('team-preview-open', !!previewPlayer)
     return () => document.body.classList.remove('team-preview-open')
@@ -23,7 +26,11 @@ function TeamPreviewDrawer({
       <aside className="team-preview-panel solid">
         <div className="team-preview-head">
           <div>
-            <h3>{previewPlayer ? `${previewPlayer.name} XI` : 'Team Preview'}</h3>
+            <h3>
+              {previewPlayer
+                ? `${previewPlayer.name} ${isFixedRosterContest ? 'roster' : 'XI'}`
+                : 'Team Preview'}
+            </h3>
             {activeMatch && (
               <p>
                 <MatchLabel home={activeMatch.home} away={activeMatch.away} value={activeMatch.name} />
@@ -36,12 +43,18 @@ function TeamPreviewDrawer({
           </button>
         </div>
         <div className="team-preview-list">
+          {isFixedRosterContest && !previewXI.length && (
+            <p className="team-note">No owned players are involved in this match.</p>
+          )}
           {previewXI.map((entry, index) => {
             const name = typeof entry === 'string' ? entry : entry?.name || `Player ${index + 1}`
             const points = typeof entry === 'object' ? Number(entry?.points || 0) : 0
             return (
               <div className="player-row team-preview-row" key={`${name}-${index}`}>
-                <strong>{name}</strong>
+                <div className="player-row-main">
+                  <PlayerAvatar name={name} imageUrl={typeof entry === 'object' ? entry?.imageUrl || '' : ''} />
+                  <strong>{name}</strong>
+                </div>
                 <span>{points}</span>
               </div>
             )
@@ -49,7 +62,7 @@ function TeamPreviewDrawer({
         </div>
         {!!previewBackups?.length && (
           <>
-            <h4>Backups</h4>
+            <h4>{isFixedRosterContest ? 'Other owned players' : 'Backups'}</h4>
             <div className="team-preview-list">
               {previewBackups.map((entry, index) => {
                 const name =
@@ -57,7 +70,13 @@ function TeamPreviewDrawer({
                 const points = typeof entry === 'object' ? Number(entry?.points || 0) : 0
                 return (
                   <div className="player-row team-preview-row" key={`backup-${name}-${index}`}>
-                    <strong>{name}</strong>
+                    <div className="player-row-main">
+                      <PlayerAvatar
+                        name={name}
+                        imageUrl={typeof entry === 'object' ? entry?.imageUrl || '' : ''}
+                      />
+                      <strong>{name}</strong>
+                    </div>
                     <span>{points}</span>
                   </div>
                 )

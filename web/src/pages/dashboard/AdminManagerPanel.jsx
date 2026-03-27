@@ -505,6 +505,11 @@ function AdminManagerPanel() {
     { key: 'name', label: 'Contest' },
     { key: 'game', label: 'Type' },
     {
+      key: 'mode',
+      label: 'Mode',
+      render: (row) => (row.mode === 'fixed_roster' ? 'Auction' : 'Standard'),
+    },
+    {
       key: 'status',
       label: 'Status',
       render: (row) => (row.enabled ? 'Enabled' : 'Available'),

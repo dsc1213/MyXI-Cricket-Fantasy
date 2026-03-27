@@ -55,6 +55,7 @@ function formatShortDate(value) {
 }
 
 function MatchesCard({
+  contestMode = '',
   matches,
   selectedMatchId,
   onSelectMatch,
@@ -68,6 +69,7 @@ function MatchesCard({
   onPreviewTeam,
   isLoggedIn = false,
 }) {
+  const isFixedRosterContest = contestMode === 'fixed_roster'
   const columns = [
     {
       key: 'match',
@@ -93,14 +95,42 @@ function MatchesCard({
     },
     {
       key: 'myTeam',
-      label: 'My Team',
-      render: (match) => (match.hasTeam ? 'Added' : 'Not added'),
+      label: isFixedRosterContest ? 'My Roster' : 'My Team',
+      render: (match) => (match.hasTeam ? (isFixedRosterContest ? 'Owned players' : 'Added') : 'Not added'),
     },
     {
       key: 'action',
       label: 'Action',
       render: (match) => {
         const normalizedStatus = normalizeMatchStatus(match.status)
+        if (isFixedRosterContest) {
+          const loginRequired = !isLoggedIn
+          return (
+            <div className="top-actions">
+              <Button
+                variant="ghost"
+                size="small"
+                className="icon-eye-btn match-action-icon-btn"
+                disabled={!match.hasTeam || loginRequired}
+                aria-label="View roster"
+                title={
+                  loginRequired
+                    ? 'Login required to view roster'
+                    : match.hasTeam
+                      ? 'View roster'
+                      : 'No owned players in this match'
+                }
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onPreviewTeam?.(match)
+                }}
+              >
+                <ViewActionIcon />
+                <span>{` (${Number(match.submittedCount || 0)})`}</span>
+              </Button>
+            </div>
+          )
+        }
         const canEdit = normalizedStatus === 'notstarted'
         const canManageOwnTeam = Boolean(match.viewerJoined)
         const canView =

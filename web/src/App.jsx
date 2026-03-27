@@ -9,6 +9,7 @@ import ForgotPassword from './pages/ForgotPassword.jsx'
 import Pending from './pages/Pending.jsx'
 import TeamSelection from './pages/TeamSelection.jsx'
 import FantasyHub from './pages/FantasyHub.jsx'
+import AuctionHub from './pages/AuctionHub.jsx'
 import Tournaments from './pages/Tournaments.jsx'
 import TournamentContests from './pages/TournamentContests.jsx'
 import ContestDetail from './pages/ContestDetail.jsx'
@@ -40,6 +41,9 @@ function App() {
     return getStoredUser()
   })
   const showAuthLinks = location.pathname === '/'
+  const searchParams = new URLSearchParams(location.search)
+  const viewMode = (searchParams.get('view') || '').toString().trim().toLowerCase()
+  const isAuctionView = viewMode === 'auction'
   const isLanding = location.pathname === '/'
   const isAuthPage = ['/login', '/register', '/forgot-password', '/pending'].includes(
     location.pathname,
@@ -49,6 +53,7 @@ function App() {
     location.pathname === '/fantasy/select' || location.pathname === '/team/select'
   const isFantasyHubPage =
     location.pathname === '/fantasy' || location.pathname === '/team'
+  const isAuctionHubPage = location.pathname === '/auction'
   const isContestDetailPage =
     /^\/tournaments\/[^/]+\/contests\/[^/]+$/.test(location.pathname)
   const isLeaderboardPage =
@@ -67,6 +72,7 @@ function App() {
       '/home',
       '/dashboard',
       '/fantasy',
+      '/auction',
       '/team',
       '/drafts',
       '/pickem',
@@ -99,16 +105,21 @@ function App() {
   const brandHref = currentUser ? '/home' : '/'
   const requireAuth = (element) =>
     currentUser ? element : <Navigate to="/login" replace />
-  const isHomeFantasyRoute = ['/home', '/fantasy', '/team'].includes(location.pathname)
+  const isHomeFantasyRoute = ['/home', '/fantasy', '/auction', '/team'].includes(
+    location.pathname,
+  )
   const isFantasyNavActive =
-    location.pathname === '/fantasy' ||
-    location.pathname === '/team' ||
-    location.pathname === '/fantasy/select' ||
-    location.pathname === '/team/select' ||
-    location.pathname === '/tournaments' ||
-    location.pathname.startsWith('/tournaments/') ||
-    location.pathname === '/leaderboard' ||
-    location.pathname === '/cricketer-stats'
+    (!isAuctionView &&
+      (location.pathname === '/fantasy' ||
+        location.pathname === '/team' ||
+        location.pathname === '/fantasy/select' ||
+        location.pathname === '/team/select' ||
+        location.pathname === '/tournaments' ||
+        location.pathname.startsWith('/tournaments/') ||
+        location.pathname === '/leaderboard' ||
+        location.pathname === '/cricketer-stats')) ||
+    false
+  const isAuctionNavActive = location.pathname === '/auction' || isAuctionView
   const showCricketRouteLoader = isApiLoading && isHomeFantasyRoute
 
   useEffect(() => {
@@ -221,7 +232,7 @@ function App() {
 
   return (
     <div
-      className={`app ${isLanding ? 'landing' : ''} ${isAuthPage ? 'app-auth' : ''} ${userMenuOpen ? 'menu-open' : ''} ${isTeamPage ? 'app-team' : ''} ${isFantasyHubPage ? 'is-fantasy-hub' : ''} ${isContestDetailPage ? 'is-contest-detail' : ''} ${isLeaderboardPage ? 'is-leaderboard-page' : ''} ${isCricketerStatsPage ? 'is-cricketer-stats-page' : ''} ${isCatalogPage ? 'is-catalog' : ''} ${isLowerContentPage ? 'app-lower-content' : ''} ${theme === 'dark' ? 'theme-dark' : 'theme-light'}`.trim()}
+      className={`app ${isLanding ? 'landing' : ''} ${isAuthPage ? 'app-auth' : ''} ${userMenuOpen ? 'menu-open' : ''} ${isTeamPage ? 'app-team' : ''} ${isFantasyHubPage || isAuctionHubPage ? 'is-fantasy-hub' : ''} ${isContestDetailPage ? 'is-contest-detail' : ''} ${isLeaderboardPage ? 'is-leaderboard-page' : ''} ${isCricketerStatsPage ? 'is-cricketer-stats-page' : ''} ${isCatalogPage ? 'is-catalog' : ''} ${isLowerContentPage ? 'app-lower-content' : ''} ${theme === 'dark' ? 'theme-dark' : 'theme-light'}`.trim()}
     >
       <div className="page-header-shell">
         <header className={`topbar compact ${isLanding ? 'landing' : ''}`.trim()}>
@@ -252,6 +263,14 @@ function App() {
                 }
               >
                 Fantasy
+              </NavLink>
+              <NavLink
+                to="/auction"
+                className={({ isActive }) =>
+                  `tab ${isActive || isAuctionNavActive ? 'active' : ''}`
+                }
+              >
+                Auction
               </NavLink>
             </nav>
           )}
@@ -344,6 +363,9 @@ function App() {
             <NavLink to="/fantasy" className="leaderboard-link">
               Fantasy
             </NavLink>
+            <NavLink to="/auction" className="leaderboard-link">
+              Auction
+            </NavLink>
             <NavLink to="/cricketer-stats" className="leaderboard-link">
               Cricketer stats
             </NavLink>
@@ -434,6 +456,7 @@ function App() {
             element={requireAuth(<Leaderboard />)}
           />
           <Route path="/fantasy" element={requireAuth(<FantasyHub />)} />
+          <Route path="/auction" element={requireAuth(<AuctionHub />)} />
           <Route path="/fantasy/select" element={requireAuth(<TeamSelection />)} />
           <Route path="/team" element={requireAuth(<Navigate to="/fantasy" replace />)} />
           <Route
@@ -481,9 +504,6 @@ function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      <footer className="footer">
-        <span>Scores update every minute</span>
-      </footer>
     </div>
   )
 }

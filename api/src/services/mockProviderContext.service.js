@@ -838,6 +838,50 @@ const createMockProviderContext = ({
     return sampleUserPicks[matchedKey] || []
   }
 
+  const getContestById = (contestId = '') =>
+    mockContests.find((contest) => (contest?.id || '').toString() === (contestId || '').toString()) ||
+    null
+
+  const isFixedRosterContest = (contest) =>
+    (contest?.mode || '').toString().trim().toLowerCase() === 'fixed_roster'
+
+  const getFixedRosterEntries = (contest) =>
+    Array.isArray(contest?.fixedParticipants) ? contest.fixedParticipants : []
+
+  const getFixedRosterEntry = ({ contest, userId = '' }) => {
+    const targetKey = normalizeUserKey(userId)
+    if (!targetKey) return null
+    return (
+      getFixedRosterEntries(contest).find((entry) => {
+        const entryUserId = normalizeUserKey(entry?.userId || '')
+        const entryName = normalizeUserKey(entry?.name || '')
+        return entryUserId === targetKey || entryName === targetKey
+      }) || null
+    )
+  }
+
+  const getFixedRosterNames = ({ contest, userId = '', matchId = '' }) => {
+    const entry = getFixedRosterEntry({ contest, userId })
+    const fullRoster = Array.isArray(entry?.roster) ? entry.roster.filter(Boolean) : []
+    if (!matchId) {
+      return { roster: fullRoster, rest: [] }
+    }
+    const activeMatch = buildMatches(100, contest?.tournamentId || 't20wc-2026').find(
+      (match) => match.id === matchId,
+    )
+    if (!activeMatch) {
+      return { roster: fullRoster, rest: [] }
+    }
+    const matchTeams = new Set([activeMatch.home, activeMatch.away])
+    const roster = fullRoster.filter((name) => {
+      const player = normalizedPlayerMap.get(normalizePlayerName(name))
+      return player ? matchTeams.has(player.team) : false
+    })
+    const matchRosterKeys = new Set(roster.map((name) => normalizeUserKey(name)))
+    const rest = fullRoster.filter((name) => !matchRosterKeys.has(normalizeUserKey(name)))
+    return { roster, rest }
+  }
+
   const buildContestUserMatchRows = ({ contest, userId, compareUserId }) => {
     const ruleSet = getRuleSetForTournament({
       tournamentId: contest.tournamentId,
@@ -953,6 +997,10 @@ const createMockProviderContext = ({
   }
 
   const resolveMatchUserPickNames = ({ contestId, matchId, userId }) => {
+    const contest = getContestById(contestId)
+    if (isFixedRosterContest(contest)) {
+      return getFixedRosterNames({ contest, userId, matchId }).roster
+    }
     const selection = resolveMockSelection({
       contestId,
       matchId,
@@ -966,6 +1014,13 @@ const createMockProviderContext = ({
   }
 
   const getContestUserPool = ({ contest, viewerUserId = '' }) => {
+    if (isFixedRosterContest(contest)) {
+      return getFixedRosterEntries(contest).map((entry, index) => ({
+        id: `${entry.userId}-${index + 1}`,
+        userId: entry.userId,
+        name: entry.name || entry.userId,
+      }))
+    }
     const targetCount = Math.max(1, Number(contest?.teams || 0))
     ensureCoreContestUsers()
     ensureRegisteredUserPool(targetCount)
@@ -1093,6 +1148,8 @@ const createMockProviderContext = ({
     getContestUserPool,
     normalizeUserKey,
     resolveContestUserPickNames,
+    isFixedRosterContest,
+    getFixedRosterNames,
     buildContestMatchPointsIndex,
     resolveMatchUserPickNames,
     nameHash,

@@ -103,6 +103,7 @@ function FantasyHub() {
 
   const tournamentContests = useMemo(() => {
     return contests.filter((contest) => {
+      if (contest.mode === 'fixed_roster') return false
       const tournamentOk = selectedTournament && contest.tournamentId === selectedTournament
       const statusOk = selectedStatus === 'all' || contest.status === selectedStatus
       return tournamentOk && statusOk
@@ -137,6 +138,7 @@ function FantasyHub() {
 
   const contestsByTournament = useMemo(() => {
     return contests.reduce((acc, contest) => {
+      if (contest.mode === 'fixed_roster') return acc
       if (!acc[contest.tournamentId]) acc[contest.tournamentId] = []
       acc[contest.tournamentId].push(contest)
       return acc

@@ -216,6 +216,11 @@
   min-height: 0;
 }
 
+.contest-detail .participants-card.fixed-roster {
+  height: auto;
+  align-self: start;
+}
+
 .matches-card {
   --match-cols: minmax(170px, 1.35fr) minmax(96px, 0.72fr) minmax(90px, 0.58fr)
     minmax(90px, 0.62fr) minmax(108px, 0.54fr);
@@ -370,6 +375,10 @@
   border: 1px solid var(--panel-border);
   border-radius: 12px;
   background: var(--panel-bg);
+}
+
+.participants-card.fixed-roster .participants-table-wrap {
+  height: auto;
 }
 
 .participants-card.prestart .participants-table-wrap {

@@ -7,6 +7,7 @@ import SelectField from '../components/ui/SelectField.jsx'
 import StickyTable from '../components/ui/StickyTable.jsx'
 import TournamentPageTabs from '../components/TournamentPageTabs.jsx'
 import {
+  fetchContest,
   fetchContestLeaderboard,
   fetchContestUserMatchScores,
   fetchContests,
@@ -28,6 +29,7 @@ function Leaderboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [errorText, setErrorText] = useState('')
   const [allJoinedContests, setAllJoinedContests] = useState([])
+  const [routeContest, setRouteContest] = useState(null)
   const [selectedTournamentId, setSelectedTournamentId] = useState(tournamentId || '')
   const [tournamentNameMap, setTournamentNameMap] = useState({})
   const [selectedContestId, setSelectedContestId] = useState(contestId || '')
@@ -47,9 +49,10 @@ function Leaderboard() {
 
     const loadContests = async () => {
       try {
-        const [data, tournaments] = await Promise.all([
+        const [data, tournaments, routeContestData] = await Promise.all([
           fetchContests({ joined: true, userId: currentUserId }),
           fetchTournaments(),
+          contestId ? fetchContest(contestId).catch(() => null) : Promise.resolve(null),
         ])
         if (!active) return
         const nameMap = (tournaments || []).reduce((acc, item) => {
@@ -57,6 +60,7 @@ function Leaderboard() {
           return acc
         }, {})
         setAllJoinedContests(data || [])
+        setRouteContest(routeContestData || null)
         setTournamentNameMap(nameMap)
       } catch (error) {
         if (!active) return
@@ -68,7 +72,7 @@ function Leaderboard() {
     return () => {
       active = false
     }
-  }, [currentUserId])
+  }, [currentUserId, contestId])
 
   useEffect(() => {
     if (tournamentId) {
@@ -77,9 +81,18 @@ function Leaderboard() {
   }, [tournamentId])
 
   const joinedContestOptions = useMemo(() => {
-    if (!selectedTournamentId) return allJoinedContests
-    return allJoinedContests.filter((item) => item.tournamentId === selectedTournamentId)
-  }, [allJoinedContests, selectedTournamentId])
+    const base = !selectedTournamentId
+      ? allJoinedContests
+      : allJoinedContests.filter((item) => item.tournamentId === selectedTournamentId)
+    if (
+      routeContest &&
+      (!selectedTournamentId || routeContest.tournamentId === selectedTournamentId) &&
+      !base.some((item) => item.id === routeContest.id)
+    ) {
+      return [...base, routeContest]
+    }
+    return base
+  }, [allJoinedContests, selectedTournamentId, routeContest])
 
   useEffect(() => {
     if (contestId) setSelectedContestId(contestId)

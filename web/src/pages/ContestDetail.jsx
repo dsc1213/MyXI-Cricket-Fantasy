@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import ContestTopBar from '../components/contest-detail/ContestTopBar.jsx'
 import MatchesCard from '../components/contest-detail/MatchesCard.jsx'
 import ParticipantsCard from '../components/contest-detail/ParticipantsCard.jsx'
@@ -20,7 +20,9 @@ import { getStoredUser } from '../lib/auth.js'
 
 function ContestDetail() {
   const { tournamentId, contestId } = useParams()
+  const location = useLocation()
   const navigate = useNavigate()
+  const viewMode = new URLSearchParams(location.search).get('view') || ''
   const currentUser = getStoredUser()
   const isLoggedIn = Boolean(currentUser)
   const currentUserGameName =
@@ -30,6 +32,7 @@ function ContestDetail() {
   const [isLoading, setIsLoading] = useState(true)
   const [errorText, setErrorText] = useState('')
   const [contestTitle, setContestTitle] = useState(contestId)
+  const [contestMode, setContestMode] = useState('')
   const [tournamentName, setTournamentName] = useState(tournamentId)
   const [lastScoreUpdatedAt, setLastScoreUpdatedAt] = useState('')
   const [matches, setMatches] = useState([])
@@ -61,6 +64,7 @@ function ContestDetail() {
         ])
         if (!active) return
         setContestTitle(contest.name)
+        setContestMode(contest.mode || '')
         setLastScoreUpdatedAt(contest.lastScoreUpdatedAt || '')
         const tournament = tournaments.find((item) => item.id === tournamentId)
         setTournamentName(tournament?.name || tournamentId)
@@ -234,6 +238,7 @@ function ContestDetail() {
         isLoading={isLoading}
         errorText={errorText}
         tournamentId={tournamentId}
+        viewMode={viewMode}
         actions={
           canDeleteContest ? (
             <Button
@@ -252,6 +257,7 @@ function ContestDetail() {
 
       <div className="admin-grid contest-grid">
         <MatchesCard
+          contestMode={contestMode}
           matches={matches}
           selectedMatchId={selectedMatchId}
           onSelectMatch={setSelectedMatchId}
@@ -267,6 +273,7 @@ function ContestDetail() {
         />
 
         <ParticipantsCard
+          contestMode={contestMode}
           contestId={contestId}
           activeMatch={activeMatch}
           participants={participants}
@@ -278,6 +285,7 @@ function ContestDetail() {
       </div>
 
       <TeamPreviewDrawer
+        contestMode={contestMode}
         previewPlayer={previewPlayer}
         activeMatch={activeMatch}
         previewXI={previewXI}
@@ -343,7 +351,7 @@ function ContestDetail() {
             <Button
               variant="primary"
               size="small"
-              to={`/tournaments/${tournamentId}/contests/${contestId}/leaderboard`}
+              to={`/tournaments/${tournamentId}/contests/${contestId}/leaderboard${viewMode ? `?view=${encodeURIComponent(viewMode)}` : ''}`}
             >
               Open leaderboard page
             </Button>

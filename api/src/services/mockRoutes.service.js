@@ -31,6 +31,8 @@ const registerMockProviderRoutes = (router, ctx) => {
     resolveMockSelection,
     getContestUserPool,
     normalizeUserKey,
+    isFixedRosterContest,
+    getFixedRosterNames,
     buildContestMatchPointsIndex,
     resolveMatchUserPickNames,
     nameHash,
@@ -109,6 +111,39 @@ const registerMockProviderRoutes = (router, ctx) => {
       .replace(/[^A-Z0-9]/g, '')
   const getTeamSquadByCode = (teamCode = '') =>
     teamSquads.find((item) => item.teamCode === normalizeTeamCode(teamCode)) || null
+  const getTournamentTeamCodes = (tournamentId = '') => {
+    const rows = buildMatches(200, tournamentId)
+    const codes = new Set()
+    rows.forEach((match) => {
+      const home = normalizeTeamCode(match?.home || '')
+      const away = normalizeTeamCode(match?.away || '')
+      if (home) codes.add(home)
+      if (away) codes.add(away)
+    })
+    return codes
+  }
+  const getTournamentCatalogEntry = (tournamentId = '') =>
+    getTournamentCatalogRows().find((item) => item.id === tournamentId) || null
+  const getTournamentSquadTeamCodes = (tournamentId = '') => {
+    const tournament = getTournamentCatalogEntry(tournamentId)
+    const tournamentName = (tournament?.name || '').toString().trim().toLowerCase()
+    if (!tournamentName) return new Set()
+    return new Set(
+      teamSquads
+        .filter((item) => (item?.tournament || '').toString().trim().toLowerCase() === tournamentName)
+        .map((item) => normalizeTeamCode(item?.teamCode || ''))
+        .filter(Boolean),
+    )
+  }
+  const getTournamentPlayers = (tournamentId = '') => {
+    if (!tournamentId) return [...allKnownPlayers]
+    const squadTeamCodes = getTournamentSquadTeamCodes(tournamentId)
+    const teamCodes = squadTeamCodes.size ? squadTeamCodes : getTournamentTeamCodes(tournamentId)
+    const filtered = allKnownPlayers.filter((player) =>
+      teamCodes.has(normalizeTeamCode(player?.team || '')),
+    )
+    return filtered.length ? filtered : [...allKnownPlayers]
+  }
   const normalizeSquadEntries = (raw = []) => {
     const seen = new Set()
     const entries = []
@@ -173,6 +208,12 @@ const registerMockProviderRoutes = (router, ctx) => {
   const getContestJoinedCount = (contestId = '') => {
     const target = (contestId || '').toString()
     if (!target) return 0
+    const fixedContest = mockContests.find((contest) => contest.id === target)
+    if (isFixedRosterContest(fixedContest)) {
+      return Array.isArray(fixedContest?.fixedParticipants)
+        ? fixedContest.fixedParticipants.length
+        : 0
+    }
     return Object.values(contestJoins).reduce((count, joinedIds) => {
       const list = Array.isArray(joinedIds) ? joinedIds.map((id) => id.toString()) : []
       return count + (list.includes(target) ? 1 : 0)
@@ -189,6 +230,7 @@ const registerMockProviderRoutes = (router, ctx) => {
     return scopedMatches.length ? scopedMatches : allMatches
   }
   const isContestJoinOpen = (contest) => {
+    if (isFixedRosterContest(contest)) return false
     const contestMatches = getContestMatches(contest)
       .slice()
       .sort((a, b) => Number(a.matchNo || 0) - Number(b.matchNo || 0))
@@ -988,7 +1030,7 @@ const registerMockProviderRoutes = (router, ctx) => {
         joinedCount,
         maxPlayers,
         hasCapacity,
-        joinOpen: joinOpen && hasCapacity,
+        joinOpen: !isFixedRosterContest(contest) && joinOpen && hasCapacity,
         ...scoreMeta,
       }
     })
@@ -1003,6 +1045,9 @@ const registerMockProviderRoutes = (router, ctx) => {
     }
     const contest = mockContests.find((item) => item.id === contestId)
     if (!contest) return res.status(404).json({ message: 'Contest not found' })
+    if (isFixedRosterContest(contest)) {
+      return res.status(403).json({ message: 'This contest has fixed participant rosters' })
+    }
     const joinedSet = getJoinedSetForUser(userId)
     if (joinedSet.has(contestId)) {
       return res.json({ ok: true, contestId, userId, joined: true })
@@ -1085,15 +1130,24 @@ const registerMockProviderRoutes = (router, ctx) => {
         })
         return count + (pickNames.length > 0 ? 1 : 0)
       }, 0)
-      const selection = resolveMockSelection({
+      const viewerPickNames = resolveMatchUserPickNames({
         contestId: contest.id,
         matchId: match.id,
         userId,
-        seedFromDefaultHasTeam: true,
       })
+      const selection = isFixedRosterContest(contest)
+        ? null
+        : resolveMockSelection({
+            contestId: contest.id,
+            matchId: match.id,
+            userId,
+            seedFromDefaultHasTeam: true,
+          })
       return {
         ...match,
-        hasTeam: !!selection?.playingXi?.length,
+        hasTeam: isFixedRosterContest(contest)
+          ? viewerPickNames.length > 0
+          : !!selection?.playingXi?.length,
         submittedCount,
         joinedCount,
         viewerJoined,
@@ -1153,8 +1207,8 @@ const registerMockProviderRoutes = (router, ctx) => {
           userId,
           name: seededUser.name,
           points: computedPoints,
-          canView: activeMatch.status !== 'notstarted',
-          hasTeam: pickNames.length > 0,
+          canView: isFixedRosterContest(contest) ? true : activeMatch.status !== 'notstarted',
+          hasTeam: isFixedRosterContest(contest) ? true : pickNames.length > 0,
         }
       })
       .filter((row) => row.hasTeam)
@@ -1238,13 +1292,19 @@ const registerMockProviderRoutes = (router, ctx) => {
   router.get('/player-stats', (req, res) => {
     const tournamentId = (req.query.tournamentId || '').toString()
     const aggregateIndex = getTournamentPlayerStatsIndex(tournamentId)
-    const rows = allKnownPlayers.map((player) => {
+    const rows = getTournamentPlayers(tournamentId).map((player) => {
       const aggregate = aggregateIndex[player.id] || null
+      const teamMeta = getTeamSquadByCode(player.team)
       return {
         id: player.id,
         name: player.name,
         team: player.team,
+        teamCode: player.team,
+        teamName: teamMeta?.teamName || player.team,
+        country: teamMeta?.country || '',
+        league: teamMeta?.league || '',
         role: player.role,
+        imageUrl: player.imageUrl || '',
         runs: Number(aggregate?.runs || 0),
         wickets: Number(aggregate?.wickets || 0),
         catches: Number(aggregate?.catches || 0),
@@ -1452,11 +1512,18 @@ const registerMockProviderRoutes = (router, ctx) => {
     const userId = (req.body?.userId || '').toString()
     const playingXi = Array.isArray(req.body?.playingXi) ? req.body.playingXi : []
     const backups = Array.isArray(req.body?.backups) ? req.body.backups : []
+    const contest = mockContests.find((item) => item.id === contestId)
 
     if (!contestId || !matchId || !userId) {
       return res
         .status(400)
         .json({ message: 'contestId, matchId and userId are required' })
+    }
+    if (!contest) {
+      return res.status(404).json({ message: 'Contest not found' })
+    }
+    if (isFixedRosterContest(contest)) {
+      return res.status(403).json({ message: 'Fixed-roster contests cannot save match-wise teams' })
     }
     const actor = resolveTeamActor(req, userId)
     if (!actor) {
@@ -1544,13 +1611,16 @@ const registerMockProviderRoutes = (router, ctx) => {
     const tournamentId = (req.query.tournamentId || '').toString()
     const contestId = (req.query.contestId || '').toString()
     const matchId = (req.query.matchId || '').toString()
+    const contest = mockContests.find((item) => item.id === contestId) || null
     const selection = matchId
-      ? resolveMockSelection({
-          contestId,
-          matchId,
-          userId,
-          seedFromDefaultHasTeam: true,
-        })
+      ? isFixedRosterContest(contest)
+        ? null
+        : resolveMockSelection({
+            contestId,
+            matchId,
+            userId,
+            seedFromDefaultHasTeam: true,
+          })
       : null
     const idToName = new Map(allKnownPlayers.map((player) => [player.id, player.name]))
     const matchPointsByName = getMatchPlayerPointsByName({
@@ -1582,10 +1652,15 @@ const registerMockProviderRoutes = (router, ctx) => {
       ? matchPointsByName
       : fallbackMatchPointsByName
     const pointsByPlayerId = getTournamentPlayerStatsIndex(tournamentId)
-    const picks =
-      selection?.playingXi?.map((id) => idToName.get(id)).filter(Boolean) || []
-    const backups =
-      selection?.backups?.map((id) => idToName.get(id)).filter(Boolean) || []
+    const fixedRoster = contest && isFixedRosterContest(contest)
+      ? getFixedRosterNames({ contest, userId, matchId })
+      : null
+    const picks = fixedRoster
+      ? fixedRoster.roster
+      : selection?.playingXi?.map((id) => idToName.get(id)).filter(Boolean) || []
+    const backups = fixedRoster
+      ? fixedRoster.rest
+      : selection?.backups?.map((id) => idToName.get(id)).filter(Boolean) || []
     const picksDetailed = picks.map((name) => {
       const found = allKnownPlayers.find((item) => item.name === name)
       const matchPoints = Number(effectiveMatchPointsByName[normalizeUserKey(name)] || 0)
@@ -1596,6 +1671,7 @@ const registerMockProviderRoutes = (router, ctx) => {
         name,
         role: found?.role || '-',
         team: found?.team || '-',
+        imageUrl: found?.imageUrl || '',
         points: matchId ? matchPoints : livePoints,
       }
     })
@@ -1609,6 +1685,7 @@ const registerMockProviderRoutes = (router, ctx) => {
         name,
         role: found?.role || '-',
         team: found?.team || '-',
+        imageUrl: found?.imageUrl || '',
         points: matchId ? matchPoints : livePoints,
       }
     })

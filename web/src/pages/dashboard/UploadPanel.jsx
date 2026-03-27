@@ -8,9 +8,6 @@ import { getCountryFlag } from '../../components/ui/countryFlagUtils.js'
 function UploadPanel({
   uploadTab,
   setUploadTab,
-  manualGameType,
-  setManualGameType,
-  manualGameOptions,
   uploadPayloadText,
   setUploadPayloadText,
   manualScoreContext,
@@ -220,19 +217,6 @@ function UploadPanel({
           </div>
 
           <div className="manual-scope-row">
-            <label>
-              Type
-              <SelectField
-                value={manualGameType}
-                onChange={(event) => setManualGameType(event.target.value)}
-              >
-                {(manualGameOptions || []).map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </SelectField>
-            </label>
             <label>
               Tournament
               <SelectField

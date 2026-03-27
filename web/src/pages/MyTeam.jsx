@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import PlayerAvatar from '../components/ui/PlayerAvatar.jsx'
 import { fetchTeamPool, fetchUserPicks } from '../lib/api.js'
 
 function MyTeam() {
@@ -72,9 +73,12 @@ function MyTeam() {
           <div className="player-list">
             {players.map((player) => (
               <div className="player-row" key={player.name}>
-                <div>
-                  <strong>{player.name}</strong>
-                  <span>{player.role}</span>
+                <div className="player-row-main">
+                  <PlayerAvatar name={player.name} imageUrl={player.imageUrl || ''} />
+                  <div>
+                    <strong>{player.name}</strong>
+                    <span>{player.role}</span>
+                  </div>
                 </div>
                 <small>{player.team}</small>
               </div>

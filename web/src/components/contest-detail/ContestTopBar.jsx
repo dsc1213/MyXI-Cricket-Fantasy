@@ -8,14 +8,21 @@ function ContestTopBar({
   isLoading,
   errorText,
   tournamentId,
+  viewMode = '',
   actions = null,
 }) {
+  const isAuctionView = viewMode === 'auction'
+  const rootHref = isAuctionView ? '/auction' : '/fantasy'
+  const rootLabel = isAuctionView ? 'Auction' : 'Fantasy'
+  const tournamentHref = isAuctionView
+    ? `/auction?view=auction&tournament=${encodeURIComponent(tournamentId)}`
+    : `/tournaments/${tournamentId}`
   return (
     <div className="contest-topbar-compact">
       <div className="flow-breadcrumb">
-        <Link to="/fantasy">Fantasy</Link>
+        <Link to={rootHref}>{rootLabel}</Link>
         <span>/</span>
-        <Link to={`/tournaments/${tournamentId}`}>{tournamentName}</Link>
+        <Link to={tournamentHref}>{tournamentName}</Link>
         <span>/</span>
         <strong>{contestTitle}</strong>
       </div>
