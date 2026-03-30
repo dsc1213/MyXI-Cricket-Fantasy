@@ -1,4 +1,6 @@
 // Mock repository wraps mockProviderContext data for scoring rules
+import { cloneDefaultPointsRules } from '../../default-points-rules.js'
+
 class ScoringRuleMockRepository {
   constructor(context) {
     this.store = context.store || {} // Fallback to empty store
@@ -12,6 +14,26 @@ class ScoringRuleMockRepository {
       }
     }
     return all
+  }
+
+  async findDefault() {
+    return {
+      id: true,
+      rules: this.store?.dashboardMockData?.pointsRuleTemplate || cloneDefaultPointsRules(),
+      createdAt: null,
+      updatedAt: null,
+    }
+  }
+
+  async saveDefault(rules) {
+    if (!this.store.dashboardMockData) this.store.dashboardMockData = {}
+    this.store.dashboardMockData.pointsRuleTemplate = rules || cloneDefaultPointsRules()
+    return {
+      id: true,
+      rules: this.store.dashboardMockData.pointsRuleTemplate,
+      createdAt: null,
+      updatedAt: new Date().toISOString(),
+    }
   }
 
   async findByTournament(tournamentId) {

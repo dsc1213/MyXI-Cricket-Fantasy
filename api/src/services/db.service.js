@@ -79,7 +79,7 @@ const dbHandlers = {
   '/admin/scoring-rules': (data) =>
     scoringRuleService.createScoringRule(data.tournamentId, data.rules),
   '/scoring-rules/save': (data) =>
-    scoringRuleService.saveScoringRules(data.tournamentId, data.rules),
+    scoringRuleService.saveDefaultScoringRules(data.rules),
 
   // Match scores
   '/admin/match-scores/:tournamentId/:matchId': (tournamentId, matchId) =>

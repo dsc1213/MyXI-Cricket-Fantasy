@@ -1,11 +1,32 @@
 import { createRepositoryFactory } from '../repositories/repository.factory.js'
+import { cloneDefaultPointsRules } from '../default-points-rules.js'
 
 const factory = createRepositoryFactory()
 
 class ScoringRuleService {
+  async getDefaultScoringRules() {
+    const repo = await factory.getScoringRuleRepository()
+    const found = typeof repo.findDefault === 'function' ? await repo.findDefault() : null
+    return found || { id: true, rules: cloneDefaultPointsRules() }
+  }
+
+  async saveDefaultScoringRules(rules) {
+    const repo = await factory.getScoringRuleRepository()
+    if (typeof repo.saveDefault === 'function') {
+      return await repo.saveDefault(rules || cloneDefaultPointsRules())
+    }
+    return { id: true, rules: rules || cloneDefaultPointsRules() }
+  }
+
   async getScoringRulesByTournament(tournamentId) {
     const repo = await factory.getScoringRuleRepository()
-    return await repo.findByTournament(tournamentId)
+    if (!tournamentId) {
+      return this.getDefaultScoringRules()
+    }
+    const found = await repo.findByTournament(tournamentId)
+    if (found) return found
+    const globalDefault = await this.getDefaultScoringRules()
+    return { id: null, tournamentId, rules: globalDefault.rules }
   }
 
   async createScoringRule(tournamentId, rules) {
@@ -19,7 +40,9 @@ class ScoringRuleService {
   }
 
   async saveScoringRules(tournamentId, rules) {
-    // Get existing or create new
+    if (!tournamentId) {
+      return this.saveDefaultScoringRules(rules)
+    }
     const repo = await factory.getScoringRuleRepository()
     const existing = await repo.findByTournament(tournamentId)
     if (existing) {

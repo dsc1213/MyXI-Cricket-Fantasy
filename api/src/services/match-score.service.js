@@ -1,5 +1,7 @@
 import { createRepositoryFactory } from '../repositories/repository.factory.js'
 import { dbQuery } from '../db.js'
+import { cloneDefaultPointsRules } from '../default-points-rules.js'
+import scoringRuleService from './scoring-rule.service.js'
 import {
   calculateFantasyPoints,
   getRuleSetForTournament,
@@ -87,10 +89,11 @@ class MatchScoreService {
       team: player.teamKey,
     }))
     const scoringRule = await scoringRuleRepo.findByTournament(tournamentId)
+    const globalScoringRules = await scoringRuleService.getDefaultScoringRules()
     const ruleSet = getRuleSetForTournament({
       tournamentId,
       scoringRules: scoringRule ? [scoringRule] : [],
-      dashboardRuleTemplate: {},
+      dashboardRuleTemplate: globalScoringRules?.rules || cloneDefaultPointsRules(),
     })
     const normalizedRows = normalizePlayerStatRows(playerStats || [], playerRows)
     await dbQuery(

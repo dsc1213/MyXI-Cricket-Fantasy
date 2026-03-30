@@ -13,6 +13,17 @@ Use this when validating the DB-backed app locally before hosting.
    ```
 4. Start API and web.
 
+## Global Scoring Rules
+
+1. Open `Home -> Scoring Rules`.
+2. Confirm the page is populated even on a fresh DB.
+3. Click `Edit`, change one value, and click `Save`.
+4. Refresh the page.
+5. Confirm:
+   - the same rules are shown after refresh
+   - rules behave as one site-wide default ruleset
+   - score uploads use these rules unless a tournament-specific override is added later
+
 ## Tournament Seed
 
 1. Open `Home -> Create Tournament`.

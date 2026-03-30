@@ -77,6 +77,86 @@ const createTournamentViaApi = async ({ request, tournamentId, name }) =>
 test.describe('15) JSON uploads and UI validation', () => {
   test.setTimeout(180000)
 
+  test('scoring rules panel falls back to default rules and saves global rules', async ({
+    page,
+  }) => {
+    let capturedSaveBody = null
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        'myxi-user',
+        JSON.stringify({
+          id: 1,
+          userId: 'master',
+          gameName: 'master',
+          role: 'master_admin',
+          token: 'e2e-token',
+          tokenExpiresAt: Date.now() + 60 * 60 * 1000,
+          status: 'active',
+        }),
+      )
+    })
+
+    await page.route('**/page-load-data', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          tournaments: [
+            {
+              id: 9991,
+              name: 'Fallback Rules Tournament',
+              season: '2026',
+              status: 'active',
+            },
+          ],
+          joinedContests: [],
+          pointsRuleTemplate: {},
+          adminManager: [],
+          masterConsole: [],
+          auditLogs: [],
+          source: 'db',
+        }),
+      })
+    })
+
+    await page.route('**/contests**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      })
+    })
+
+    await page.route('**/scoring-rules/save', async (route) => {
+      capturedSaveBody = JSON.parse(route.request().postData() || '{}')
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          tournamentId: capturedSaveBody?.tournamentId || null,
+          rules: capturedSaveBody?.rules || {},
+        }),
+      })
+    })
+
+    await page.goto('/home')
+    await page.getByRole('button', { name: 'Scoring Rules' }).click()
+
+    await expect(page.getByText('Each Run')).toBeVisible()
+    await expect(page.getByText('Each Wicket')).toBeVisible()
+    await expect(page.getByText('Each Catch')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Edit' }).click()
+    const firstRunInput = page.locator('.points-group').filter({ hasText: 'batting' }).locator('input').first()
+    await firstRunInput.fill('2')
+    await page.getByRole('button', { name: 'Save' }).click()
+
+    await expect(page.getByText('Scoring rules saved')).toBeVisible()
+    expect(capturedSaveBody?.tournamentId ?? null).toBe(null)
+    expect(capturedSaveBody?.rules?.batting?.[0]?.value).toBe(2)
+  })
+
   test('squad JSON upload adds team players and appears in Squad Manager', async ({
     page,
     request,

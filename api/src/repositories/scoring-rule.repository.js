@@ -1,6 +1,36 @@
 import { dbQuery } from '../db.js'
 
 class ScoringRuleRepository {
+  async findDefault() {
+    const result = await dbQuery(
+      `SELECT id, rules, created_at as "createdAt", updated_at as "updatedAt"
+       FROM global_scoring_rules
+       WHERE id = true`,
+    )
+    const row = result.rows[0]
+    if (!row) return null
+    return {
+      ...row,
+      rules: typeof row.rules === 'string' ? JSON.parse(row.rules) : row.rules,
+    }
+  }
+
+  async saveDefault(rules) {
+    const result = await dbQuery(
+      `INSERT INTO global_scoring_rules (id, rules, created_at, updated_at)
+       VALUES (true, $1, now(), now())
+       ON CONFLICT (id) DO UPDATE
+       SET rules = EXCLUDED.rules, updated_at = now()
+       RETURNING id, rules, created_at as "createdAt", updated_at as "updatedAt"`,
+      [JSON.stringify(rules)],
+    )
+    const row = result.rows[0]
+    return {
+      ...row,
+      rules: typeof row.rules === 'string' ? JSON.parse(row.rules) : row.rules,
+    }
+  }
+
   async findByTournament(tournamentId) {
     const result = await dbQuery(
       `SELECT id, tournament_id as "tournamentId", rules, created_at as "createdAt", updated_at as "updatedAt"

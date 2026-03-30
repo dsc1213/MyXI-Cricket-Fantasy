@@ -1,16 +1,13 @@
 import { createRepositoryFactory } from '../repositories/repository.factory.js'
-import { dbQuery } from '../db.js'
+import scoringRuleService from './scoring-rule.service.js'
+import { cloneDefaultPointsRules } from '../default-points-rules.js'
 
 const factory = createRepositoryFactory()
-const emptyPointsRuleTemplate = { batting: [], bowling: [], fielding: [] }
+const emptyPointsRuleTemplate = cloneDefaultPointsRules()
 
 const loadPointsRuleTemplate = async () => {
-  const scoringRules = await dbQuery(`SELECT rules FROM scoring_rules LIMIT 1`)
-  return scoringRules.rows[0]
-    ? typeof scoringRules.rows[0].rules === 'string'
-      ? JSON.parse(scoringRules.rows[0].rules)
-      : scoringRules.rows[0].rules
-    : emptyPointsRuleTemplate
+  const globalRules = await scoringRuleService.getDefaultScoringRules()
+  return globalRules?.rules || cloneDefaultPointsRules()
 }
 
 class PageLoadService {
@@ -59,7 +56,7 @@ class PageLoadService {
       return {
         tournaments: [],
         joinedContests: [],
-        pointsRuleTemplate: emptyPointsRuleTemplate,
+        pointsRuleTemplate: cloneDefaultPointsRules(),
         source: 'db',
       }
     }
@@ -84,7 +81,7 @@ class PageLoadService {
       return {
         tournaments: [],
         contests: [],
-        pointsRuleTemplate: emptyPointsRuleTemplate,
+        pointsRuleTemplate: cloneDefaultPointsRules(),
         source: 'db',
       }
     }

@@ -28,12 +28,9 @@ import {
   sectionTitles,
 } from './dashboard/constants.js'
 import { getStoredUser } from '../lib/auth.js'
+import { cloneDefaultPointsRules, normalizePointsRuleTemplate } from '../lib/defaultPointsRules.js'
 
-const defaultPointsRules = {
-  batting: [],
-  bowling: [],
-  fielding: [],
-}
+const defaultPointsRules = cloneDefaultPointsRules()
 
 const buildFallbackBootstrap = () => ({
   tournaments: [],
@@ -176,12 +173,12 @@ function Dashboard({ defaultPanel = 'joined' }) {
         setPageLoadData({
           tournaments: data?.tournaments || [],
           joinedContests: (contestsRes || []).filter((contest) => contest.joined),
-          pointsRuleTemplate: data?.pointsRuleTemplate || defaultPointsRules,
+          pointsRuleTemplate: normalizePointsRuleTemplate(data?.pointsRuleTemplate),
           adminManager: data?.adminManager || [],
           masterConsole: data?.masterConsole || [],
           auditLogs: data?.auditLogs || [],
         })
-        setPointsRules(data?.pointsRuleTemplate || defaultPointsRules)
+        setPointsRules(normalizePointsRuleTemplate(data?.pointsRuleTemplate))
         setAllContests(contestsRes || [])
       } catch (error) {
         if (!active) return

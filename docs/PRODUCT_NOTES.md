@@ -163,9 +163,10 @@ Backups rule:
 - 3 backups per team (Team A: 3, Team B: 3).
 
 ## Scoring Rules (How it Works)
-- Admin sets rules per tournament via the scoring rules page or API.
-- Rules are stored per tournament (e.g., runs, wickets, catches, fours, sixes).
-- When a match score JSON is uploaded, points are calculated for each selected player using the active rules.
+- Admin sets one global default ruleset via the scoring rules page or API.
+- Rules are stored in DB as a global default row and loaded on page load into client state.
+- Tournament-specific rule rows are optional overrides only.
+- When a match score JSON is uploaded, points are calculated for each selected player using the tournament override if present, otherwise the global default rules.
 - Leaderboard sums all match points for each user and sorts highest first.
 
 Default example:

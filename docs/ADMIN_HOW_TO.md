@@ -43,11 +43,31 @@ Make sure:
 - the correct match is selected before uploading a scorecard
 
 Recommended admin order:
-1. create/import tournament
-2. import/create contests
-3. confirm squads
-4. save Playing XI after toss
-5. upload scorecards
+1. review/update global scoring rules
+2. create/import tournament
+3. import/create contests
+4. confirm squads
+5. save Playing XI after toss
+6. upload scorecards
+
+## 2A. How To Manage Global Scoring Rules
+
+Location:
+- `Home -> Scoring Rules`
+
+Use this to manage the site-wide default fantasy scoring model.
+
+1. Open `Scoring Rules`.
+2. Review the loaded values.
+3. Click `Edit`.
+4. Change the required point values.
+5. Click `Save`.
+
+How it works:
+- this saves one default scoring-rules row in DB
+- page load reads the same global rules row
+- fantasy calculations use these global rules by default
+- tournament-specific scoring rows are optional overrides, not the normal admin flow
 
 ## 3. How To Create Or Import A Tournament
 
@@ -402,4 +422,3 @@ If something looks wrong, check in this order:
 4. Did the scorecard save successfully?
 5. Did the player exist in the correct squad/tournament pool?
 6. Is the issue in tournament stats, fantasy leaderboard, auction leaderboard, or user team selection?
-

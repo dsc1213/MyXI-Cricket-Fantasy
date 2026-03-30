@@ -1,11 +1,12 @@
 import * as dbService from '../services/db.service.js'
+import { cloneDefaultPointsRules } from '../default-points-rules.js'
 
 // Fallback empty responses for unimplemented endpoints
 const fallbackResponses = {
   '/page-load-data': {
     tournaments: [],
     joinedContests: [],
-    pointsRuleTemplate: {},
+    pointsRuleTemplate: cloneDefaultPointsRules(),
     source: 'db',
   },
   '/bootstrap': { tournaments: [], contests: [], source: 'db' },

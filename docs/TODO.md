@@ -41,6 +41,10 @@ This file tracks active items only. Completed historical tasks are validated in 
   - Better filtering/search
   - Cleaner detail display for operational debugging
   - Confirm DB and mock show the same action categories
+- [ ] Tournament-specific scoring rules UI
+  - Global scoring rules are the current admin flow and default scoring source.
+  - Backend still supports tournament-level scoring-rule overrides.
+  - Add an admin UI only if we later decide certain tournaments need custom scoring beyond the site-wide default.
 
 ## Implemented Recently
 
