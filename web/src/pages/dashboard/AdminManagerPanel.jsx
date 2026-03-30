@@ -5,6 +5,7 @@ import Modal from '../../components/ui/Modal.jsx'
 import StickyTable from '../../components/ui/StickyTable.jsx'
 import {
   createAdminTournament,
+  deleteAdminContest,
   deleteAdminUser,
   deleteAdminTournament,
   fetchContestCatalog,
@@ -37,6 +38,7 @@ function AdminManagerPanel() {
   const [isSaving, setIsSaving] = useState(false)
   const [isSavingUserRoles, setIsSavingUserRoles] = useState(false)
   const [showDisableModal, setShowDisableModal] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const [showCreateTournamentModal, setShowCreateTournamentModal] = useState(false)
   const [tournamentCreateMode, setTournamentCreateMode] = useState('manual')
   const [isCreatingTournament, setIsCreatingTournament] = useState(false)
@@ -277,6 +279,34 @@ function AdminManagerPanel() {
     }
   }
 
+  const onDeleteContest = async (contestId) => {
+    try {
+      setErrorText('')
+      setNotice('')
+      await deleteAdminContest(
+        contestId,
+        currentUser?.gameName || currentUser?.email || currentUser?.id || '',
+      )
+      await loadContestCatalog(selectedContestTournamentId)
+      setNotice('Contest deleted')
+    } catch (error) {
+      setErrorText(error.message || 'Failed to delete contest')
+    }
+  }
+
+  const confirmDeleteTarget = async () => {
+    if (!deleteTarget) return
+    const current = deleteTarget
+    setDeleteTarget(null)
+    if (current.type === 'tournament') {
+      await onDeleteTournament(current.id)
+      return
+    }
+    if (current.type === 'contest') {
+      await onDeleteContest(current.id)
+    }
+  }
+
   const onEnableTournaments = async () => {
     try {
       if (!pendingEnableIds.length) return
@@ -459,9 +489,15 @@ function AdminManagerPanel() {
         <Button
           variant="danger"
           size="small"
+          disabled={!isMasterUser}
           onClick={(event) => {
             event.stopPropagation()
-            void onDeleteTournament(row.id)
+            setDeleteTarget({
+              type: 'tournament',
+              id: row.id,
+              name: row.name,
+              detail: `Delete tournament "${row.name}" and all related contests?`,
+            })
           }}
         >
           Delete
@@ -524,6 +560,28 @@ function AdminManagerPanel() {
           onClick={(event) => event.stopPropagation()}
           onChange={() => onToggleContest(row.id)}
         />
+      ),
+    },
+    {
+      key: 'delete',
+      label: 'Delete',
+      render: (row) => (
+        <Button
+          variant="danger"
+          size="small"
+          disabled={!isMasterUser}
+          onClick={(event) => {
+            event.stopPropagation()
+            setDeleteTarget({
+              type: 'contest',
+              id: row.id,
+              name: row.name,
+              detail: `Delete contest "${row.name}"?`,
+            })
+          }}
+        >
+          Delete
+        </Button>
       ),
     },
   ]
@@ -843,6 +901,24 @@ function AdminManagerPanel() {
             </>
           )}
         </div>
+      </Modal>
+      <Modal
+        open={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        title={deleteTarget?.type === 'tournament' ? 'Delete tournament' : 'Delete contest'}
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" size="small" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button variant="danger" size="small" onClick={() => void confirmDeleteTarget()}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="team-note">{deleteTarget?.detail || ''}</p>
       </Modal>
       <Modal
         open={showDisableModal}

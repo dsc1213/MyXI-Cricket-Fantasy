@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { fetchPlayerStats, fetchTournaments } from '../lib/api.js'
 import TournamentPageTabs from '../components/TournamentPageTabs.jsx'
-import PlayerAvatar from '../components/ui/PlayerAvatar.jsx'
+import PlayerIdentity from '../components/ui/PlayerIdentity.jsx'
 import SelectField from '../components/ui/SelectField.jsx'
 import StickyTable from '../components/ui/StickyTable.jsx'
 
@@ -73,10 +73,7 @@ function CricketerStats() {
         label: 'Player',
         sortValue: (row) => row.name || '',
         render: (row) => (
-          <div className="player-cell">
-            <PlayerAvatar name={row.name} imageUrl={row.imageUrl || ''} />
-            <strong>{row.name}</strong>
-          </div>
+          <PlayerIdentity name={row.name} imageUrl={row.imageUrl || ''} />
         ),
       },
       {

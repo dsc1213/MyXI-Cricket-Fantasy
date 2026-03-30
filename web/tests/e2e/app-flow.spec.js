@@ -99,6 +99,27 @@ test.describe('Admin master scenarios', () => {
     }
   })
 
+  test('reload on /home keeps logged-in user signed in when local expiry is stale', async ({
+    page,
+  }) => {
+    await loginAs(page, 'player', 'demo123')
+    await page.goto('/home')
+    await expect(page).toHaveURL(/\/home/)
+
+    await page.evaluate(() => {
+      const raw = window.localStorage.getItem('myxi-user')
+      if (!raw) throw new Error('missing stored user')
+      const parsed = JSON.parse(raw)
+      parsed.tokenExpiresAt = Date.now() - 1000
+      window.localStorage.setItem('myxi-user', JSON.stringify(parsed))
+    })
+
+    await page.reload({ waitUntil: 'domcontentloaded' })
+
+    await expect(page).toHaveURL(/\/home/, { timeout: 15000 })
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+  })
+
   test('add/remove tournament and create contest', async ({ page }) => {
     await ensureMasterLogin(page)
 
@@ -201,7 +222,7 @@ test.describe('Admin master scenarios', () => {
     await page.goto('/tournaments/t20wc-2026/contests/huntercherry')
     await expect(page.getByRole('heading', { name: 'Huntercherry Contest' })).toBeVisible()
     const editableRow = page
-      .locator('.match-table tbody tr', { hasText: 'notstarted' })
+      .locator('.match-table tbody tr', { hasText: 'Not Started' })
       .first()
     await expect(editableRow).toBeVisible()
     await editableRow.getByLabel(/Edit team|Add team/).click()

@@ -4,7 +4,8 @@ class ContestRepository {
   async findAll() {
     const result = await dbQuery(
       `SELECT id, tournament_id as "tournamentId", name, match_ids as "matchIds", prize_structure as "prizeStructure",
-              status, entry_fee as "entryFee", max_participants as "maxParticipants", participants_count as "participantsCount",
+              game, mode, source_key as "sourceKey", status, entry_fee as "entryFee",
+              max_participants as "maxParticipants", participants_count as "participantsCount",
               created_at as "createdAt", updated_at as "updatedAt"
        FROM contests
        ORDER BY created_at DESC`,
@@ -23,7 +24,8 @@ class ContestRepository {
   async findById(id) {
     const result = await dbQuery(
       `SELECT id, tournament_id as "tournamentId", name, match_ids as "matchIds", prize_structure as "prizeStructure",
-              status, entry_fee as "entryFee", max_participants as "maxParticipants", participants_count as "participantsCount",
+              game, mode, source_key as "sourceKey", status, entry_fee as "entryFee",
+              max_participants as "maxParticipants", participants_count as "participantsCount",
               created_at as "createdAt", updated_at as "updatedAt"
        FROM contests
        WHERE id = $1`,
@@ -45,7 +47,8 @@ class ContestRepository {
   async findByTournament(tournamentId) {
     const result = await dbQuery(
       `SELECT id, tournament_id as "tournamentId", name, match_ids as "matchIds", prize_structure as "prizeStructure",
-              status, entry_fee as "entryFee", max_participants as "maxParticipants", participants_count as "participantsCount",
+              game, mode, source_key as "sourceKey", status, entry_fee as "entryFee",
+              max_participants as "maxParticipants", participants_count as "participantsCount",
               created_at as "createdAt", updated_at as "updatedAt"
        FROM contests
        WHERE tournament_id = $1
@@ -69,21 +72,31 @@ class ContestRepository {
       name,
       matchIds,
       prizeStructure,
+      game,
+      mode,
+      sourceKey,
       status,
       entryFee,
       maxParticipants,
     } = data
     const result = await dbQuery(
-      `INSERT INTO contests (tournament_id, name, match_ids, prize_structure, status, entry_fee, max_participants, participants_count, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 0, now(), now())
+      `INSERT INTO contests (
+         tournament_id, name, match_ids, prize_structure, game, mode, source_key, status,
+         entry_fee, max_participants, participants_count, created_at, updated_at
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, now(), now())
        RETURNING id, tournament_id as "tournamentId", name, match_ids as "matchIds", prize_structure as "prizeStructure",
-                 status, entry_fee as "entryFee", max_participants as "maxParticipants", participants_count as "participantsCount",
+                 game, mode, source_key as "sourceKey", status, entry_fee as "entryFee",
+                 max_participants as "maxParticipants", participants_count as "participantsCount",
                  created_at as "createdAt", updated_at as "updatedAt"`,
       [
         tournamentId,
         name,
-        JSON.stringify(matchIds),
-        JSON.stringify(prizeStructure),
+        matchIds || [],
+        JSON.stringify(prizeStructure || {}),
+        game || 'Fantasy',
+        mode || 'standard',
+        sourceKey || null,
         status || 'active',
         entryFee || 0,
         maxParticipants || 100,
@@ -102,7 +115,7 @@ class ContestRepository {
   }
 
   async update(id, data) {
-    const { name, matchIds, prizeStructure, status, entryFee, maxParticipants } = data
+    const { name, matchIds, prizeStructure, game, mode, sourceKey, status, entryFee, maxParticipants } = data
     const updates = []
     const values = []
     let paramIndex = 1
@@ -113,11 +126,23 @@ class ContestRepository {
     }
     if (matchIds !== undefined) {
       updates.push(`match_ids = $${paramIndex++}`)
-      values.push(JSON.stringify(matchIds))
+      values.push(matchIds)
     }
     if (prizeStructure !== undefined) {
       updates.push(`prize_structure = $${paramIndex++}`)
       values.push(JSON.stringify(prizeStructure))
+    }
+    if (game !== undefined) {
+      updates.push(`game = $${paramIndex++}`)
+      values.push(game)
+    }
+    if (mode !== undefined) {
+      updates.push(`mode = $${paramIndex++}`)
+      values.push(mode)
+    }
+    if (sourceKey !== undefined) {
+      updates.push(`source_key = $${paramIndex++}`)
+      values.push(sourceKey)
     }
     if (status !== undefined) {
       updates.push(`status = $${paramIndex++}`)
@@ -141,7 +166,8 @@ class ContestRepository {
        SET ${updates.join(', ')}
        WHERE id = $${paramIndex}
        RETURNING id, tournament_id as "tournamentId", name, match_ids as "matchIds", prize_structure as "prizeStructure",
-                 status, entry_fee as "entryFee", max_participants as "maxParticipants", participants_count as "participantsCount",
+                 game, mode, source_key as "sourceKey", status, entry_fee as "entryFee",
+                 max_participants as "maxParticipants", participants_count as "participantsCount",
                  created_at as "createdAt", updated_at as "updatedAt"`,
       values,
     )

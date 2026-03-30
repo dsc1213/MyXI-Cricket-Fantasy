@@ -39,8 +39,8 @@ function normalizeMatchStatus(value) {
 function formatMatchStatus(value) {
   const normalized = normalizeMatchStatus(value)
   if (normalized === 'completed') return 'Completed'
-  if (normalized === 'inprogress') return 'inprogress'
-  if (normalized === 'notstarted') return 'notstarted'
+  if (normalized === 'inprogress') return 'In Progress'
+  if (normalized === 'notstarted') return 'Not Started'
   return value || '-'
 }
 
@@ -52,6 +52,20 @@ function formatShortDate(value) {
   const day = Number(isoMatch[3])
   if (monthIndex < 0 || monthIndex > 11 || day < 1 || day > 31) return value
   return `${String(day).padStart(2, '0')} ${monthShort[monthIndex]}`
+}
+
+function formatMatchDateTime(match) {
+  const shortDate = formatShortDate(match?.date || '')
+  const rawStart = (match?.startAt || '').toString().trim()
+  if (!rawStart) return shortDate
+  const parsed = new Date(rawStart)
+  if (Number.isNaN(parsed.getTime())) return shortDate
+  const formattedTime = new Intl.DateTimeFormat(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(parsed)
+  if (!shortDate) return formattedTime
+  return `${shortDate} • ${formattedTime}`
 }
 
 function MatchesCard({
@@ -87,7 +101,7 @@ function MatchesCard({
         </button>
       ),
     },
-    { key: 'date', label: 'Date', render: (match) => formatShortDate(match.date) },
+    { key: 'date', label: 'Date', render: (match) => formatMatchDateTime(match) },
     {
       key: 'status',
       label: 'Status',

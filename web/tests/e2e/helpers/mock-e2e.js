@@ -155,10 +155,7 @@ export const createContest = async ({
       undefined,
       200,
     )
-    resolvedMatchIds = (options || [])
-      .filter((row) => row?.selectable)
-      .slice(0, 3)
-      .map((row) => row.id)
+    resolvedMatchIds = (options || []).map((row) => row.id)
   }
   return apiCall(
     request,

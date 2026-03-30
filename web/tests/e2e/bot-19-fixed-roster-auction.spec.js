@@ -39,7 +39,10 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
       /active/,
     )
     await expect(page.locator('.flow-breadcrumb').first()).toContainText('Auction')
-    await expect(page.locator('.match-table tbody tr').first()).toBeVisible()
+    const firstMatchRow = page.locator('.match-table tbody tr').first()
+    await expect(firstMatchRow).toBeVisible()
+    await expect(firstMatchRow).toContainText(/\d{1,2}:\d{2}/)
+    await expect(firstMatchRow).toContainText(/Not Started|In Progress|Completed/)
     const participantCardHeight = await page.locator('.participants-card').evaluate((node) =>
       Math.round(node.getBoundingClientRect().height),
     )
@@ -87,6 +90,12 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
       page.locator('.team-preview-list').first().locator('.team-preview-row'),
     ).toHaveCount(3)
     await expect(page.locator('.team-preview-panel')).toContainText('Other owned players')
+    const previewSectionHeights = await page.locator('.team-preview-section').evaluateAll((nodes) =>
+      nodes.map((node) => node.getBoundingClientRect().height),
+    )
+    expect(previewSectionHeights).toHaveLength(2)
+    expect(previewSectionHeights[0]).toBeGreaterThan(previewSectionHeights[1])
+    expect(previewSectionHeights[0] / previewSectionHeights[1]).toBeGreaterThan(1.8)
 
     await page.locator('.team-preview-panel').getByRole('button', { name: 'Close' }).click()
 
@@ -255,16 +264,22 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
         .replace(/^-+|-+$/g, '')
 
       await loginUi(page, 'master')
-      await page.goto('/fantasy')
-      await page.locator('.tournament-card', { hasText: 'IPL 2026' }).click()
-      await page.getByRole('button', { name: '+ Create contest' }).click()
-      await page.getByLabel('Tournament').selectOption('ipl-2026')
-      await page.getByLabel('Contest name').fill(contestName)
-      await page.getByLabel('Max players').fill('20')
-      await page.getByRole('button', { name: 'Create', exact: true }).click()
-      await expect(
-        page.locator('.compact-contest-card', { hasText: contestName }).first(),
-      ).toBeVisible()
+      await apiCall(
+        request,
+        'POST',
+        '/admin/contests',
+        {
+          name: contestName,
+          tournamentId: 'ipl-2026',
+          game: 'Fantasy',
+          teams: 20,
+          status: 'Open',
+          joined: false,
+          createdBy: 'master',
+          matchIds: ['ipl-m2'],
+        },
+        201,
+      )
 
       await apiCall(request, 'POST', `/contests/${contestId}/join`, { userId: 'huntercherryxi' }, 200)
       await apiCall(request, 'POST', `/contests/${contestId}/join`, { userId: 'draker' }, 200)
@@ -272,7 +287,7 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
       const pool = await apiCall(
         request,
         'GET',
-        `/team-pool?contestId=${contestId}&matchId=ipl-m1&userId=huntercherryxi`,
+        `/team-pool?contestId=${contestId}&matchId=ipl-m2&userId=huntercherryxi`,
         undefined,
         200,
       )
@@ -280,9 +295,8 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
       const teamBPlayers = pool?.teams?.teamB?.players || []
       const allPlayers = [...teamAPlayers, ...teamBPlayers]
       const pickByName = (name) => allPlayers.find((player) => player.name === name)
-      const scoringIds = ['Ruturaj Gaikwad', 'Trent Boult', 'Shardul Thakur']
-        .map((name) => pickByName(name)?.id)
-        .filter(Boolean)
+      const scoringPlayers = allPlayers.slice(0, 3)
+      const scoringIds = scoringPlayers.map((player) => player.id).filter(Boolean)
       const fillerIds = allPlayers
         .map((player) => player.id)
         .filter((id) => !scoringIds.includes(id))
@@ -300,7 +314,7 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
         '/team-selection/save',
         {
           contestId,
-          matchId: 'ipl-m1',
+          matchId: 'ipl-m2',
           userId: 'huntercherryxi',
           playingXi: hunterXi,
           backups: hunterBackups,
@@ -313,7 +327,7 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
         '/team-selection/save',
         {
           contestId,
-          matchId: 'ipl-m1',
+          matchId: 'ipl-m2',
           userId: 'draker',
           playingXi: drakerXi,
           backups: drakerBackups,
@@ -328,35 +342,18 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
         {
           tournamentId: 'ipl-2026',
           contestId,
-          matchId: 'ipl-m1',
+          matchId: 'ipl-m2',
           userId: 'master',
-          playerStats: [
-            {
-              playerId: 'csk-p9',
-              playerName: 'Ruturaj Gaikwad',
-              runs: 74,
-              fours: 8,
-              sixes: 3,
-              wickets: 0,
-              catches: 0,
-            },
-            {
-              playerId: 'mi-p7',
-              playerName: 'Trent Boult',
-              runs: 0,
-              wickets: 2,
-              maidens: 1,
-              catches: 1,
-            },
-            {
-              playerId: 'mi-p2',
-              playerName: 'Shardul Thakur',
-              runs: 12,
-              fours: 1,
-              wickets: 1,
-              catches: 0,
-            },
-          ],
+          playerStats: scoringPlayers.map((player, index) => ({
+            playerId: player.id,
+            playerName: player.name,
+            runs: 20 + index * 12,
+            fours: index + 1,
+            sixes: index === 0 ? 2 : 0,
+            wickets: index === 1 ? 2 : 0,
+            maidens: index === 1 ? 1 : 0,
+            catches: index === 2 ? 1 : 0,
+          })),
         },
         200,
       )

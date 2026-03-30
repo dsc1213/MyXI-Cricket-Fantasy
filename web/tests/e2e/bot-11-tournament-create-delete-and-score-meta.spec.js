@@ -135,6 +135,15 @@ test.describe('11) Tournament CRUD and score metadata', () => {
         200,
       )
       expect((catalogAfter || []).some((row) => row.id === tournamentId)).toBe(false)
+
+      const contestsAfter = await apiCall(
+        request,
+        'GET',
+        `/admin/contests/catalog?tournamentId=${tournamentId}`,
+        undefined,
+        200,
+      )
+      expect((contestsAfter || []).some((row) => row.id === contestId && row.enabled)).toBe(false)
     } finally {
       await deleteUserIfPresent(request, bot.gameName)
       if (contestId) {
@@ -152,4 +161,3 @@ test.describe('11) Tournament CRUD and score metadata', () => {
     }
   })
 })
-

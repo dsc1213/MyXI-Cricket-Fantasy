@@ -18,6 +18,7 @@ test.describe('8) Contest scope and join window rules', () => {
   }) => {
     const [bot] = createBotUsers(`scope-${Date.now()}`)
     let openContestId = ''
+    let startedOnlyContestId = ''
 
     try {
       await deleteUserIfPresent(request, bot.gameName)
@@ -103,7 +104,7 @@ test.describe('8) Contest scope and join window rules', () => {
         .poll(async () => rows.count(), { timeout: 15000 })
         .toBeGreaterThan(0)
 
-      await apiCall(
+      const startedOnlyContest = await apiCall(
         request,
         'POST',
         '/admin/contests',
@@ -116,11 +117,26 @@ test.describe('8) Contest scope and join window rules', () => {
           matchIds: [started[0].id],
           createdBy: 'master',
         },
-        400,
+        201,
       )
+      startedOnlyContestId = startedOnlyContest.id
+
+      await loginUi(page, bot.gameName)
+      await page.goto('/fantasy')
+      const startedCard = page.locator('.compact-contest-card', {
+        hasText: startedOnlyContest.name,
+      })
+      await expect(startedCard).toBeVisible()
+      await expect(startedCard.getByRole('button', { name: 'Join' })).toBeEnabled()
+      await startedCard.getByRole('button', { name: 'Join' }).click()
+      await expect(page.getByText('Joined (1)')).toBeVisible()
+      await expect(
+        page.locator('.compact-contest-card', { hasText: startedOnlyContest.name }),
+      ).toHaveCount(1)
     } finally {
       await deleteUserIfPresent(request, bot.gameName)
       await deleteContestIfPresent(request, openContestId)
+      await deleteContestIfPresent(request, startedOnlyContestId)
     }
   })
 })

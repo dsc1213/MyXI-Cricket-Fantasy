@@ -64,9 +64,9 @@ class MatchScoreRepository {
     const result = await dbQuery(
       `INSERT INTO match_scores (match_id, tournament_id, player_stats, uploaded_by, active, created_at, updated_at)
        VALUES ($1, $2, $3, $4, true, now(), now())
-       RETURNING id, match_id as "matchId", tournament_id as "tournamentId", player_stats as "playerStats",
+      RETURNING id, match_id as "matchId", tournament_id as "tournamentId", player_stats as "playerStats",
                  uploaded_by as "uploadedBy", active, created_at as "createdAt", updated_at as "updatedAt"`,
-      [matchId, tournamentId, JSON.stringify(playerStats)],
+      [matchId, tournamentId, JSON.stringify(playerStats), uploadedBy || null],
     )
     const row = result.rows[0]
     return {

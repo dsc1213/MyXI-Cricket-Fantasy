@@ -1,3 +1,10 @@
+import {
+  buildImportedTournamentPayload,
+  normalizeMatchStatus,
+  normalizeTeamCode,
+  normalizeTournamentId,
+} from './tournamentImport.service.js'
+
 const registerMockProviderRoutes = (router, ctx) => {
   const normalizeIdentity = (value) => (value || '').toString().trim().toLowerCase()
   const findIdentityConflict = ({ email, gameName, excludeUserId = null }) => {
@@ -96,19 +103,6 @@ const registerMockProviderRoutes = (router, ctx) => {
   const canManageTournaments = (actor) =>
     Boolean(actor && ['admin', 'master_admin'].includes(actor.role))
   const getTournamentCatalogRows = () => tournamentCatalog
-  const normalizeTournamentId = (value = '') =>
-    value
-      .toString()
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-  const normalizeTeamCode = (value = '') =>
-    value
-      .toString()
-      .trim()
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, '')
   const getTeamSquadByCode = (teamCode = '') =>
     teamSquads.find((item) => item.teamCode === normalizeTeamCode(teamCode)) || null
   const getTournamentTeamCodes = (tournamentId = '') => {
@@ -124,6 +118,21 @@ const registerMockProviderRoutes = (router, ctx) => {
   }
   const getTournamentCatalogEntry = (tournamentId = '') =>
     getTournamentCatalogRows().find((item) => item.id === tournamentId) || null
+  const normalizeRosterName = (value = '') =>
+    value
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  const slugify = (value = '') =>
+    value
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
   const getTournamentSquadTeamCodes = (tournamentId = '') => {
     const tournament = getTournamentCatalogEntry(tournamentId)
     const tournamentName = (tournament?.name || '').toString().trim().toLowerCase()
@@ -153,6 +162,7 @@ const registerMockProviderRoutes = (router, ctx) => {
       let role = ''
       let battingStyle = ''
       let bowlingStyle = ''
+      let imageUrl = ''
       let active = true
       if (typeof item === 'string') {
         name = item.trim()
@@ -162,13 +172,14 @@ const registerMockProviderRoutes = (router, ctx) => {
         role = (item.role || item.playerRole || '').toString().trim().toUpperCase()
         battingStyle = (item.battingStyle || '').toString().trim()
         bowlingStyle = (item.bowlingStyle || '').toString().trim()
+        imageUrl = (item.imageUrl || item.playerImage || '').toString().trim()
         active = item.active !== false
       }
       if (!name) return
       const key = name.toLowerCase()
       if (seen.has(key)) return
       seen.add(key)
-      entries.push({ name, country, role, battingStyle, bowlingStyle, active })
+      entries.push({ name, country, role, battingStyle, bowlingStyle, imageUrl, active })
     })
     return entries
   }
@@ -230,21 +241,7 @@ const registerMockProviderRoutes = (router, ctx) => {
     return scopedMatches.length ? scopedMatches : allMatches
   }
   const isContestJoinOpen = (contest) => {
-    if (isFixedRosterContest(contest)) return false
-    const contestMatches = getContestMatches(contest)
-      .slice()
-      .sort((a, b) => Number(a.matchNo || 0) - Number(b.matchNo || 0))
-    const firstMatch = contestMatches[0] || null
-    if (!firstMatch) return false
-    if (normalizeMatchStatus(firstMatch.status) !== 'notstarted') return false
-    const firstStartAt =
-      (firstMatch.startAt || '').toString().trim() ||
-      `${(firstMatch.date || '2099-01-01').toString()}T00:00:00.000Z`
-    const firstStartMs = new Date(firstStartAt).getTime()
-    if (!Number.isFinite(firstStartMs)) {
-      return normalizeMatchStatus(firstMatch.status) === 'notstarted'
-    }
-    return Date.now() < firstStartMs
+    return !isFixedRosterContest(contest)
   }
 
   router.get('/page-load-data', getMockPageLoadData)
@@ -442,6 +439,7 @@ const registerMockProviderRoutes = (router, ctx) => {
     const rows = getTournamentCatalogRows().map((item) => ({
       ...item,
       enabled: enabledTournamentIds.has(item.id),
+      teamCodes: Array.from(getTournamentTeamCodes(item.id)).sort((a, b) => a.localeCompare(b)),
       hasActiveContests: mockContests.some(
         (contest) =>
           contest.tournamentId === item.id &&
@@ -599,58 +597,33 @@ const registerMockProviderRoutes = (router, ctx) => {
       return res.status(409).json({ message: 'Tournament already exists' })
     }
 
-    const normalizedMatches = rawMatches
-      .map((row, index) => {
-        const matchNo = Number(row?.matchNo || index + 1)
-        const home = (row?.home || row?.homeTeam || '').toString().trim().toUpperCase()
-        const away = (row?.away || row?.awayTeam || '').toString().trim().toUpperCase()
-        if (!home || !away) return null
-        const date = (row?.date || '').toString().trim()
-        const startAtRaw = (row?.startAt || row?.startDateTime || '').toString().trim()
-        const startAt = startAtRaw || `${date || '2099-01-01'}T00:00:00.000Z`
-        const status = normalizeMatchStatus(row?.status || 'notstarted')
-        const id = (row?.id || `m${matchNo}`).toString()
-        const fallbackSquadA = getTeamSquadByCode(home)?.squad || []
-        const fallbackSquadB = getTeamSquadByCode(away)?.squad || []
-        return {
-          id,
-          matchNo,
-          home,
-          away,
-          name: row?.name || `Match ${matchNo}: ${home} vs ${away}`,
-          date: date || startAt.slice(0, 10),
-          startAt,
-          status,
-          venue: (row?.venue || '').toString().trim(),
-          stage: (row?.stage || 'league').toString().trim() || 'league',
-          stageLabel: (row?.stageLabel || 'League').toString().trim() || 'League',
-          squadA: Array.isArray(row?.squadA)
-            ? row.squadA.map((item) => item.toString())
-            : [...fallbackSquadA],
-          squadB: Array.isArray(row?.squadB)
-            ? row.squadB.map((item) => item.toString())
-            : [...fallbackSquadB],
-          playingXiA: Array.isArray(row?.playingXiA)
-            ? row.playingXiA.map((item) => item.toString())
-            : [],
-          playingXiB: Array.isArray(row?.playingXiB)
-            ? row.playingXiB.map((item) => item.toString())
-            : [],
-          locked: status === 'notstarted',
-          hasTeam: false,
-        }
+    const { tournament: normalizedTournament, matches: normalizedMatches } =
+      buildImportedTournamentPayload({
+        payload: {
+          ...payload,
+          name: payloadName,
+          season: payloadSeason,
+          source,
+          matches: rawMatches,
+        },
+        fallbackSeason: payloadSeason,
+        fallbackSource: source,
+        requestedTournamentId: tournamentId || '',
+        getFallbackSquad: getTeamSquadByCode,
       })
-      .filter(Boolean)
-      .sort((a, b) => Number(a.matchNo || 0) - Number(b.matchNo || 0))
     if (!normalizedMatches.length) {
       return res.status(400).json({ message: 'Matches must include valid teams' })
     }
 
     const tournamentRow = {
       id: nextId,
-      name: payloadName,
-      season: payloadSeason,
-      source: source.toString(),
+      name: normalizedTournament.name,
+      season: normalizedTournament.season,
+      source: normalizedTournament.source,
+      tournamentType: normalizedTournament.tournamentType,
+      country: normalizedTournament.country,
+      league: normalizedTournament.league,
+      selectedTeams: normalizedTournament.selectedTeams,
       createdBy: (createdBy || actor?.gameName || actor?.email || 'admin').toString(),
       lastUpdatedAt: new Date().toISOString(),
     }
@@ -690,6 +663,149 @@ const registerMockProviderRoutes = (router, ctx) => {
     })
   })
 
+  router.post('/admin/auctions/import', (req, res) => {
+    const actor = resolveAdminActor(req)
+    if (!canManageTournaments(actor)) {
+      return res.status(403).json({ message: 'Only admin/master can import auction contests' })
+    }
+    const payload = req.body || {}
+    const tournamentId = (payload.tournamentId || '').toString().trim()
+    const contestName = (payload.contestName || payload.name || '').toString().trim()
+    const participants = Array.isArray(payload.participants) ? payload.participants : []
+    if (!tournamentId || !contestName) {
+      return res.status(400).json({ message: 'tournamentId and contestName are required' })
+    }
+    if (!participants.length) {
+      return res.status(400).json({ message: 'At least one participant is required' })
+    }
+    const tournament = getTournamentCatalogEntry(tournamentId)
+    if (!tournament) {
+      return res.status(404).json({ message: 'Tournament not found' })
+    }
+    const duplicateContest = mockContests.find(
+      (row) =>
+        row.tournamentId === tournamentId &&
+        (row.name || '').toString().trim().toLowerCase() === contestName.toLowerCase(),
+    )
+    if (duplicateContest) {
+      return res.status(409).json({ message: `Auction contest already exists: ${contestName}` })
+    }
+
+    const allowedTeams = new Set(
+      (Array.isArray(tournament.selectedTeams) ? tournament.selectedTeams : []).map((item) =>
+        normalizeTeamCode(item),
+      ),
+    )
+    const playerLookup = new Map()
+    ;(allKnownPlayers || []).forEach((player) => {
+      const teamCode = normalizeTeamCode(player?.teamKey || player?.team || '')
+      if (allowedTeams.size && teamCode && !allowedTeams.has(teamCode)) return
+      const name =
+        player?.displayName ||
+        player?.name ||
+        [player?.firstName, player?.lastName].filter(Boolean).join(' ').trim()
+      const key = normalizeRosterName(name)
+      if (key && !playerLookup.has(key)) {
+        playerLookup.set(key, { ...player, teamCode })
+      }
+    })
+
+    const fixedParticipants = []
+    const missingNames = new Set()
+    const bcrypt = ctx.bcrypt || globalThis.bcrypt
+
+    for (const entry of participants) {
+      const name = (entry?.name || entry?.gameName || entry?.userId || '').toString().trim()
+      const userId = (entry?.userId || entry?.gameName || name || '').toString().trim()
+      const gameName = (entry?.gameName || userId || name || '').toString().trim()
+      if (!name && !userId && !gameName) continue
+      let user =
+        users.find(
+          (row) =>
+            normalizeIdentity(row?.userId) === normalizeIdentity(userId) ||
+            normalizeIdentity(row?.gameName) === normalizeIdentity(gameName),
+        ) || null
+      if (!user) {
+        const baseSlug = slugify(userId || gameName || name || 'auction-user')
+        user = {
+          id: Math.max(0, ...users.map((row) => Number(row?.id || 0))) + 1,
+          name: name || gameName || userId || baseSlug,
+          userId: userId || baseSlug,
+          gameName: gameName || userId || name || baseSlug,
+          email: `${baseSlug || 'auction-user'}+${slugify(contestName) || 'contest'}@import.myxi.local`,
+          phone: '',
+          location: '',
+          passwordHash:
+            bcrypt && typeof bcrypt.hashSync === 'function'
+              ? bcrypt.hashSync(`auction-import-${baseSlug}-${Date.now()}`, 10)
+              : '',
+          role: 'user',
+          status: 'active',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+        users.push(user)
+      }
+      const roster = Array.isArray(entry?.roster)
+        ? entry.roster.map((item) => item?.toString?.().trim?.() || '').filter(Boolean)
+        : []
+      roster.forEach((playerName) => {
+        if (!playerLookup.has(normalizeRosterName(playerName))) missingNames.add(playerName)
+      })
+      fixedParticipants.push({
+        userId: user.userId || user.gameName,
+        name: user.gameName || user.name || name,
+        roster,
+      })
+    }
+
+    if (missingNames.size) {
+      return res.status(400).json({
+        message: `Some roster players were not found in the tournament player pool: ${Array.from(
+          missingNames,
+        )
+          .slice(0, 12)
+          .join(', ')}`,
+      })
+    }
+
+    const contest = {
+      id: buildMockContestId(contestName),
+      name: contestName,
+      tournamentId,
+      game: 'Fantasy',
+      mode: 'fixed_roster',
+      teams: fixedParticipants.length,
+      status: payload.status?.toString?.() || 'Starting Soon',
+      joined: false,
+      points: 0,
+      rank: '-',
+      createdBy: actor?.gameName || actor?.name || 'admin',
+      isCustom: true,
+      matchIds: buildMatches(200, tournamentId).map((match) => match.id),
+      fixedParticipants,
+      lastScoreUpdatedAt: null,
+      lastScoreUpdatedBy: null,
+    }
+    mockContests.unshift(contest)
+    mockContestCatalog.set(contest.id, { ...contest })
+    appendAuditLog({
+      actor: actor?.gameName || actor?.name || 'Admin',
+      action: 'Imported auction contest',
+      target: contest.name,
+      detail: `${fixedParticipants.length} participants`,
+      tournamentId,
+      module: 'contests',
+    })
+    persistState()
+    return res.status(201).json({
+      ok: true,
+      contest,
+      participantsImported: fixedParticipants.length,
+      rosterCount: fixedParticipants.reduce((sum, row) => sum + row.roster.length, 0),
+    })
+  })
+
   router.delete('/admin/tournaments/:id', (req, res) => {
     const actor = resolveAdminActor(req)
     if (!canManageTournaments(actor)) {
@@ -714,6 +830,12 @@ const registerMockProviderRoutes = (router, ctx) => {
         (contestId) => !contestsToRemove.includes(contestId),
       )
     })
+    for (const key of Array.from(mockTeamSelections.keys())) {
+      const [contestId] = key.split('::')
+      if (contestsToRemove.includes(contestId)) {
+        mockTeamSelections.delete(key)
+      }
+    }
     enabledTournamentIds.delete(tournamentId)
     catalogRows.splice(catalogIndex, 1)
     for (let i = mockTournaments.length - 1; i >= 0; i -= 1) {
@@ -819,14 +941,14 @@ const registerMockProviderRoutes = (router, ctx) => {
     if (!existsTournament || !enabledTournamentIds.has(tournamentId)) {
       return res.status(400).json({ message: 'Tournament is not enabled' })
     }
-    const allowedMatchIds = new Set(
-      buildMatches(100, tournamentId.toString())
-        .filter((match) => normalizeMatchStatus(match.status) === 'notstarted')
-        .map((match) => match.id),
-    )
+    const tournamentMatches = buildMatches(100, tournamentId.toString())
+    const allowedMatchIds = new Set(tournamentMatches.map((match) => match.id.toString()))
+    const requestedMatchIds = Array.isArray(matchIds)
+      ? matchIds.map((id) => id?.toString?.() || '')
+      : []
     const normalizedMatchIds = Array.from(
       new Set(
-        (Array.isArray(matchIds) ? matchIds : [])
+        (requestedMatchIds.length ? requestedMatchIds : tournamentMatches.map((match) => match.id))
           .map((id) => id?.toString?.() || '')
           .filter((id) => allowedMatchIds.has(id)),
       ),
@@ -837,7 +959,7 @@ const registerMockProviderRoutes = (router, ctx) => {
     })
     if (!normalizedMatchIds.length) {
       return res.status(400).json({
-        message: 'Select at least one not-started match for the contest',
+        message: 'Select at least one tournament match for the contest',
       })
     }
 
@@ -896,6 +1018,12 @@ const registerMockProviderRoutes = (router, ctx) => {
       const list = Array.isArray(contestJoins[key]) ? contestJoins[key] : []
       contestJoins[key] = list.filter((contestId) => contestId !== removed.id)
     })
+    for (const key of Array.from(mockTeamSelections.keys())) {
+      const [contestId] = key.split('::')
+      if (contestId === removed.id) {
+        mockTeamSelections.delete(key)
+      }
+    }
     appendAuditLog({
       actor: actor?.gameName || actor?.name || 'Admin',
       action: 'Removed contest',
@@ -941,7 +1069,7 @@ const registerMockProviderRoutes = (router, ctx) => {
       status: match.status,
       tournamentId: tournamentId || 't20wc-2026',
       selectable: (() => {
-        return normalizeMatchStatus(match.status) === 'notstarted'
+        return true
       })(),
     }))
     return res.json(rows)
@@ -1351,7 +1479,6 @@ const registerMockProviderRoutes = (router, ctx) => {
       mockMatchLineups.get(
         lineupKey({
           tournamentId: contest?.tournamentId || '',
-          contestId: contestId || '',
           matchId,
         }),
       ) || null
@@ -1380,17 +1507,19 @@ const registerMockProviderRoutes = (router, ctx) => {
     const tournamentId = (req.params.tournamentId || '').toString()
     const matchId = (req.params.matchId || '').toString()
     const contestId = (req.query.contestId || '').toString()
-    if (!tournamentId || !matchId || !contestId) {
+    if (!tournamentId || !matchId) {
       return res.status(400).json({
-        message: 'tournamentId, matchId and contestId are required',
+        message: 'tournamentId and matchId are required',
       })
     }
-    const contest = mockContests.find((item) => item.id === contestId)
-    if (!contest) return res.status(404).json({ message: 'Contest not found' })
-    if (contest.tournamentId !== tournamentId) {
-      return res.status(400).json({
-        message: 'contestId does not belong to tournamentId',
-      })
+    if (contestId) {
+      const contest = mockContests.find((item) => item.id === contestId)
+      if (!contest) return res.status(404).json({ message: 'Contest not found' })
+      if (contest.tournamentId !== tournamentId) {
+        return res.status(400).json({
+          message: 'contestId does not belong to tournamentId',
+        })
+      }
     }
     const activeMatch = buildMatches(100, tournamentId).find(
       (item) => item.id === matchId,
@@ -1400,13 +1529,12 @@ const registerMockProviderRoutes = (router, ctx) => {
       mockMatchLineups.get(
         lineupKey({
           tournamentId,
-          contestId,
           matchId,
         }),
       ) || null
     return res.json({
       tournamentId,
-      contestId,
+      contestId: contestId || null,
       matchId,
       match: activeMatch,
       saved,
@@ -1423,21 +1551,23 @@ const registerMockProviderRoutes = (router, ctx) => {
       req.body?.lineups && typeof req.body.lineups === 'object' ? req.body.lineups : null
     const strictSquad = req.body?.strictSquad !== false
 
-    if (!tournamentId || !contestId || !matchId) {
+    if (!tournamentId || !matchId) {
       return res.status(400).json({
-        message: 'tournamentId, contestId and matchId are required',
+        message: 'tournamentId and matchId are required',
       })
     }
     if (!lineups) {
       return res.status(400).json({ message: 'lineups object is required' })
     }
 
-    const contest = mockContests.find((item) => item.id === contestId)
-    if (!contest) return res.status(404).json({ message: 'Contest not found' })
-    if (contest.tournamentId !== tournamentId) {
-      return res.status(400).json({
-        message: 'contestId does not belong to tournamentId',
-      })
+    if (contestId) {
+      const contest = mockContests.find((item) => item.id === contestId)
+      if (!contest) return res.status(404).json({ message: 'Contest not found' })
+      if (contest.tournamentId !== tournamentId) {
+        return res.status(400).json({
+          message: 'contestId does not belong to tournamentId',
+        })
+      }
     }
     const activeMatch = buildMatches(100, tournamentId).find(
       (item) => item.id === matchId,
@@ -1481,7 +1611,7 @@ const registerMockProviderRoutes = (router, ctx) => {
 
     const payload = {
       tournamentId,
-      contestId,
+      contestId: contestId || null,
       matchId,
       source,
       updatedBy,
@@ -1494,7 +1624,7 @@ const registerMockProviderRoutes = (router, ctx) => {
     appendAuditLog({
       actor: updatedBy,
       action: 'Saved match lineup',
-      target: `${contestId} • ${matchId}`,
+      target: `${tournamentId} • ${matchId}`,
       detail: `${activeMatch.home} and ${activeMatch.away} playing XI updated`,
       tournamentId,
       module: 'lineups',
@@ -1512,7 +1642,12 @@ const registerMockProviderRoutes = (router, ctx) => {
     const userId = (req.body?.userId || '').toString()
     const playingXi = Array.isArray(req.body?.playingXi) ? req.body.playingXi : []
     const backups = Array.isArray(req.body?.backups) ? req.body.backups : []
+    const captainId = req.body?.captainId || null
+    const viceCaptainId = req.body?.viceCaptainId || null
     const contest = mockContests.find((item) => item.id === contestId)
+    const activeMatch = buildMatches(100, contest?.tournamentId || 't20wc-2026').find(
+      (item) => item.id === matchId,
+    )
 
     if (!contestId || !matchId || !userId) {
       return res
@@ -1522,8 +1657,14 @@ const registerMockProviderRoutes = (router, ctx) => {
     if (!contest) {
       return res.status(404).json({ message: 'Contest not found' })
     }
+    if (!activeMatch) {
+      return res.status(404).json({ message: 'Match not found' })
+    }
     if (isFixedRosterContest(contest)) {
       return res.status(403).json({ message: 'Fixed-roster contests cannot save match-wise teams' })
+    }
+    if (normalizeMatchStatus(activeMatch.status) !== 'notstarted') {
+      return res.status(403).json({ message: 'Match is locked. Teams cannot be edited after start time.' })
     }
     const actor = resolveTeamActor(req, userId)
     if (!actor) {
@@ -1546,11 +1687,29 @@ const registerMockProviderRoutes = (router, ctx) => {
     if (backups.length > 6) {
       return res.status(400).json({ message: 'backups must be 0-6 players' })
     }
+    if (captainId && !playingXi.map((item) => item.toString()).includes(captainId.toString())) {
+      return res.status(400).json({ message: 'captainId must be part of playingXi' })
+    }
+    if (
+      viceCaptainId &&
+      !playingXi.map((item) => item.toString()).includes(viceCaptainId.toString())
+    ) {
+      return res.status(400).json({ message: 'viceCaptainId must be part of playingXi' })
+    }
+    if (
+      captainId &&
+      viceCaptainId &&
+      captainId.toString() === viceCaptainId.toString()
+    ) {
+      return res.status(400).json({ message: 'captainId and viceCaptainId cannot match' })
+    }
 
     const payload = {
       contestId,
       matchId,
       userId,
+      captainId: captainId ? captainId.toString() : null,
+      viceCaptainId: viceCaptainId ? viceCaptainId.toString() : null,
       playingXi,
       backups,
       updatedAt: new Date().toISOString(),

@@ -78,6 +78,57 @@ class PlayerMockRepository {
     return created
   }
 
+  async findAllTeamSquads() {
+    const byTeam = new Map()
+    for (const player of this.allKnownPlayers) {
+      const teamCode = player.teamKey || player.team || ''
+      if (!teamCode) continue
+      if (!byTeam.has(teamCode)) {
+        byTeam.set(teamCode, {
+          teamCode,
+          teamName: player.teamName || teamCode,
+          tournamentType: 'league',
+          country: player.country || '',
+          league: player.league || '',
+          tournament: player.tournament || '',
+          source: 'mock',
+          lastUpdatedAt: player.updatedAt || player.createdAt || null,
+          squad: [],
+        })
+      }
+      byTeam.get(teamCode).squad.push({
+        id: player.id,
+        name:
+          player.name || [player.firstName, player.lastName].filter(Boolean).join(' ').trim(),
+        country: player.country || '',
+        role: player.role,
+        playerId: player.playerId,
+        imageUrl: player.imageUrl || '',
+        battingStyle: player.battingStyle || '',
+        bowlingStyle: player.bowlingStyle || '',
+        active: player.active !== false,
+      })
+    }
+    return [...byTeam.values()].sort((a, b) => a.teamCode.localeCompare(b.teamCode))
+  }
+
+  async upsertTeamSquadMeta() {
+    return { ok: true }
+  }
+
+  async deleteByTeam(teamKey) {
+    const remaining = this.allKnownPlayers.filter(
+      (item) => (item.teamKey || item.team) !== teamKey,
+    )
+    this.allKnownPlayers.length = 0
+    this.allKnownPlayers.push(...remaining)
+    return true
+  }
+
+  async deleteTeamSquadMeta() {
+    return true
+  }
+
   async delete(id) {
     const index = this.players.findIndex((item) => item.id === id)
     if (index === -1) return null

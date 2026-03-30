@@ -26,3 +26,8 @@
   font-weight: 600;
   letter-spacing: 0.02em;
 }
+
+body.dark-theme .player-badge {
+  background: rgba(110, 231, 255, 0.16);
+  color: #b7f3ff;
+}

@@ -29,6 +29,7 @@ AGENTS.md
 ARCHITECTURE.md
 FLOWS.md
 UI_EXPECTATIONS.md
+docs/data/
 /mocks/
 api/mocks/mock-state.json
 api/mocks/state/

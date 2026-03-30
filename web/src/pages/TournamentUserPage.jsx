@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import PlayerAvatar from '../components/ui/PlayerAvatar.jsx'
+import PlayerIdentity from '../components/ui/PlayerIdentity.jsx'
 import { fetchUserPicks } from '../lib/api.js'
 
 function TournamentUserPage() {
@@ -74,8 +74,7 @@ function TournamentUserPage() {
               return (
                 <div className="player-row" key={name}>
                   <div className="player-row-main">
-                    <PlayerAvatar name={name} imageUrl={imageUrl} />
-                    <strong>{name}</strong>
+                    <PlayerIdentity name={name} imageUrl={imageUrl} />
                   </div>
                 </div>
               )

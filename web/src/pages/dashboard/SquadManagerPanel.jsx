@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import Button from '../../components/ui/Button.jsx'
 import SelectField from '../../components/ui/SelectField.jsx'
 import StickyTable from '../../components/ui/StickyTable.jsx'
-import { fetchAdminTeamSquads, upsertAdminTeamSquad } from '../../lib/api.js'
+import {
+  fetchAdminTeamSquads,
+  fetchTournamentCatalog,
+  upsertAdminTeamSquad,
+} from '../../lib/api.js'
 import { getStoredUser } from '../../lib/auth.js'
 
 const LEAGUE_MAP = {
@@ -10,6 +14,39 @@ const LEAGUE_MAP = {
   australia: ['BBL', 'WBBL'],
   pakistan: ['PSL'],
   england: ['The Hundred', 'Vitality Blast'],
+}
+const LEAGUE_TEAM_MAP = {
+  IPL: {
+    CSK: 'Chennai Super Kings',
+    DC: 'Delhi Capitals',
+    GT: 'Gujarat Titans',
+    KKR: 'Kolkata Knight Riders',
+    LSG: 'Lucknow Super Giants',
+    MI: 'Mumbai Indians',
+    PBKS: 'Punjab Kings',
+    RR: 'Rajasthan Royals',
+    RCB: 'Royal Challengers Bengaluru',
+    SRH: 'Sunrisers Hyderabad',
+  },
+  WPL: {
+    DCW: 'Delhi Capitals Women',
+    GG: 'Gujarat Giants',
+    MIW: 'Mumbai Indians Women',
+    RCBW: 'Royal Challengers Bengaluru Women',
+    UPW: 'UP Warriorz',
+  },
+  PSL: {
+    IU: 'Islamabad United',
+    KK: 'Karachi Kings',
+    LQ: 'Lahore Qalandars',
+    MS: 'Multan Sultans',
+    PZ: 'Peshawar Zalmi',
+    QG: 'Quetta Gladiators',
+  },
+  BBL: {},
+  WBBL: {},
+  'The Hundred': {},
+  'Vitality Blast': {},
 }
 
 const NEW_TEAM_KEY = '__new__'
@@ -27,6 +64,7 @@ const SQUAD_JSON_EXAMPLE = `{
       "name": "MS Dhoni",
       "country": "india",
       "role": "WK",
+      "imageUrl": "https://cdn.example.com/ms-dhoni.png",
       "battingStyle": "Right-hand bat",
       "bowlingStyle": "",
       "active": true
@@ -67,6 +105,7 @@ function buildPlayerRow(index, seed = {}) {
     name: (seed.name || '').toString(),
     country: (seed.country || '').toString(),
     role: (seed.role || '').toString().toUpperCase(),
+    imageUrl: (seed.imageUrl || '').toString(),
     battingStyle: (seed.battingStyle || '').toString(),
     bowlingStyle: (seed.bowlingStyle || '').toString(),
     active: seed.active !== false,
@@ -76,6 +115,7 @@ function buildPlayerRow(index, seed = {}) {
 function SquadManagerPanel() {
   const currentUser = getStoredUser()
   const [rows, setRows] = useState([])
+  const [tournamentRows, setTournamentRows] = useState([])
   const [, setIsLoading] = useState(true)
   const [errorText, setErrorText] = useState('')
   const [notice, setNotice] = useState('')
@@ -86,6 +126,7 @@ function SquadManagerPanel() {
   const [tournamentType, setTournamentType] = useState('international')
   const [country, setCountry] = useState('')
   const [league, setLeague] = useState('')
+  const [tournamentId, setTournamentId] = useState('')
   const [team, setTeam] = useState('')
   const [newTeamCode, setNewTeamCode] = useState('')
   const [teamName, setTeamName] = useState('')
@@ -100,6 +141,8 @@ function SquadManagerPanel() {
       setErrorText('')
       const data = await fetchAdminTeamSquads()
       setRows(Array.isArray(data) ? data : [])
+      const tournaments = await fetchTournamentCatalog()
+      setTournamentRows(Array.isArray(tournaments) ? tournaments : [])
     } catch (error) {
       setErrorText(error.message || 'Failed to load squads')
     } finally {
@@ -123,8 +166,26 @@ function SquadManagerPanel() {
       ).sort((a, b) => a.localeCompare(b))
       return list.map((item) => ({ value: item, label: item }))
     }
-    return Object.keys(LEAGUE_MAP).map((item) => ({ value: item, label: item }))
+    if (tournamentType === 'league') {
+      return Object.keys(LEAGUE_MAP).map((item) => ({ value: item, label: item }))
+    }
+    return []
   }, [rows, tournamentType])
+
+  const tournamentOptions = useMemo(
+    () =>
+      (tournamentRows || [])
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+        .map((item) => ({
+          value: item.id,
+          label: item.name || item.id,
+        })),
+    [tournamentRows],
+  )
+  const selectedTournament = useMemo(
+    () => tournamentRows.find((item) => item.id === tournamentId) || null,
+    [tournamentRows, tournamentId],
+  )
 
   const leagueOptions = useMemo(
     () => (LEAGUE_MAP[country] || []).map((item) => ({ value: item, label: item })),
@@ -147,6 +208,14 @@ function SquadManagerPanel() {
     const filtered = rows.filter((row) => {
       const rowType = (row.tournamentType || 'international').toString().toLowerCase()
       if (rowType !== tournamentType) return false
+      if (
+        tournamentType === 'tournament' &&
+        tournamentId &&
+        (row.tournament || '').toString().trim().toLowerCase() !==
+          (selectedTournament?.name || '').toString().trim().toLowerCase()
+      ) {
+        return false
+      }
       if (country && (row.country || '').toString().toLowerCase() !== country.toLowerCase()) return false
       if (
         tournamentType === 'league' &&
@@ -157,11 +226,50 @@ function SquadManagerPanel() {
       }
       return true
     })
-    const unique = Array.from(new Map(filtered.map((row) => [row.teamCode, row])).values())
+    const savedTeams = Array.from(new Map(filtered.map((row) => [row.teamCode, row])).values())
       .sort((a, b) => a.teamCode.localeCompare(b.teamCode))
-      .map((row) => ({ value: row.teamCode, label: row.teamCode }))
+      .map((row) => ({
+        value: row.teamCode,
+        label: row.teamName ? `${row.teamCode} · ${row.teamName}` : row.teamCode,
+      }))
+    const canonicalLeagueTeams =
+      tournamentType === 'league'
+        ? LEAGUE_TEAM_MAP[league] || {}
+        : tournamentType === 'tournament'
+          ? (LEAGUE_TEAM_MAP[selectedTournament?.league || ''] || {})
+          : {}
+    const tournamentTeamCodes =
+      tournamentType === 'tournament'
+        ? Array.isArray(selectedTournament?.selectedTeams) && selectedTournament.selectedTeams.length
+          ? selectedTournament.selectedTeams
+          : Array.isArray(selectedTournament?.teamCodes)
+            ? selectedTournament.teamCodes
+            : []
+        : []
+    const missingCanonicalTeams = Object.entries(canonicalLeagueTeams)
+      .filter(([teamCode]) =>
+        (tournamentType !== 'tournament' || tournamentTeamCodes.includes(teamCode)) &&
+        !savedTeams.some((item) => item.value === teamCode),
+      )
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([teamCode, teamLabel]) => ({
+        value: teamCode,
+        label: `${teamCode} · ${teamLabel}`,
+      }))
+    const missingTournamentTeams =
+      tournamentType === 'tournament'
+        ? tournamentTeamCodes
+            .filter(
+              (teamCode) =>
+                !savedTeams.some((item) => item.value === teamCode) &&
+                !missingCanonicalTeams.some((item) => item.value === teamCode),
+            )
+            .sort((a, b) => a.localeCompare(b))
+            .map((teamCode) => ({ value: teamCode, label: teamCode }))
+        : []
+    const unique = [...savedTeams, ...missingCanonicalTeams, ...missingTournamentTeams]
     return [...unique, { value: NEW_TEAM_KEY, label: '+ New team' }]
-  }, [rows, tournamentType, country, league])
+  }, [rows, tournamentType, country, league, tournamentId, selectedTournament])
 
   useEffect(() => {
     if (tournamentType !== 'international') return
@@ -187,7 +295,11 @@ function SquadManagerPanel() {
     if (!code) return
     const existing = rows.find((row) => row.teamCode === code)
     if (!existing) {
-      setTeamName('')
+      const canonicalName =
+        tournamentType === 'league' && league
+          ? LEAGUE_TEAM_MAP[league]?.[code] || LEAGUE_TEAM_MAP[selectedTournament?.league || '']?.[code] || ''
+          : ''
+      setTeamName(canonicalName)
       setPlayers([buildPlayerRow(0)])
       return
     }
@@ -198,6 +310,7 @@ function SquadManagerPanel() {
         name: player?.name || '',
         country: player?.country || '',
         role: player?.role || '',
+        imageUrl: player?.imageUrl || '',
         battingStyle: player?.battingStyle || '',
         bowlingStyle: player?.bowlingStyle || '',
         active: player?.active !== false,
@@ -280,6 +393,19 @@ function SquadManagerPanel() {
       ),
     },
     {
+      key: 'imageUrl',
+      label: 'Image URL',
+      sortable: false,
+      render: (row) => (
+        <input
+          type="url"
+          value={row.imageUrl || ''}
+          placeholder="https://..."
+          onChange={(event) => updatePlayerById(row.id, { imageUrl: event.target.value })}
+        />
+      ),
+    },
+    {
       key: 'active',
       label: 'Active',
       sortable: false,
@@ -327,6 +453,7 @@ function SquadManagerPanel() {
             name: (item.name || '').trim(),
             country: (item.country || '').trim(),
             role: (item.role || '').trim().toUpperCase(),
+            imageUrl: (item.imageUrl || '').trim(),
             battingStyle: (item.battingStyle || '').trim(),
             bowlingStyle: (item.bowlingStyle || '').trim(),
             active: item.active !== false,
@@ -339,10 +466,24 @@ function SquadManagerPanel() {
         await upsertAdminTeamSquad({
           teamCode: normalizedTeamCode,
           teamName: teamName || normalizedTeamCode,
-          tournamentType,
-          country,
-          league: tournamentType === 'league' ? league : '',
-          tournament: '',
+          tournamentType:
+            tournamentType === 'tournament'
+              ? 'tournament'
+              : tournamentType,
+          country:
+            tournamentType === 'tournament'
+              ? (selectedTournament?.country || '').toString().trim().toLowerCase()
+              : country,
+          league:
+            tournamentType === 'league'
+              ? league
+              : tournamentType === 'tournament'
+                ? (selectedTournament?.league || '').toString().trim()
+                : '',
+          tournament:
+            tournamentType === 'tournament'
+              ? (selectedTournament?.name || '').toString().trim()
+              : '',
           squad,
           source: 'manual',
           actorUserId,
@@ -402,6 +543,7 @@ function SquadManagerPanel() {
           <label>
             JSON payload
             <textarea
+              className="dashboard-json-textarea"
               rows={10}
               value={jsonPayload}
               onChange={(event) => setJsonPayload(event.target.value)}
@@ -419,6 +561,7 @@ function SquadManagerPanel() {
                     setTournamentType(event.target.value)
                     setCountry('')
                     setLeague('')
+                    setTournamentId('')
                     setTeam('')
                     setNewTeamCode('')
                     setPlayers([buildPlayerRow(0)])
@@ -426,22 +569,26 @@ function SquadManagerPanel() {
                   options={[
                     { value: 'international', label: 'International' },
                     { value: 'league', label: 'League' },
+                    { value: 'tournament', label: 'Tournament' },
                   ]}
                 />
               </label>
-              <label>
-                Country
-                <SelectField
-                  value={country}
-                  onChange={(event) => {
-                    setCountry(event.target.value)
-                    setLeague('')
-                    setTeam('')
-                    setNewTeamCode('')
-                  }}
-                  options={[{ value: '', label: 'Select country' }, ...countryOptions]}
-                />
-              </label>
+              {tournamentType !== 'tournament' && (
+                <label>
+                  Country
+                  <SelectField
+                    value={country}
+                    onChange={(event) => {
+                      setCountry(event.target.value)
+                      setLeague('')
+                      setTournamentId('')
+                      setTeam('')
+                      setNewTeamCode('')
+                    }}
+                    options={[{ value: '', label: 'Select country' }, ...countryOptions]}
+                  />
+                </label>
+              )}
               {tournamentType === 'league' && (
                 <label>
                   League
@@ -449,6 +596,7 @@ function SquadManagerPanel() {
                     value={league}
                     onChange={(event) => {
                       setLeague(event.target.value)
+                      setTournamentId('')
                       setTeam('')
                       setNewTeamCode('')
                     }}
@@ -456,7 +604,36 @@ function SquadManagerPanel() {
                   />
                 </label>
               )}
+              {tournamentType === 'tournament' && (
+                <label>
+                  Tournament
+                  <SelectField
+                    value={tournamentId}
+                    onChange={(event) => {
+                      setTournamentId(event.target.value)
+                      setCountry('')
+                      setLeague('')
+                      setTeam('')
+                      setNewTeamCode('')
+                    }}
+                    options={[{ value: '', label: 'Select tournament' }, ...tournamentOptions]}
+                  />
+                </label>
+              )}
               {tournamentType === 'league' && country && league && (
+                <label>
+                  Team
+                  <SelectField
+                    value={team}
+                    onChange={(event) => {
+                      setTeam(event.target.value)
+                      if (event.target.value !== NEW_TEAM_KEY) setNewTeamCode('')
+                    }}
+                    options={[{ value: '', label: 'Select team' }, ...teamOptions]}
+                  />
+                </label>
+              )}
+              {tournamentType === 'tournament' && tournamentId && (
                 <label>
                   Team
                   <SelectField

@@ -40,6 +40,7 @@ function App() {
   const [currentUser, setCurrentUser] = useState(() => {
     return getStoredUser()
   })
+  const [isRestoringSession, setIsRestoringSession] = useState(() => Boolean(getStoredUser()))
   const showAuthLinks = location.pathname === '/'
   const searchParams = new URLSearchParams(location.search)
   const viewMode = (searchParams.get('view') || '').toString().trim().toLowerCase()
@@ -104,7 +105,7 @@ function App() {
   const userMenuRef = useRef(null)
   const brandHref = currentUser ? '/home' : '/'
   const requireAuth = (element) =>
-    currentUser ? element : <Navigate to="/login" replace />
+    isRestoringSession ? null : currentUser ? element : <Navigate to="/login" replace />
   const isHomeFantasyRoute = ['/home', '/fantasy', '/auction', '/team'].includes(
     location.pathname,
   )
@@ -135,6 +136,48 @@ function App() {
     })
     return () => window.cancelAnimationFrame(frame)
   }, [location.pathname])
+
+  useEffect(() => {
+    let active = true
+
+    const restoreSession = async () => {
+      const storedUser = getStoredUser()
+      if (!storedUser) {
+        if (!active) return
+        setCurrentUser(null)
+        setIsRestoringSession(false)
+        return
+      }
+
+      const expiry = Number(storedUser.tokenExpiresAt || 0)
+      const hasFreshExpiry = Number.isFinite(expiry) && expiry > Date.now()
+      if (hasFreshExpiry) {
+        if (!active) return
+        setCurrentUser(storedUser)
+        setIsRestoringSession(false)
+        return
+      }
+
+      try {
+        setIsRefreshingSession(true)
+        await refreshSession()
+        if (!active) return
+        setCurrentUser(getStoredUser())
+      } catch {
+        if (!active) return
+        setCurrentUser(storedUser)
+      } finally {
+        if (!active) return
+        setIsRefreshingSession(false)
+        setIsRestoringSession(false)
+      }
+    }
+
+    restoreSession()
+    return () => {
+      active = false
+    }
+  }, [])
 
   const onLogout = useCallback(async () => {
     try {
@@ -189,6 +232,10 @@ function App() {
   }, [])
 
   useEffect(() => {
+    if (isRestoringSession) {
+      setSessionWarningSeconds(null)
+      return undefined
+    }
     if (!currentUser?.tokenExpiresAt) {
       setSessionWarningSeconds(null)
       return undefined
@@ -215,7 +262,7 @@ function App() {
     tick()
     const timer = window.setInterval(tick, 1000)
     return () => window.clearInterval(timer)
-  }, [currentUser?.tokenExpiresAt, onLogout])
+  }, [currentUser?.tokenExpiresAt, isRestoringSession, onLogout])
 
   useEffect(() => {
     if (!currentUser) {
@@ -251,7 +298,7 @@ function App() {
           {showTabs && (
             <nav className="nav-tabs">
               <NavLink
-                to="/home"
+                to="/home?panel=joined"
                 className={({ isActive }) => `tab ${isActive ? 'active' : ''}`}
               >
                 Home
@@ -357,22 +404,46 @@ function App() {
             </button>
           </div>
           <div className="mobile-nav-links">
-            <NavLink to="/home" className="leaderboard-link">
+            <NavLink
+              to="/home?panel=joined"
+              className="leaderboard-link"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Home
             </NavLink>
-            <NavLink to="/fantasy" className="leaderboard-link">
+            <NavLink
+              to="/fantasy"
+              className="leaderboard-link"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Fantasy
             </NavLink>
-            <NavLink to="/auction" className="leaderboard-link">
+            <NavLink
+              to="/auction"
+              className="leaderboard-link"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Auction
             </NavLink>
-            <NavLink to="/cricketer-stats" className="leaderboard-link">
+            <NavLink
+              to="/cricketer-stats"
+              className="leaderboard-link"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Cricketer stats
             </NavLink>
-            <NavLink to="/profile" className="leaderboard-link">
+            <NavLink
+              to="/profile"
+              className="leaderboard-link"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Profile
             </NavLink>
-            <NavLink to="/change-password" className="leaderboard-link">
+            <NavLink
+              to="/change-password"
+              className="leaderboard-link"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Change password
             </NavLink>
             <label

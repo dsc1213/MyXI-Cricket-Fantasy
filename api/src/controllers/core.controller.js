@@ -93,7 +93,7 @@ const createCoreController = ({
       const { id } = req.params
       const userId = req.user?.id
       if (!userId) return res.status(401).json({ error: 'Unauthorized' })
-      const { playingXi, backups } = req.body
+      const { playingXi, backups, contestId, captainId, viceCaptainId } = req.body
       if (!playingXi || !Array.isArray(playingXi)) {
         return res.status(400).json({ error: 'playingXi array required' })
       }
@@ -102,6 +102,9 @@ const createCoreController = ({
         userId,
         playingXi,
         backups || [],
+        contestId || null,
+        captainId || null,
+        viceCaptainId || null,
       )
       res.json(data)
     } catch (error) {

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import ApiFailureTile from '../components/ui/ApiFailureTile.jsx'
 import {
+  fetchAdminMatchScores,
   fetchContests,
   fetchManualScoreContext,
   fetchTeamPool,
@@ -9,6 +10,7 @@ import {
   processExcelMatchScores,
   saveMatchScores,
   saveScoringRules,
+  upsertMatchLineups,
   upsertManualMatchScores,
 } from '../lib/api.js'
 import AdminManagerPanel from './dashboard/AdminManagerPanel.jsx'
@@ -42,7 +44,59 @@ const buildFallbackBootstrap = () => ({
   auditLogs: [],
 })
 
+const buildDefaultManualStatsRow = () => ({
+  runs: 0,
+  ballsFaced: 0,
+  fours: 0,
+  sixes: 0,
+  overs: 0,
+  runsConceded: 0,
+  wickets: 0,
+  maidens: 0,
+  noBalls: 0,
+  wides: 0,
+  catches: 0,
+  stumpings: 0,
+  runoutDirect: 0,
+  runoutIndirect: 0,
+  dismissed: false,
+})
+
+const normalizeManualPlayerKey = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+
+const buildManualStatsState = (players = [], savedRows = []) => {
+  const next = {}
+  const playerIdsByName = new Map(
+    (players || []).map((player) => [normalizeManualPlayerKey(player.name), player.id]),
+  )
+
+  ;(players || []).forEach((player) => {
+    next[player.id] = buildDefaultManualStatsRow()
+  })
+
+  ;(savedRows || []).forEach((row) => {
+    const targetId =
+      (row?.playerId != null && next[row.playerId] ? row.playerId : null) ||
+      playerIdsByName.get(normalizeManualPlayerKey(row?.playerName))
+    if (!targetId) return
+    next[targetId] = {
+      ...buildDefaultManualStatsRow(),
+      ...next[targetId],
+      ...row,
+      dismissed: Boolean(row?.dismissed),
+    }
+  })
+
+  return next
+}
+
 function Dashboard({ defaultPanel = 'joined' }) {
+  const location = useLocation()
+  const searchParams = new URLSearchParams(location.search)
+  const requestedPanel = (searchParams.get('panel') || '').trim()
   const [activePanel, setActivePanel] = useState(defaultPanel)
   const [selectedTournament, setSelectedTournament] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
@@ -54,6 +108,12 @@ function Dashboard({ defaultPanel = 'joined' }) {
     teamBName: 'Team B',
     teamAPlayers: [],
     teamBPlayers: [],
+    teamALineup: null,
+    teamBLineup: null,
+  })
+  const [manualPlayingXi, setManualPlayingXi] = useState({
+    teamA: [],
+    teamB: [],
   })
   const [manualPlayerStats, setManualPlayerStats] = useState({})
   const [isLoadingManualPool, setIsLoadingManualPool] = useState(false)
@@ -65,6 +125,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
   const [manualMatchId, setManualMatchId] = useState('')
   const [uploadFileName, setUploadFileName] = useState('No file selected')
   const [uploadPayloadText, setUploadPayloadText] = useState('')
+  const [lineupPayloadText, setLineupPayloadText] = useState('')
   const [isDragOver, setIsDragOver] = useState(false)
   const [isProcessingExcel, setIsProcessingExcel] = useState(false)
   const [excelPreviewRows, setExcelPreviewRows] = useState([])
@@ -79,6 +140,26 @@ function Dashboard({ defaultPanel = 'joined' }) {
   const [pointsRules, setPointsRules] = useState(defaultPointsRules)
   const currentUser = getStoredUser()
   const currentUserId = currentUser?.userId || currentUser?.gameName || currentUser?.email || ''
+
+  const refreshManualStatsState = async ({
+    tournamentId,
+    matchId,
+    teamAPlayers = [],
+    teamBPlayers = [],
+  }) => {
+    const allPlayers = [...teamAPlayers, ...teamBPlayers]
+    try {
+      const savedScore = await fetchAdminMatchScores({ tournamentId, matchId })
+      setManualPlayerStats(buildManualStatsState(allPlayers, savedScore?.playerStats || []))
+    } catch {
+      setManualPlayerStats(buildManualStatsState(allPlayers, []))
+    }
+  }
+
+  useEffect(() => {
+    const nextPanel = requestedPanel || defaultPanel
+    setActivePanel((prev) => (prev === nextPanel ? prev : nextPanel))
+  }, [defaultPanel, requestedPanel])
 
   useEffect(() => {
     let active = true
@@ -186,7 +267,10 @@ function Dashboard({ defaultPanel = 'joined' }) {
         teamBName: 'Team B',
         teamAPlayers: [],
         teamBPlayers: [],
+        teamALineup: null,
+        teamBLineup: null,
       })
+      setManualPlayingXi({ teamA: [], teamB: [] })
       setManualPlayerStats({})
       return
     }
@@ -194,11 +278,17 @@ function Dashboard({ defaultPanel = 'joined' }) {
     const loadTeamPool = async () => {
       try {
         setIsLoadingManualPool(true)
-        const data = await fetchTeamPool({
-          contestId: manualContestId,
-          tournamentId: manualTournamentId,
-          matchId: manualMatchId,
-        })
+        const [data, savedScore] = await Promise.all([
+          fetchTeamPool({
+            contestId: manualContestId,
+            tournamentId: manualTournamentId,
+            matchId: manualMatchId,
+          }),
+          fetchAdminMatchScores({
+            tournamentId: manualTournamentId,
+            matchId: manualMatchId,
+          }).catch(() => null),
+        ])
         if (!active) return
         const teamAPlayers = data?.teams?.teamA?.players || []
         const teamBPlayers = data?.teams?.teamB?.players || []
@@ -207,24 +297,27 @@ function Dashboard({ defaultPanel = 'joined' }) {
           teamBName: data?.teams?.teamB?.name || 'Team B',
           teamAPlayers,
           teamBPlayers,
+          teamALineup: data?.teams?.teamA?.lineup || null,
+          teamBLineup: data?.teams?.teamB?.lineup || null,
         })
-        const next = {}
-        ;[...teamAPlayers, ...teamBPlayers].forEach((player) => {
-          next[player.id] = {
-            runs: 0,
-            fours: 0,
-            sixes: 0,
-            wickets: 0,
-            maidens: 0,
-            wides: 0,
-            catches: 0,
-            stumpings: 0,
-            runoutDirect: 0,
-            runoutIndirect: 0,
-            dismissed: false,
-          }
+        const defaultPlayingA =
+          data?.teams?.teamA?.lineup?.playingXI?.length >= 11
+            ? data.teams.teamA.lineup.playingXI
+            : []
+        const defaultPlayingB =
+          data?.teams?.teamB?.lineup?.playingXI?.length >= 11
+            ? data.teams.teamB.lineup.playingXI
+            : []
+        setManualPlayingXi({
+          teamA: defaultPlayingA,
+          teamB: defaultPlayingB,
         })
-        setManualPlayerStats(next)
+        setManualPlayerStats(
+          buildManualStatsState(
+            [...teamAPlayers, ...teamBPlayers],
+            savedScore?.playerStats || [],
+          ),
+        )
       } catch (error) {
         if (!active) return
         setErrorText(error.message || 'Failed to load playing XI for manual scoring')
@@ -373,6 +466,12 @@ function Dashboard({ defaultPanel = 'joined' }) {
       setSaveNotice(
         `${isExcelTab ? 'Excel match scores saved' : 'Match scores payload saved'} • ${impacted} contests updated • ${updatedAt}`,
       )
+      await refreshManualStatsState({
+        tournamentId: manualTournamentId,
+        matchId: manualMatchId,
+        teamAPlayers: manualTeamPool.teamAPlayers,
+        teamBPlayers: manualTeamPool.teamBPlayers,
+      })
     } catch (error) {
       setErrorText(error.message || 'Failed to save match scores')
     } finally {
@@ -412,6 +511,117 @@ function Dashboard({ defaultPanel = 'joined' }) {
     }))
   }
 
+  const onToggleManualPlayingXi = (side, playerName) => {
+    setManualPlayingXi((prev) => {
+      const current = Array.isArray(prev?.[side]) ? prev[side] : []
+      const exists = current.includes(playerName)
+      if (exists) {
+        return {
+          ...prev,
+          [side]: current.filter((item) => item !== playerName),
+        }
+      }
+      if (current.length >= 12) return prev
+      return {
+        ...prev,
+        [side]: [...current, playerName],
+      }
+    })
+  }
+
+  const onSaveManualLineups = async () => {
+    try {
+      if (!manualTournamentId || !manualMatchId) return
+      setSaveNotice('')
+      setErrorText('')
+      setIsSavingScores(true)
+      const buildPayloadForTeam = (players, selectedNames, existingLineup) => {
+        const squad = players.map((player) => player.name)
+        const playingXI = squad.filter((name) => selectedNames.includes(name))
+        return {
+          squad,
+          playingXI,
+          bench: squad.filter((name) => !selectedNames.includes(name)),
+          captain:
+            existingLineup?.captain && playingXI.includes(existingLineup.captain)
+              ? existingLineup.captain
+              : undefined,
+          viceCaptain:
+            existingLineup?.viceCaptain && playingXI.includes(existingLineup.viceCaptain)
+              ? existingLineup.viceCaptain
+              : undefined,
+        }
+      }
+
+      const payload = {
+        [manualTeamPool.teamAName]: buildPayloadForTeam(
+          manualTeamPool.teamAPlayers,
+          manualPlayingXi.teamA,
+          manualTeamPool.teamALineup,
+        ),
+        [manualTeamPool.teamBName]: buildPayloadForTeam(
+          manualTeamPool.teamBPlayers,
+          manualPlayingXi.teamB,
+          manualTeamPool.teamBLineup,
+        ),
+      }
+
+      await upsertMatchLineups({
+        tournamentId: manualTournamentId,
+        matchId: manualMatchId,
+        updatedBy: currentUser?.gameName || currentUser?.email || currentUser?.id || 'admin',
+        source: 'manual-xi',
+        lineups: payload,
+      })
+      setManualTeamPool((prev) => ({
+        ...prev,
+        teamALineup: payload[prev.teamAName],
+        teamBLineup: payload[prev.teamBName],
+      }))
+      setSaveNotice('Playing XI saved')
+    } catch (error) {
+      setErrorText(error.message || 'Failed to save playing XI')
+    } finally {
+      setIsSavingScores(false)
+    }
+  }
+
+  const onSaveLineupsFromJson = async () => {
+    try {
+      if (!manualTournamentId || !manualMatchId) return
+      setSaveNotice('')
+      setErrorText('')
+      setIsSavingScores(true)
+      const parsed = JSON.parse(lineupPayloadText || '{}')
+      const lineups =
+        parsed?.lineups && typeof parsed.lineups === 'object' ? parsed.lineups : parsed
+      const response = await upsertMatchLineups({
+        tournamentId: manualTournamentId,
+        matchId: manualMatchId,
+        updatedBy: currentUser?.gameName || currentUser?.email || currentUser?.id || 'admin',
+        source: 'json-lineup',
+        strictSquad: false,
+        lineups,
+        meta: parsed?.meta && typeof parsed.meta === 'object' ? parsed.meta : {},
+      })
+      const saved = response?.saved?.lineups || {}
+      setManualTeamPool((prev) => ({
+        ...prev,
+        teamALineup: saved[prev.teamAName] || prev.teamALineup,
+        teamBLineup: saved[prev.teamBName] || prev.teamBLineup,
+      }))
+      setManualPlayingXi({
+        teamA: saved[manualTeamPool.teamAName]?.playingXI || manualPlayingXi.teamA,
+        teamB: saved[manualTeamPool.teamBName]?.playingXI || manualPlayingXi.teamB,
+      })
+      setSaveNotice('Playing XI JSON saved')
+    } catch (error) {
+      setErrorText(error.message || 'Failed to save lineup JSON')
+    } finally {
+      setIsSavingScores(false)
+    }
+  }
+
   const onSaveManualScores = async () => {
     try {
       if (!manualTournamentId || !manualMatchId) return
@@ -442,6 +652,12 @@ function Dashboard({ defaultPanel = 'joined' }) {
         ? new Date(response.lastScoreUpdatedAt).toLocaleString()
         : 'now'
       setSaveNotice(`Manual scores saved • ${impacted} contests updated • ${updatedAt}`)
+      await refreshManualStatsState({
+        tournamentId: manualTournamentId,
+        matchId: manualMatchId,
+        teamAPlayers: manualTeamPool.teamAPlayers,
+        teamBPlayers: manualTeamPool.teamBPlayers,
+      })
     } catch (error) {
       setErrorText(error.message || 'Failed to save manual scores')
     } finally {
@@ -475,7 +691,15 @@ function Dashboard({ defaultPanel = 'joined' }) {
         onSaveRules={onSaveRules}
       />
     ),
-    createTournament: <CreateTournamentPanel onCreated={() => setActivePanel('admin')} />,
+    createTournament: (
+      <CreateTournamentPanel
+        onCreated={(payload) => {
+          if (payload?.openAdmin) {
+            setActivePanel('admin')
+          }
+        }}
+      />
+    ),
     squads: <SquadManagerPanel />,
     admin: <AdminManagerPanel />,
     upload: (
@@ -484,6 +708,8 @@ function Dashboard({ defaultPanel = 'joined' }) {
         setUploadTab={setUploadTab}
         uploadPayloadText={uploadPayloadText}
         setUploadPayloadText={setUploadPayloadText}
+        lineupPayloadText={lineupPayloadText}
+        setLineupPayloadText={setLineupPayloadText}
         manualScoreContext={manualScoreContext}
         manualTournamentId={manualTournamentId}
         setManualTournamentId={setManualTournamentId}
@@ -491,6 +717,10 @@ function Dashboard({ defaultPanel = 'joined' }) {
         setManualMatchId={setManualMatchId}
         manualTeamPool={manualTeamPool}
         manualPlayerStats={manualPlayerStats}
+        manualPlayingXi={manualPlayingXi}
+        onToggleManualPlayingXi={onToggleManualPlayingXi}
+        onSaveManualLineups={onSaveManualLineups}
+        onSaveLineupsFromJson={onSaveLineupsFromJson}
         onManualStatChange={onManualStatChange}
         onSaveManualScores={onSaveManualScores}
         isLoadingManualPool={isLoadingManualPool}

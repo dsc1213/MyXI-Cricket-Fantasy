@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+
 function normalizeInitials(value = '') {
   const words = value
     .toString()
@@ -11,13 +13,24 @@ function normalizeInitials(value = '') {
 
 function PlayerAvatar({ name = '', imageUrl = '', size = 'sm' }) {
   const normalizedUrl = imageUrl.toString().trim()
-  const hasImage = Boolean(normalizedUrl) && !normalizedUrl.endsWith('/icon512.png')
+  const usableImage = Boolean(normalizedUrl) && !normalizedUrl.endsWith('/icon512.png')
+  const [imageFailed, setImageFailed] = useState(false)
+
+  useEffect(() => {
+    setImageFailed(false)
+  }, [normalizedUrl])
+
   return (
     <span className={`player-avatar ${size}`.trim()} aria-hidden="true">
-      {hasImage ? (
-        <img src={normalizedUrl} alt="" loading="lazy" />
+      {usableImage && !imageFailed ? (
+        <img src={normalizedUrl} alt="" loading="lazy" onError={() => setImageFailed(true)} />
       ) : (
-        <span className="player-avatar-fallback">{normalizeInitials(name)}</span>
+        <span
+          className="player-avatar-fallback"
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          {normalizeInitials(name)}
+        </span>
       )}
     </span>
   )

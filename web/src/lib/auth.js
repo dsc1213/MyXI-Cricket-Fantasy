@@ -50,6 +50,7 @@ const updateStoredSession = (session = {}) => {
   if (!current) return null
   return setStoredUser({
     ...current,
+    token: session.token || current.token || null,
     name: session.name || current.name,
     userId: session.userId || current.userId || current.gameName,
     gameName: session.gameName || current.gameName,

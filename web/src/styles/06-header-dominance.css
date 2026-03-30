@@ -32,6 +32,11 @@
   justify-items: center;
 }
 
+.myxi-roles-strip,
+.myxi-role-card {
+  justify-items: stretch;
+}
+
 .myxi-slots .empty {
   align-self: center;
 }

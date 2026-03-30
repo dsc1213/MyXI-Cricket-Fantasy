@@ -19,6 +19,12 @@
   gap: 0.85rem;
 }
 
+@media (min-width: 901px) {
+  .team-shell.premium-fit {
+    min-height: calc(100svh - 210px);
+  }
+}
+
 .team-shell-head {
   display: flex;
   align-items: center;
@@ -30,12 +36,23 @@
 .team-grid-2.compact-fit {
   grid-template-columns: 1fr 1fr 390px;
   gap: 0.65rem;
+  align-items: stretch;
+}
+
+@media (min-width: 901px) {
+  .team-grid-2.compact-fit {
+    min-height: calc(100svh - 320px);
+  }
 }
 
 .team-column {
   border: 1px solid var(--panel-border);
   background: var(--panel-bg);
   box-shadow: var(--panel-shadow);
+  align-content: stretch;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  height: 100%;
 }
 
 .team-column-header h3,
@@ -46,13 +63,44 @@
   letter-spacing: 0.01em;
 }
 
+body.dark-theme .app.app-team .team-column-header h3,
+body.dark-theme .app.app-team .team-column-header .country-text,
+body.dark-theme .app.app-team .team-column-header .country-text > span {
+  color: rgba(245, 248, 255, 0.96);
+}
+
 .player-tile {
   min-height: 48px;
-  padding: 0.4rem 0.56rem;
+  padding: 0.38rem 0.42rem 0.38rem 0.52rem;
   border-radius: 12px;
   border: 1px solid var(--tile-border);
   background: var(--tile-bg);
   box-shadow: none;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.35rem;
+}
+
+.player-tile .player-meta {
+  width: 100%;
+  min-width: 0;
+}
+
+.player-tile .player-meta > .player-chip.slot-chip.compact {
+  width: 100%;
+  min-width: 0;
+}
+
+.player-tile .player-chip-copy {
+  justify-items: start;
+}
+
+.player-tile .player-chip-identity .player-identity-name,
+.player-tile .player-chip-identity .player-identity-subtitle {
+  text-align: left;
+  width: 100%;
 }
 
 .player-tile:hover {
@@ -69,13 +117,37 @@
   border-color: var(--tile-backup-border);
 }
 
+.lineup-status-light {
+  position: absolute;
+  left: 2.7rem;
+  top: 0.5rem;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px rgba(10, 18, 30, 0.35);
+  z-index: 2;
+}
+
+.lineup-status-light.playing {
+  background: #22c55e;
+}
+
+.lineup-status-light.bench {
+  background: #ef4444;
+}
+
+.player-tile.lineup-playing .player-meta,
+.player-tile.lineup-bench .player-meta {
+  padding-left: 0.35rem;
+}
+
 .player-chip.slot-chip.compact {
   background: transparent;
   box-shadow: none;
   padding: 0.1rem 0.22rem;
 }
 
-.player-chip.slot-chip.compact span {
+.player-chip.slot-chip.compact .player-chip-identity .player-identity-name {
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -83,34 +155,41 @@
   color: var(--text-primary);
 }
 
-.player-chip.slot-chip.compact small {
+.player-chip.slot-chip.compact .player-chip-identity .player-identity-subtitle {
   font-size: 0.6rem;
   color: var(--chip-subtext);
 }
 
-.player-chip.slot-chip.compact small .country-text {
+.player-chip.slot-chip.compact .player-chip-identity .player-identity-subtitle .country-text {
   display: inline-flex;
   align-items: center;
   gap: 0.2rem;
   white-space: nowrap;
 }
 
-.player-chip.slot-chip.compact small .country-text > span {
+.player-chip.slot-chip.compact .player-chip-identity .player-identity-subtitle .country-text > span {
   display: inline;
 }
 
-.player-chip.slot-chip.compact small .country-text > span:first-child {
+.player-chip.slot-chip.compact .player-chip-copy > small .country-text > span:first-child {
   font-size: 0.58rem;
   line-height: 1;
 }
 
-.player-chip.slot-chip.compact small .country-flag {
+.player-chip.slot-chip.compact .player-chip-copy > small .country-flag {
   font-size: 0.66rem;
 }
 
 .team-column .player-chip.slot-chip.compact {
   background: transparent;
   border-color: transparent;
+}
+
+body.dark-theme .app.app-team .team-column .player-chip.slot-chip.compact .player-chip-copy > small,
+body.dark-theme .app.app-team .team-column .player-chip.slot-chip.compact .player-chip-copy > small .country-text,
+body.dark-theme .app.app-team .myxi-card .player-chip.slot-chip.compact .player-chip-copy > small,
+body.dark-theme .app.app-team .backups-card .player-chip.slot-chip.compact .player-chip-copy > small {
+  color: rgba(226, 232, 240, 0.78);
 }
 
 .tile-btn {
@@ -135,6 +214,31 @@
 
 .right-column {
   gap: 0.45rem;
+  height: 100%;
+  min-height: 100%;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 0.46fr);
+  align-content: stretch;
+}
+
+.right-column > * {
+  min-height: 0;
+}
+
+.team-column .tile-grid.two-col {
+  height: 100%;
+  min-height: 0;
+  align-content: stretch;
+  grid-auto-rows: minmax(48px, 1fr);
+  overflow-y: auto;
+  padding-bottom: 0.45rem;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1380px) and (min-width: 901px) {
+  .team-column .tile-grid.two-col {
+    grid-template-columns: 1fr;
+  }
 }
 
 .myxi-card {
@@ -142,6 +246,12 @@
   background: var(--myxi-bg);
   border-color: var(--panel-border);
   box-shadow: var(--panel-shadow);
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  align-content: start;
+  align-items: start;
+  justify-content: stretch;
 }
 
 .myxi-meta {
@@ -149,11 +259,21 @@
   color: var(--text-muted);
 }
 
-.myxi-slots {
+.myxi-top {
+  display: grid;
+  gap: 0.1rem;
   align-content: start;
+  width: 100%;
+}
+
+.myxi-slots {
+  align-content: stretch;
   gap: 0.22rem;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   justify-content: stretch;
+  justify-items: stretch;
+  grid-auto-rows: minmax(42px, 1fr);
+  margin-bottom: 1rem;
 }
 
 .myxi-slots .player-chip.slot-chip.compact {
@@ -164,18 +284,49 @@
   border-radius: 10px;
 }
 
-.myxi-slots .player-chip.slot-chip.compact span {
+.myxi-slots .player-chip.slot-chip.compact .player-chip-identity .player-identity-name {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.backups-card .player-chip.slot-chip.compact span {
+.backups-card .player-chip.slot-chip.compact .player-chip-identity .player-identity-name {
   font-size: 0.62rem;
   letter-spacing: 0.02em;
 }
 
-.backups-card .player-chip.slot-chip.compact small .country-text > span:first-child {
+.backups-card .player-chip.slot-chip.compact {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  height: auto;
+  align-items: center;
+  justify-content: flex-start;
+  flex-direction: row;
+  text-align: left;
+  padding: 0.28rem 0.4rem;
+}
+
+.backups-card .player-chip.slot-chip.compact .player-avatar {
+  width: 26px;
+  height: 26px;
+}
+
+.backups-card .player-chip.slot-chip.compact .player-chip-copy {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+}
+
+.backups-card .player-chip.slot-chip.compact .player-chip-identity .player-identity-name,
+.backups-card .player-chip.slot-chip.compact .player-chip-identity .player-identity-subtitle {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.backups-card .player-chip.slot-chip.compact .player-chip-identity .player-identity-subtitle .country-text > span:first-child {
   font-size: 0.56rem;
 }
 
@@ -184,6 +335,94 @@
   background: var(--backups-bg);
   border-color: var(--panel-border);
   box-shadow: var(--panel-shadow);
+  height: 100%;
+  min-height: 0;
+  align-content: start;
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.app.app-team .myxi-slots .player-chip.slot-chip.compact,
+.app.app-team .backups-grid .player-chip.slot-chip.compact,
+.app.app-team .backup-chip.empty {
+  width: 100%;
+  height: auto;
+  min-height: 40px;
+}
+
+.app.app-team .myxi-slots {
+  justify-content: stretch;
+  justify-items: stretch;
+  align-content: stretch;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: minmax(42px, 1fr);
+}
+
+@media (max-width: 1520px) and (min-width: 901px) {
+  .myxi-slots,
+  .app.app-team .myxi-slots {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1320px) and (min-width: 901px) {
+  .myxi-slots,
+  .app.app-team .myxi-slots {
+    grid-template-columns: 1fr;
+  }
+}
+
+.app.app-team .backups-grid {
+  grid-auto-rows: minmax(36px, auto);
+}
+
+.app.app-team .myxi-card .player-chip.slot-chip.compact {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.app.app-team .myxi-card .player-chip.slot-chip.compact .player-chip-copy {
+  justify-items: start;
+}
+
+.app.app-team .myxi-card .player-chip.slot-chip.compact .player-chip-identity .player-identity-name,
+.app.app-team .myxi-card .player-chip.slot-chip.compact .player-chip-identity .player-identity-subtitle,
+.app.app-team .backups-card .player-chip.slot-chip.compact .player-chip-identity .player-identity-name,
+.app.app-team .backups-card .player-chip.slot-chip.compact .player-chip-identity .player-identity-subtitle,
+.app.app-team .team-column .player-chip.slot-chip.compact .player-chip-identity .player-identity-name,
+.app.app-team .team-column .player-chip.slot-chip.compact .player-chip-identity .player-identity-subtitle {
+  text-align: left;
+  width: 100%;
+}
+
+body.dark-theme .app.app-team .team-column .player-chip.slot-chip.compact .player-chip-identity .player-identity-name,
+body.dark-theme .app.app-team .myxi-card .player-chip.slot-chip.compact .player-chip-identity .player-identity-name,
+body.dark-theme .app.app-team .backups-card .player-chip.slot-chip.compact .player-chip-identity .player-identity-name {
+  color: rgba(245, 248, 255, 0.96);
+}
+
+body.dark-theme .app.app-team .team-column .player-chip.slot-chip.compact .player-chip-identity .player-identity-subtitle,
+body.dark-theme .app.app-team .myxi-card .player-chip.slot-chip.compact .player-chip-identity .player-identity-subtitle,
+body.dark-theme .app.app-team .backups-card .player-chip.slot-chip.compact .player-chip-identity .player-identity-subtitle {
+  color: rgba(202, 220, 246, 0.86);
+}
+
+body.dark-theme .app.app-team .team-column .player-chip.slot-chip.compact .player-chip-identity .player-identity-name .player-identity-flag,
+body.dark-theme .app.app-team .myxi-card .player-chip.slot-chip.compact .player-chip-identity .player-identity-name .player-identity-flag,
+body.dark-theme .app.app-team .backups-card .player-chip.slot-chip.compact .player-chip-identity .player-identity-name .player-identity-flag {
+  opacity: 0.95;
+}
+
+.app.app-team .team-column .player-avatar-fallback,
+.app.app-team .myxi-card .player-avatar-fallback,
+.app.app-team .backups-card .player-avatar-fallback {
+  color: rgba(235, 241, 255, 0.94);
+}
+
+.tile-grid.two-col {
+  margin-top: 0;
+  align-content: start;
+  grid-auto-rows: min-content;
 }
 
 .team-bar {

@@ -124,10 +124,7 @@ function FantasyHub() {
   const showApiFailureTile =
     !isLoading && !!errorText && tournaments.length === 0 && contests.length === 0
   const canCreateContest = !isLoading && tournaments.length > 0
-  const selectableMatchOptions = useMemo(
-    () => contestMatchOptions.filter((item) => item.selectable),
-    [contestMatchOptions],
-  )
+  const selectableMatchOptions = useMemo(() => contestMatchOptions, [contestMatchOptions])
   const canCreateWithMatches = selectedContestMatchIds.length > 0
 
   const badgeText = (name = '') => {
@@ -157,14 +154,12 @@ function FantasyHub() {
         setIsLoadingContestMatchOptions(true)
         const rows = await fetchContestMatchOptions(createContestForm.tournamentId)
         if (!active) return
-        const selectableIds = (rows || [])
-          .filter((item) => item.selectable)
-          .map((item) => item.id)
+        const allMatchIds = (rows || []).map((item) => item.id)
         setContestMatchOptions(rows || [])
         setSelectedContestMatchIds((prev) => {
-          const next = prev.filter((id) => selectableIds.includes(id))
+          const next = prev.filter((id) => allMatchIds.includes(id))
           if (next.length) return next
-          return selectableIds
+          return allMatchIds
         })
       } catch (error) {
         if (!active) return
@@ -560,12 +555,12 @@ function FantasyHub() {
               <Button
                 variant="ghost"
                 size="small"
-                disabled={!selectableMatchOptions.length}
+                disabled={!contestMatchOptions.length}
                 onClick={() =>
-                  setSelectedContestMatchIds(selectableMatchOptions.map((item) => item.id))
+                  setSelectedContestMatchIds(contestMatchOptions.map((item) => item.id))
                 }
               >
-                Select all open
+                Select all
               </Button>
               <Button
                 variant="ghost"
@@ -576,7 +571,7 @@ function FantasyHub() {
                 Clear
               </Button>
               <small className="team-note">
-                Selected {selectedContestMatchIds.length} / {selectableMatchOptions.length}
+                Selected {selectedContestMatchIds.length} / {contestMatchOptions.length}
               </small>
             </div>
             <div className="create-contest-match-grid" role="group" aria-label="Contest matches">
@@ -588,12 +583,11 @@ function FantasyHub() {
                   return (
                     <label
                       key={match.id}
-                      className={`create-contest-match-row ${match.selectable ? '' : 'disabled'}`.trim()}
+                      className="create-contest-match-row"
                     >
                       <input
                         type="checkbox"
                         checked={checked}
-                        disabled={!match.selectable}
                         onChange={(event) => {
                           if (event.target.checked) {
                             setSelectedContestMatchIds((prev) =>

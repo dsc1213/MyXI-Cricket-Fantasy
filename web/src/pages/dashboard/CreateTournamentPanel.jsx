@@ -3,7 +3,12 @@ import Button from '../../components/ui/Button.jsx'
 import DateTimeTimezoneField from '../../components/ui/DateTimeTimezoneField.jsx'
 import SelectField from '../../components/ui/SelectField.jsx'
 import StickyTable from '../../components/ui/StickyTable.jsx'
-import { createAdminTournament, fetchAdminTeamSquads } from '../../lib/api.js'
+import {
+  createAdminAuctionImport,
+  createAdminTournament,
+  fetchAdminTeamSquads,
+  fetchTournamentCatalog,
+} from '../../lib/api.js'
 import { getStoredUser } from '../../lib/auth.js'
 
 const LEAGUE_MAP = {
@@ -13,34 +18,51 @@ const LEAGUE_MAP = {
   england: ['The Hundred', 'Vitality Blast'],
 }
 const TOURNAMENT_JSON_EXAMPLE = `{
-  "name": "Pakistan Super League 2026",
+  "name": "IPL 2026",
   "season": "2026",
-  "tournamentId": "psl-2026-custom",
+  "tournamentId": "ipl-2026-custom",
   "source": "json",
   "tournamentType": "league",
-  "country": "pakistan",
-  "league": "PSL",
-  "selectedTeams": ["KAR", "LAH", "ISL", "QUE"],
+  "country": "india",
+  "league": "IPL",
+  "selectedTeams": ["RCB", "SRH", "MI", "CSK"],
   "matches": [
     {
       "id": "m1",
       "matchNo": 1,
-      "home": "KAR",
-      "away": "LAH",
+      "home": "RCB",
+      "away": "SRH",
       "startAt": "2026-03-10T14:00",
       "timezone": "Asia/Kolkata",
-      "location": "Karachi",
-      "venue": "National Stadium"
+      "location": "Bengaluru",
+      "venue": "M. Chinnaswamy Stadium"
     },
     {
       "id": "m2",
       "matchNo": 2,
-      "home": "ISL",
-      "away": "QUE",
+      "home": "MI",
+      "away": "CSK",
       "startAt": "2026-03-11T14:00",
       "timezone": "Asia/Kolkata",
-      "location": "Lahore",
-      "venue": "Gaddafi Stadium"
+      "location": "Mumbai",
+      "venue": "Wankhede Stadium"
+    }
+  ]
+}`
+
+const buildAuctionJsonExample = (tournamentId = 'ipl-2026-custom') => `{
+  "tournamentId": "${tournamentId}",
+  "contestName": "NWMSU-IPL-AUCTION",
+  "participants": [
+    {
+      "userId": "huntercherryxi",
+      "name": "HunterCherryXI",
+      "roster": ["Ruturaj Gaikwad", "Tilak Varma", "Harshal Patel"]
+    },
+    {
+      "userId": "draker",
+      "name": "Draker",
+      "roster": ["Heinrich Klaasen", "Rajat Patidar", "Yash Dayal"]
     }
   ]
 }`
@@ -67,6 +89,7 @@ function CreateTournamentPanel({ onCreated }) {
   const [name, setName] = useState('')
   const [season, setSeason] = useState('2026')
   const [jsonPayload, setJsonPayload] = useState('')
+  const [auctionPayload, setAuctionPayload] = useState('')
   const [rows, setRows] = useState([emptyMatchRow(1), emptyMatchRow(2)])
   const [isSaving, setIsSaving] = useState(false)
   const [errorText, setErrorText] = useState('')
@@ -76,17 +99,22 @@ function CreateTournamentPanel({ onCreated }) {
   const [country, setCountry] = useState('')
   const [league, setLeague] = useState('')
   const [selectedTeams, setSelectedTeams] = useState([])
+  const [createdTournament, setCreatedTournament] = useState(null)
+  const [tournamentCatalog, setTournamentCatalog] = useState([])
 
   useEffect(() => {
     let active = true
     const loadSquads = async () => {
       try {
         const data = await fetchAdminTeamSquads()
+        const tournaments = await fetchTournamentCatalog()
         if (!active) return
         setSquadRows(Array.isArray(data) ? data : [])
+        setTournamentCatalog(Array.isArray(tournaments) ? tournaments : [])
       } catch {
         if (!active) return
         setSquadRows([])
+        setTournamentCatalog([])
       }
     }
     void loadSquads()
@@ -98,6 +126,23 @@ function CreateTournamentPanel({ onCreated }) {
   useEffect(() => {
     if (inputType !== 'manual') setManualStep('teams')
   }, [inputType])
+
+  const preferredAuctionTournamentId = useMemo(() => {
+    if (createdTournament?.id && createdTournament?.kind !== 'auction') {
+      return createdTournament.id
+    }
+    const catalogRows = Array.isArray(tournamentCatalog) ? tournamentCatalog : []
+    const nonSeedRows = catalogRows.filter(
+      (item) => (item?.source || '').toString().trim().toLowerCase() !== 'seed',
+    )
+    return nonSeedRows.at(-1)?.id || catalogRows.at(-1)?.id || 'ipl-2026-custom'
+  }, [createdTournament, tournamentCatalog])
+
+  useEffect(() => {
+    if (inputType !== 'auction') return
+    if ((auctionPayload || '').trim()) return
+    setAuctionPayload(buildAuctionJsonExample(preferredAuctionTournamentId))
+  }, [inputType, auctionPayload, preferredAuctionTournamentId])
 
   const leagueOptions = useMemo(
     () => (LEAGUE_MAP[country] || []).map((value) => ({ value, label: value })),
@@ -304,20 +349,51 @@ function CreateTournamentPanel({ onCreated }) {
     try {
       setErrorText('')
       setNotice('')
+      setCreatedTournament(null)
       setIsSaving(true)
       if (inputType === 'manual' && !name.trim()) {
         setErrorText('Tournament name is required')
         return
       }
       const actorUserId = currentUser?.gameName || currentUser?.email || currentUser?.id || ''
-      if (inputType === 'json') {
+      const knownTournamentIds = new Set(
+        (tournamentCatalog || []).map((item) => (item.id || '').toString().trim().toLowerCase()),
+      )
+      let response
+      if (inputType === 'auction') {
+        const parsed = JSON.parse(auctionPayload || '{}')
+        response = await createAdminAuctionImport({
+          ...parsed,
+          actorUserId,
+        })
+      } else if (inputType === 'json') {
         const parsed = JSON.parse(jsonPayload || '{}')
-        await createAdminTournament({
+        const requestedId = (parsed?.tournamentId || `${parsed?.name || ''}-${parsed?.season || ''}`)
+          .toString()
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+        if (requestedId && knownTournamentIds.has(requestedId)) {
+          setErrorText(`Tournament already exists: ${parsed?.name || requestedId}`)
+          return
+        }
+        response = await createAdminTournament({
           ...parsed,
           source: 'json',
           actorUserId,
         })
       } else {
+        const requestedId = `${name}-${season}`
+          .toString()
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+        if (requestedId && knownTournamentIds.has(requestedId)) {
+          setErrorText(`Tournament already exists: ${name}`)
+          return
+        }
         const matches = rows
           .map((row, index) => ({
             id: row.id || `m${index + 1}`,
@@ -333,7 +409,7 @@ function CreateTournamentPanel({ onCreated }) {
             squadB: row.squadB || [],
           }))
           .filter((row) => row.home && row.away && row.startAt)
-        await createAdminTournament({
+        response = await createAdminTournament({
           name,
           season,
           source: 'manual',
@@ -345,8 +421,46 @@ function CreateTournamentPanel({ onCreated }) {
           actorUserId,
         })
       }
-      setNotice('Tournament created')
-      onCreated?.()
+      const createdId =
+        response?.contest?.id ||
+        response?.tournament?.id ||
+        response?.tournamentId ||
+        response?.id ||
+        ''
+      const createdName =
+        response?.contest?.name || response?.tournament?.name || response?.name || name || 'Tournament'
+      const createdMatchesCount =
+        Number(response?.tournament?.matchesCount) ||
+        Number(response?.matchesCount) ||
+        (inputType === 'auction'
+          ? Number(response?.participantsImported || 0)
+          : inputType === 'json'
+          ? Array.isArray(response?.tournament?.matches)
+            ? response.tournament.matches.length
+            : Array.isArray(JSON.parse(jsonPayload || '{}')?.matches)
+              ? JSON.parse(jsonPayload || '{}').matches.length
+              : 0
+          : rows.filter((row) => row.home && row.away && row.startAt).length)
+      setCreatedTournament(
+        createdId
+          ? { id: createdId, name: createdName, matchesCount: createdMatchesCount, kind: inputType }
+          : null,
+      )
+      setNotice(
+        inputType === 'auction'
+          ? `Auction imported: ${createdName}`
+          : `Tournament created: ${createdName}`,
+      )
+      if (inputType !== 'auction') {
+        setTournamentCatalog((prev) => {
+          const next = Array.isArray(prev) ? [...prev] : []
+          if (!next.some((item) => item.id === createdId)) {
+            next.push({ id: createdId, name: createdName })
+          }
+          return next
+        })
+      }
+      onCreated?.({ tournamentId: createdId, tournamentName: createdName })
     } catch (error) {
       setErrorText(error.message || 'Failed to create tournament')
     } finally {
@@ -365,9 +479,13 @@ function CreateTournamentPanel({ onCreated }) {
                 + Add match
               </Button>
             )}
-            {(inputType === 'json' || manualStep === 'matches') && (
+            {(inputType === 'json' || inputType === 'auction' || manualStep === 'matches') && (
               <Button variant="primary" size="small" onClick={onSave} disabled={isSaving}>
-                {isSaving ? 'Saving...' : 'Save tournament'}
+                {isSaving
+                  ? 'Saving...'
+                  : inputType === 'auction'
+                    ? 'Import auction'
+                    : 'Save tournament'}
               </Button>
             )}
           </div>
@@ -375,6 +493,29 @@ function CreateTournamentPanel({ onCreated }) {
 
         {!!errorText && <p className="error-text">{errorText}</p>}
         {!!notice && <p className="success-text">{notice}</p>}
+        {createdTournament && (
+          <div className="create-tournament-success" role="status" aria-live="polite">
+            <div className="create-tournament-success-copy">
+              <strong>{createdTournament.kind === 'auction' ? 'Auction saved successfully.' : 'Tournament saved successfully.'}</strong>
+              <span>
+                {createdTournament.name}
+                {createdTournament.kind === 'auction'
+                  ? ` • ${createdTournament.matchesCount} participants imported`
+                  : createdTournament.matchesCount
+                  ? ` • ${createdTournament.matchesCount} matches imported`
+                  : ''}
+              </span>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="small"
+              onClick={() => onCreated?.({ ...createdTournament, openAdmin: true })}
+            >
+              Open Admin Manager
+            </Button>
+          </div>
+        )}
 
         <div className="upload-tab-row" role="tablist" aria-label="Tournament input type">
           <Button
@@ -395,12 +536,33 @@ function CreateTournamentPanel({ onCreated }) {
           >
             JSON
           </Button>
+          <Button
+            type="button"
+            role="tab"
+            aria-selected={inputType === 'auction'}
+            className={`upload-tab-btn ${inputType === 'auction' ? 'active' : ''}`.trim()}
+            onClick={() => setInputType('auction')}
+          >
+            Auction
+          </Button>
         </div>
 
-        {inputType === 'json' ? (
+        {inputType === 'auction' ? (
+          <label>
+            Auction JSON payload
+            <textarea
+              className="dashboard-json-textarea"
+              rows={14}
+              value={auctionPayload}
+              onChange={(event) => setAuctionPayload(event.target.value)}
+              placeholder={buildAuctionJsonExample(preferredAuctionTournamentId)}
+            />
+          </label>
+        ) : inputType === 'json' ? (
           <label>
             JSON payload
             <textarea
+              className="dashboard-json-textarea"
               rows={14}
               value={jsonPayload}
               onChange={(event) => setJsonPayload(event.target.value)}

@@ -456,6 +456,29 @@ body.dark-theme .user-menu-item:hover {
   gap: 0.7rem;
 }
 
+.team-preview-sections {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 0.7fr) minmax(0, 0.3fr);
+  gap: 0.55rem;
+}
+
+.team-preview-section {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+}
+
+.team-preview-section-backups {
+  border-top: 1px solid var(--panel-border);
+  padding-top: 0.65rem;
+}
+
+.team-preview-section-backups h4 {
+  margin: 0 0 0.45rem;
+  font-size: 0.86rem;
+}
+
 .team-preview-head {
   display: flex;
   justify-content: space-between;
@@ -477,6 +500,7 @@ body.dark-theme .user-menu-item:hover {
   overflow: auto;
   display: grid;
   gap: 0.45rem;
+  min-height: 0;
 }
 
 .team-preview-override {
@@ -516,6 +540,10 @@ body.dark-theme .user-menu-item:hover {
 }
 
 @media (max-width: 900px) {
+  .team-preview-sections {
+    grid-template-rows: auto;
+  }
+
   .module-filters {
     grid-template-columns: 1fr;
   }

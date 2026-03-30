@@ -20,7 +20,7 @@ class MatchService {
       ...f,
       tournamentId,
     }))
-    return await repo.bulkCreate(tournamentId, matchData)
+    return await repo.bulkCreate(matchData)
   }
 
   async updateMatchStatus(id, status) {

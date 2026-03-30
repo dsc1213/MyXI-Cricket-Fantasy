@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
+const apiMode = process.env.PW_API_MODE === 'db' ? 'db' : 'mock'
+const useMockApi = apiMode === 'mock'
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: false,
@@ -20,10 +23,12 @@ export default defineConfig({
       timeout: 120 * 1000,
     },
     {
-      command: 'rm -rf mocks/state mocks/mock-state.json && npm run dev',
+      command: useMockApi
+        ? 'rm -rf mocks/state mocks/mock-state.json && npm run dev'
+        : 'npm run dev',
       cwd: '../api',
       env: {
-        MOCK_API: 'true',
+        MOCK_API: useMockApi ? 'true' : 'false',
       },
       url: 'http://127.0.0.1:4000/health',
       reuseExistingServer: false,

@@ -1,3 +1,5 @@
+import { updateStoredSession } from './auth.js'
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'
 const inFlightGetRequests = new Map()
 const cachedGetResponses = new Map()
@@ -45,24 +47,21 @@ const getStoredSessionExpiry = () => {
   }
 }
 
-const updateStoredSessionExpiry = (tokenExpiresAt) => {
+const updateStoredSessionData = (session = {}) => {
   if (typeof window === 'undefined') return
-  try {
-    const raw = window.localStorage.getItem('myxi-user')
-    if (!raw) return
-    const parsed = JSON.parse(raw)
-    window.localStorage.setItem(
-      'myxi-user',
-      JSON.stringify({
-        ...parsed,
-        // Preserve token if present
-        token: parsed.token,
-        tokenExpiresAt: Number(tokenExpiresAt || 0) || null,
-      }),
-    )
-  } catch {
-    // ignore malformed local state
-  }
+  updateStoredSession({
+    token: session.token,
+    tokenExpiresAt: session.tokenExpiresAt,
+    name: session.name,
+    userId: session.userId,
+    gameName: session.gameName,
+    email: session.email,
+    phone: session.phone,
+    location: session.location,
+    role: session.role,
+    contestManagerContestId: session.contestManagerContestId,
+    status: session.status,
+  })
 }
 
 const clearStoredAuth = () => {
@@ -100,7 +99,8 @@ const clearGetResponseCache = () => {
 
 const rawApiRequest = async (path, options = {}) => {
   const normalizedPath = path
-  const method = (options.method || 'GET').toString().toUpperCase()
+  const { skipAuthHeader = false, ...fetchOptions } = options
+  const method = (fetchOptions.method || 'GET').toString().toUpperCase()
   const candidates = [`${API_BASE}${normalizedPath}`]
   if (!normalizedPath.startsWith('/api/')) {
     candidates.push(`${API_BASE}/api${normalizedPath}`)
@@ -121,14 +121,14 @@ const rawApiRequest = async (path, options = {}) => {
     try {
       const headers = {
         'Content-Type': 'application/json',
-        ...(options.headers || {}),
+        ...(fetchOptions.headers || {}),
       }
       // Always send Authorization header if token is present
-      if (token) headers['Authorization'] = `Bearer ${token}`
+      if (token && !skipAuthHeader) headers['Authorization'] = `Bearer ${token}`
       const response = await fetch(url, {
         credentials: 'include',
         headers,
-        ...options,
+        ...fetchOptions,
       })
       const data = await response.json().catch(() => ({}))
       if (response.status === 404) {
@@ -168,15 +168,13 @@ const ensureFreshSession = async () => {
     await pendingRefreshRequest
     return
   }
-  pendingRefreshRequest = rawApiRequest('/auth/refresh', { method: 'POST' })
+  pendingRefreshRequest = rawApiRequest('/auth/refresh', {
+    method: 'POST',
+    skipAuthHeader: true,
+  })
     .then((data) => {
-      if (data?.tokenExpiresAt) updateStoredSessionExpiry(data.tokenExpiresAt)
+      if (data?.token || data?.tokenExpiresAt) updateStoredSessionData(data)
       return data
-    })
-    .catch((error) => {
-      const text = (error?.message || '').toLowerCase()
-      if (text.includes('unauthorized')) clearStoredAuth()
-      throw error
     })
     .finally(() => {
       pendingRefreshRequest = null
@@ -217,7 +215,7 @@ async function request(path, options = {}) {
         while (true) {
           try {
             const data = await rawApiRequest(normalizedPath, options)
-            if (data?.tokenExpiresAt) updateStoredSessionExpiry(data.tokenExpiresAt)
+            if (data?.token || data?.tokenExpiresAt) updateStoredSessionData(data)
             if (canUseGetCache) {
               setCachedGetResponse(dedupeKey, data)
             } else if (method !== 'GET') {
@@ -233,8 +231,13 @@ async function request(path, options = {}) {
               text.includes('unauthorized')
             if (!canRetryWithSessionRefresh) throw error
             hasRetriedAfterRefresh = true
-            const refreshed = await rawApiRequest('/auth/refresh', { method: 'POST' })
-            if (refreshed?.tokenExpiresAt) updateStoredSessionExpiry(refreshed.tokenExpiresAt)
+            const refreshed = await rawApiRequest('/auth/refresh', {
+              method: 'POST',
+              skipAuthHeader: true,
+            })
+            if (refreshed?.token || refreshed?.tokenExpiresAt) {
+              updateStoredSessionData(refreshed)
+            }
           }
         }
       } catch (error) {
@@ -325,6 +328,7 @@ const changePassword = ({ actorUserId, actorRole, currentPassword, newPassword }
 const refreshSession = () =>
   request('/auth/refresh', {
     method: 'POST',
+    skipAuthHeader: true,
   })
 
 const logout = () =>
@@ -460,10 +464,21 @@ const saveTeamSelection = ({
   actorUserId,
   playingXi,
   backups,
+  captainId,
+  viceCaptainId,
 }) =>
   request('/team-selection/save', {
     method: 'POST',
-    body: JSON.stringify({ contestId, matchId, userId, actorUserId, playingXi, backups }),
+    body: JSON.stringify({
+      contestId,
+      matchId,
+      userId,
+      actorUserId,
+      playingXi,
+      backups,
+      captainId,
+      viceCaptainId,
+    }),
   })
 
 const fetchUserPicks = ({ userId, tournamentId, contestId, matchId } = {}) => {
@@ -509,6 +524,39 @@ const fetchManualScoreContext = ({ tournamentId } = {}) => {
   const query = params.toString()
   return request(`/admin/match-score-context${query ? `?${query}` : ''}`)
 }
+const fetchAdminMatchScores = ({ tournamentId, matchId } = {}) =>
+  request(`/admin/match-scores/${tournamentId}/${matchId}`)
+const fetchMatchLineups = ({ tournamentId, matchId, contestId } = {}) => {
+  const params = new URLSearchParams()
+  if (contestId) params.set('contestId', contestId)
+  const query = params.toString()
+  return request(
+    `/admin/match-lineups/${tournamentId}/${matchId}${query ? `?${query}` : ''}`,
+  )
+}
+const upsertMatchLineups = ({
+  tournamentId,
+  matchId,
+  contestId,
+  updatedBy,
+  source,
+  strictSquad,
+  lineups,
+  meta,
+} = {}) =>
+  request('/admin/match-lineups/upsert', {
+    method: 'POST',
+    body: JSON.stringify({
+      tournamentId,
+      matchId,
+      contestId,
+      updatedBy,
+      source,
+      strictSquad,
+      lineups,
+      meta,
+    }),
+  })
 const upsertManualMatchScores = ({
   tournamentId,
   contestId,
@@ -552,6 +600,11 @@ const disableTournaments = (ids = [], actorUserId = '') =>
   })
 const createAdminTournament = (payload) =>
   request('/admin/tournaments', {
+    method: 'POST',
+    body: JSON.stringify(payload || {}),
+  })
+const createAdminAuctionImport = (payload) =>
+  request('/admin/auctions/import', {
     method: 'POST',
     body: JSON.stringify(payload || {}),
   })
@@ -662,6 +715,9 @@ export {
   fetchPlayerOverrideContext,
   savePlayerOverride,
   fetchManualScoreContext,
+  fetchAdminMatchScores,
+  fetchMatchLineups,
+  upsertMatchLineups,
   upsertManualMatchScores,
   fetchAdminUsers,
   updateAdminUser,
@@ -670,6 +726,7 @@ export {
   enableTournaments,
   disableTournaments,
   createAdminTournament,
+  createAdminAuctionImport,
   deleteAdminTournament,
   fetchAdminTeamSquads,
   upsertAdminTeamSquad,

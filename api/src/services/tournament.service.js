@@ -1,4 +1,9 @@
 import { createRepositoryFactory } from '../repositories/repository.factory.js'
+import { dbQuery } from '../db.js'
+import {
+  buildImportedTournamentPayload,
+  mapMatchWithDerivedStatus,
+} from './tournamentImport.service.js'
 
 const factory = createRepositoryFactory()
 
@@ -18,6 +23,81 @@ class TournamentService {
     return await repo.create(data)
   }
 
+  async createImportedTournament(payload) {
+    const repo = await factory.getTournamentRepository()
+    const matchRepo = await factory.getMatchRepository()
+    const playerRepo = await factory.getPlayerRepository()
+
+    const requestedTournamentId = (payload?.tournamentId || '').toString().trim()
+    if (requestedTournamentId) {
+      const existing = await repo.findBySourceKey(requestedTournamentId)
+      if (existing) {
+        const error = new Error('Tournament already exists')
+        error.statusCode = 409
+        throw error
+      }
+    }
+
+    const { tournament, matches } = buildImportedTournamentPayload({
+      payload,
+      fallbackSeason: payload?.season || '2026',
+      fallbackSource: payload?.source || 'manual',
+      requestedTournamentId,
+      getFallbackSquad: () => null,
+    })
+
+    const createdTournament = await repo.create({
+      name: tournament.name,
+      season: tournament.season,
+      sourceKey: tournament.id,
+      source: tournament.source,
+      tournamentType: tournament.tournamentType,
+      country: tournament.country,
+      league: tournament.league,
+      selectedTeams: tournament.selectedTeams,
+      status: 'active',
+    })
+
+    const persistedMatches = await matchRepo.bulkCreate(
+      matches.map((match) => ({
+        tournamentId: createdTournament.id,
+        name: match.name,
+        teamA: match.home,
+        teamB: match.away,
+        teamAKey: match.home,
+        teamBKey: match.away,
+        startTime: match.startAt,
+        sourceKey: match.sourceKey,
+        status: match.status,
+      })),
+    )
+
+    if (typeof playerRepo.upsertTeamSquadMeta === 'function' && tournament.selectedTeams.length) {
+      await Promise.all(
+        tournament.selectedTeams.map((teamCode) =>
+          playerRepo.upsertTeamSquadMeta({
+            teamCode,
+            teamName: teamCode,
+            tournamentType: tournament.tournamentType,
+            country: tournament.country,
+            league: tournament.league,
+            tournament: tournament.name,
+            source: tournament.source,
+          }),
+        ),
+      )
+    }
+
+    return {
+      ok: true,
+      tournament: {
+        ...createdTournament,
+        matchesCount: persistedMatches.length,
+      },
+      matchesImported: persistedMatches.length,
+    }
+  }
+
   async updateTournament(id, data) {
     const repo = await factory.getTournamentRepository()
     return await repo.update(id, data)
@@ -25,12 +105,54 @@ class TournamentService {
 
   async deleteTournament(id) {
     const repo = await factory.getTournamentRepository()
-    return await repo.delete(id)
+    const tournament = await repo.findById(id)
+    if (!tournament) {
+      return { ok: false, removedTournamentId: null, removedContests: 0 }
+    }
+    const countResult = await dbQuery(
+      `SELECT COUNT(*)::int AS count
+       FROM contests
+       WHERE tournament_id = $1`,
+      [id],
+    )
+    const deleted = await repo.delete(id)
+    return {
+      ok: Boolean(deleted),
+      removedTournamentId: deleted ? String(id) : null,
+      removedContests: Number(countResult.rows[0]?.count || 0),
+    }
   }
 
   async getTournamentMatches(tournamentId) {
     const matchRepo = await factory.getMatchRepository()
-    return await matchRepo.findByTournament(tournamentId)
+    const matches = await matchRepo.findByTournament(tournamentId)
+    return matches.map((match) => mapMatchWithDerivedStatus(match))
+  }
+
+  async getTournamentCatalog() {
+    const tournaments = await this.getAllTournaments()
+    const matchRepo = await factory.getMatchRepository()
+    const rows = await Promise.all(
+      tournaments.map(async (tournament) => {
+        const matches = await matchRepo.findByTournament(tournament.id)
+        const teamCodes = [
+          ...new Set(
+            (matches || [])
+              .flatMap((match) => [match.teamAKey || match.teamA, match.teamBKey || match.teamB])
+              .filter(Boolean),
+          ),
+        ]
+        return {
+          ...tournament,
+          selectedTeams:
+            Array.isArray(tournament.selectedTeams) && tournament.selectedTeams.length
+              ? tournament.selectedTeams
+              : teamCodes,
+          teamCodes,
+        }
+      }),
+    )
+    return rows
   }
 
   async getTournamentLeaderboard(tournamentId) {

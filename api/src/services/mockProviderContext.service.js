@@ -28,6 +28,7 @@ import {
   buildPlayerPointsIndex,
   getRuleSetForTournament,
   normalizePlayerStatRows,
+  resolveEffectiveSelection,
 } from '../scoring.js'
 
 const providerContextResetters = new Set()
@@ -98,6 +99,47 @@ const createMockProviderContext = ({
     allPlayerNames.push(created.name)
     return created
   }
+  const normalizeImportedSquadEntry = (entry, fallbackTeam = '') => {
+    if (!entry) return null
+    if (typeof entry === 'string') {
+      return ensureDynamicPlayer({ name: entry, team: fallbackTeam || 'TBD' })
+    }
+    if (typeof entry !== 'object') return null
+    const rawName =
+      entry.name || entry.playerName || entry.fullName || entry.displayName || ''
+    const normalized = normalizePlayerName(rawName)
+    if (!normalized) return null
+    const existing = normalizedPlayerMap.get(normalized)
+    if (existing) {
+      return {
+        ...existing,
+        role: entry.role || existing.role || 'BAT',
+        team: entry.team || entry.teamCode || existing.team || fallbackTeam || 'TBD',
+        teamName: entry.teamName || existing.teamName || existing.team || fallbackTeam || '',
+        imageUrl: entry.imageUrl || existing.imageUrl || '',
+      }
+    }
+    dynamicPlayerId += 1
+    const created = {
+      id: entry.id || `p-dyn-${dynamicPlayerId}`,
+      name: rawName.toString().trim(),
+      role: (entry.role || 'BAT').toString().trim(),
+      team: (entry.team || entry.teamCode || fallbackTeam || 'TBD').toString().trim(),
+      teamName: (entry.teamName || entry.team || entry.teamCode || fallbackTeam || '')
+        .toString()
+        .trim(),
+      imageUrl: (entry.imageUrl || '').toString().trim(),
+      country: (entry.country || entry.nationality || '').toString().trim(),
+      points: Number(entry.points || 0),
+      trend: Number(entry.trend || 0),
+      recent: Array.isArray(entry.recent) ? entry.recent : [0, 0, 0, 0, 0],
+    }
+    allKnownPlayers.push(created)
+    normalizedPlayerMap.set(normalized, created)
+    idToPlayerName.set(created.id, created.name)
+    allPlayerNames.push(created.name)
+    return created
+  }
   const registerKnownPlayer = (player) => {
     if (!player?.id || !player?.name) return player || null
     if (!allKnownPlayers.some((item) => item.id === player.id)) {
@@ -118,25 +160,25 @@ const createMockProviderContext = ({
       .map((player) => registerKnownPlayer(player))
   }
   const getMatchRosters = (match) => {
-    const fallbackA = getTeamRoster(match?.home || 'IND')
-    const fallbackB = getTeamRoster(match?.away || 'AUS')
+    const liveRosterA = getTeamRoster(match?.home || 'IND')
+    const liveRosterB = getTeamRoster(match?.away || 'AUS')
     const squadA = Array.isArray(match?.squadA) ? match.squadA : []
     const squadB = Array.isArray(match?.squadB) ? match.squadB : []
     const pickFromSquad = (names, fallback, teamCode) => {
+      if (fallback.length) return fallback
       if (!names.length) return fallback
       return names
-        .map((name) => ensureDynamicPlayer({ name, team: teamCode || 'TBD' }))
+        .map((entry) => normalizeImportedSquadEntry(entry, teamCode || 'TBD'))
         .filter(Boolean)
     }
     return {
-      teamA: pickFromSquad(squadA, fallbackA, match?.home || ''),
-      teamB: pickFromSquad(squadB, fallbackB, match?.away || ''),
+      teamA: pickFromSquad(squadA, liveRosterA, match?.home || ''),
+      teamB: pickFromSquad(squadB, liveRosterB, match?.away || ''),
     }
   }
   const selectionKey = ({ contestId, matchId, userId }) =>
     `${contestId}::${matchId}::${userId}`
-  const lineupKey = ({ tournamentId, contestId, matchId }) =>
-    `${tournamentId}::${contestId}::${matchId}`
+  const lineupKey = ({ tournamentId, matchId }) => `${tournamentId}::${matchId}`
   const nameHash = (value = '') =>
     value
       .toString()
@@ -780,10 +822,10 @@ const createMockProviderContext = ({
         message: `lineups.${teamCode}.squad must contain at least 11 unique players`,
       }
     }
-    if (playingXI.length !== 11) {
+    if (playingXI.length < 11 || playingXI.length > 12) {
       return {
         ok: false,
-        message: `lineups.${teamCode}.playingXI must contain exactly 11 unique players`,
+        message: `lineups.${teamCode}.playingXI must contain 11 or 12 unique players`,
       }
     }
     const squadSet = new Set(normalizedSquad)
@@ -894,20 +936,76 @@ const createMockProviderContext = ({
     const contestMatches = buildMatches(100, contest.tournamentId).filter((match) =>
       scopedMatchIds && scopedMatchIds.size ? scopedMatchIds.has(match.id) : true,
     )
+    const resolveMatchUserSelection = ({ targetUserId, match }) => {
+      if (isFixedRosterContest(contest)) {
+        return {
+          pickNames: getFixedRosterNames({ contest, userId: targetUserId, matchId: match.id }).roster,
+          multiplierMap: new Map(),
+        }
+      }
+      const selection = resolveMockSelection({
+        contestId: contest.id,
+        matchId: match.id,
+        userId: targetUserId,
+        seedFromDefaultHasTeam: true,
+      })
+      if (!selection?.playingXi?.length) {
+        return { pickNames: [], multiplierMap: new Map() }
+      }
+      const savedLineup =
+        mockMatchLineups.get(
+          lineupKey({
+            tournamentId: contest?.tournamentId || '',
+            matchId: match.id,
+          }),
+        ) || null
+      const activeNameSet = new Set([
+        ...((savedLineup?.lineups?.[match.home]?.playingXI || []).map((name) =>
+          normalizeUserKey(name),
+        )),
+        ...((savedLineup?.lineups?.[match.away]?.playingXI || []).map((name) =>
+          normalizeUserKey(name),
+        )),
+      ])
+      const activePlayerIds = activeNameSet.size
+        ? [...idToPlayerName.entries()]
+            .filter(([, name]) => activeNameSet.has(normalizeUserKey(name)))
+            .map(([id]) => id)
+        : []
+      const resolved = resolveEffectiveSelection({
+        playingXi: selection.playingXi,
+        backups: selection.backups,
+        activePlayerIds,
+        captainId: selection.captainId,
+        viceCaptainId: selection.viceCaptainId,
+      })
+      const multipliers = new Map()
+      if (resolved.captainApplies && selection?.captainId) {
+        const captainName = idToPlayerName.get(selection.captainId)
+        if (captainName) multipliers.set(normalizeUserKey(captainName), 2)
+      }
+      if (resolved.viceCaptainApplies && selection?.viceCaptainId) {
+        const viceName = idToPlayerName.get(selection.viceCaptainId)
+        if (viceName) multipliers.set(normalizeUserKey(viceName), 1.5)
+      }
+      return {
+        pickNames: resolved.effectivePlayerIds
+          .map((id) => idToPlayerName.get(id))
+          .filter(Boolean),
+        multiplierMap: multipliers,
+      }
+    }
     const rows = contestMatches.map((match) => {
+      const userSelection = resolveMatchUserSelection({ targetUserId: userId, match })
+      const compareSelection = resolveMatchUserSelection({
+        targetUserId: compareUserId,
+        match,
+      })
       const normalizedUserPicks = new Set(
-        resolveMatchUserPickNames({
-          contestId: contest.id,
-          matchId: match.id,
-          userId,
-        }).map((name) => normalizeUserKey(name)),
+        userSelection.pickNames.map((name) => normalizeUserKey(name)),
       )
       const normalizedComparePicks = new Set(
-        resolveMatchUserPickNames({
-          contestId: contest.id,
-          matchId: match.id,
-          userId: compareUserId,
-        }).map((name) => normalizeUserKey(name)),
+        compareSelection.pickNames.map((name) => normalizeUserKey(name)),
       )
       const score = [...matchScores]
         .filter((item) => item?.active !== false)
@@ -943,17 +1041,23 @@ const createMockProviderContext = ({
       const pointsByPlayerName = hasUploadedScore
         ? uploadedPointsByPlayerName
         : fallbackPointsByPlayerName
+      const userMultipliers = isFixedRosterContest(contest)
+        ? new Map()
+        : userSelection.multiplierMap
+      const compareMultipliers = isFixedRosterContest(contest)
+        ? new Map()
+        : compareSelection.multiplierMap
       const userPoints = Object.entries(pointsByPlayerName).reduce(
         (sum, [nameKey, points]) => {
           if (!normalizedUserPicks.has(nameKey)) return sum
-          return sum + Number(points || 0)
+          return sum + Number(points || 0) * Number(userMultipliers.get(nameKey) || 1)
         },
         0,
       )
       const comparePoints = Object.entries(pointsByPlayerName).reduce(
         (sum, [nameKey, points]) => {
           if (!normalizedComparePicks.has(nameKey)) return sum
-          return sum + Number(points || 0)
+          return sum + Number(points || 0) * Number(compareMultipliers.get(nameKey) || 1)
         },
         0,
       )
@@ -1007,10 +1111,43 @@ const createMockProviderContext = ({
       userId,
       seedFromDefaultHasTeam: true,
     })
-    if (selection?.playingXi?.length) {
+    if (!selection?.playingXi?.length) return []
+    const match = buildMatches(100, contest?.tournamentId || 't20wc-2026').find(
+      (item) => String(item.id) === String(matchId),
+    )
+    if (!match) {
       return selection.playingXi.map((id) => idToPlayerName.get(id)).filter(Boolean)
     }
-    return []
+    const savedLineup =
+      mockMatchLineups.get(
+        lineupKey({
+          tournamentId: contest?.tournamentId || '',
+          matchId,
+        }),
+      ) || null
+    const activeNameSet = new Set([
+      ...((savedLineup?.lineups?.[match.home]?.playingXI || []).map((name) =>
+        normalizeUserKey(name),
+      )),
+      ...((savedLineup?.lineups?.[match.away]?.playingXI || []).map((name) =>
+        normalizeUserKey(name),
+      )),
+    ])
+    const activePlayerIds = activeNameSet.size
+      ? [...idToPlayerName.entries()]
+          .filter(([, name]) => activeNameSet.has(normalizeUserKey(name)))
+          .map(([id]) => id)
+      : []
+    const resolved = resolveEffectiveSelection({
+      playingXi: selection.playingXi,
+      backups: selection.backups,
+      activePlayerIds,
+      captainId: selection.captainId,
+      viceCaptainId: selection.viceCaptainId,
+    })
+    return resolved.effectivePlayerIds
+      .map((id) => idToPlayerName.get(id))
+      .filter(Boolean)
   }
 
   const getContestUserPool = ({ contest, viewerUserId = '' }) => {

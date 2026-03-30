@@ -8,6 +8,7 @@ import {
   getMasterActorUserId,
   patchUserByGameName,
   registerAndActivateBot,
+  saveSelection,
 } from './helpers/mock-e2e.js'
 
 test.describe('9) Admin contest delete ownership', () => {
@@ -69,6 +70,78 @@ test.describe('9) Admin contest delete ownership', () => {
     } finally {
       await deleteUserIfPresent(request, botAdminB.gameName)
       await deleteContestIfPresent(request, contestId, 'master')
+    }
+  })
+
+  test('deleting one contest does not remove the same participant from another contest', async ({
+    request,
+  }) => {
+    const contestNameTag = Date.now()
+    let contestAId = ''
+    let contestBId = ''
+
+    try {
+      const contestA = await createContest({
+        request,
+        tournamentId: 't20wc-2026',
+        name: `bot-delete-scope-a-${contestNameTag}`,
+        teams: 80,
+        createdBy: 'master',
+      })
+      contestAId = contestA.id
+
+      const contestB = await createContest({
+        request,
+        tournamentId: 't20wc-2026',
+        name: `bot-delete-scope-b-${contestNameTag}`,
+        teams: 80,
+        createdBy: 'master',
+      })
+      contestBId = contestB.id
+
+      await apiCall(request, 'POST', `/contests/${contestAId}/join`, { userId: 'player' }, 200)
+      await apiCall(request, 'POST', `/contests/${contestBId}/join`, { userId: 'player' }, 200)
+      await saveSelection({ request, contestId: contestAId, userId: 'player' })
+      await saveSelection({ request, contestId: contestBId, userId: 'player' })
+      const contestBMatches = await apiCall(
+        request,
+        'GET',
+        `/contests/${contestBId}/matches?userId=player`,
+        undefined,
+        200,
+      )
+      const contestBMatchId = (contestBMatches || [])[0]?.id
+      expect(contestBMatchId).toBeTruthy()
+
+      const beforeDeleteB = await apiCall(
+        request,
+        'GET',
+        `/team-pool?contestId=${contestBId}&matchId=${contestBMatchId}&userId=player`,
+        undefined,
+        200,
+      )
+      expect((beforeDeleteB?.selection?.playingXi || []).length).toBeGreaterThan(0)
+
+      await apiCall(
+        request,
+        'DELETE',
+        `/admin/contests/${contestAId}`,
+        { actorUserId: 'master' },
+        200,
+      )
+      contestAId = ''
+
+      const remainingSelection = await apiCall(
+        request,
+        'GET',
+        `/team-pool?contestId=${contestBId}&matchId=${contestBMatchId}&userId=player`,
+        undefined,
+        200,
+      )
+      expect((remainingSelection?.selection?.playingXi || []).length).toBeGreaterThan(0)
+    } finally {
+      await deleteContestIfPresent(request, contestAId, 'master')
+      await deleteContestIfPresent(request, contestBId, 'master')
     }
   })
 })

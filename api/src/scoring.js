@@ -59,6 +59,7 @@ const calculateFantasyPoints = (stats, ruleSet) => {
   const sixes = Number(stats?.sixes || 0)
   const maidens = Number(stats?.maidens || 0)
   const wides = Number(stats?.wides || 0)
+  const noBalls = Number(stats?.noBalls || 0)
   const stumpings = Number(stats?.stumpings || 0)
   const runoutDirect = Number(stats?.runoutDirect || 0)
   const runoutIndirect = Number(stats?.runoutIndirect || 0)
@@ -70,7 +71,7 @@ const calculateFantasyPoints = (stats, ruleSet) => {
   total += fours * ruleSet.four
   total += sixes * ruleSet.six
   total += maidens * ruleSet.maiden
-  total += wides * ruleSet.wide
+  total += (wides + noBalls) * ruleSet.wide
   total += stumpings * ruleSet.stumping
   total += runoutDirect * ruleSet.runoutDirect
   total += runoutIndirect * ruleSet.runoutIndirect
@@ -108,6 +109,7 @@ const normalizePlayerStatRows = (rows, players) => {
         playerName: player.name,
         team: player.team,
         runs: Number(row.runs || 0),
+        ballsFaced: Number(row.ballsFaced || 0),
         wickets: Number(row.wickets || 0),
         catches: Number(row.catches || 0),
         stumpings: Number(row.stumpings || 0),
@@ -115,7 +117,10 @@ const normalizePlayerStatRows = (rows, players) => {
         runoutIndirect: Number(row.runoutIndirect || 0),
         fours: Number(row.fours || 0),
         sixes: Number(row.sixes || 0),
+        overs: Number(row.overs || 0),
+        runsConceded: Number(row.runsConceded || 0),
         maidens: Number(row.maidens || 0),
+        noBalls: Number(row.noBalls || 0),
         wides: Number(row.wides || 0),
         dismissed: row.dismissed === true,
       }
@@ -188,10 +193,80 @@ const buildContestLeaderboardRows = ({
     .sort((a, b) => b.points - a.points)
 }
 
+const resolveEffectiveSelection = ({
+  playingXi = [],
+  backups = [],
+  activePlayerIds = [],
+  captainId = null,
+  viceCaptainId = null,
+}) => {
+  const normalizeId = (value) => (value == null ? '' : value.toString())
+  const normalizedPlayingXi = Array.isArray(playingXi)
+    ? playingXi.filter((value) => value != null && value !== '')
+    : []
+  const normalizedBackups = Array.isArray(backups)
+    ? backups.filter((value) => value != null && value !== '')
+    : []
+  const activeSet = new Set(
+    (Array.isArray(activePlayerIds) ? activePlayerIds : [])
+      .filter((value) => value != null && value !== '')
+      .map(normalizeId),
+  )
+  if (!activeSet.size) {
+    return {
+      effectivePlayerIds: normalizedPlayingXi,
+      captainApplies: normalizedPlayingXi.map(normalizeId).includes(normalizeId(captainId)),
+      viceCaptainApplies: normalizedPlayingXi.map(normalizeId).includes(normalizeId(viceCaptainId)),
+    }
+  }
+
+  const used = new Set()
+  const backupQueue = normalizedBackups.filter((playerId) => activeSet.has(normalizeId(playerId)))
+  const effectivePlayerIds = []
+
+  const pullReplacement = () => {
+    while (backupQueue.length) {
+      const candidate = backupQueue.shift()
+      if (!used.has(normalizeId(candidate))) return candidate
+    }
+    return null
+  }
+
+  for (const playerId of normalizedPlayingXi) {
+    const playerKey = normalizeId(playerId)
+    if (activeSet.has(playerKey) && !used.has(playerKey)) {
+      effectivePlayerIds.push(playerId)
+      used.add(playerKey)
+      continue
+    }
+    const replacement = pullReplacement()
+    if (replacement != null) {
+      effectivePlayerIds.push(replacement)
+      used.add(normalizeId(replacement))
+    }
+  }
+
+  const effectiveKeys = effectivePlayerIds.map(normalizeId)
+  const normalizedCaptainKey = normalizeId(captainId)
+  const normalizedViceKey = normalizeId(viceCaptainId)
+  return {
+    effectivePlayerIds,
+    captainApplies:
+      !!normalizedCaptainKey &&
+      normalizedPlayingXi.map(normalizeId).includes(normalizedCaptainKey) &&
+      effectiveKeys.includes(normalizedCaptainKey),
+    viceCaptainApplies:
+      !!normalizedViceKey &&
+      normalizedPlayingXi.map(normalizeId).includes(normalizedViceKey) &&
+      effectiveKeys.includes(normalizedViceKey),
+  }
+}
+
 export {
   getRuleSetForTournament,
   calculateFantasyPoints,
   normalizePlayerStatRows,
   buildPlayerPointsIndex,
   buildContestLeaderboardRows,
+  resolveEffectiveSelection,
 }
