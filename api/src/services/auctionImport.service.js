@@ -142,7 +142,10 @@ class AuctionImportService {
       throw error
     }
 
-    const players = await playerRepo.findAll()
+    const players =
+      typeof playerRepo.findByTournament === 'function'
+        ? await playerRepo.findByTournament(tournamentId)
+        : await playerRepo.findAll()
     const selectedTeams =
       Array.isArray(tournament.selectedTeams) && tournament.selectedTeams.length
         ? tournament.selectedTeams

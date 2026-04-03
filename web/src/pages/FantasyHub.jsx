@@ -231,53 +231,60 @@ function FantasyHub() {
         <div className="fantasy-hub-layout">
           <div className="fantasy-tournament-section">
             <h3>Available Tournaments</h3>
-            <div className="tournament-tile-grid">
-              {tournaments.map((item, index) => (
-                <article
-                  key={item.id}
-                  className={`team-card tournament-card tournament-filter-tile ${selectedTournament === item.id ? 'active' : ''}`.trim()}
-                  style={{
-                    '--tournament-color': tournamentPalette[index % tournamentPalette.length],
-                    '--tile-index': index,
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setSelectedTournament(item.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault()
-                      setSelectedTournament(item.id)
-                    }
-                  }}
-                >
-                  <div className="tournament-card-head">
-                    <div className="tournament-badge">{badgeText(item.name)}</div>
-                    <div>
-                      <h3>{item.name}</h3>
-                      <p className="team-note">
-                        {(contestsByTournament[item.id] || []).length} contests available
-                      </p>
+            {tournaments.length === 0 && !isLoading ? (
+              <div className="dashboard-empty-state">
+                <h3>No tournaments available</h3>
+                <p>No published fantasy tournaments are available right now.</p>
+              </div>
+            ) : (
+              <div className="tournament-tile-grid">
+                {tournaments.map((item, index) => (
+                  <article
+                    key={item.id}
+                    className={`team-card tournament-card tournament-filter-tile ${selectedTournament === item.id ? 'active' : ''}`.trim()}
+                    style={{
+                      '--tournament-color': tournamentPalette[index % tournamentPalette.length],
+                      '--tile-index': index,
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelectedTournament(item.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        setSelectedTournament(item.id)
+                      }
+                    }}
+                  >
+                    <div className="tournament-card-head">
+                      <div className="tournament-badge">{badgeText(item.name)}</div>
+                      <div>
+                        <h3>{item.name}</h3>
+                        <p className="team-note">
+                          {(contestsByTournament[item.id] || []).length} contests available
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="top-actions">
-                    <Link
-                      to={`/tournaments/${item.id}`}
-                      className="ghost small"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      Open
-                    </Link>
-                    <Link
-                      to={`/tournaments/${item.id}/cricketer-stats`}
-                      className="leaderboard-link"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      Stats
-                    </Link>
-                  </div>
-                </article>
-              ))}
-            </div>
+                    <div className="top-actions">
+                      <Link
+                        to={`/tournaments/${item.id}`}
+                        className="ghost small"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        Open
+                      </Link>
+                      <Link
+                        to={`/tournaments/${item.id}/cricketer-stats`}
+                        className="leaderboard-link"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        Stats
+                      </Link>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="fantasy-hub-main">
@@ -286,142 +293,146 @@ function FantasyHub() {
               <span>/</span>
               <strong>{selectedTournamentName}</strong>
             </div>
-
-            <div className="module-filters compact fantasy-status-filter">
-              <SelectField
-                value={selectedStatus}
-                onChange={(event) => setSelectedStatus(event.target.value)}
-                options={[
-                  { value: 'all', label: 'All status' },
-                  { value: 'Open', label: 'Open' },
-                  { value: 'Starting Soon', label: 'Starting Soon' },
-                  { value: 'Locked', label: 'Locked' },
-                  { value: 'Completed', label: 'Completed' },
-                ]}
-              />
-            </div>
-
-            <div className="fantasy-contest-sections">
-              <div>
-                <div className="contest-section-head">
-                  <h3>{`Available (${availableContests.length})`}</h3>
-                </div>
-                <div className="compact-card-grid contest-discovery-grid">
-                  {availableContests.map((contest) => {
-                    const joinedCount = Number(contest.joinedCount ?? contest.participants ?? 0)
-                    const maxPlayers = Number(contest.maxPlayers ?? contest.teams ?? 0)
-                    return (
-                      <article
-                        className={`compact-contest-card fantasy ${getStatusClassName(contest.status)}`.trim()}
-                        key={contest.id}
-                      >
-                        <div className="contest-card-top">
-                          <strong>{contest.name}</strong>
-                          <span className={`contest-status-text ${getStatusClassName(contest.status)}`.trim()}>
-                            {contest.status}
-                          </span>
-                        </div>
-                        <p className="team-note">{tournamentNameMap[contest.tournamentId]}</p>
-                        <p className="team-note">{contest.teams} teams</p>
-                        <p className="team-note">
-                          Participants {joinedCount}
-                          {maxPlayers > 0
-                            ? ` / ${maxPlayers}`
-                            : ''}
-                        </p>
-                        <p className="team-note">
-                          Last score update:{' '}
-                          {contest.lastScoreUpdatedAt
-                            ? new Date(contest.lastScoreUpdatedAt).toLocaleString()
-                            : '-'}
-                        </p>
-                        <div className="contest-card-bottom">
-                          <Button
-                            variant="primary"
-                            size="small"
-                            disabled={
-                              !currentUserId ||
-                              contest.hasCapacity === false ||
-                              contest.joinOpen === false
-                            }
-                            onClick={async () => {
-                              try {
-                                await joinContest({
-                                  contestId: contest.id,
-                                  userId: currentUserId,
-                                })
-                                await reloadFantasyData()
-                              } catch (error) {
-                                setErrorText(error.message || 'Failed to join contest')
-                              }
-                            }}
-                          >
-                            {contest.hasCapacity === false
-                              ? 'Contest full'
-                              : contest.joinOpen === false
-                                ? 'Started'
-                                : 'Join'}
-                          </Button>
-                          <Link
-                            className="ghost small"
-                            to={`/tournaments/${contest.tournamentId}/contests/${contest.id}`}
-                          >
-                            Open contest
-                          </Link>
-                        </div>
-                      </article>
-                    )
-                  })}
-                </div>
+            {tournaments.length === 0 && !isLoading ? (
+              <div className="dashboard-empty-state">
+                <h3>No tournaments available</h3>
+                <p>Ask an admin to add a tournament to Fantasy, then it will appear here.</p>
               </div>
+            ) : (
+              <>
+                <div className="module-filters compact fantasy-status-filter">
+                  <SelectField
+                    value={selectedStatus}
+                    onChange={(event) => setSelectedStatus(event.target.value)}
+                    options={[
+                      { value: 'all', label: 'All status' },
+                      { value: 'Open', label: 'Open' },
+                      { value: 'Starting Soon', label: 'Starting Soon' },
+                      { value: 'Locked', label: 'Locked' },
+                      { value: 'Completed', label: 'Completed' },
+                    ]}
+                  />
+                </div>
 
-              <div>
-                <div className="contest-section-head">
-                  <h3>{`Joined (${joinedContests.length})`}</h3>
-                </div>
-                <div className="compact-card-grid contest-discovery-grid">
-                  {joinedContests.map((contest) => {
-                    const joinedCount = Number(contest.joinedCount ?? contest.participants ?? 0)
-                    const maxPlayers = Number(contest.maxPlayers ?? contest.teams ?? 0)
-                    return (
-                      <article
-                        className={`compact-contest-card fantasy ${getStatusClassName(contest.status)}`.trim()}
-                        key={contest.id}
-                      >
-                        <div className="contest-card-top">
-                          <strong>{contest.name}</strong>
-                          <span className={`contest-status-text ${getStatusClassName(contest.status)}`.trim()}>
-                            {contest.status}
-                          </span>
-                        </div>
-                        <p className="team-note">{tournamentNameMap[contest.tournamentId]}</p>
-                        <p className="team-note">{contest.teams} teams</p>
-                        <p className="team-note">
-                          Participants {joinedCount}
-                          {maxPlayers > 0
-                            ? ` / ${maxPlayers}`
-                            : ''}
-                        </p>
-                        <p className="team-note">
-                          Last score update:{' '}
-                          {contest.lastScoreUpdatedAt
-                            ? new Date(contest.lastScoreUpdatedAt).toLocaleString()
-                            : '-'}
-                        </p>
-                        <div className="contest-card-bottom">
-                          <Link
-                            className="ghost small"
-                            to={`/tournaments/${contest.tournamentId}/contests/${contest.id}`}
+                <div className="fantasy-contest-sections">
+                  <div>
+                    <div className="contest-section-head">
+                      <h3>{`Available (${availableContests.length})`}</h3>
+                    </div>
+                    <div className="compact-card-grid contest-discovery-grid">
+                      {availableContests.map((contest) => {
+                        const joinedCount = Number(contest.joinedCount ?? contest.participants ?? 0)
+                        const maxPlayers = Number(contest.maxPlayers ?? contest.teams ?? 0)
+                        return (
+                          <article
+                            className={`compact-contest-card fantasy ${getStatusClassName(contest.status)}`.trim()}
+                            key={contest.id}
                           >
-                            Open contest
-                          </Link>
-                        </div>
-                      </article>
-                    )
-                  })}
+                            <div className="contest-card-top">
+                              <strong>{contest.name}</strong>
+                              <span className={`contest-status-text ${getStatusClassName(contest.status)}`.trim()}>
+                                {contest.status}
+                              </span>
+                            </div>
+                            <p className="team-note">{tournamentNameMap[contest.tournamentId]}</p>
+                            <p className="team-note">{contest.teams} teams</p>
+                            <p className="team-note">
+                              Participants {joinedCount}
+                              {maxPlayers > 0 ? ` / ${maxPlayers}` : ''}
+                            </p>
+                            <p className="team-note">
+                              Last score update:{' '}
+                              {contest.lastScoreUpdatedAt
+                                ? new Date(contest.lastScoreUpdatedAt).toLocaleString()
+                                : '-'}
+                            </p>
+                            <div className="contest-card-bottom">
+                              <Button
+                                variant="primary"
+                                size="small"
+                                disabled={
+                                  !currentUserId ||
+                                  contest.hasCapacity === false ||
+                                  contest.joinOpen === false
+                                }
+                                onClick={async () => {
+                                  try {
+                                    await joinContest({
+                                      contestId: contest.id,
+                                      userId: currentUserId,
+                                    })
+                                    await reloadFantasyData()
+                                  } catch (error) {
+                                    setErrorText(error.message || 'Failed to join contest')
+                                  }
+                                }}
+                              >
+                                {contest.hasCapacity === false
+                                  ? 'Contest full'
+                                  : contest.joinOpen === false
+                                    ? 'Started'
+                                    : 'Join'}
+                              </Button>
+                              <Link
+                                className="ghost small"
+                                to={`/tournaments/${contest.tournamentId}/contests/${contest.id}`}
+                              >
+                                Open contest
+                              </Link>
+                            </div>
+                          </article>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="contest-section-head">
+                      <h3>{`Joined (${joinedContests.length})`}</h3>
+                    </div>
+                    <div className="compact-card-grid contest-discovery-grid">
+                      {joinedContests.map((contest) => {
+                        const joinedCount = Number(contest.joinedCount ?? contest.participants ?? 0)
+                        const maxPlayers = Number(contest.maxPlayers ?? contest.teams ?? 0)
+                        return (
+                          <article
+                            className={`compact-contest-card fantasy ${getStatusClassName(contest.status)}`.trim()}
+                            key={contest.id}
+                          >
+                            <div className="contest-card-top">
+                              <strong>{contest.name}</strong>
+                              <span className={`contest-status-text ${getStatusClassName(contest.status)}`.trim()}>
+                                {contest.status}
+                              </span>
+                            </div>
+                            <p className="team-note">{tournamentNameMap[contest.tournamentId]}</p>
+                            <p className="team-note">{contest.teams} teams</p>
+                            <p className="team-note">
+                              Participants {joinedCount}
+                              {maxPlayers > 0 ? ` / ${maxPlayers}` : ''}
+                            </p>
+                            <p className="team-note">
+                              Last score update:{' '}
+                              {contest.lastScoreUpdatedAt
+                                ? new Date(contest.lastScoreUpdatedAt).toLocaleString()
+                                : '-'}
+                            </p>
+                            <div className="contest-card-bottom">
+                              <Link
+                                className="ghost small"
+                                to={`/tournaments/${contest.tournamentId}/contests/${contest.id}`}
+                              >
+                                Open contest
+                              </Link>
+                            </div>
+                          </article>
+                        )
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </div>
       )}

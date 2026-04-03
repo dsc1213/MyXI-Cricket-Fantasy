@@ -13,12 +13,13 @@ These are enforceable product rules for contests and participation.
 ## 2) Tournament and Contest Lifecycle
 
 - Admin/master can create tournaments (manual grid or JSON).
-- Tournament join/visibility goes live immediately after create (enabled by default).
+- Tournament is created hidden by default.
+- Tournament becomes publicly visible only after admin/master enables it from `Admin Manager -> Tournaments`.
 - Admin/master can delete tournament; delete cascades to linked contests and joins.
-- Contest join is allowed only when contest is join-open.
-- Join-open is determined by the first configured match `startAt` timestamp for that contest:
-  - if `now < firstMatch.startAt`: join is open
-  - if `now >= firstMatch.startAt`: join is closed
+- Contest join is allowed even after contest matches have started.
+- Match editability is determined by match start:
+  - contest can still be joined after start
+  - started/in-progress matches stay visible but become read-only for team edits
 
 ## 3) Contest Match Scope
 
@@ -59,7 +60,7 @@ Delete rule:
 ## 6) Admin Contest Creation Requirements
 
 - Admin should be able to choose contest match scope during creation (match grid with date/status).
-- Started/completed matches should be non-selectable for new join windows.
+- Started/completed matches remain visible in contest scope.
 - If contest is created mid-tournament with scoped future matches, user should only see those scoped matches after join.
 
 ## 7) Identity and Entry Constraints

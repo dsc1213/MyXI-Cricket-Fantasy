@@ -1,5 +1,31 @@
 import { dbQuery } from '../db.js'
 
+const normalizeIdentityPart = (value = '') =>
+  value
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+const buildCanonicalSourceKey = ({
+  sourceKey,
+  playerId,
+  displayName,
+  firstName,
+  lastName,
+  country,
+} = {}) => {
+  if ((sourceKey || '').toString().trim()) return sourceKey.toString().trim()
+  if ((playerId || '').toString().trim()) return playerId.toString().trim()
+  const name =
+    (displayName || '').toString().trim() ||
+    [firstName, lastName].filter(Boolean).join(' ').trim()
+  const nameKey = normalizeIdentityPart(name)
+  const countryKey = normalizeIdentityPart(country)
+  return [nameKey, countryKey].filter(Boolean).join('-')
+}
+
 class PlayerRepository {
   async findAll() {
     const result = await dbQuery(
@@ -10,6 +36,35 @@ class PlayerRepository {
               created_at as "createdAt", updated_at as "updatedAt"
        FROM players
        ORDER BY team_key, first_name ASC`,
+    )
+    return result.rows
+  }
+
+  async findByTournament(tournamentId) {
+    const result = await dbQuery(
+      `SELECT p.id,
+              p.first_name as "firstName",
+              p.last_name as "lastName",
+              coalesce(tp.role, p.role) as role,
+              tp.team_code as "teamKey",
+              p.team_name as "teamName",
+              p.player_id as "playerId",
+              p.display_name as "displayName",
+              p.country,
+              p.image_url as "imageUrl",
+              coalesce(tp.active, p.active) as active,
+              p.batting_style as "battingStyle",
+              p.bowling_style as "bowlingStyle",
+              p.base_price as "basePrice",
+              p.source_key as "sourceKey",
+              p.created_at as "createdAt",
+              p.updated_at as "updatedAt"
+       FROM tournament_players tp
+       JOIN players p
+         ON p.id = tp.player_id
+       WHERE tp.tournament_id = $1
+       ORDER BY tp.team_code ASC, p.display_name ASC, p.first_name ASC, p.last_name ASC`,
+      [tournamentId],
     )
     return result.rows
   }
@@ -28,7 +83,36 @@ class PlayerRepository {
     return result.rows[0]
   }
 
-  async findByTeam(teamKey) {
+  async findByTeam(teamKey, tournamentId = null) {
+    if (tournamentId) {
+      const result = await dbQuery(
+        `SELECT p.id,
+                p.first_name as "firstName",
+                p.last_name as "lastName",
+                coalesce(tp.role, p.role) as role,
+                tp.team_code as "teamKey",
+                p.team_name as "teamName",
+                p.player_id as "playerId",
+                p.display_name as "displayName",
+                p.country,
+                p.image_url as "imageUrl",
+                coalesce(tp.active, p.active) as active,
+                p.batting_style as "battingStyle",
+                p.bowling_style as "bowlingStyle",
+                p.base_price as "basePrice",
+                p.source_key as "sourceKey",
+                p.created_at as "createdAt",
+                p.updated_at as "updatedAt"
+         FROM tournament_players tp
+         JOIN players p
+           ON p.id = tp.player_id
+         WHERE tp.team_code = $1
+           AND tp.tournament_id = $2
+         ORDER BY p.display_name ASC, p.first_name ASC, p.last_name ASC`,
+        [teamKey, tournamentId],
+      )
+      return result.rows
+    }
     const result = await dbQuery(
       `SELECT id, first_name as "firstName", last_name as "lastName", role, team_key as "teamKey",
               team_name as "teamName", player_id as "playerId", display_name as "displayName",
@@ -71,6 +155,14 @@ class PlayerRepository {
       basePrice,
       sourceKey,
     } = data
+    const canonicalSourceKey = buildCanonicalSourceKey({
+      sourceKey,
+      playerId,
+      displayName,
+      firstName,
+      lastName,
+      country,
+    })
     const result = await dbQuery(
       `INSERT INTO players (
          first_name, last_name, role, team_key, team_name, player_id, display_name, country,
@@ -96,13 +188,196 @@ class PlayerRepository {
         battingStyle || '',
         bowlingStyle || '',
         basePrice ?? null,
-        sourceKey || null,
+        canonicalSourceKey || null,
+      ],
+    )
+    return result.rows[0]
+  }
+
+  async findCanonical(data = {}) {
+    const explicitId = data.canonicalPlayerId || data.id || null
+    if (explicitId != null && `${explicitId}`.trim()) {
+      const byId = await dbQuery(
+        `SELECT id, first_name as "firstName", last_name as "lastName", role, team_key as "teamKey",
+                team_name as "teamName", player_id as "playerId", display_name as "displayName",
+                country, image_url as "imageUrl", active, batting_style as "battingStyle",
+                bowling_style as "bowlingStyle", base_price as "basePrice", source_key as "sourceKey",
+                created_at as "createdAt", updated_at as "updatedAt"
+         FROM players
+         WHERE id = $1
+         LIMIT 1`,
+        [explicitId],
+      )
+      if (byId.rows[0]) return byId.rows[0]
+    }
+    const canonicalSourceKey = buildCanonicalSourceKey(data)
+    if (canonicalSourceKey) {
+      const byKey = await dbQuery(
+        `SELECT id, first_name as "firstName", last_name as "lastName", role, team_key as "teamKey",
+                team_name as "teamName", player_id as "playerId", display_name as "displayName",
+                country, image_url as "imageUrl", active, batting_style as "battingStyle",
+                bowling_style as "bowlingStyle", base_price as "basePrice", source_key as "sourceKey",
+                created_at as "createdAt", updated_at as "updatedAt"
+         FROM players
+         WHERE source_key = $1
+         LIMIT 1`,
+        [canonicalSourceKey],
+      )
+      if (byKey.rows[0]) return byKey.rows[0]
+    }
+    const name = (data.displayName || [data.firstName, data.lastName].filter(Boolean).join(' '))
+      .toString()
+      .trim()
+    const country = (data.country || '').toString().trim()
+    if (name) {
+      const byName = await dbQuery(
+        `SELECT id, first_name as "firstName", last_name as "lastName", role, team_key as "teamKey",
+                team_name as "teamName", player_id as "playerId", display_name as "displayName",
+                country, image_url as "imageUrl", active, batting_style as "battingStyle",
+                bowling_style as "bowlingStyle", base_price as "basePrice", source_key as "sourceKey",
+                created_at as "createdAt", updated_at as "updatedAt"
+         FROM players
+         WHERE lower(trim(display_name)) = lower(trim($1))
+           AND lower(trim(coalesce(country, ''))) = lower(trim($2))
+         ORDER BY id ASC
+         LIMIT 1`,
+        [name, country],
+      )
+      if (byName.rows[0]) return byName.rows[0]
+
+      const byNameOnly = await dbQuery(
+        `SELECT id, first_name as "firstName", last_name as "lastName", role, team_key as "teamKey",
+                team_name as "teamName", player_id as "playerId", display_name as "displayName",
+                country, image_url as "imageUrl", active, batting_style as "battingStyle",
+                bowling_style as "bowlingStyle", base_price as "basePrice", source_key as "sourceKey",
+                created_at as "createdAt", updated_at as "updatedAt"
+         FROM players
+         WHERE lower(trim(display_name)) = lower(trim($1))
+         ORDER BY id ASC
+         LIMIT 1`,
+        [name],
+      )
+      if (byNameOnly.rows[0]) return byNameOnly.rows[0]
+    }
+    return null
+  }
+
+  async upsertCanonical(data = {}) {
+    const existing = await this.findCanonical(data)
+    const canonicalSourceKey = buildCanonicalSourceKey(data)
+    if (!existing) {
+      return this.create({
+        ...data,
+        sourceKey: canonicalSourceKey || data.sourceKey || null,
+      })
+    }
+
+    const {
+      firstName,
+      lastName,
+      role,
+      teamKey,
+      teamName,
+      playerId,
+      displayName,
+      country,
+      imageUrl,
+      active,
+      battingStyle,
+      bowlingStyle,
+      basePrice,
+      sourceKey,
+    } = data
+    const result = await dbQuery(
+      `UPDATE players
+       SET first_name = coalesce(nullif($2, ''), first_name),
+           last_name = coalesce(nullif($3, ''), last_name),
+           role = coalesce(nullif($4, ''), role),
+           team_key = coalesce(nullif($5, ''), team_key),
+           team_name = coalesce(nullif($6, ''), team_name),
+           player_id = coalesce(nullif($7, ''), player_id),
+           display_name = coalesce(nullif($8, ''), display_name),
+           country = coalesce($9, country),
+           image_url = coalesce($10, image_url),
+           active = coalesce($11, active),
+           batting_style = coalesce($12, batting_style),
+           bowling_style = coalesce($13, bowling_style),
+           base_price = coalesce($14, base_price),
+           source_key = coalesce(nullif($15, ''), source_key),
+           updated_at = now()
+       WHERE id = $1
+       RETURNING id, first_name as "firstName", last_name as "lastName", role, team_key as "teamKey",
+                 team_name as "teamName", player_id as "playerId", display_name as "displayName",
+                 country, image_url as "imageUrl", active, batting_style as "battingStyle",
+                 bowling_style as "bowlingStyle", base_price as "basePrice", source_key as "sourceKey",
+                 created_at as "createdAt", updated_at as "updatedAt"`,
+      [
+        existing.id,
+        firstName || '',
+        lastName || '',
+        role || '',
+        teamKey || '',
+        teamName || '',
+        playerId || '',
+        displayName || '',
+        country ?? existing.country ?? '',
+        imageUrl ?? existing.imageUrl ?? '',
+        active ?? existing.active ?? true,
+        battingStyle ?? existing.battingStyle ?? '',
+        bowlingStyle ?? existing.bowlingStyle ?? '',
+        basePrice ?? existing.basePrice ?? null,
+        canonicalSourceKey || sourceKey || '',
       ],
     )
     return result.rows[0]
   }
 
   async bulkCreate(players) {
+    const created = []
+    for (const player of players) {
+      created.push(await this.upsertCanonical(player))
+    }
+    return created
+  }
+
+  async replaceTournamentTeamPlayers({ tournamentId, teamKey, teamName, players = [] }) {
+    await dbQuery(
+      `DELETE FROM tournament_players
+       WHERE tournament_id = $1 AND team_code = $2`,
+      [tournamentId, teamKey],
+    )
+
+    const created = []
+    for (const player of players) {
+      const canonical = await this.upsertCanonical({
+        ...player,
+        teamKey,
+        teamName,
+      })
+      created.push(canonical)
+      await dbQuery(
+        `INSERT INTO tournament_players (
+           tournament_id, player_id, team_code, role, active, created_at, updated_at
+         )
+         VALUES ($1, $2, $3, $4, $5, now(), now())
+         ON CONFLICT (tournament_id, player_id) DO UPDATE
+         SET team_code = excluded.team_code,
+             role = excluded.role,
+             active = excluded.active,
+             updated_at = now()`,
+        [
+          tournamentId,
+          canonical.id,
+          teamKey,
+          player.role || canonical.role || '',
+          player.active !== false,
+        ],
+      )
+    }
+    return created
+  }
+
+  async bulkCreateLegacy(players) {
     const values = []
     let paramIndex = 1
     const placeholders = players
@@ -158,9 +433,11 @@ class PlayerRepository {
     return result.rows
   }
 
-  async findAllTeamSquads() {
+  async findAllTeamSquads(tournamentId = null) {
     const result = await dbQuery(
       `SELECT
+         ts.id as "teamSquadId",
+         ts.tournament_id as "tournamentId",
          ts.team_code as "teamCode",
          ts.team_name as "teamName",
          ts.tournament_type as "tournamentType",
@@ -169,26 +446,40 @@ class PlayerRepository {
          ts.tournament,
          ts.source,
          ts.updated_at as "lastUpdatedAt",
-         p.id,
+         p.id as "playerRowId",
+         p.id as "canonicalPlayerId",
          p.first_name as "firstName",
          p.last_name as "lastName",
          p.display_name as "displayName",
-         p.role,
+         coalesce(tp.role, p.role) as role,
          p.country as "playerCountry",
-         p.team_key as "teamKey",
+         tp.team_code as "teamKey",
          p.player_id as "playerId",
+         p.source_key as "sourceKey",
          p.image_url as "imageUrl",
          p.batting_style as "battingStyle",
          p.bowling_style as "bowlingStyle",
-         p.active
+         coalesce(tp.active, p.active) as active
        FROM team_squads ts
-       LEFT JOIN players p ON p.team_key = ts.team_code
+       LEFT JOIN tournament_players tp
+         ON tp.team_code = ts.team_code
+        AND (
+          (ts.tournament_id is not null and tp.tournament_id = ts.tournament_id)
+          or ts.tournament_id is null
+        )
+       LEFT JOIN players p
+         ON p.id = tp.player_id
+       WHERE ($1::bigint is null OR ts.tournament_id = $1)
        ORDER BY ts.team_code ASC, p.display_name ASC, p.first_name ASC, p.last_name ASC`,
+      [tournamentId],
     )
     const squads = new Map()
     for (const row of result.rows) {
-      if (!squads.has(row.teamCode)) {
-        squads.set(row.teamCode, {
+      const squadKey = `${row.tournamentId || 'none'}::${row.teamCode}`
+      if (!squads.has(squadKey)) {
+        squads.set(squadKey, {
+          id: row.teamSquadId,
+          tournamentId: row.tournamentId || null,
           teamCode: row.teamCode,
           teamName: row.teamName,
           tournamentType: row.tournamentType,
@@ -200,14 +491,16 @@ class PlayerRepository {
           squad: [],
         })
       }
-      if (row.id) {
-        squads.get(row.teamCode).squad.push({
-          id: row.id,
+      if (row.playerRowId) {
+        squads.get(squadKey).squad.push({
+          id: row.playerRowId,
+          canonicalPlayerId: row.canonicalPlayerId,
           name:
             row.displayName || [row.firstName, row.lastName].filter(Boolean).join(' ').trim(),
           country: row.playerCountry || '',
           role: row.role,
           playerId: row.playerId,
+          sourceKey: row.sourceKey || '',
           imageUrl: row.imageUrl || '',
           battingStyle: row.battingStyle || '',
           bowlingStyle: row.bowlingStyle || '',
@@ -226,14 +519,15 @@ class PlayerRepository {
       country = '',
       league = '',
       tournament = '',
+      tournamentId = null,
       source = 'manual',
     } = data
     const result = await dbQuery(
       `INSERT INTO team_squads (
-         team_code, team_name, tournament_type, country, league, tournament, source, created_at, updated_at
+         tournament_id, team_code, team_name, tournament_type, country, league, tournament, source, created_at, updated_at
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, now(), now())
-       ON CONFLICT (team_code)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now(), now())
+       ON CONFLICT (tournament_id, team_code)
        DO UPDATE SET
          team_name = excluded.team_name,
          tournament_type = excluded.tournament_type,
@@ -243,17 +537,33 @@ class PlayerRepository {
          source = excluded.source,
          updated_at = now()
        RETURNING id`,
-      [teamCode, teamName, tournamentType, country, league, tournament, source],
+      [tournamentId, teamCode, teamName, tournamentType, country, league, tournament, source],
     )
     return result.rows[0]
   }
 
-  async deleteByTeam(teamKey) {
+  async deleteByTeam(teamKey, tournamentId = null) {
+    if (tournamentId) {
+      await dbQuery(
+        `DELETE FROM tournament_players
+         WHERE team_code = $1 AND tournament_id = $2`,
+        [teamKey, tournamentId],
+      )
+      return true
+    }
     await dbQuery(`DELETE FROM players WHERE team_key = $1`, [teamKey])
     return true
   }
 
-  async deleteTeamSquadMeta(teamKey) {
+  async deleteTeamSquadMeta(teamKey, tournamentId = null) {
+    if (tournamentId) {
+      await dbQuery(
+        `DELETE FROM team_squads
+         WHERE team_code = $1 AND tournament_id = $2`,
+        [teamKey, tournamentId],
+      )
+      return true
+    }
     await dbQuery(`DELETE FROM team_squads WHERE team_code = $1`, [teamKey])
     return true
   }

@@ -13,7 +13,7 @@ const createCoreController = ({
   // Tournaments
   const getTournaments = async (req, res) => {
     try {
-      const data = await tournamentService.getAllTournaments()
+      const data = await tournamentService.getVisibleTournaments()
       res.json(data)
     } catch (error) {
       res.status(500).json({ error: error.message })

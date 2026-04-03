@@ -549,6 +549,56 @@ body.dark-theme .create-tournament-success-copy span {
   text-transform: uppercase;
 }
 
+.player-manager-form {
+  grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(140px, 1fr)) auto;
+  margin-bottom: 0;
+}
+
+.player-manager-actions {
+  display: flex;
+  align-items: flex-end;
+}
+
+.player-manager-panel {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-height: 0;
+}
+
+.player-manager-card {
+  min-height: 0;
+  height: 100%;
+}
+
+.player-manager-tools {
+  align-items: flex-start;
+}
+
+.player-manager-tools-copy {
+  display: grid;
+  gap: 0.08rem;
+}
+
+.player-manager-tools-copy strong {
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+}
+
+.player-manager-tools-copy small {
+  white-space: normal;
+}
+
+.player-manager-table .player-identity {
+  min-width: 0;
+}
+
+.player-manager-table .player-identity-name {
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .manual-scope-row select {
   min-height: 34px;
   padding: 0.34rem 1.9rem 0.34rem 0.5rem;

@@ -18,6 +18,13 @@ import {
 } from '../../lib/api.js'
 import { getStoredUser } from '../../lib/auth.js'
 
+const normalizeUsersPayload = (value) => {
+  if (Array.isArray(value)) return value
+  if (Array.isArray(value?.users)) return value.users
+  if (Array.isArray(value?.rows)) return value.rows
+  return []
+}
+
 function AdminManagerPanel() {
   const currentUser = getStoredUser()
   const isMasterUser = currentUser?.role === 'master_admin'
@@ -55,10 +62,11 @@ function AdminManagerPanel() {
   const loadUsers = useCallback(async () => {
     try {
       setIsLoadingUsers(true)
-      const rows = await fetchAdminUsers()
-      setUsers(rows || [])
+      const response = await fetchAdminUsers()
+      const rows = normalizeUsersPayload(response)
+      setUsers(rows)
       setUserDrafts(
-        (rows || []).reduce((acc, row) => {
+        rows.reduce((acc, row) => {
           acc[row.id] = {
             role: row.role,
             contestManagerContestId: row.contestManagerContestId || '',
@@ -252,7 +260,7 @@ function AdminManagerPanel() {
       }
       await createAdminTournament(payload)
       await loadTournamentCatalog()
-      setNotice('Tournament created and enabled')
+      setNotice('Tournament created. Enable it from the tournaments list when ready.')
       setShowCreateTournamentModal(false)
       setCreateTournamentForm({ name: '', season: '2026', source: 'manual' })
       setCreateTournamentMatches([{ matchNo: 1, home: '', away: '', date: '', startAt: '', venue: '' }])

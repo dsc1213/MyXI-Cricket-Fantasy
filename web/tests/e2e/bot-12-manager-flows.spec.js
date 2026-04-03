@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test'
 import { apiCall, loginUi } from './helpers/mock-e2e.js'
 
+const E2E_API_BASE = process.env.PW_E2E_API_BASE_URL || 'http://127.0.0.1:4000'
+
 const normalizeTournamentId = (value = '') =>
   value
     .toString()
@@ -22,6 +24,17 @@ const buildTeamCodeFromName = (value = '') => {
   return (initials || words.join('')).slice(0, 6)
 }
 
+const selectTopActionPlayer = async (page, name) => {
+  const select = page.locator('.top-actions select').first()
+  const optionValue = await select
+    .locator('option')
+    .filter({ hasText: name })
+    .first()
+    .getAttribute('value')
+  if (!optionValue) throw new Error(`No player option found for ${name}`)
+  await select.selectOption(optionValue)
+}
+
 test.describe('12) Squad manager + tournament manager flows', () => {
   test.setTimeout(180000)
 
@@ -29,9 +42,27 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     const tag = Date.now()
     const teamName = `Mock E2E PSL Team ${tag}`
     const teamCode = buildTeamCodeFromName(teamName)
+    const playerOne = `mocke2ebot-player-1-${tag}`
+    const playerTwo = `mocke2ebot-player-2-${tag}`
 
     try {
       await loginUi(page, 'master')
+      await page.goto('/home')
+      await page.getByRole('button', { name: 'Player Manager' }).click()
+
+      await page.getByLabel('Name').fill(playerOne)
+      await page.getByLabel('Country').fill('pakistan')
+      await page.getByLabel('Role').selectOption('BAT')
+      await page.getByLabel('Image URL').fill(`https://images.example.com/${playerOne}.png`)
+      await page.getByRole('button', { name: 'Add player' }).click()
+      await expect(page.getByText('Player saved')).toBeVisible()
+
+      await page.getByLabel('Name').fill(playerTwo)
+      await page.getByLabel('Country').fill('pakistan')
+      await page.getByLabel('Role').selectOption('BOWL')
+      await page.getByRole('button', { name: 'Add player' }).click()
+      await expect(page.getByText('Player saved')).toBeVisible()
+
       await page.goto('/home')
       await page.getByRole('button', { name: 'Squad Manager' }).click()
 
@@ -43,18 +74,13 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       await page.getByLabel('Team code').fill(teamCode)
       await page.getByLabel('Team name').fill(teamName)
 
-      const playerRows = page.locator('.catalog-table tbody tr')
-      const row0 = playerRows.nth(0)
-      await row0.locator('input[type="text"]').first().fill(`mocke2ebot-player-1-${tag}`)
-      await row0.locator('select').first().selectOption('pakistan')
-      await row0.locator('select').nth(1).selectOption('BAT')
-      await row0.locator('input[type="url"]').fill(`https://images.example.com/mocke2ebot-player-1-${tag}.png`)
+      await page.getByPlaceholder('Search player catalog').fill(playerOne)
+      await selectTopActionPlayer(page, playerOne)
+      await page.getByRole('button', { name: 'Add player' }).click()
 
-      await page.getByRole('button', { name: '+ Add player' }).click()
-      const row1 = playerRows.nth(1)
-      await row1.locator('input[type="text"]').first().fill(`mocke2ebot-player-2-${tag}`)
-      await row1.locator('select').first().selectOption('pakistan')
-      await row1.locator('select').nth(1).selectOption('BOWL')
+      await page.getByPlaceholder('Search player catalog').fill(playerTwo)
+      await selectTopActionPlayer(page, playerTwo)
+      await page.getByRole('button', { name: 'Add player' }).click()
 
       await page.getByRole('button', { name: 'Save squad' }).click()
       await expect(page.getByText('Squad saved')).toBeVisible()
@@ -69,7 +95,7 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       expect(savedManual[0]?.teamName).toBe(teamName)
       expect(savedManual[0]?.squad?.length).toBe(2)
       expect(savedManual[0]?.squad?.[0]?.imageUrl).toBe(
-        `https://images.example.com/mocke2ebot-player-1-${tag}.png`,
+        `https://images.example.com/${playerOne}.png`,
       )
 
       await page.reload()
@@ -78,8 +104,8 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       await scopeSelects.nth(1).selectOption('pakistan')
       await scopeSelects.nth(2).selectOption('PSL')
       await scopeSelects.nth(3).selectOption(teamCode)
-      await expect(page.locator(`.catalog-table tbody input[value="mocke2ebot-player-1-${tag}"]`)).toBeVisible()
-      await expect(page.locator(`.catalog-table tbody input[value="mocke2ebot-player-2-${tag}"]`)).toBeVisible()
+      await expect(page.locator(`input[value="${playerOne}"]`).first()).toBeVisible()
+      await expect(page.locator(`input[value="${playerTwo}"]`).first()).toBeVisible()
 
       await page.getByRole('tab', { name: 'JSON' }).click()
       const jsonPayload = {
@@ -90,8 +116,8 @@ test.describe('12) Squad manager + tournament manager flows', () => {
         league: 'PSL',
         source: 'json',
         squad: [
-          { name: `mocke2ebot-player-1-${tag}`, country: 'pakistan', role: 'BAT', active: true },
-          { name: `mocke2ebot-player-2-${tag}`, country: 'pakistan', role: 'BOWL', active: true },
+          { name: playerOne, country: 'pakistan', role: 'BAT', active: true },
+          { name: playerTwo, country: 'pakistan', role: 'BOWL', active: true },
           { name: `mocke2ebot-player-3-${tag}`, country: 'pakistan', role: 'AR', active: true },
         ],
       }
@@ -110,7 +136,7 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       expect(savedJson[0]?.squad?.some((p) => p.name === `mocke2ebot-player-3-${tag}`)).toBe(true)
     } finally {
       try {
-        await request.fetch(`http://127.0.0.1:4000/admin/team-squads/${teamCode}`, {
+        await request.fetch(`${E2E_API_BASE}/admin/team-squads/${teamCode}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           data: { actorUserId: 'master' },
@@ -217,7 +243,7 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       expect(catalogAfterJson.some((row) => row.id === jsonTournamentId)).toBe(true)
     } finally {
       try {
-        await request.fetch(`http://127.0.0.1:4000/admin/tournaments/${jsonTournamentId}`, {
+        await request.fetch(`${E2E_API_BASE}/admin/tournaments/${jsonTournamentId}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           data: { actorUserId: 'master' },
@@ -226,7 +252,7 @@ test.describe('12) Squad manager + tournament manager flows', () => {
         // best effort cleanup
       }
       try {
-        await request.fetch(`http://127.0.0.1:4000/admin/tournaments/${manualTournamentId}`, {
+        await request.fetch(`${E2E_API_BASE}/admin/tournaments/${manualTournamentId}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           data: { actorUserId: 'master' },
@@ -235,6 +261,47 @@ test.describe('12) Squad manager + tournament manager flows', () => {
         // best effort cleanup
       }
     }
+  })
+
+  test('player manager adds and deletes a global player', async ({ page, request }) => {
+    const tag = Date.now()
+    const playerName = `Player Manager ${tag}`
+    let createdPlayerId = null
+
+    await loginUi(page, 'master')
+    await page.goto('/home')
+    await page.getByRole('button', { name: 'Player Manager' }).click()
+
+    await page.getByLabel('Name').fill(playerName)
+    await page.getByLabel('Country').fill('india')
+    await page.getByLabel('Role').selectOption('BAT')
+    await page.getByLabel('Image URL').fill(`https://images.example.com/${tag}.png`)
+    await page.getByRole('button', { name: 'Add player' }).click()
+    await expect(page.getByText('Player saved')).toBeVisible()
+    await expect(page.getByText(playerName)).toBeVisible()
+
+    const playersAfterCreate = await apiCall(request, 'GET', '/players', undefined, 200)
+    const createdPlayer = (playersAfterCreate || []).find((row) => {
+      const name = (
+        row.displayName ||
+        row.name ||
+        [row.firstName, row.lastName].filter(Boolean).join(' ')
+      )
+        .toString()
+        .trim()
+      return name === playerName
+    })
+    expect(createdPlayer).toBeTruthy()
+    createdPlayerId = createdPlayer?.id
+
+    const row = page.locator('.catalog-table tbody tr', { hasText: playerName }).first()
+    await row.getByRole('button', { name: 'Delete' }).click()
+    await expect(page.getByText('Player deleted')).toBeVisible()
+
+    const playersAfterDelete = await apiCall(request, 'GET', '/players', undefined, 200)
+    expect(
+      (playersAfterDelete || []).some((row) => String(row.id) === String(createdPlayerId)),
+    ).toBe(false)
   })
 
   test('master admin sees delete actions in Admin Manager with confirmation copy', async ({
@@ -347,9 +414,9 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       await scopeSelects.nth(2).selectOption('CSK')
 
       await expect(page.getByRole('heading', { name: 'CSK Squad' })).toBeVisible()
-      await expect(page.locator('input[placeholder="Player name"]').first()).toBeVisible()
+      await expect(page.getByText('No players')).toBeVisible()
     } finally {
-      await request.fetch(`http://127.0.0.1:4000/admin/tournaments/${tournamentId}`, {
+      await request.fetch(`${E2E_API_BASE}/admin/tournaments/${tournamentId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         data: { actorUserId: 'master' },
@@ -448,13 +515,310 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       })
     } finally {
       if (contestId) {
-        await request.fetch(`http://127.0.0.1:4000/admin/contests/${contestId}`, {
+        await request.fetch(`${E2E_API_BASE}/admin/contests/${contestId}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           data: { actorUserId: 'master' },
         })
       }
-      await request.fetch(`http://127.0.0.1:4000/admin/tournaments/${tournamentId}`, {
+      await request.fetch(`${E2E_API_BASE}/admin/tournaments/${tournamentId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        data: { actorUserId: 'master' },
+      })
+    }
+  })
+
+  test('squad manager can link an existing player into another tournament without creating duplicates', async ({
+    page,
+    request,
+  }) => {
+    const tag = Date.now()
+    const playerName = `Linked Player ${tag}`
+    const tournamentAId = `player-link-a-${tag}`
+    const tournamentBId = `player-link-b-${tag}`
+
+    try {
+      await apiCall(
+        request,
+        'POST',
+        '/admin/tournaments',
+        {
+          actorUserId: 'master',
+          tournamentId: tournamentAId,
+          name: `Player Link A ${tag}`,
+          season: '2026',
+          source: 'json',
+          tournamentType: 'league',
+          country: 'india',
+          league: 'IPL',
+          selectedTeams: ['AAA', 'BBB'],
+          matches: [
+            {
+              id: 'm1',
+              matchNo: 1,
+              home: 'AAA',
+              away: 'BBB',
+              startAt: '2099-03-10T14:00:00.000Z',
+              timezone: 'Asia/Kolkata',
+              venue: 'A Ground',
+            },
+          ],
+        },
+        201,
+      )
+      await apiCall(
+        request,
+        'POST',
+        '/admin/tournaments',
+        {
+          actorUserId: 'master',
+          tournamentId: tournamentBId,
+          name: `Player Link B ${tag}`,
+          season: '2026',
+          source: 'json',
+          tournamentType: 'league',
+          country: 'australia',
+          league: 'BBL',
+          selectedTeams: ['CCC', 'DDD'],
+          matches: [
+            {
+              id: 'm1',
+              matchNo: 1,
+              home: 'CCC',
+              away: 'DDD',
+              startAt: '2099-03-11T14:00:00.000Z',
+              timezone: 'Australia/Sydney',
+              venue: 'B Ground',
+            },
+          ],
+        },
+        201,
+      )
+
+      await loginUi(page, 'master')
+      await page.goto('/home')
+      await page.getByRole('button', { name: 'Player Manager' }).click()
+      await page.getByLabel('Name').fill(playerName)
+      await page.getByLabel('Country').fill('south africa')
+      await page.getByLabel('Role').selectOption('BAT')
+      await page.getByRole('button', { name: 'Add player' }).click()
+      await expect(page.getByText('Player saved')).toBeVisible()
+
+      await page.goto('/home')
+      await page.getByRole('button', { name: 'Squad Manager' }).click()
+
+      const scopeSelects = page.locator('.manual-scope-row').first().locator('select')
+      await scopeSelects.nth(0).selectOption('tournament')
+      await scopeSelects.nth(1).selectOption(tournamentAId)
+      await scopeSelects.nth(2).selectOption('AAA')
+      await expect(page.getByText('No players')).toBeVisible()
+      await page.getByPlaceholder('Search player catalog').fill(playerName)
+      await selectTopActionPlayer(page, playerName)
+      await page.getByRole('button', { name: 'Add player' }).click()
+      await page.getByRole('button', { name: 'Save squad' }).click()
+      await expect(page.getByText('Squad saved')).toBeVisible()
+
+      const playersAfterFirstSave = await apiCall(request, 'GET', '/players', undefined, 200)
+      expect(
+        (playersAfterFirstSave || []).filter((row) => {
+          const name = (
+            row.displayName ||
+            row.name ||
+            [row.firstName, row.lastName].filter(Boolean).join(' ')
+          )
+            .toString()
+            .trim()
+          return name === playerName
+        }),
+      ).toHaveLength(1)
+
+      await scopeSelects.nth(1).selectOption(tournamentBId)
+      await scopeSelects.nth(2).selectOption('CCC')
+
+      await expect(page.getByText('No players')).toBeVisible()
+      await page.getByPlaceholder('Search player catalog').fill(playerName)
+      await selectTopActionPlayer(page, playerName)
+      await page.getByRole('button', { name: 'Add player' }).click()
+      await page.getByRole('button', { name: 'Save squad' }).click()
+      await expect(page.getByText('Squad saved')).toBeVisible()
+
+      const playersAfterLink = await apiCall(request, 'GET', '/players', undefined, 200)
+      expect(
+        (playersAfterLink || []).filter((row) => {
+          const name = (
+            row.displayName ||
+            row.name ||
+            [row.firstName, row.lastName].filter(Boolean).join(' ')
+          )
+            .toString()
+            .trim()
+          return name === playerName
+        }),
+      ).toHaveLength(1)
+    } finally {
+      await request.fetch(`${E2E_API_BASE}/admin/tournaments/${tournamentAId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        data: { actorUserId: 'master' },
+      })
+      await request.fetch(`${E2E_API_BASE}/admin/tournaments/${tournamentBId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        data: { actorUserId: 'master' },
+      })
+    }
+  })
+
+  test('editing a linked player updates the shared identity across tournament squads', async ({
+    page,
+    request,
+  }) => {
+    const tag = Date.now()
+    const originalName = `Shared Player ${tag}`
+    const updatedName = `Shared Player Updated ${tag}`
+    const tournamentAId = `player-edit-a-${tag}`
+    const tournamentBId = `player-edit-b-${tag}`
+
+    try {
+      await apiCall(
+        request,
+        'POST',
+        '/admin/tournaments',
+        {
+          actorUserId: 'master',
+          tournamentId: tournamentAId,
+          name: `Player Edit A ${tag}`,
+          season: '2026',
+          source: 'json',
+          tournamentType: 'league',
+          country: 'india',
+          league: 'IPL',
+          selectedTeams: ['AAA', 'BBB'],
+          matches: [
+            {
+              id: 'm1',
+              matchNo: 1,
+              home: 'AAA',
+              away: 'BBB',
+              startAt: '2099-03-12T14:00:00.000Z',
+              timezone: 'Asia/Kolkata',
+              venue: 'A Ground',
+            },
+          ],
+        },
+        201,
+      )
+      await apiCall(
+        request,
+        'POST',
+        '/admin/tournaments',
+        {
+          actorUserId: 'master',
+          tournamentId: tournamentBId,
+          name: `Player Edit B ${tag}`,
+          season: '2026',
+          source: 'json',
+          tournamentType: 'league',
+          country: 'australia',
+          league: 'BBL',
+          selectedTeams: ['CCC', 'DDD'],
+          matches: [
+            {
+              id: 'm1',
+              matchNo: 1,
+              home: 'CCC',
+              away: 'DDD',
+              startAt: '2099-03-13T14:00:00.000Z',
+              timezone: 'Australia/Sydney',
+              venue: 'B Ground',
+            },
+          ],
+        },
+        201,
+      )
+
+      await apiCall(
+        request,
+        'POST',
+        '/admin/team-squads',
+        {
+          actorUserId: 'master',
+          teamCode: 'AAA',
+          teamName: 'AAA',
+          tournamentType: 'tournament',
+          tournamentId: tournamentAId,
+          tournament: `Player Edit A ${tag}`,
+          squad: [{ name: originalName, country: 'south africa', role: 'BAT', active: true }],
+        },
+        201,
+      )
+      await apiCall(
+        request,
+        'POST',
+        '/admin/team-squads',
+        {
+          actorUserId: 'master',
+          teamCode: 'CCC',
+          teamName: 'CCC',
+          tournamentType: 'tournament',
+          tournamentId: tournamentBId,
+          tournament: `Player Edit B ${tag}`,
+          squad: [{ name: originalName, country: 'south africa', role: 'BAT', active: true }],
+        },
+        201,
+      )
+
+      await loginUi(page, 'master')
+      await page.goto('/home')
+      await page.getByRole('button', { name: 'Squad Manager' }).click()
+
+      const scopeSelects = page.locator('.manual-scope-row').first().locator('select')
+      await scopeSelects.nth(0).selectOption('tournament')
+      await scopeSelects.nth(1).selectOption(tournamentBId)
+      await scopeSelects.nth(2).selectOption('CCC')
+
+      const row = page.locator('.catalog-table tbody tr').first()
+      await row.locator('input[placeholder="Player name"]').fill(updatedName)
+      await page.getByRole('button', { name: 'Save squad' }).click()
+      await expect(page.getByText('Squad saved')).toBeVisible()
+
+      const globalPlayers = await apiCall(request, 'GET', '/players', undefined, 200)
+      const matchesUpdated = (globalPlayers || []).filter((player) => {
+        const name = (
+          player.displayName ||
+          player.name ||
+          [player.firstName, player.lastName].filter(Boolean).join(' ')
+        )
+          .toString()
+          .trim()
+        return name === updatedName
+      })
+      expect(matchesUpdated).toHaveLength(1)
+
+      const tournamentASquads = await apiCall(
+        request,
+        'GET',
+        `/admin/team-squads?tournamentId=${tournamentAId}&teamCode=AAA`,
+        undefined,
+        200,
+      )
+      const tournamentBSquads = await apiCall(
+        request,
+        'GET',
+        `/admin/team-squads?tournamentId=${tournamentBId}&teamCode=CCC`,
+        undefined,
+        200,
+      )
+      expect(tournamentASquads[0]?.squad?.some((player) => player.name === updatedName)).toBe(true)
+      expect(tournamentBSquads[0]?.squad?.some((player) => player.name === updatedName)).toBe(true)
+    } finally {
+      await request.fetch(`${E2E_API_BASE}/admin/tournaments/${tournamentAId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        data: { actorUserId: 'master' },
+      })
+      await request.fetch(`${E2E_API_BASE}/admin/tournaments/${tournamentBId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         data: { actorUserId: 'master' },

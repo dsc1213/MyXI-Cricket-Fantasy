@@ -19,6 +19,7 @@ import CreateTournamentPanel from './dashboard/CreateTournamentPanel.jsx'
 import JoinedPanel from './dashboard/JoinedPanel.jsx'
 import PointsPanel from './dashboard/PointsPanel.jsx'
 import PendingApprovalsPanel from './dashboard/PendingApprovalsPanel.jsx'
+import PlayerManagerPanel from './dashboard/PlayerManagerPanel.jsx'
 import SquadManagerPanel from './dashboard/SquadManagerPanel.jsx'
 import UploadPanel from './dashboard/UploadPanel.jsx'
 import {
@@ -426,7 +427,10 @@ function Dashboard({ defaultPanel = 'joined' }) {
       setSaveNotice('')
       setErrorText('')
       setIsSavingRules(true)
-      await saveScoringRules(pointsRules)
+      await saveScoringRules({
+        rules: pointsRules,
+        actorUserId: currentUser?.gameName || currentUser?.email || currentUser?.id || '',
+      })
       setSaveNotice('Scoring rules saved')
       setIsRulesEditEnabled(false)
     } catch (error) {
@@ -697,6 +701,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
         }}
       />
     ),
+    players: <PlayerManagerPanel />,
     squads: <SquadManagerPanel />,
     admin: <AdminManagerPanel />,
     upload: (

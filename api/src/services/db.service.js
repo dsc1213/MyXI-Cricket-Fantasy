@@ -107,6 +107,8 @@ const dbHandlers = {
 
   // Players & teams
   '/players': () => playerService.getAllPlayers(),
+  '/admin/players': (data) => playerService.createPlayer(data),
+  '/admin/players/:id/delete': (id) => playerService.deletePlayer(id),
   '/player-stats': () => ({}),
   '/team-pool': () => ({
     teamAName: '',
@@ -138,10 +140,58 @@ const createDbService = (dependencies) => {
   const register = (router) => {
     const canManageCatalog = (user) =>
       Boolean(user && ['admin', 'master_admin'].includes(user.role))
+    const resolveCatalogActor = async (req) =>
+      (await resolveDbUser(
+        req.body?.actorUserId ||
+          req.query?.actorUserId ||
+          req.currentUser?.id ||
+          req.currentUser?.userId ||
+          req.currentUser?.gameName,
+      )) || req.currentUser || null
+
+    router.get('/page-load-data', async (req, res, next) => {
+      try {
+        const actor = req.currentUser || null
+        const userId = actor?.id || actor?.userId || actor?.gameName || ''
+        const payload = await pageLoadService.getPageLoadData(userId)
+        return res.json(payload)
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.get('/bootstrap', async (req, res, next) => {
+      try {
+        const payload = await pageLoadService.getBootstrapData()
+        return res.json(payload)
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.post('/scoring-rules/save', async (req, res, next) => {
+      try {
+        const actor =
+          (await resolveDbUser(
+            req.body?.actorUserId ||
+              req.currentUser?.id ||
+              req.currentUser?.userId ||
+              req.currentUser?.gameName,
+          )) || req.currentUser
+        if (!canManageCatalog(actor)) {
+          return res.status(403).json({ message: 'Only admin/master can manage scoring rules' })
+        }
+        const payload = await scoringRuleService.saveDefaultScoringRules(req.body?.rules || null)
+        return res.json({ ok: true, savedAt: new Date().toISOString(), ...payload })
+      } catch (error) {
+        return next(error)
+      }
+    })
 
     router.delete('/admin/contests/:contestId', async (req, res, next) => {
       try {
-        if (!canManageCatalog(req.currentUser)) {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
           return res.status(403).json({ message: 'Only admin/master can delete contests' })
         }
         const result = await contestService.deleteContest(req.params.contestId)
@@ -156,7 +206,8 @@ const createDbService = (dependencies) => {
 
     router.delete('/admin/tournaments/:id', async (req, res, next) => {
       try {
-        if (!canManageCatalog(req.currentUser)) {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
           return res.status(403).json({ message: 'Only admin/master can delete tournaments' })
         }
         const result = await tournamentService.deleteTournament(req.params.id)
@@ -178,6 +229,42 @@ const createDbService = (dependencies) => {
       }
     })
 
+    router.post('/admin/tournaments/enable', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res.status(403).json({ message: 'Only admin/master can manage tournaments' })
+        }
+        const ids = Array.isArray(req.body?.ids) ? req.body.ids : []
+        const updated = []
+        for (const id of ids) {
+          const row = await tournamentService.updateTournament(id, { status: 'active' })
+          if (row) updated.push(row)
+        }
+        return res.json({ ok: true, tournaments: updated })
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.post('/admin/tournaments/disable', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res.status(403).json({ message: 'Only admin/master can manage tournaments' })
+        }
+        const ids = Array.isArray(req.body?.ids) ? req.body.ids : []
+        const updated = []
+        for (const id of ids) {
+          const row = await tournamentService.updateTournament(id, { status: 'inactive' })
+          if (row) updated.push(row)
+        }
+        return res.json({ ok: true, tournaments: updated })
+      } catch (error) {
+        return next(error)
+      }
+    })
+
     router.get('/admin/contest-match-options', async (req, res, next) => {
       try {
         const tournamentId = (req.query.tournamentId || '').toString()
@@ -190,7 +277,8 @@ const createDbService = (dependencies) => {
 
     router.post('/admin/tournaments', async (req, res, next) => {
       try {
-        if (!canManageCatalog(req.currentUser)) {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
           return res.status(403).json({ message: 'Only admin/master can create tournaments' })
         }
         const result = await tournamentService.createImportedTournament(req.body || {})
@@ -206,7 +294,8 @@ const createDbService = (dependencies) => {
 
     router.post('/admin/contests', async (req, res, next) => {
       try {
-        if (!canManageCatalog(req.currentUser)) {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
           return res.status(403).json({ message: 'Only admin/master can create contests' })
         }
         const result = await contestService.createContest(req.body || {})
@@ -222,7 +311,8 @@ const createDbService = (dependencies) => {
 
     router.post('/admin/auctions/import', async (req, res, next) => {
       try {
-        if (!canManageCatalog(req.currentUser)) {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
           return res.status(403).json({ message: 'Only admin/master can import auction contests' })
         }
         const result = await auctionImportService.importAuctionContest(req.body || {})
@@ -234,6 +324,87 @@ const createDbService = (dependencies) => {
             .status(statusCode)
             .json({ message: error.message || 'Failed to import auction contest' })
         }
+        return next(error)
+      }
+    })
+
+    router.get('/admin/team-squads', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res.status(403).json({ message: 'Only admin/master can manage squads' })
+        }
+        const tournamentId = (req.query.tournamentId || '').toString().trim()
+        const rows = await playerService.getTeamSquads(tournamentId || null)
+        const teamCode = (req.query.teamCode || '').toString().trim().toUpperCase()
+        const filtered = teamCode ? rows.filter((row) => row.teamCode === teamCode) : rows
+        return res.json(filtered)
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.post('/admin/players', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res.status(403).json({ message: 'Only admin/master can manage players' })
+        }
+        const player = await playerService.createPlayer(req.body || {})
+        return res.status(201).json({ ok: true, player })
+      } catch (error) {
+        return res.status(400).json({ message: error.message || 'Failed to save player' })
+      }
+    })
+
+    router.delete('/admin/players/:id', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res.status(403).json({ message: 'Only admin/master can manage players' })
+        }
+        await playerService.deletePlayer(req.params.id)
+        return res.json({ ok: true, removedId: req.params.id })
+      } catch (error) {
+        return res.status(400).json({ message: error.message || 'Failed to delete player' })
+      }
+    })
+
+    router.post('/admin/team-squads', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res.status(403).json({ message: 'Only admin/master can manage squads' })
+        }
+        const payload = req.body || {}
+        const teamCode = (payload.teamCode || '').toString().trim().toUpperCase()
+        if (!teamCode) {
+          return res.status(400).json({ message: 'teamCode is required' })
+        }
+        const created = await playerService.createTeamSquad(teamCode, payload)
+        return res.status(201).json({
+          ok: true,
+          teamCode,
+          createdCount: Array.isArray(created) ? created.length : 0,
+        })
+      } catch (error) {
+        return res.status(400).json({ message: error.message || 'Failed to save squad' })
+      }
+    })
+
+    router.delete('/admin/team-squads/:teamCode', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res.status(403).json({ message: 'Only admin/master can manage squads' })
+        }
+        const teamCode = (req.params.teamCode || '').toString().trim().toUpperCase()
+        const tournamentId = (req.body?.tournamentId || req.query?.tournamentId || '')
+          .toString()
+          .trim()
+        const result = await playerService.deleteTeamSquad(teamCode, tournamentId || null)
+        return res.json({ ok: true, ...result })
+      } catch (error) {
         return next(error)
       }
     })
@@ -316,7 +487,8 @@ const createDbService = (dependencies) => {
 
     router.get('/admin/match-lineups/:tournamentId/:matchId', async (req, res, next) => {
       try {
-        if (!canManageCatalog(req.currentUser)) {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
           return res.status(403).json({ message: 'Only admin/master can manage match lineups' })
         }
         const payload = await playerService.getTournamentMatchLineups(
@@ -332,7 +504,8 @@ const createDbService = (dependencies) => {
 
     router.post('/admin/match-lineups/upsert', async (req, res, next) => {
       try {
-        if (!canManageCatalog(req.currentUser)) {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
           return res.status(403).json({ message: 'Only admin/master can manage match lineups' })
         }
         const payload = await playerService.upsertMatchLineups(

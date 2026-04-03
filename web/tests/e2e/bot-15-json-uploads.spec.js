@@ -77,6 +77,127 @@ const createTournamentViaApi = async ({ request, tournamentId, name }) =>
 test.describe('15) JSON uploads and UI validation', () => {
   test.setTimeout(180000)
 
+  test('canonical player identity survives tournament unlink and avoids duplicate player rows', async ({
+    page,
+  }) => {
+    await loginUi(page, 'master')
+
+    const tag = `${Date.now()}`
+    const canonicalName = `Canonical Brevis ${tag}`
+    const tournamentAJson = await page.evaluate(async ({ tag: innerTag }) => {
+      const api = await import('/src/lib/api.js')
+      return api.createAdminTournament({
+        actorUserId: 'master',
+        tournamentId: `canon-a-${innerTag}`,
+        name: `Canonical A ${innerTag}`,
+        season: '2026',
+        source: 'json',
+        matches: [
+          {
+            id: 'm1',
+            matchNo: 1,
+            home: 'CSK',
+            away: 'MI',
+            date: '2099-04-01',
+            startAt: '2099-04-01T14:00:00.000Z',
+          },
+        ],
+      })
+    }, { tag })
+    expect(tournamentAJson?.tournament?.id).toBeTruthy()
+
+    const tournamentBJson = await page.evaluate(async ({ tag: innerTag }) => {
+      const api = await import('/src/lib/api.js')
+      return api.createAdminTournament({
+        actorUserId: 'master',
+        tournamentId: `canon-b-${innerTag}`,
+        name: `Canonical B ${innerTag}`,
+        season: '2026',
+        source: 'json',
+        matches: [
+          {
+            id: 'm1',
+            matchNo: 1,
+            home: 'SA',
+            away: 'AUS',
+            date: '2099-04-02',
+            startAt: '2099-04-02T14:00:00.000Z',
+          },
+        ],
+      })
+    }, { tag })
+    expect(tournamentBJson?.tournament?.id).toBeTruthy()
+
+    const saveSquad = async (payload) => {
+      const response = await page.evaluate(async (innerPayload) => {
+        const api = await import('/src/lib/api.js')
+        return api.upsertAdminTeamSquad(innerPayload)
+      }, payload)
+      expect(response?.ok).toBeTruthy()
+    }
+
+    await saveSquad({
+      actorUserId: 'master',
+      teamCode: 'CSK',
+      teamName: 'Chennai Super Kings',
+      tournamentType: 'tournament',
+      tournamentId: tournamentAJson.tournament.id,
+      tournament: `Canonical A ${tag}`,
+      squad: [{ name: canonicalName, country: 'south africa', role: 'BAT', active: true }],
+    })
+
+    await saveSquad({
+      actorUserId: 'master',
+      teamCode: 'SA',
+      teamName: 'South Africa',
+      tournamentType: 'tournament',
+      tournamentId: tournamentBJson.tournament.id,
+      tournament: `Canonical B ${tag}`,
+      squad: [{ name: canonicalName, country: 'south africa', role: 'BAT', active: true }],
+    })
+
+    const players = await page.evaluate(async () => {
+      const api = await import('/src/lib/api.js')
+      return api.fetchPlayers()
+    })
+    const brevisRows = (Array.isArray(players) ? players : []).filter((item) => {
+      const name = (
+        item.displayName ||
+        item.name ||
+        [item.firstName, item.lastName].filter(Boolean).join(' ')
+      )
+        .toString()
+        .trim()
+        .toLowerCase()
+      return name === canonicalName.toLowerCase()
+    })
+    expect(brevisRows).toHaveLength(1)
+
+    await page.evaluate(async ({ teamCode, tournamentId }) => {
+      const api = await import('/src/lib/api.js')
+      return api.deleteAdminTeamSquad({ teamCode, actorUserId: 'master', tournamentId })
+    }, { teamCode: 'CSK', tournamentId: tournamentAJson.tournament.id })
+
+    const playersAfterDelete = await page.evaluate(async () => {
+      const api = await import('/src/lib/api.js')
+      return api.fetchPlayers()
+    })
+    const brevisRowsAfterDelete = (Array.isArray(playersAfterDelete) ? playersAfterDelete : []).filter(
+      (item) => {
+        const name = (
+          item.displayName ||
+          item.name ||
+          [item.firstName, item.lastName].filter(Boolean).join(' ')
+        )
+          .toString()
+          .trim()
+          .toLowerCase()
+        return name === canonicalName.toLowerCase()
+      },
+    )
+    expect(brevisRowsAfterDelete).toHaveLength(1)
+  })
+
   test('scoring rules panel falls back to default rules and saves global rules', async ({
     page,
   }) => {
@@ -153,8 +274,223 @@ test.describe('15) JSON uploads and UI validation', () => {
     await page.getByRole('button', { name: 'Save' }).click()
 
     await expect(page.getByText('Scoring rules saved')).toBeVisible()
+    expect(capturedSaveBody?.actorUserId).toBe('master')
     expect(capturedSaveBody?.tournamentId ?? null).toBe(null)
     expect(capturedSaveBody?.rules?.batting?.[0]?.value).toBe(2)
+  })
+
+  test('admin manager users tab tolerates wrapped admin users payload without crashing', async ({
+    page,
+  }) => {
+    const pageErrors = []
+    page.on('pageerror', (error) => {
+      pageErrors.push(String(error))
+    })
+
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        'myxi-user',
+        JSON.stringify({
+          id: 1,
+          userId: 'master',
+          gameName: 'master',
+          role: 'master_admin',
+          token: 'e2e-token',
+          tokenExpiresAt: Date.now() + 60 * 60 * 1000,
+          status: 'active',
+        }),
+      )
+    })
+
+    await page.route('**/page-load-data', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          tournaments: [],
+          joinedContests: [],
+          pointsRuleTemplate: {},
+          adminManager: [],
+          masterConsole: [],
+          auditLogs: [],
+          source: 'db',
+        }),
+      })
+    })
+
+    await page.route('**/admin/users', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          users: [
+            {
+              id: 101,
+              name: 'Wrapped User',
+              userId: 'wrappeduser',
+              gameName: 'wrappeduser',
+              email: 'wrapped@myxi.local',
+              role: 'user',
+              status: 'active',
+            },
+          ],
+        }),
+      })
+    })
+
+    await page.route('**/admin/tournaments/catalog', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      })
+    })
+
+    await page.goto('/home?panel=admin')
+    await page.waitForTimeout(1000)
+    expect(pageErrors.some((message) => message.includes('users.filter is not a function'))).toBe(
+      false,
+    )
+  })
+
+  test('admin manager tournament enable persists checked state after catalog reload', async ({
+    page,
+  }) => {
+    let catalogRows = [
+      {
+        id: 'ipl-2026',
+        name: 'IPL 2026',
+        season: '2026',
+        enabled: false,
+        matchesCount: 74,
+        contestsCount: 0,
+        hasActiveContests: false,
+        lastUpdatedAt: '2026-03-30T18:00:00.000Z',
+      },
+    ]
+
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        'myxi-user',
+        JSON.stringify({
+          id: 1,
+          userId: 'master',
+          gameName: 'master',
+          role: 'master_admin',
+          token: 'e2e-token',
+          tokenExpiresAt: Date.now() + 60 * 60 * 1000,
+          status: 'active',
+        }),
+      )
+    })
+
+    await page.route('**/page-load-data', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          tournaments: [],
+          joinedContests: [],
+          pointsRuleTemplate: {},
+          adminManager: [],
+          masterConsole: [],
+          auditLogs: [],
+          source: 'db',
+        }),
+      })
+    })
+
+    await page.route('**/admin/users', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      })
+    })
+
+    await page.route('**/admin/tournaments/catalog', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(catalogRows),
+      })
+    })
+
+    await page.route('**/admin/tournaments/enable', async (route) => {
+      const body = JSON.parse(route.request().postData() || '{}')
+      const enabledIds = Array.isArray(body?.ids) ? body.ids : []
+      catalogRows = catalogRows.map((row) =>
+        enabledIds.includes(row.id) ? { ...row, enabled: true } : row,
+      )
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, tournaments: catalogRows.filter((row) => row.enabled) }),
+      })
+    })
+
+    await page.goto('/home?panel=admin')
+    await page.getByRole('tab', { name: /Tournaments \(1\)/ }).click()
+
+    const row = page.locator('.catalog-table tbody tr', { hasText: 'IPL 2026' }).first()
+    const checkbox = row.locator('input[type="checkbox"]')
+    await expect(checkbox).not.toBeChecked()
+    await expect(row).toContainText('Available')
+    await expect(row).toContainText('74')
+
+    await checkbox.check()
+    await page.getByRole('button', { name: 'Add to Tournaments' }).click()
+
+    await expect(page.getByText('Tournaments added')).toBeVisible()
+    await expect(checkbox).toBeChecked()
+    await expect(row).toContainText('Enabled')
+  })
+
+  test('fantasy and auction hubs show a single empty-state message when no tournaments are available', async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        'myxi-user',
+        JSON.stringify({
+          id: 7,
+          userId: 'player7',
+          gameName: 'player7',
+          role: 'user',
+          token: 'e2e-token',
+          tokenExpiresAt: Date.now() + 60 * 60 * 1000,
+          status: 'active',
+        }),
+      )
+    })
+
+    await page.route('**/tournaments', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      })
+    })
+
+    await page.route('**/contests**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      })
+    })
+
+    await page.goto('/fantasy')
+    await expect(page.getByText('No tournaments available')).toHaveCount(2)
+    await expect(
+      page.getByText('Ask an admin to add a tournament to Fantasy, then it will appear here.'),
+    ).toBeVisible()
+
+    await page.goto('/auction')
+    await expect(page.getByText('No tournaments available')).toHaveCount(2)
+    await expect(
+      page.getByText('Ask an admin to publish an auction tournament, then it will appear here.'),
+    ).toBeVisible()
   })
 
   test('squad JSON upload adds team players and appears in Squad Manager', async ({

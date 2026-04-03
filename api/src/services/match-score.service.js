@@ -80,8 +80,13 @@ class MatchScoreService {
           .filter(Boolean),
       ),
     ]
-    const playerGroups = await Promise.all(teamKeys.map((teamKey) => playerRepo.findByTeam(teamKey)))
-    const playerRows = playerGroups.flat().map((player) => ({
+    const playerRowsSource =
+      typeof playerRepo.findByTournament === 'function'
+        ? await playerRepo.findByTournament(tournamentId)
+        : (
+            await Promise.all(teamKeys.map((teamKey) => playerRepo.findByTeam(teamKey, tournamentId)))
+          ).flat()
+    const playerRows = playerRowsSource.map((player) => ({
       ...player,
       name:
         player.displayName ||

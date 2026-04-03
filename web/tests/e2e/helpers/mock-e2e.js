@@ -1,12 +1,13 @@
 import { expect } from '@playwright/test'
 
 export const PASSWORD = 'demo123'
+const E2E_API_BASE = process.env.PW_E2E_API_BASE_URL || 'http://127.0.0.1:4000'
 
 export const apiCall = async (request, method, path, body, expectedStatus = 200) => {
   let lastError = null
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
-      const response = await request.fetch(`http://127.0.0.1:4000${path}`, {
+      const response = await request.fetch(`${E2E_API_BASE}${path}`, {
         method,
         headers: { 'Content-Type': 'application/json' },
         data: body,
@@ -178,7 +179,7 @@ export const createContest = async ({
 export const deleteContestIfPresent = async (request, contestId, actorUserId = 'master') => {
   if (!contestId) return
   try {
-    await request.fetch(`http://127.0.0.1:4000/admin/contests/${contestId}`, {
+    await request.fetch(`${E2E_API_BASE}/admin/contests/${contestId}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       data: actorUserId ? { actorUserId } : {},

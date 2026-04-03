@@ -13,6 +13,14 @@ class TournamentService {
     return await repo.findAll()
   }
 
+  async getVisibleTournaments() {
+    const rows = await this.getAllTournaments()
+    return rows.filter((tournament) => {
+      const status = (tournament?.status || '').toString().trim().toLowerCase()
+      return status === 'active'
+    })
+  }
+
   async getTournamentById(id) {
     const repo = await factory.getTournamentRepository()
     return await repo.findById(id)
@@ -55,7 +63,8 @@ class TournamentService {
       country: tournament.country,
       league: tournament.league,
       selectedTeams: tournament.selectedTeams,
-      status: 'active',
+      // New imports stay hidden until admin explicitly enables them.
+      status: 'inactive',
     })
 
     const persistedMatches = await matchRepo.bulkCreate(
@@ -135,6 +144,18 @@ class TournamentService {
     const rows = await Promise.all(
       tournaments.map(async (tournament) => {
         const matches = await matchRepo.findByTournament(tournament.id)
+        const contestSummaryResult = await dbQuery(
+          `SELECT
+             COUNT(*)::int AS "contestsCount",
+             COALESCE(
+               BOOL_OR(COALESCE(status, '') !~* '^completed$'),
+               false
+             ) AS "hasActiveContests"
+           FROM contests
+           WHERE tournament_id = $1`,
+          [tournament.id],
+        )
+        const contestSummary = contestSummaryResult.rows[0] || {}
         const teamCodes = [
           ...new Set(
             (matches || [])
@@ -144,11 +165,16 @@ class TournamentService {
         ]
         return {
           ...tournament,
+          enabled: (tournament.status || '').toString().trim().toLowerCase() === 'active',
           selectedTeams:
             Array.isArray(tournament.selectedTeams) && tournament.selectedTeams.length
               ? tournament.selectedTeams
               : teamCodes,
           teamCodes,
+          matchesCount: matches.length,
+          contestsCount: Number(contestSummary.contestsCount || 0),
+          hasActiveContests: Boolean(contestSummary.hasActiveContests),
+          lastUpdatedAt: tournament.updatedAt || null,
         }
       }),
     )

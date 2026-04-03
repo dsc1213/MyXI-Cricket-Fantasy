@@ -19,6 +19,7 @@ const createRouter = ({
   persistSeedState = () => {},
 }) => {
   const router = Router()
+  const mockApiEnabled = (process.env.MOCK_API || '').toString().trim().toLowerCase() === 'true'
 
   router.use((req, res, next) => {
     const originalJson = res.json.bind(res)
@@ -63,7 +64,7 @@ const createRouter = ({
     if (req.path.startsWith('/auth/') || req.path.startsWith('/api/auth/')) {
       return next()
     }
-    if (seedProviderEnabled && shouldHandleProviderPath(req.path || '')) {
+    if (mockApiEnabled && seedProviderEnabled && shouldHandleProviderPath(req.path || '')) {
       return next()
     }
     return authenticate(req, res, next)
@@ -78,7 +79,7 @@ const createRouter = ({
   dbService.register(dbProviderRouter)
 
   const providerController = createProviderController({
-    mockApiEnabled: seedProviderEnabled,
+    mockApiEnabled,
     shouldHandleProviderPath,
     mockProviderRouter,
     dbProviderRouter,

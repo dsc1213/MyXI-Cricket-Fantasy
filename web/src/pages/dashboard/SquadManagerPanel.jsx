@@ -3,6 +3,7 @@ import Button from '../../components/ui/Button.jsx'
 import SelectField from '../../components/ui/SelectField.jsx'
 import StickyTable from '../../components/ui/StickyTable.jsx'
 import {
+  fetchPlayers,
   fetchAdminTeamSquads,
   fetchTournamentCatalog,
   upsertAdminTeamSquad,
@@ -102,6 +103,9 @@ const formatCountryLabel = (value = '') =>
 function buildPlayerRow(index, seed = {}) {
   return {
     id: `player-${Date.now()}-${index + 1}`,
+    canonicalPlayerId: seed.canonicalPlayerId || seed.playerRowId || seed.id || '',
+    sourceKey: (seed.sourceKey || '').toString(),
+    playerId: (seed.playerId || '').toString(),
     name: (seed.name || '').toString(),
     country: (seed.country || '').toString(),
     role: (seed.role || '').toString().toUpperCase(),
@@ -116,6 +120,7 @@ function SquadManagerPanel() {
   const currentUser = getStoredUser()
   const [rows, setRows] = useState([])
   const [tournamentRows, setTournamentRows] = useState([])
+  const [playerCatalog, setPlayerCatalog] = useState([])
   const [, setIsLoading] = useState(true)
   const [errorText, setErrorText] = useState('')
   const [notice, setNotice] = useState('')
@@ -130,8 +135,10 @@ function SquadManagerPanel() {
   const [team, setTeam] = useState('')
   const [newTeamCode, setNewTeamCode] = useState('')
   const [teamName, setTeamName] = useState('')
-  const [players, setPlayers] = useState([buildPlayerRow(0)])
+  const [players, setPlayers] = useState([])
   const [playerSearch, setPlayerSearch] = useState('')
+  const [existingPlayerQuery, setExistingPlayerQuery] = useState('')
+  const [selectedExistingPlayerId, setSelectedExistingPlayerId] = useState('')
 
   const actorUserId = currentUser?.gameName || currentUser?.email || currentUser?.id || ''
 
@@ -139,10 +146,14 @@ function SquadManagerPanel() {
     try {
       setIsLoading(true)
       setErrorText('')
-      const data = await fetchAdminTeamSquads()
+      const data = await fetchAdminTeamSquads({
+        tournamentId: tournamentType === 'tournament' ? tournamentId : '',
+      })
       setRows(Array.isArray(data) ? data : [])
       const tournaments = await fetchTournamentCatalog()
       setTournamentRows(Array.isArray(tournaments) ? tournaments : [])
+      const catalog = await fetchPlayers()
+      setPlayerCatalog(Array.isArray(catalog) ? catalog : [])
     } catch (error) {
       setErrorText(error.message || 'Failed to load squads')
     } finally {
@@ -152,7 +163,7 @@ function SquadManagerPanel() {
 
   useEffect(() => {
     void loadSquads()
-  }, [])
+  }, [tournamentType, tournamentId])
 
   const countryOptions = useMemo(() => {
     if (tournamentType === 'international') {
@@ -186,6 +197,7 @@ function SquadManagerPanel() {
     () => tournamentRows.find((item) => item.id === tournamentId) || null,
     [tournamentRows, tournamentId],
   )
+  const selectedTournamentName = (selectedTournament?.name || '').toString().trim().toLowerCase()
 
   const leagueOptions = useMemo(
     () => (LEAGUE_MAP[country] || []).map((item) => ({ value: item, label: item })),
@@ -204,28 +216,29 @@ function SquadManagerPanel() {
       .map((item) => ({ value: item, label: formatCountryLabel(item) }))
   }, [rows, country])
 
-  const teamOptions = useMemo(() => {
-    const filtered = rows.filter((row) => {
-      const rowType = (row.tournamentType || 'international').toString().toLowerCase()
-      if (rowType !== tournamentType) return false
-      if (
-        tournamentType === 'tournament' &&
-        tournamentId &&
-        (row.tournament || '').toString().trim().toLowerCase() !==
-          (selectedTournament?.name || '').toString().trim().toLowerCase()
-      ) {
-        return false
-      }
-      if (country && (row.country || '').toString().toLowerCase() !== country.toLowerCase()) return false
-      if (
-        tournamentType === 'league' &&
-        league &&
-        (row.league || '').toString().toLowerCase() !== league.toLowerCase()
-      ) {
-        return false
-      }
+  const matchesCurrentScope = (row) => {
+    const rowType = (row.tournamentType || 'international').toString().toLowerCase()
+    if (rowType !== tournamentType) return false
+    if (tournamentType === 'tournament') {
+      const rowTournamentId = (row.tournamentId || '').toString().trim()
+      const rowTournamentName = (row.tournament || '').toString().trim().toLowerCase()
+      if (tournamentId && rowTournamentId) return String(rowTournamentId) === String(tournamentId)
+      if (tournamentId && selectedTournamentName) return rowTournamentName === selectedTournamentName
       return true
-    })
+    }
+    if (country && (row.country || '').toString().toLowerCase() !== country.toLowerCase()) return false
+    if (
+      tournamentType === 'league' &&
+      league &&
+      (row.league || '').toString().toLowerCase() !== league.toLowerCase()
+    ) {
+      return false
+    }
+    return true
+  }
+
+  const teamOptions = useMemo(() => {
+    const filtered = rows.filter((row) => matchesCurrentScope(row))
     const savedTeams = Array.from(new Map(filtered.map((row) => [row.teamCode, row])).values())
       .sort((a, b) => a.teamCode.localeCompare(b.teamCode))
       .map((row) => ({
@@ -269,7 +282,7 @@ function SquadManagerPanel() {
         : []
     const unique = [...savedTeams, ...missingCanonicalTeams, ...missingTournamentTeams]
     return [...unique, { value: NEW_TEAM_KEY, label: '+ New team' }]
-  }, [rows, tournamentType, country, league, tournamentId, selectedTournament])
+  }, [rows, tournamentType, country, league, tournamentId, selectedTournamentName])
 
   useEffect(() => {
     if (tournamentType !== 'international') return
@@ -293,14 +306,14 @@ function SquadManagerPanel() {
     if (!team) return
     const code = team === NEW_TEAM_KEY ? newTeamCode : team
     if (!code) return
-    const existing = rows.find((row) => row.teamCode === code)
+    const existing = rows.find((row) => row.teamCode === code && matchesCurrentScope(row))
     if (!existing) {
       const canonicalName =
         tournamentType === 'league' && league
           ? LEAGUE_TEAM_MAP[league]?.[code] || LEAGUE_TEAM_MAP[selectedTournament?.league || '']?.[code] || ''
           : ''
       setTeamName(canonicalName)
-      setPlayers([buildPlayerRow(0)])
+      setPlayers([])
       return
     }
     setTeamName(existing.teamName || existing.teamCode)
@@ -308,6 +321,9 @@ function SquadManagerPanel() {
     const mapped = squad.map((player, index) =>
       buildPlayerRow(index, {
         name: player?.name || '',
+        canonicalPlayerId: player?.canonicalPlayerId || player?.id || player?.playerRowId || '',
+        sourceKey: player?.sourceKey || '',
+        playerId: player?.playerId || '',
         country: player?.country || '',
         role: player?.role || '',
         imageUrl: player?.imageUrl || '',
@@ -316,8 +332,8 @@ function SquadManagerPanel() {
         active: player?.active !== false,
       }),
     )
-    setPlayers(mapped.length ? mapped : [buildPlayerRow(0)])
-  }, [team, newTeamCode, rows])
+    setPlayers(mapped)
+  }, [team, newTeamCode, rows, tournamentType, tournamentId, selectedTournamentName, country, league])
 
   const displayTeamCode = team === NEW_TEAM_KEY ? newTeamCode : team
 
@@ -345,6 +361,69 @@ function SquadManagerPanel() {
       return searchText.includes(q)
     })
   }, [players, playerSearch])
+
+  const existingPlayerOptions = useMemo(() => {
+    const selectedIds = new Set(
+      players
+        .map((item) => String(item.canonicalPlayerId || item.sourceKey || item.playerId || item.name || ''))
+        .filter(Boolean),
+    )
+    const query = (existingPlayerQuery || '').toString().trim().toLowerCase()
+    return (playerCatalog || [])
+      .filter((item) => {
+        const key = String(item.id || item.sourceKey || item.playerId || '')
+        if (selectedIds.has(key)) return false
+        const name = (
+          item.displayName ||
+          item.name ||
+          [item.firstName, item.lastName].filter(Boolean).join(' ')
+        )
+          .toString()
+          .trim()
+        const haystack = [name, item.country || '', item.role || ''].join(' ').toLowerCase()
+        return !query || haystack.includes(query)
+      })
+      .slice(0, 100)
+      .map((item) => {
+        const name = (
+          item.displayName ||
+          item.name ||
+          [item.firstName, item.lastName].filter(Boolean).join(' ')
+        )
+          .toString()
+          .trim()
+        return {
+          value: String(item.id || item.sourceKey || item.playerId || name),
+          label: `${name}${item.country ? ` · ${formatCountryLabel(item.country)}` : ''}${item.role ? ` · ${item.role}` : ''}`,
+          player: item,
+        }
+      })
+  }, [existingPlayerQuery, playerCatalog, players])
+
+  const linkExistingPlayer = () => {
+    const selected = existingPlayerOptions.find((item) => item.value === selectedExistingPlayerId)?.player
+    if (!selected) return
+    setPlayers((prev) => [
+      ...prev,
+      buildPlayerRow(prev.length, {
+        canonicalPlayerId: selected.id,
+        sourceKey: selected.sourceKey || '',
+        playerId: selected.playerId || '',
+        name:
+          selected.displayName ||
+          selected.name ||
+          [selected.firstName, selected.lastName].filter(Boolean).join(' ').trim(),
+        country: selected.country || '',
+        role: selected.role || '',
+        imageUrl: selected.imageUrl || '',
+        battingStyle: selected.battingStyle || '',
+        bowlingStyle: selected.bowlingStyle || '',
+        active: selected.active !== false,
+      }),
+    ])
+    setSelectedExistingPlayerId('')
+    setExistingPlayerQuery('')
+  }
 
   const playerColumns = [
     {
@@ -457,6 +536,9 @@ function SquadManagerPanel() {
             battingStyle: (item.battingStyle || '').trim(),
             bowlingStyle: (item.bowlingStyle || '').trim(),
             active: item.active !== false,
+            canonicalPlayerId: item.canonicalPlayerId || '',
+            sourceKey: (item.sourceKey || '').trim(),
+            playerId: (item.playerId || '').trim(),
           }))
           .filter((item) => item.name)
         if (!squad.length) {
@@ -484,6 +566,7 @@ function SquadManagerPanel() {
             tournamentType === 'tournament'
               ? (selectedTournament?.name || '').toString().trim()
               : '',
+          tournamentId: tournamentType === 'tournament' ? tournamentId : '',
           squad,
           source: 'manual',
           actorUserId,
@@ -564,7 +647,7 @@ function SquadManagerPanel() {
                     setTournamentId('')
                     setTeam('')
                     setNewTeamCode('')
-                    setPlayers([buildPlayerRow(0)])
+                    setPlayers([])
                   }}
                   options={[
                     { value: 'international', label: 'International' },
@@ -685,13 +768,31 @@ function SquadManagerPanel() {
                   value={playerSearch}
                   onChange={(event) => setPlayerSearch(event.target.value)}
                 />
+                <input
+                  type="text"
+                  placeholder="Search player catalog"
+                  value={existingPlayerQuery}
+                  onChange={(event) => setExistingPlayerQuery(event.target.value)}
+                  disabled={!displayTeamCode}
+                />
+                <SelectField
+                  value={selectedExistingPlayerId}
+                  onChange={(event) => setSelectedExistingPlayerId(event.target.value)}
+                  options={[
+                    { value: '', label: 'Select player' },
+                    ...existingPlayerOptions.map((item) => ({
+                      value: item.value,
+                      label: item.label,
+                    })),
+                  ]}
+                />
                 <Button
                   variant="ghost"
                   size="small"
-                  onClick={() => setPlayers((prev) => [...prev, buildPlayerRow(prev.length)])}
-                  disabled={!displayTeamCode}
+                  onClick={linkExistingPlayer}
+                  disabled={!displayTeamCode || !selectedExistingPlayerId}
                 >
-                  + Add player
+                  Add player
                 </Button>
               </div>
             </div>

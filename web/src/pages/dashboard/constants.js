@@ -5,6 +5,7 @@ const regularMenuItems = [
 
 const adminMenuItems = [
   { key: 'createTournament', label: 'Create Tournament' },
+  { key: 'players', label: 'Player Manager' },
   { key: 'squads', label: 'Squad Manager' },
   { key: 'admin', label: 'Admin Manager' },
   { key: 'upload', label: 'Score Updates' },
@@ -25,6 +26,7 @@ const sectionTitles = {
   points: 'Scoring Rules',
   admin: 'Admin Manager',
   createTournament: 'Create Tournament',
+  players: 'Player Manager',
   squads: 'Squad Manager',
   upload: 'Score Updates',
   audit: 'Audit Logs',

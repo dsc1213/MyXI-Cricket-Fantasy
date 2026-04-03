@@ -347,10 +347,10 @@ const fetchDashboardPageLoadData = async () => {
   }
 }
 
-const saveScoringRules = (rules) =>
+const saveScoringRules = ({ rules, actorUserId }) =>
   request('/scoring-rules/save', {
     method: 'POST',
-    body: JSON.stringify({ rules }),
+    body: JSON.stringify({ rules, ...(actorUserId ? { actorUserId } : {}) }),
   })
 
 const processExcelMatchScores = ({ fileName }) =>
@@ -491,6 +491,16 @@ const fetchUserPicks = ({ userId, tournamentId, contestId, matchId } = {}) => {
 }
 
 const fetchPlayers = () => request('/players')
+const createAdminPlayer = (payload) =>
+  request('/admin/players', {
+    method: 'POST',
+    body: JSON.stringify(payload || {}),
+  })
+const deleteAdminPlayer = ({ id, actorUserId }) =>
+  request(`/admin/players/${id}`, {
+    method: 'DELETE',
+    body: JSON.stringify(actorUserId ? { actorUserId } : {}),
+  })
 const fetchPlayerStats = ({ tournamentId } = {}) => {
   const params = new URLSearchParams()
   if (tournamentId) params.set('tournamentId', tournamentId)
@@ -613,9 +623,16 @@ const deleteAdminTournament = ({ id, actorUserId }) =>
     method: 'DELETE',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
-const fetchAdminTeamSquads = (teamCode = '') => {
+const fetchAdminTeamSquads = (args = '') => {
+  const teamCode =
+    typeof args === 'string' ? args : (args?.teamCode || '').toString().trim()
+  const tournamentId =
+    typeof args === 'object' && args
+      ? (args.tournamentId || '').toString().trim()
+      : ''
   const params = new URLSearchParams()
   if (teamCode) params.set('teamCode', teamCode)
+  if (tournamentId) params.set('tournamentId', tournamentId)
   const query = params.toString()
   return request(`/admin/team-squads${query ? `?${query}` : ''}`)
 }
@@ -624,11 +641,15 @@ const upsertAdminTeamSquad = (payload) =>
     method: 'POST',
     body: JSON.stringify(payload || {}),
   })
-const deleteAdminTeamSquad = ({ teamCode, actorUserId }) =>
-  request(`/admin/team-squads/${teamCode}`, {
+const deleteAdminTeamSquad = ({ teamCode, actorUserId, tournamentId }) => {
+  const params = new URLSearchParams()
+  if (tournamentId) params.set('tournamentId', tournamentId)
+  const query = params.toString()
+  return request(`/admin/team-squads/${teamCode}${query ? `?${query}` : ''}`, {
     method: 'DELETE',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
+}
 const createAdminContest = (payload) =>
   request('/admin/contests', {
     method: 'POST',
@@ -709,6 +730,8 @@ export {
   saveTeamSelection,
   fetchUserPicks,
   fetchPlayers,
+  createAdminPlayer,
+  deleteAdminPlayer,
   fetchPlayerStats,
   fetchMatchOptions,
   fetchPrettyTournaments,

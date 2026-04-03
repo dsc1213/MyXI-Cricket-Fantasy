@@ -31,10 +31,23 @@ Use this when validating the DB-backed app locally before hosting.
 3. Confirm:
    - success banner appears
    - tournament is visible in `Admin Manager -> Tournaments`
-   - tournament is visible in `Fantasy`
    - tournament is visible in `Score Updates`
    - tournament is available as the target tournament in `Create Tournament -> Auction`
    - tournament match list is complete and no started match is silently removed
+   - tournament is not publicly visible in `Fantasy`/`Auction` yet
+
+## Tournament Publish
+
+1. Open `Home -> Admin Manager -> Tournaments`.
+2. Find the imported tournament row.
+3. Check the row checkbox.
+4. Click `Add to Tournaments`.
+5. Refresh the page.
+6. Confirm:
+   - checkbox stays checked
+   - row status shows `Enabled`
+   - tournament is now visible in `Fantasy`
+   - if there are no visible tournaments, `Fantasy` and `Auction` show a single `No tournaments available` empty-state message
 
 ## Contest Seed
 

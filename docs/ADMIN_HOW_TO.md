@@ -84,8 +84,20 @@ Location:
 Confirm:
 - success banner appears
 - tournament appears in `Admin Manager -> Tournaments`
-- tournament appears in `Fantasy`
+- tournament is created as hidden/not published by default
+- tournament does not appear in `Fantasy` or `Auction` until you enable it
 - tournament appears in `Score Updates`
+
+Publish step:
+1. Open `Home -> Admin Manager -> Tournaments`.
+2. Find the imported tournament row.
+3. Check the row checkbox.
+4. Click `Add to Tournaments`.
+5. Refresh once to confirm it stays enabled.
+
+After publish, confirm:
+- tournament appears in `Fantasy`
+- tournament appears in `Auction` if/when auction contests exist for it
 
 ### Manual Tournament Creation
 

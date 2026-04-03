@@ -4,6 +4,7 @@ import {
   normalizeTeamCode,
   normalizeTournamentId,
 } from './tournamentImport.service.js'
+import playerService from './player.service.js'
 
 const registerMockProviderRoutes = (router, ctx) => {
   const normalizeIdentity = (value) => (value || '').toString().trim().toLowerCase()
@@ -164,6 +165,9 @@ const registerMockProviderRoutes = (router, ctx) => {
       let bowlingStyle = ''
       let imageUrl = ''
       let active = true
+      let canonicalPlayerId = ''
+      let sourceKey = ''
+      let playerId = ''
       if (typeof item === 'string') {
         name = item.trim()
       } else if (item && typeof item === 'object') {
@@ -174,12 +178,26 @@ const registerMockProviderRoutes = (router, ctx) => {
         bowlingStyle = (item.bowlingStyle || '').toString().trim()
         imageUrl = (item.imageUrl || item.playerImage || '').toString().trim()
         active = item.active !== false
+        canonicalPlayerId = (item.canonicalPlayerId || item.id || '').toString().trim()
+        sourceKey = (item.sourceKey || item.source_key || '').toString().trim()
+        playerId = (item.playerId || item.player_id || '').toString().trim()
       }
       if (!name) return
       const key = name.toLowerCase()
       if (seen.has(key)) return
       seen.add(key)
-      entries.push({ name, country, role, battingStyle, bowlingStyle, imageUrl, active })
+      entries.push({
+        name,
+        country,
+        role,
+        battingStyle,
+        bowlingStyle,
+        imageUrl,
+        active,
+        canonicalPlayerId,
+        sourceKey,
+        playerId,
+      })
     })
     return entries
   }
@@ -452,13 +470,14 @@ const registerMockProviderRoutes = (router, ctx) => {
     return res.json(rows)
   })
 
-  router.get('/admin/team-squads', (req, res) => {
+  router.get('/admin/team-squads', async (req, res) => {
     const teamCode = normalizeTeamCode(req.query.teamCode || '')
-    const rows = teamCode
-      ? teamSquads.filter((item) => item.teamCode === teamCode)
-      : [...teamSquads]
-    const payload = rows
+    const tournamentId = (req.query.tournamentId || '').toString().trim()
+    const rows = await playerService.getTeamSquads(tournamentId || null)
+    const filtered = teamCode ? rows.filter((item) => item.teamCode === teamCode) : rows
+    const payload = filtered
       .map((item) => ({
+        tournamentId: item.tournamentId || null,
         teamCode: item.teamCode,
         teamName: item.teamName || item.teamCode,
         playersCount: normalizeSquadEntries(item.squad || []).length,
@@ -477,87 +496,111 @@ const registerMockProviderRoutes = (router, ctx) => {
     return res.json(payload)
   })
 
-  router.post('/admin/team-squads', (req, res) => {
+  router.post('/admin/players', async (req, res) => {
+    const actor = resolveAdminActor(req)
+    if (!canManageTournaments(actor)) {
+      return res.status(403).json({ message: 'Only admin/master can manage players' })
+    }
+    try {
+      const player = await playerService.createPlayer(req.body || {})
+      appendAuditLog({
+        actor: actor?.gameName || actor?.name || 'Admin',
+        action: 'Added player',
+        target:
+          player?.displayName ||
+          [player?.firstName, player?.lastName].filter(Boolean).join(' ').trim() ||
+          'player',
+        detail: player?.role || '-',
+        tournamentId: 'global',
+        module: 'players',
+      })
+      persistState()
+      return res.status(201).json({ ok: true, player })
+    } catch (error) {
+      return res.status(400).json({ message: error.message || 'Failed to save player' })
+    }
+  })
+
+  router.delete('/admin/players/:id', async (req, res) => {
+    const actor = resolveAdminActor(req)
+    if (!canManageTournaments(actor)) {
+      return res.status(403).json({ message: 'Only admin/master can manage players' })
+    }
+    try {
+      await playerService.deletePlayer(req.params.id)
+      appendAuditLog({
+        actor: actor?.gameName || actor?.name || 'Admin',
+        action: 'Deleted player',
+        target: req.params.id,
+        detail: 'Global player removed',
+        tournamentId: 'global',
+        module: 'players',
+      })
+      persistState()
+      return res.json({ ok: true, removedId: req.params.id })
+    } catch (error) {
+      return res.status(400).json({ message: error.message || 'Failed to delete player' })
+    }
+  })
+
+  router.post('/admin/team-squads', async (req, res) => {
     const actor = resolveAdminActor(req)
     if (!canManageTournaments(actor)) {
       return res.status(403).json({ message: 'Only admin/master can manage squads' })
     }
     const teamCode = normalizeTeamCode(req.body?.teamCode || '')
-    const teamName = (req.body?.teamName || teamCode || '').toString().trim()
-    const source = (req.body?.source || 'manual').toString().trim().toLowerCase()
-    const rawSquad = Array.isArray(req.body?.squad) ? req.body.squad : []
-    const normalizedSquad = normalizeSquadEntries(rawSquad)
-    const tournamentType = (req.body?.tournamentType || 'international')
-      .toString()
-      .trim()
-      .toLowerCase()
-    const country = (req.body?.country || '').toString().trim()
-    const league = (req.body?.league || '').toString().trim()
-    const tournament = (req.body?.tournament || '').toString().trim()
     if (!teamCode) {
       return res.status(400).json({ message: 'teamCode is required' })
     }
+    const rawSquad = Array.isArray(req.body?.squad) ? req.body.squad : []
+    const normalizedSquad = normalizeSquadEntries(rawSquad)
     if (normalizedSquad.length < 1) {
       return res.status(400).json({ message: 'Squad must include at least 1 player' })
     }
-    const now = new Date().toISOString()
-    const existingIndex = teamSquads.findIndex((item) => item.teamCode === teamCode)
-    const nextRow = {
+    const beforeRows = await playerService.getTeamSquads(req.body?.tournamentId || null)
+    const existed = beforeRows.some(
+      (item) =>
+        item.teamCode === teamCode &&
+        String(item.tournamentId || '') === String(req.body?.tournamentId || ''),
+    )
+    await playerService.createTeamSquad(teamCode, {
+      ...(req.body || {}),
       teamCode,
-      teamName: teamName || teamCode,
-      squad: normalizedSquad,
-      tournamentType,
-      country,
-      league,
-      tournament,
-      source: source || 'manual',
-      lastUpdatedAt: now,
-    }
-    if (existingIndex === -1) {
-      teamSquads.push(nextRow)
-    } else {
-      teamSquads.splice(existingIndex, 1, nextRow)
-    }
+      players: normalizedSquad,
+    })
     appendAuditLog({
       actor: actor?.gameName || actor?.name || 'Admin',
-      action: existingIndex === -1 ? 'Added squad' : 'Updated squad',
+      action: existed ? 'Updated squad' : 'Added squad',
       target: teamCode,
       detail: `${normalizedSquad.length} players`,
-      tournamentId: 'global',
+      tournamentId: req.body?.tournamentId || 'global',
       module: 'squads',
     })
     persistState()
-    return res.status(existingIndex === -1 ? 201 : 200).json({
+    return res.status(existed ? 200 : 201).json({
       ok: true,
-      squad: {
-        ...nextRow,
-        playersCount: normalizedSquad.length,
-        activePlayersCount: normalizedSquad.filter((p) => p.active).length,
-      },
+      createdCount: normalizedSquad.length,
     })
   })
 
-  router.delete('/admin/team-squads/:teamCode', (req, res) => {
+  router.delete('/admin/team-squads/:teamCode', async (req, res) => {
     const actor = resolveAdminActor(req)
     if (!canManageTournaments(actor)) {
       return res.status(403).json({ message: 'Only admin/master can manage squads' })
     }
     const teamCode = normalizeTeamCode(req.params.teamCode || '')
-    const index = teamSquads.findIndex((item) => item.teamCode === teamCode)
-    if (index === -1) {
-      return res.status(404).json({ message: 'Squad not found' })
-    }
-    const [removed] = teamSquads.splice(index, 1)
+    const tournamentId = (req.body?.tournamentId || req.query?.tournamentId || '').toString().trim()
+    await playerService.deleteTeamSquad(teamCode, tournamentId || null)
     appendAuditLog({
       actor: actor?.gameName || actor?.name || 'Admin',
       action: 'Deleted squad',
-      target: removed.teamCode,
-      detail: `${Array.isArray(removed.squad) ? removed.squad.length : 0} players removed`,
-      tournamentId: 'global',
+      target: teamCode,
+      detail: 'Tournament squad link removed',
+      tournamentId: tournamentId || 'global',
       module: 'squads',
     })
     persistState()
-    return res.json({ ok: true, removedId: removed.teamCode })
+    return res.json({ ok: true, removedId: teamCode })
   })
 
   router.post('/admin/tournaments', (req, res) => {
@@ -1413,8 +1456,13 @@ const registerMockProviderRoutes = (router, ctx) => {
     return res.json(prettyTournament)
   })
 
-  router.get('/players', (req, res) => {
-    return res.json(allKnownPlayers)
+  router.get('/players', async (req, res, next) => {
+    try {
+      const rows = await playerService.getAllPlayers()
+      return res.json(rows)
+    } catch (error) {
+      return next(error)
+    }
   })
 
   router.get('/player-stats', (req, res) => {
