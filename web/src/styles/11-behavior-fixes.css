@@ -140,6 +140,15 @@ body.dark-theme .user-menu-dropdown {
   color: #2563eb;
 }
 
+.contest-countdown {
+  font-weight: 700;
+  color: #f8d26a;
+}
+
+body.dark-theme .contest-countdown {
+  color: #fde68a;
+}
+
 .points-editor-card {
   grid-template-columns: repeat(3, minmax(220px, 1fr));
 }

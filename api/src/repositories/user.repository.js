@@ -23,7 +23,7 @@ class UserRepository {
   }
 
   async findAll(filters = {}) {
-    let query = `SELECT id, name, user_id as "userId", game_name as "gameName", email, phone, role, status, created_at as "createdAt", updated_at as "updatedAt"
+    let query = `SELECT id, name, user_id as "userId", game_name as "gameName", email, phone, location, role, status, created_at as "createdAt", updated_at as "updatedAt"
                  FROM users WHERE 1=1`
     const values = []
     let paramIndex = 1
@@ -52,7 +52,7 @@ class UserRepository {
 
   async findById(id) {
     const result = await dbQuery(
-      `SELECT id, name, user_id as "userId", game_name as "gameName", email, phone, role, status, created_at as "createdAt", updated_at as "updatedAt"
+      `SELECT id, name, user_id as "userId", game_name as "gameName", email, phone, location, role, status, created_at as "createdAt", updated_at as "updatedAt"
        FROM users
        WHERE id = $1`,
       [id],
@@ -219,6 +219,16 @@ class UserRepository {
       [identifier],
     )
     return this.mapUserRow(result.rows[0])
+  }
+
+  async delete(id) {
+    const result = await dbQuery(
+      `DELETE FROM users
+       WHERE id = $1
+       RETURNING id`,
+      [id],
+    )
+    return result.rows.length > 0
   }
 }
 

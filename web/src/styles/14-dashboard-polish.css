@@ -73,19 +73,23 @@
 }
 
 .dashboard-shell.panel-admin .dashboard-panel-view,
-.dashboard-shell.panel-audit .dashboard-panel-view {
+.dashboard-shell.panel-audit .dashboard-panel-view,
+.dashboard-shell.panel-players .dashboard-panel-view,
+.dashboard-shell.panel-squads .dashboard-panel-view {
   overflow: hidden;
 }
 
 .dashboard-shell.panel-admin .dashboard-panel-view .dashboard-section,
-.dashboard-shell.panel-audit .dashboard-panel-view .dashboard-section {
+.dashboard-shell.panel-audit .dashboard-panel-view .dashboard-section,
+.dashboard-shell.panel-players .dashboard-panel-view .dashboard-section,
+.dashboard-shell.panel-squads .dashboard-panel-view .dashboard-section {
   min-height: 0;
   height: 100%;
 }
 
 .dashboard-panel-view .dashboard-section,
 .dashboard-panel-view .admin-card.dashboard-panel-card {
-  min-height: 0;
+  min-height: 300px;
 }
 
 .dashboard-mobile-panel-select {
@@ -114,7 +118,7 @@
 .section-head-compact h2 {
   font-size: clamp(1.9rem, 2.2vw, 2.25rem);
   line-height: 1.12;
-  color: #f4f7fb;
+  color: #1b2840;
 }
 
 .dashboard-head-actions {
@@ -229,6 +233,31 @@ body.dark-theme .create-tournament-success-copy span {
   font-size: 0.84rem;
 }
 
+.dashboard-text-input {
+  width: 100%;
+  min-height: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--input-text);
+  padding: 0.46rem 0.72rem;
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+
+select.dashboard-text-input {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 2.2rem;
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+  background-size: 0.7rem;
+}
+
 .catalog-table-tools small {
   font-size: 0.72rem;
   color: var(--text-muted);
@@ -281,6 +310,43 @@ body.dark-theme .create-tournament-success-copy span {
 .dashboard-json-textarea::placeholder {
   color: rgba(71, 85, 105, 0.72);
   opacity: 1;
+}
+
+.field-help-text.auction-json-help {
+  display: block;
+  margin: 0.35rem 0 0.65rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.field-help-text.auction-json-help code {
+  font-size: 0.92em;
+}
+
+.create-tournament-inline-error {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(245, 101, 101, 0.45);
+  border-radius: 14px;
+  background: rgba(127, 29, 29, 0.22);
+}
+
+.create-tournament-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border: 1px solid rgba(147, 197, 253, 0.3);
+  border-radius: 14px;
+  background: rgba(59, 130, 246, 0.12);
+  color: rgba(226, 232, 240, 0.98);
+}
+
+.create-tournament-loading span {
+  color: rgba(191, 219, 254, 0.9);
+  font-size: 0.95rem;
 }
 
 .catalog-table code {
@@ -348,7 +414,9 @@ body.dark-theme .create-tournament-success-copy span {
 }
 
 .admin-manager-panel,
-.audit-logs-panel {
+.audit-logs-panel,
+.player-manager-panel,
+.dashboard-shell.panel-squads .dashboard-panel-card {
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -357,11 +425,159 @@ body.dark-theme .create-tournament-success-copy span {
 }
 
 .admin-manager-panel .catalog-table-wrap,
-.audit-logs-panel .catalog-table-wrap {
+.audit-logs-panel .catalog-table-wrap,
+.player-manager-panel .catalog-table-wrap,
+.dashboard-shell.panel-squads .catalog-table-wrap {
   flex: 0 1 auto;
   min-height: 0;
   height: auto;
   max-height: min(56vh, 620px);
+}
+
+.admin-manager-panel {
+  gap: 0.9rem;
+}
+
+.admin-manager-panel .catalog-table tbody tr {
+  transition:
+    background 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.admin-manager-panel .catalog-table tbody tr.active {
+  background: rgba(60, 125, 255, 0.12);
+  box-shadow: inset 3px 0 0 rgba(96, 165, 250, 0.9);
+}
+
+.admin-manager-panel .catalog-table tbody tr:hover {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.admin-manager-panel .catalog-table tbody tr.active:hover {
+  background: rgba(60, 125, 255, 0.16);
+}
+
+.admin-manager-panel .catalog-table-wrap {
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: none;
+}
+
+.admin-manager-panel .admin-manager-tournaments-pane,
+.admin-manager-panel .admin-manager-matches-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-height: 0;
+  flex: 1 1 0;
+}
+
+.admin-manager-panel .admin-manager-matches-pane {
+  min-height: 320px;
+}
+
+.user-manager-layout {
+  display: grid;
+  grid-template-rows: minmax(420px, 1fr) auto;
+  gap: 0.75rem;
+  min-height: 0;
+  height: 100%;
+}
+
+.user-manager-primary,
+.user-manager-secondary {
+  min-height: 0;
+}
+
+.dashboard-shell.panel-userManager .dashboard-panel-view,
+.dashboard-shell.panel-admin .dashboard-panel-view {
+  overflow: hidden;
+}
+
+.dashboard-shell.panel-userManager .dashboard-panel-view .dashboard-section,
+.dashboard-shell.panel-admin .dashboard-panel-view .dashboard-section {
+  min-height: 0;
+  height: 100%;
+}
+
+.pending-approvals-panel.compact {
+  gap: 0.6rem;
+}
+
+.pending-approvals-panel.compact .catalog-table-wrap {
+  max-height: min(28vh, 260px);
+}
+
+@media (max-width: 900px) {
+  .user-manager-layout {
+    grid-template-rows: minmax(320px, 1fr) auto;
+  }
+}
+
+.tournament-manager-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  min-height: 0;
+  height: 100%;
+}
+
+.tournament-manager-tabs {
+  align-self: start;
+}
+
+.admin-manager-panel .admin-manager-tournament-selector-shell {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.admin-manager-panel .admin-manager-tournament-selector-row {
+  display: grid;
+  grid-template-columns: minmax(260px, 420px) minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.admin-manager-inline-field {
+  display: grid;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+.admin-manager-inline-field span {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.admin-manager-tournament-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.admin-manager-tournament-meta span {
+  min-height: 40px;
+  border: 1px solid var(--input-border);
+  border-radius: 12px;
+  background: rgba(148, 163, 184, 0.08);
+  padding: 0.5rem 0.7rem;
+  display: grid;
+  gap: 0.12rem;
+}
+
+.admin-manager-tournament-meta strong {
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.admin-manager-tournament-meta em {
+  font-style: normal;
+  color: var(--text-primary);
+  font-size: 0.92rem;
 }
 
 .dashboard-loading-screen {
@@ -469,6 +685,26 @@ body.dark-theme .create-tournament-success-copy span {
   margin-bottom: 0.35rem;
 }
 
+.upload-tab-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  align-items: flex-start;
+}
+
+.upload-tab-group {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.upload-tab-group-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-left: 0.22rem;
+}
+
 .upload-head-actions {
   margin-left: auto;
 }
@@ -550,33 +786,36 @@ body.dark-theme .create-tournament-success-copy span {
 }
 
 .player-manager-form {
-  grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(140px, 1fr)) auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-bottom: 0;
+  align-items: end;
 }
 
-.player-manager-actions {
-  display: flex;
-  align-items: flex-end;
+.player-manager-form-span-2 {
+  grid-column: 1 / -1;
 }
 
 .player-manager-panel {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .player-manager-card {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.55rem;
   min-height: 0;
   height: 100%;
+  overflow: hidden;
 }
 
-.player-manager-tools {
-  align-items: flex-start;
-}
-
+.player-manager-topbar,
 .player-manager-tools-copy {
   display: grid;
-  gap: 0.08rem;
+  gap: 0.18rem;
 }
 
 .player-manager-tools-copy strong {
@@ -586,6 +825,7 @@ body.dark-theme .create-tournament-success-copy span {
 
 .player-manager-tools-copy small {
   white-space: normal;
+  color: var(--text-muted);
 }
 
 .player-manager-table .player-identity {
@@ -597,6 +837,327 @@ body.dark-theme .create-tournament-success-copy span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.player-manager-panel .catalog-table-shell,
+.player-manager-panel .catalog-table-wrap {
+  min-height: 0;
+}
+
+.player-manager-card .catalog-table-shell {
+  overflow: hidden;
+}
+
+.player-manager-head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+}
+
+.player-manager-head-actions input {
+  width: min(320px, 100%);
+}
+
+.player-manager-head-actions .button,
+.player-manager-head-actions button {
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 1100px) {
+  .player-manager-head-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .player-manager-head-actions input {
+    width: 100%;
+  }
+}
+
+.player-manager-create-modal .ui-modal-body {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.player-manager-import-modal .ui-modal-body {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.player-manager-import-layout {
+  display: grid;
+  min-height: 0;
+}
+
+.player-manager-import-field {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  min-width: 0;
+}
+
+.player-manager-import-field .dashboard-json-textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 18rem;
+  resize: vertical;
+}
+
+.squad-manager-json-field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.squad-manager-json-textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 22rem;
+  resize: vertical;
+}
+
+@media (max-width: 900px) {
+  .admin-manager-panel .admin-manager-tournament-selector-row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-manager-tournament-meta {
+    grid-template-columns: 1fr;
+  }
+}
+
+.squad-manager-error {
+  margin-bottom: 0.85rem;
+}
+
+.squad-manager-success {
+  margin-bottom: 0.85rem;
+  color: #15803d;
+  font-weight: 600;
+}
+
+body.dark-theme .squad-manager-success {
+  color: #4ade80;
+}
+
+.dashboard-shell.panel-squads .catalog-table td {
+  padding-top: 0.72rem;
+  padding-bottom: 0.72rem;
+}
+
+.squad-manager-player-cell {
+  min-width: 280px;
+}
+
+.squad-manager-meta-cell {
+  color: rgba(226, 232, 240, 0.9);
+  font-weight: 600;
+}
+
+.squad-manager-player-identity {
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.squad-manager-player-identity .player-avatar {
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.92), rgba(59, 130, 246, 0.22));
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
+}
+
+.squad-manager-player-identity .player-avatar img {
+  object-position: center top;
+}
+
+.squad-manager-player-identity .player-avatar-fallback {
+  color: rgba(241, 245, 249, 0.92);
+  font-size: 0.82rem;
+  letter-spacing: 0.03em;
+}
+
+.squad-manager-player-identity .player-identity-copy {
+  gap: 0.16rem;
+}
+
+.squad-manager-player-identity .player-identity-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.squad-manager-player-identity .player-identity-subtitle {
+  font-size: 0.8rem;
+  color: rgba(191, 219, 254, 0.88);
+}
+
+@media (max-width: 760px) {
+  .player-manager-form {
+    grid-template-columns: 1fr;
+  }
+
+  .player-manager-form-span-2 {
+    grid-column: auto;
+  }
+
+  .player-manager-import-modal .ui-modal-card {
+    width: min(100vw - 1.2rem, 42rem);
+  }
+
+  .player-manager-import-field .dashboard-json-textarea {
+    min-height: 14rem;
+    font-size: 0.86rem;
+  }
+
+  .squad-manager-json-textarea {
+    min-height: 18rem;
+    font-size: 0.86rem;
+  }
+
+  .dashboard-shell.panel-squads .catalog-table td {
+    padding-top: 0.64rem;
+    padding-bottom: 0.64rem;
+  }
+
+  .squad-manager-player-cell {
+    min-width: 220px;
+  }
+
+  .squad-manager-player-identity {
+    gap: 0.68rem;
+  }
+
+  .squad-manager-player-identity .player-avatar {
+    width: 38px;
+    height: 38px;
+  }
+
+  .squad-manager-player-identity .player-identity-name {
+    font-size: 0.84rem;
+  }
+
+  .squad-manager-player-identity .player-identity-subtitle {
+    font-size: 0.76rem;
+  }
+
+  .player-manager-import-modal .ui-modal-footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  .player-manager-import-modal .ui-modal-footer .button,
+  .player-manager-import-modal .ui-modal-footer button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+.squad-player-picker {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.6rem;
+  min-height: 0;
+}
+
+.squad-player-picker-head {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.squad-player-picker-filters {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  gap: 0.55rem;
+}
+
+.squad-player-picker-head label {
+  display: grid;
+  gap: 0.18rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.squad-player-picker-head label select,
+.squad-player-picker-search {
+  min-height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--input-text);
+  padding: 0.46rem 0.72rem;
+  font: inherit;
+  font-size: 0.95rem;
+  box-sizing: border-box;
+}
+
+.squad-player-picker-head label select {
+  padding-right: 2.2rem;
+}
+
+.squad-player-picker-head small {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.squad-player-picker-list {
+  display: grid;
+  align-content: start;
+  gap: 0.42rem;
+  min-height: 0;
+  max-height: min(52vh, 520px);
+  overflow: auto;
+  padding-right: 0.18rem;
+}
+
+.squad-player-picker-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.18rem 0.55rem;
+  align-items: center;
+  padding: 0.6rem 0.72rem;
+  border: 1px solid var(--input-border);
+  border-radius: 12px;
+  background: var(--panel-bg);
+}
+
+.squad-player-picker-row.is-selected {
+  border-color: rgba(96, 165, 250, 0.52);
+  background: color-mix(in srgb, var(--panel-bg) 84%, rgba(96, 165, 250, 0.18));
+}
+
+.squad-player-picker-row input[type='checkbox'] {
+  grid-row: 1 / span 2;
+  margin: 0;
+}
+
+.squad-player-picker-name {
+  min-width: 0;
+  font-weight: 700;
+}
+
+.squad-player-picker-meta {
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.squad-player-picker-empty {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+@media (max-width: 720px) {
+  .squad-player-picker-filters {
+    grid-template-columns: 1fr;
+  }
 }
 
 .manual-scope-row select {
@@ -656,9 +1217,20 @@ body.dark-theme .create-tournament-success-copy span {
   gap: 0.5rem;
 }
 
+.manual-team-head,
+.manual-team-head-copy {
+  display: grid;
+  gap: 0.14rem;
+}
+
 .manual-lineup-head h4 {
   margin: 0;
   font-size: 0.92rem;
+}
+
+.manual-team-meta {
+  font-size: 0.76rem;
+  color: var(--text-muted);
 }
 
 .manual-lineup-count {
@@ -1070,25 +1642,54 @@ body.dark-theme .create-tournament-success-copy span {
 .fantasy-tournament-section {
   display: grid;
   gap: 0.55rem;
+  align-content: start;
+  padding: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
 }
 
 .fantasy-hub-layout {
   display: grid;
-  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
-  gap: 0.85rem;
+  grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+  gap: 0.7rem;
   min-height: 0;
+  align-items: start;
 }
 
 .fantasy-hub-main {
   display: grid;
   align-content: start;
-  gap: 0.55rem;
+  gap: 0.65rem;
   min-width: 0;
+  min-height: 100%;
+  padding: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
 }
 
 .fantasy-tournament-section h3 {
   margin: 0;
   font-size: 0.95rem;
+}
+
+.fantasy-hub-page,
+.auction-hub-page {
+  gap: 0.7rem;
+  align-content: start;
+}
+
+.fantasy-hub-header,
+.auction-hub-header {
+  margin-bottom: 0;
+  padding-bottom: 0.25rem;
+}
+
+.fantasy-hub-header .contest-section-head,
+.auction-hub-header .contest-section-head {
+  align-items: center;
+  margin-bottom: 0;
 }
 
 .tournament-tile-grid {
@@ -1170,16 +1771,16 @@ body.dark-theme .create-tournament-success-copy span {
 
 .auction-hub-header {
   display: grid;
-  gap: 0.2rem;
+  gap: 0.35rem;
 }
 
 .auction-hub-layout {
   align-items: start;
-  gap: 1.1rem;
+  gap: 0.7rem;
 }
 
 .auction-hub-main {
-  max-width: 920px;
+  max-width: none;
 }
 
 .auction-section-head {
@@ -1212,6 +1813,12 @@ body.dark-theme .create-tournament-success-copy span {
   max-width: 64ch;
   font-size: 0.94rem;
   color: rgba(226, 232, 240, 0.76);
+}
+
+body.dark-theme .fantasy-tournament-section,
+body.dark-theme .fantasy-hub-main {
+  border-color: rgba(179, 205, 237, 0.18);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.015));
 }
 
 .contest-section-head {
@@ -1452,6 +2059,7 @@ body.dark-theme .create-tournament-success-copy span {
 .cricketer-stats-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .cricketer-stats-table th,
@@ -1468,6 +2076,44 @@ body.dark-theme .create-tournament-success-copy span {
   z-index: 4;
   background: #eef2f7;
   box-shadow: inset 0 -1px 0 var(--input-border);
+}
+
+.cricketer-stats-table .cricketer-col-player {
+  width: 28%;
+}
+
+.cricketer-stats-table .cricketer-col-team {
+  width: 16%;
+}
+
+.cricketer-stats-table .cricketer-col-points {
+  width: 12%;
+}
+
+.cricketer-stats-player-identity {
+  width: 100%;
+  min-width: 0;
+}
+
+.cricketer-stats-player-identity .player-avatar {
+  width: 30px;
+  height: 30px;
+}
+
+.cricketer-stats-player-identity .player-identity-name {
+  font-size: 0.8rem;
+}
+
+.stats-team-cell {
+  min-width: 0;
+}
+
+.stats-team-cell strong,
+.stats-team-cell span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tournament-card {
@@ -1875,6 +2521,19 @@ body.dark-theme .create-tournament-success-copy span {
 .create-tournament-teams-table {
   max-height: min(36vh, 300px);
   overflow: auto;
+}
+
+.create-tournament-teams-primary-fields {
+  grid-template-columns: minmax(180px, 240px) minmax(320px, 1.35fr) minmax(180px, 0.65fr);
+}
+
+.create-tournament-teams-secondary-fields.league-mode {
+  grid-template-columns: minmax(220px, 300px) minmax(220px, 300px);
+}
+
+.create-tournament-teams-primary-fields,
+.create-tournament-teams-secondary-fields.league-mode {
+  align-items: end;
 }
 
 .create-tournament-matches-table {
@@ -2417,6 +3076,62 @@ body.dark-theme .app.app-team .backups-card .player-chip.slot-chip.compact small
     max-height: none;
   }
 
+  .app.is-cricketer-stats-page .cricketer-stats-table {
+    table-layout: auto;
+  }
+
+  .app.is-cricketer-stats-page .cricketer-stats-table th,
+  .app.is-cricketer-stats-page .cricketer-stats-table td {
+    padding: 0.38rem 0.35rem;
+    font-size: 0.7rem;
+  }
+
+  .app.is-cricketer-stats-page .cricketer-stats-table .cricketer-col-player {
+    width: 52%;
+    min-width: 150px;
+  }
+
+  .app.is-cricketer-stats-page .cricketer-stats-table .cricketer-col-team {
+    width: 18%;
+  }
+
+  .app.is-cricketer-stats-page .cricketer-stats-table .cricketer-col-primary-stat {
+    width: 10%;
+  }
+
+  .app.is-cricketer-stats-page .cricketer-stats-table .cricketer-col-points {
+    width: 12%;
+  }
+
+  .app.is-cricketer-stats-page .cricketer-stats-table .cricketer-col-secondary-stat {
+    display: none;
+  }
+
+  .app.is-cricketer-stats-page .cricketer-stats-player-identity {
+    gap: 0.34rem;
+  }
+
+  .app.is-cricketer-stats-page .cricketer-stats-player-identity .player-avatar {
+    width: 24px;
+    height: 24px;
+  }
+
+  .app.is-cricketer-stats-page .cricketer-stats-player-identity .player-identity-name {
+    font-size: 0.68rem;
+  }
+
+  .app.is-cricketer-stats-page .cricketer-stats-player-identity .player-identity-subtitle {
+    font-size: 0.63rem;
+  }
+
+  .app.is-cricketer-stats-page .stats-team-cell strong {
+    font-size: 0.68rem;
+  }
+
+  .app.is-cricketer-stats-page .stats-team-cell span {
+    font-size: 0.62rem;
+  }
+
   .app.is-fantasy-hub {
     height: 100svh;
     overflow: hidden;
@@ -2569,10 +3284,28 @@ body.dark-theme .app.app-lower-content select {
   .dashboard-shell {
     grid-template-columns: 1fr;
     gap: 0.6rem;
+    min-height: calc(100svh - 150px);
+    height: calc(100svh - 150px);
+    overflow: hidden;
   }
 
   .dashboard-left-nav {
     display: none;
+  }
+
+  .dashboard-shell .dashboard-content {
+    min-height: 0;
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .dashboard-panel-view {
+    min-height: max(50svh, 360px);
+    height: 100%;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .upload-tab-row {
@@ -2588,30 +3321,57 @@ body.dark-theme .app.app-lower-content select {
     margin-bottom: 0.4rem;
   }
 
+  .upload-tab-groups {
+    width: 100%;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
   .upload-head-actions {
     margin-left: 0;
   }
 
   .upload-tab-btn {
-    min-height: 34px;
-    padding: 0.28rem 0.62rem;
-    font-size: 0.72rem;
+    min-height: 30px;
+    padding: 0.22rem 0.5rem;
+    font-size: 0.68rem;
+    border-radius: 999px;
   }
 
   .match-scores-panel .upload-action-btn,
   .match-scores-panel .upload-action-btn.primary,
   .match-scores-panel .cta.small.upload-action-btn {
-    min-height: 34px;
-    padding: 0.32rem 0.72rem;
-    font-size: 0.76rem;
+    min-height: 32px;
+    padding: 0.28rem 0.6rem;
+    font-size: 0.72rem;
   }
 
   .dashboard-mobile-panel-select {
     display: grid;
+    gap: 0.22rem;
+  }
+
+  .dashboard-mobile-panel-select label {
+    font-size: 0.72rem;
+  }
+
+  .dashboard-mobile-panel-select select {
+    min-height: 38px;
+    padding: 0.42rem 0.58rem;
+    font-size: 0.88rem;
+  }
+
+  .section-head-compact {
+    margin-bottom: 0.06rem;
+  }
+
+  .section-head-compact h2 {
+    font-size: 1.15rem;
+    line-height: 1.1;
   }
 
   .dashboard-panel-card {
-    padding: 0.72rem;
+    padding: 0.6rem;
   }
 
   .contest-section-head {
@@ -2625,6 +3385,13 @@ body.dark-theme .app.app-lower-content select {
   }
 
   .manual-scope-row {
+    grid-template-columns: 1fr;
+    gap: 0.28rem;
+    margin-bottom: 0.42rem;
+  }
+
+  .create-tournament-teams-primary-fields,
+  .create-tournament-teams-secondary-fields.league-mode {
     grid-template-columns: 1fr;
   }
 
@@ -2644,14 +3411,14 @@ body.dark-theme .app.app-lower-content select {
   .manual-entry-grid {
     grid-template-columns: 1fr;
     min-height: 0;
-    height: auto;
+    height: 100%;
     max-height: none;
-    overflow: visible;
+    overflow: hidden;
   }
 
   .manual-team-table-wrap {
-    height: min(34vh, 320px);
-    max-height: min(34vh, 320px);
+    height: max(50svh, 360px);
+    max-height: max(50svh, 360px);
   }
 
   .manual-team-tabs,
@@ -2661,7 +3428,13 @@ body.dark-theme .app.app-lower-content select {
 
   .manual-team-card {
     min-height: 0;
-    height: auto;
+    height: 100%;
+  }
+
+  .admin-manager-tabs.compact .upload-tab-btn {
+    min-height: 30px;
+    padding: 0.22rem 0.48rem;
+    font-size: 0.66rem;
   }
 
   .manual-lineup-layout,
@@ -2751,6 +3524,40 @@ body.dark-theme .app.app-lower-content select {
 
   .override-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 981px) and (max-height: 700px) {
+  .dashboard-shell {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+  }
+
+  .dashboard-left-nav {
+    display: none;
+  }
+
+  .dashboard-shell .dashboard-content {
+    min-height: 0;
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .dashboard-mobile-panel-select {
+    display: grid;
+    gap: 0.22rem;
+  }
+
+  .dashboard-mobile-panel-select label {
+    font-size: 0.72rem;
+  }
+
+  .dashboard-mobile-panel-select select {
+    min-height: 38px;
+    padding: 0.42rem 0.58rem;
+    font-size: 0.88rem;
   }
 }
 

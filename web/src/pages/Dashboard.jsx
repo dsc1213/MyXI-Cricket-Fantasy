@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import ApiFailureTile from '../components/ui/ApiFailureTile.jsx'
 import {
   fetchAdminMatchScores,
@@ -7,7 +7,6 @@ import {
   fetchManualScoreContext,
   fetchTeamPool,
   fetchDashboardPageLoadData,
-  processExcelMatchScores,
   saveMatchScores,
   saveScoringRules,
   upsertMatchLineups,
@@ -21,6 +20,8 @@ import PointsPanel from './dashboard/PointsPanel.jsx'
 import PendingApprovalsPanel from './dashboard/PendingApprovalsPanel.jsx'
 import PlayerManagerPanel from './dashboard/PlayerManagerPanel.jsx'
 import SquadManagerPanel from './dashboard/SquadManagerPanel.jsx'
+import TournamentManagerPanel from './dashboard/TournamentManagerPanel.jsx'
+import UserManagerPanel from './dashboard/UserManagerPanel.jsx'
 import UploadPanel from './dashboard/UploadPanel.jsx'
 import {
   adminMenuItems,
@@ -93,6 +94,7 @@ const buildManualStatsState = (players = [], savedRows = []) => {
 
 function Dashboard({ defaultPanel = 'joined' }) {
   const location = useLocation()
+  const navigate = useNavigate()
   const searchParams = new URLSearchParams(location.search)
   const requestedPanel = (searchParams.get('panel') || '').trim()
   const [activePanel, setActivePanel] = useState(defaultPanel)
@@ -121,13 +123,8 @@ function Dashboard({ defaultPanel = 'joined' }) {
   })
   const [manualTournamentId, setManualTournamentId] = useState('')
   const [manualMatchId, setManualMatchId] = useState('')
-  const [uploadFileName, setUploadFileName] = useState('No file selected')
   const [uploadPayloadText, setUploadPayloadText] = useState('')
   const [lineupPayloadText, setLineupPayloadText] = useState('')
-  const [isDragOver, setIsDragOver] = useState(false)
-  const [isProcessingExcel, setIsProcessingExcel] = useState(false)
-  const [excelPreviewRows, setExcelPreviewRows] = useState([])
-  const [excelPreviewMeta, setExcelPreviewMeta] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSavingRules, setIsSavingRules] = useState(false)
   const [isRulesEditEnabled, setIsRulesEditEnabled] = useState(false)
@@ -138,6 +135,33 @@ function Dashboard({ defaultPanel = 'joined' }) {
   const [pointsRules, setPointsRules] = useState(defaultPointsRules)
   const currentUser = getStoredUser()
   const currentUserId = currentUser?.userId || currentUser?.gameName || currentUser?.email || ''
+  const mobilePanelValue =
+    activePanel === '__all-pages__' || activePanel === '__all-apis__' ? defaultPanel : activePanel
+  const panelAliases = {
+    admin: 'userManager',
+    createTournament: 'tournamentManager',
+    approvals: 'userManager',
+  }
+
+  const selectPanel = (nextPanel) => {
+    if (nextPanel === '__all-pages__') {
+      navigate('/all-pages')
+      return
+    }
+    if (nextPanel === '__all-apis__') {
+      navigate('/all-apis')
+      return
+    }
+    const nextSearch = new URLSearchParams(location.search)
+    nextSearch.set('panel', nextPanel)
+    navigate(
+      {
+        pathname: location.pathname,
+        search: `?${nextSearch.toString()}`,
+      },
+      { replace: false },
+    )
+  }
 
   const refreshManualStatsState = async ({
     tournamentId,
@@ -158,6 +182,13 @@ function Dashboard({ defaultPanel = 'joined' }) {
     const nextPanel = requestedPanel || defaultPanel
     setActivePanel((prev) => (prev === nextPanel ? prev : nextPanel))
   }, [defaultPanel, requestedPanel])
+
+  useEffect(() => {
+    const aliasedPanel = panelAliases[activePanel]
+    if (aliasedPanel) {
+      selectPanel(aliasedPanel)
+    }
+  }, [activePanel])
 
   useEffect(() => {
     let active = true
@@ -196,11 +227,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
       active = false
     }
   }, [currentUserId])
-
-  useEffect(() => {
-    setExcelPreviewRows([])
-    setExcelPreviewMeta(null)
-  }, [uploadFileName])
 
   useEffect(() => {
     let active = true
@@ -393,6 +419,31 @@ function Dashboard({ defaultPanel = 'joined' }) {
     ],
     [showMasterTools, visibleAdminMenuItems],
   )
+  const mobilePanelOptions = useMemo(
+    () => [
+      ...regularMenuItems.map((item) => ({
+        value: item.key,
+        label: item.label,
+      })),
+      ...(showAdminTools
+        ? visibleAdminMenuItems.map((item) => ({
+            value: item.key,
+            label: `Admin • ${item.label}`,
+          }))
+        : []),
+      ...(showMasterTools
+        ? [
+            ...masterMenuItems.map((item) => ({
+              value: item.key,
+              label: `Master • ${item.label}`,
+            })),
+            { value: '__all-pages__', label: 'Master • All Pages' },
+            { value: '__all-apis__', label: 'Master • All APIs' },
+          ]
+        : []),
+    ],
+    [showAdminTools, showMasterTools, visibleAdminMenuItems],
+  )
   const canEditScoringRules = ['admin', 'master_admin'].includes(currentUser?.role)
   const isInitialLoading =
     isLoading && !pageLoadData.tournaments.length && !pageLoadData.joinedContests.length
@@ -408,7 +459,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
 
   useEffect(() => {
     if (!validPanelKeys.has(activePanel)) {
-      setActivePanel('joined')
+      selectPanel('joined')
     }
   }, [activePanel, validPanelKeys])
 
@@ -445,16 +496,15 @@ function Dashboard({ defaultPanel = 'joined' }) {
       setSaveNotice('')
       setErrorText('')
       setIsSavingScores(true)
-      const isExcelTab = uploadTab === 'excel'
       const effectiveContestId =
         manualContestId ||
         filteredManualContests.find((item) => item.tournamentId === manualTournamentId)?.id ||
         ''
       const response = await saveMatchScores({
-        payloadText: isExcelTab ? '' : uploadPayloadText,
-        fileName: uploadFileName !== 'No file selected' ? uploadFileName : '',
-        processedPayload: isExcelTab ? { playerStats: excelPreviewRows } : null,
-        source: isExcelTab ? 'excel' : 'json',
+        payloadText: uploadPayloadText,
+        fileName: '',
+        processedPayload: null,
+        source: 'json',
         tournamentId: manualTournamentId,
         contestId: effectiveContestId,
         matchId: manualMatchId,
@@ -465,8 +515,9 @@ function Dashboard({ defaultPanel = 'joined' }) {
         ? new Date(response.lastScoreUpdatedAt).toLocaleString()
         : 'now'
       setSaveNotice(
-        `${isExcelTab ? 'Excel match scores saved' : 'Match scores payload saved'} • ${impacted} contests updated • ${updatedAt}`,
+        `Match scores payload saved • ${impacted} contests updated • ${updatedAt}`,
       )
+      setUploadPayloadText('')
       await refreshManualStatsState({
         tournamentId: manualTournamentId,
         matchId: manualMatchId,
@@ -477,28 +528,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
       setErrorText(error.message || 'Failed to save match scores')
     } finally {
       setIsSavingScores(false)
-    }
-  }
-
-  const onProcessExcel = async () => {
-    try {
-      setSaveNotice('')
-      setErrorText('')
-      setIsProcessingExcel(true)
-      const data = await processExcelMatchScores({
-        fileName: uploadFileName !== 'No file selected' ? uploadFileName : '',
-      })
-      const rows = data?.playerStats || []
-      setExcelPreviewRows(rows)
-      setExcelPreviewMeta({
-        fileName: data?.fileName || uploadFileName,
-        processedRows: rows.length,
-      })
-      setSaveNotice('Excel processed. Review preview, then save.')
-    } catch (error) {
-      setErrorText(error.message || 'Failed to process excel file')
-    } finally {
-      setIsProcessingExcel(false)
     }
   }
 
@@ -616,6 +645,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
         teamB: saved[manualTeamPool.teamBName]?.playingXI || manualPlayingXi.teamB,
       })
       setSaveNotice('Playing XI JSON saved')
+      setLineupPayloadText('')
     } catch (error) {
       setErrorText(error.message || 'Failed to save lineup JSON')
     } finally {
@@ -696,14 +726,17 @@ function Dashboard({ defaultPanel = 'joined' }) {
       <CreateTournamentPanel
         onCreated={(payload) => {
           if (payload?.openAdmin) {
-            setActivePanel('admin')
+            selectPanel('tournamentManager')
           }
         }}
       />
     ),
+    userManager: <UserManagerPanel showPending={showMasterTools} />,
+    tournamentManager: <TournamentManagerPanel />,
+    contestManager: <AdminManagerPanel initialTab="contests" hideTabs />,
     players: <PlayerManagerPanel />,
     squads: <SquadManagerPanel />,
-    admin: <AdminManagerPanel />,
+    admin: <UserManagerPanel showPending={showMasterTools} />,
     upload: (
       <UploadPanel
         uploadTab={uploadTab}
@@ -726,14 +759,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
         onManualStatChange={onManualStatChange}
         onSaveManualScores={onSaveManualScores}
         isLoadingManualPool={isLoadingManualPool}
-        uploadFileName={uploadFileName}
-        setUploadFileName={setUploadFileName}
-        isDragOver={isDragOver}
-        setIsDragOver={setIsDragOver}
-        onProcessExcel={onProcessExcel}
-        isProcessingExcel={isProcessingExcel}
-        excelPreviewRows={excelPreviewRows}
-        excelPreviewMeta={excelPreviewMeta}
         onSaveScores={onSaveScores}
         isSavingScores={isSavingScores}
       />
@@ -741,7 +766,12 @@ function Dashboard({ defaultPanel = 'joined' }) {
     audit: (
       <AuditLogsPanel rows={infoPanelMap.audit || []} tournaments={pageLoadData.tournaments} />
     ),
-    approvals: <PendingApprovalsPanel />,
+    approvals: (
+      <>
+        <AdminManagerPanel initialTab="users" hideTabs />
+        {showMasterTools && <PendingApprovalsPanel />}
+      </>
+    ),
   }
 
   return (
@@ -752,7 +782,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
             key={item.key}
             type="button"
             className={`dashboard-nav-btn ${activePanel === item.key ? 'active' : ''}`.trim()}
-            onClick={() => setActivePanel(item.key)}
+            onClick={() => selectPanel(item.key)}
           >
             <span>{item.label}</span>
           </button>
@@ -766,7 +796,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
                 key={item.key}
                 type="button"
                 className={`dashboard-nav-btn ${activePanel === item.key ? 'active' : ''}`.trim()}
-                onClick={() => setActivePanel(item.key)}
+                onClick={() => selectPanel(item.key)}
               >
                 <span>{item.label}</span>
               </button>
@@ -782,7 +812,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
                 key={item.key}
                 type="button"
                 className={`dashboard-nav-btn ${activePanel === item.key ? 'active' : ''}`.trim()}
-                onClick={() => setActivePanel(item.key)}
+                onClick={() => selectPanel(item.key)}
               >
                 <span>{item.label}</span>
               </button>
@@ -802,45 +832,15 @@ function Dashboard({ defaultPanel = 'joined' }) {
           <label htmlFor="dashboard-panel-select">Dashboard section</label>
           <select
             id="dashboard-panel-select"
-            value={activePanel}
-            onChange={(event) => setActivePanel(event.target.value)}
+            value={mobilePanelValue}
+            onChange={(event) => selectPanel(event.target.value)}
           >
-            <optgroup label="General">
-              {regularMenuItems.map((item) => (
-                <option key={item.key} value={item.key}>
-                  {item.label}
-                </option>
-              ))}
-            </optgroup>
-            {showAdminTools && (
-              <optgroup label="Admin">
-                {visibleAdminMenuItems.map((item) => (
-                  <option key={item.key} value={item.key}>
-                    {item.label}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {showMasterTools && (
-              <optgroup label="Master">
-                {masterMenuItems.map((item) => (
-                  <option key={item.key} value={item.key}>
-                    {item.label}
-                  </option>
-                ))}
-              </optgroup>
-            )}
+            {mobilePanelOptions.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
           </select>
-          {showMasterTools && (
-            <div className="top-actions">
-              <Link to="/all-pages" className="ghost small">
-                All pages
-              </Link>
-              <Link to="/all-apis" className="ghost small">
-                All APIs
-              </Link>
-            </div>
-          )}
         </div>
 
         <div className="section-head-compact">

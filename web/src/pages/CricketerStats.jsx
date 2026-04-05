@@ -72,14 +72,22 @@ function CricketerStats() {
         key: 'name',
         label: 'Player',
         sortValue: (row) => row.name || '',
+        headerClassName: 'cricketer-col-player',
+        cellClassName: 'cricketer-col-player',
         render: (row) => (
-          <PlayerIdentity name={row.name} imageUrl={row.imageUrl || ''} />
+          <PlayerIdentity
+            name={row.name}
+            imageUrl={row.imageUrl || ''}
+            className="dense cricketer-stats-player-identity"
+          />
         ),
       },
       {
         key: 'team',
         label: 'Team',
         sortValue: (row) => row.teamName || row.team || '',
+        headerClassName: 'cricketer-col-team',
+        cellClassName: 'cricketer-col-team',
         render: (row) => (
           <div className="stats-team-cell">
             <strong>{row.teamCode || row.team || '-'}</strong>
@@ -92,30 +100,42 @@ function CricketerStats() {
       {
         key: 'runs',
         label: 'Runs',
+        headerClassName: 'cricketer-col-primary-stat',
+        cellClassName: 'cricketer-col-primary-stat',
       },
       {
         key: 'wickets',
         label: 'Wkts',
+        headerClassName: 'cricketer-col-primary-stat',
+        cellClassName: 'cricketer-col-primary-stat',
       },
       {
         key: 'catches',
         label: 'Catches',
+        headerClassName: 'cricketer-col-secondary-stat',
+        cellClassName: 'cricketer-col-secondary-stat',
         render: (row) => row.catches || 0,
       },
       {
         key: 'fours',
         label: '4s',
+        headerClassName: 'cricketer-col-secondary-stat',
+        cellClassName: 'cricketer-col-secondary-stat',
         render: (row) => row.fours || 0,
       },
       {
         key: 'sixes',
         label: '6s',
+        headerClassName: 'cricketer-col-secondary-stat',
+        cellClassName: 'cricketer-col-secondary-stat',
         render: (row) => row.sixes || 0,
       },
       {
         key: 'points',
         label: 'Points',
         sortValue: (row) => Number(row.points || 0),
+        headerClassName: 'cricketer-col-points',
+        cellClassName: 'cricketer-col-points',
         render: (row) => <strong>{Number(row.points || 0)}</strong>,
       },
     ],

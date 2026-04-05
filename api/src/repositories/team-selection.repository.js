@@ -59,8 +59,8 @@ class TeamSelectionRepository {
         userId,
         captainId || null,
         viceCaptainId || null,
-        JSON.stringify(playingXi || []),
-        JSON.stringify(backups || []),
+        Array.isArray(playingXi) ? playingXi.map((value) => Number(value)) : [],
+        Array.isArray(backups) ? backups.map((value) => Number(value)) : [],
       ],
     )
     const row = result.rows[0]
@@ -84,7 +84,13 @@ class TeamSelectionRepository {
        RETURNING id, contest_id as "contestId", match_id as "matchId", user_id as "userId",
                  captain_id as "captainId", vice_captain_id as "viceCaptainId",
                  playing_xi as "playingXi", backups, created_at as "createdAt", updated_at as "updatedAt"`,
-      [captainId || null, viceCaptainId || null, JSON.stringify(playingXi), JSON.stringify(backups), id],
+      [
+        captainId || null,
+        viceCaptainId || null,
+        Array.isArray(playingXi) ? playingXi.map((value) => Number(value)) : [],
+        Array.isArray(backups) ? backups.map((value) => Number(value)) : [],
+        id,
+      ],
     )
     const row = result.rows[0]
     if (row) {

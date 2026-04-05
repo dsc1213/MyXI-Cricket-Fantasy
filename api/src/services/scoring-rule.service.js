@@ -13,9 +13,15 @@ class ScoringRuleService {
   async saveDefaultScoringRules(rules) {
     const repo = await factory.getScoringRuleRepository()
     if (typeof repo.saveDefault === 'function') {
-      return await repo.saveDefault(rules || cloneDefaultPointsRules())
+      const saved = await repo.saveDefault(rules || cloneDefaultPointsRules())
+      const { default: matchScoreService } = await import('./match-score.service.js')
+      const rebuildSummary = await matchScoreService.rebuildAllDerivedScores()
+      return {
+        ...saved,
+        rebuildSummary,
+      }
     }
-    return { id: true, rules: rules || cloneDefaultPointsRules() }
+    return { id: true, rules: rules || cloneDefaultPointsRules(), rebuildSummary: null }
   }
 
   async getScoringRulesByTournament(tournamentId) {

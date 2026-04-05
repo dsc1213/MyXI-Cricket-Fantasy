@@ -5,15 +5,84 @@ import { mapMatchWithDerivedStatus } from './tournamentImport.service.js'
 const factory = createRepositoryFactory()
 
 class PlayerService {
+  normalizeImportedRole(value = '') {
+    return value.toString().trim().toUpperCase()
+  }
+
+  normalizeImportedCountry(payload = {}) {
+    return (payload.country || payload.nationality || '').toString().trim()
+  }
+
+  validatePlayerPayload(payload = {}, { label = 'player' } = {}) {
+    const fullName = (payload.name || payload.displayName || '').toString().trim()
+    if (!fullName) throw new Error(`${label} name is required`)
+    const country = this.normalizeImportedCountry(payload)
+    if (!country) throw new Error(`${label} country/nationality is required`)
+    const role = this.normalizeImportedRole(payload.role || '')
+    if (!role) throw new Error(`${label} role is required`)
+    return {
+      fullName,
+      country,
+      role,
+    }
+  }
+
+  async ensureNoDuplicateCatalogPlayer(payload = {}) {
+    const repo = await factory.getPlayerRepository()
+    const { fullName, country } = this.validatePlayerPayload(payload, {
+      label: 'Player',
+    })
+    const duplicate =
+      typeof repo.findByDisplayNameAndCountry === 'function'
+        ? await repo.findByDisplayNameAndCountry(fullName, country)
+        : null
+    if (!duplicate) return
+
+    const incomingKeys = [
+      payload.canonicalPlayerId,
+      payload.id,
+      payload.playerId,
+      payload.player_id,
+      payload.sourceKey,
+      payload.source_key,
+    ]
+      .map((value) => (value == null ? '' : `${value}`.trim()))
+      .filter(Boolean)
+    const duplicateKeys = [
+      duplicate.id,
+      duplicate.playerId,
+      duplicate.sourceKey,
+    ]
+      .map((value) => (value == null ? '' : `${value}`.trim()))
+      .filter(Boolean)
+
+    if (!incomingKeys.length || !incomingKeys.some((key) => duplicateKeys.includes(key))) {
+      throw new Error(`Player already exists: ${fullName} (${country})`)
+    }
+  }
+
   async resolveTournamentIdFromPayload(payload = {}) {
+    const tournamentRepo = await factory.getTournamentRepository()
     const explicitTournamentId = payload?.tournamentId
     if (explicitTournamentId != null && `${explicitTournamentId}`.trim()) {
       const rawValue = `${explicitTournamentId}`.trim()
-      const asNumber = Number(rawValue)
-      return Number.isFinite(asNumber) && asNumber > 0 ? asNumber : rawValue
+      if (/^\d+$/.test(rawValue)) {
+        return Number(rawValue)
+      }
+      if (typeof tournamentRepo?.findBySourceKey === 'function') {
+        const bySourceKey = await tournamentRepo.findBySourceKey(rawValue)
+        if (bySourceKey?.id != null) return Number(bySourceKey.id)
+      }
     }
     const tournamentName = (payload?.tournament || '').toString().trim()
     if (!tournamentName) return null
+    if (typeof tournamentRepo?.findAll === 'function') {
+      const tournaments = await tournamentRepo.findAll()
+      const byName = (tournaments || []).find(
+        (item) => `${item?.name || ''}`.trim().toLowerCase() === tournamentName.toLowerCase(),
+      )
+      if (byName?.id != null) return Number(byName.id)
+    }
     const result = await dbQuery(
       `SELECT id
        FROM tournaments
@@ -129,8 +198,10 @@ class PlayerService {
 
   async createPlayer(payload = {}) {
     const repo = await factory.getPlayerRepository()
-    const fullName = (payload.name || payload.displayName || '').toString().trim()
-    if (!fullName) throw new Error('Player name is required')
+    const { fullName, country, role } = this.validatePlayerPayload(payload, {
+      label: 'Player',
+    })
+    await this.ensureNoDuplicateCatalogPlayer(payload)
     const firstName =
       payload.firstName ||
       payload.first_name ||
@@ -146,9 +217,9 @@ class PlayerService {
       firstName,
       lastName,
       displayName: fullName,
-      role: (payload.role || '').toString().trim().toUpperCase(),
-      country: (payload.country || '').toString().trim(),
-      imageUrl: (payload.imageUrl || '').toString().trim(),
+      role,
+      country,
+      imageUrl: (payload.imageUrl || payload.player_img || '').toString().trim(),
       battingStyle: (payload.battingStyle || '').toString().trim(),
       bowlingStyle: (payload.bowlingStyle || '').toString().trim(),
       active: payload.active !== false,
@@ -160,6 +231,49 @@ class PlayerService {
         null,
       playerId: payload.playerId || payload.player_id || null,
     })
+  }
+
+  async importPlayers(payload = {}) {
+    const entries = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload.players)
+        ? payload.players
+        : []
+    if (!entries.length) throw new Error('players array is required')
+    const seenPairs = new Set()
+    entries.forEach((entry, index) => {
+      const { fullName, country } = this.validatePlayerPayload(entry, { label: `players[${index}]` })
+      const key = `${fullName}`.trim().toLowerCase() + '::' + `${country}`.trim().toLowerCase()
+      if (seenPairs.has(key)) {
+        throw new Error(`Duplicate player in import payload: ${fullName} (${country})`)
+      }
+      seenPairs.add(key)
+    })
+    const imported = []
+    for (const entry of entries) {
+      imported.push(
+        await this.createPlayer({
+          ...entry,
+          country: this.normalizeImportedCountry(entry),
+          sourceKey:
+            entry.sourceKey ||
+            entry.source_key ||
+            entry.canonicalPlayerId ||
+            entry.id ||
+            entry.playerId ||
+            entry.player_id ||
+            null,
+          canonicalPlayerId:
+            entry.canonicalPlayerId || entry.id || entry.playerId || entry.player_id || null,
+          imageUrl: entry.imageUrl || entry.player_img || '',
+        }),
+      )
+    }
+    return {
+      ok: true,
+      importedCount: imported.length,
+      players: imported,
+    }
   }
 
   async deletePlayer(id) {
@@ -367,17 +481,155 @@ class PlayerService {
     }
   }
 
+  async getUserPicks({ userId, tournamentId, contestId, matchId }) {
+    const contestRepo = await factory.getContestRepository()
+    const playerRepo = await factory.getPlayerRepository()
+    const teamSelectionRepo = await factory.getTeamSelectionRepository()
+    const matchRepo = await factory.getMatchRepository()
+
+    const contest = contestId ? await contestRepo.findById(contestId) : null
+    const resolvedTournamentId = contest?.tournamentId || tournamentId || ''
+    if (!resolvedTournamentId) {
+      throw new Error('contestId or tournamentId is required')
+    }
+
+    const allPlayers =
+      typeof playerRepo.findByTournament === 'function'
+        ? await playerRepo.findByTournament(resolvedTournamentId)
+        : await playerRepo.findAll()
+    const playerById = new Map(
+      (allPlayers || []).map((player) => [
+        String(player.id),
+        {
+          id: player.id,
+          name:
+            player.displayName ||
+            [player.firstName, player.lastName].filter(Boolean).join(' ').trim(),
+          role: player.role || '-',
+          team: player.teamKey || player.team || '-',
+          imageUrl: player.imageUrl || '',
+        },
+      ]),
+    )
+
+    const pointsByPlayerId = new Map()
+    if (matchId) {
+      const matchPoints = await dbQuery(
+        `SELECT player_id as "playerId", fantasy_points as "fantasyPoints"
+         FROM player_match_scores
+         WHERE tournament_id = $1 AND match_id = $2`,
+        [resolvedTournamentId, matchId],
+      )
+      ;(matchPoints.rows || []).forEach((row) => {
+        pointsByPlayerId.set(Number(row.playerId), Number(row.fantasyPoints || 0))
+      })
+    } else {
+      const totalPoints = await dbQuery(
+        `SELECT player_id as "playerId", COALESCE(SUM(fantasy_points), 0) as "fantasyPoints"
+         FROM player_match_scores
+         WHERE tournament_id = $1
+         GROUP BY player_id`,
+        [resolvedTournamentId],
+      )
+      ;(totalPoints.rows || []).forEach((row) => {
+        pointsByPlayerId.set(Number(row.playerId), Number(row.fantasyPoints || 0))
+      })
+    }
+
+    const isFixedRoster = (contest?.mode || '').toString().trim().toLowerCase() === 'fixed_roster'
+    if (isFixedRoster) {
+      const fixedRosterResult = await dbQuery(
+        `SELECT player_ids as "playerIds"
+         FROM contest_fixed_rosters
+         WHERE contest_id = $1 AND user_id = $2
+         LIMIT 1`,
+        [contestId, userId],
+      )
+      const playerIds = Array.isArray(fixedRosterResult.rows[0]?.playerIds)
+        ? fixedRosterResult.rows[0].playerIds
+        : []
+      const matchRecord = matchId && matchRepo.findById ? await matchRepo.findById(matchId) : null
+      const activeTeamKeys = [
+        matchRecord?.teamAKey || matchRecord?.teamA,
+        matchRecord?.teamBKey || matchRecord?.teamB,
+      ]
+        .map((value) => String(value || '').trim().toUpperCase())
+        .filter(Boolean)
+      const activeTeamSet = new Set(activeTeamKeys)
+      const rosterDetailed = playerIds
+        .map((id) => playerById.get(String(id)))
+        .filter(Boolean)
+        .map((entry) => ({
+          ...entry,
+          points: Number(pointsByPlayerId.get(Number(entry.id)) || 0),
+        }))
+      const picksDetailed = activeTeamSet.size
+        ? rosterDetailed.filter((entry) =>
+            activeTeamSet.has(String(entry.team || '').trim().toUpperCase()),
+          )
+        : rosterDetailed.slice(0, 11)
+      const backupsDetailed = activeTeamSet.size
+        ? rosterDetailed.filter(
+            (entry) => !activeTeamSet.has(String(entry.team || '').trim().toUpperCase()),
+          )
+        : rosterDetailed.slice(11)
+      return {
+        userId,
+        tournamentId: resolvedTournamentId,
+        contestId,
+        matchId,
+        picks: picksDetailed.map((row) => row.name),
+        backups: backupsDetailed.map((row) => row.name),
+        picksDetailed,
+        backupsDetailed,
+      }
+    }
+
+    const selection =
+      matchId && userId
+        ? await teamSelectionRepo.findByMatchAndUser(matchId, userId, contest?.id || null)
+        : null
+    const picksDetailed = (selection?.playingXi || [])
+      .map((id) => playerById.get(String(id)))
+      .filter(Boolean)
+      .map((entry) => ({
+        ...entry,
+        points: Number(pointsByPlayerId.get(Number(entry.id)) || 0),
+      }))
+    const backupsDetailed = (selection?.backups || [])
+      .map((id) => playerById.get(String(id)))
+      .filter(Boolean)
+      .map((entry) => ({
+        ...entry,
+        points: Number(pointsByPlayerId.get(Number(entry.id)) || 0),
+      }))
+    return {
+      userId,
+      tournamentId: resolvedTournamentId,
+      contestId,
+      matchId,
+      picks: picksDetailed.map((row) => row.name),
+      backups: backupsDetailed.map((row) => row.name),
+      picksDetailed,
+      backupsDetailed,
+    }
+  }
+
   async getTeamSquads(tournamentId) {
     const repo = await factory.getPlayerRepository()
+    const resolvedTournamentId =
+      tournamentId == null
+        ? null
+        : await this.resolveTournamentIdFromPayload({ tournamentId: `${tournamentId}`.trim() })
     if (typeof repo.findAllTeamSquads === 'function') {
-      const rows = await repo.findAllTeamSquads(tournamentId || null)
+      const rows = await repo.findAllTeamSquads(resolvedTournamentId || null)
       if (Array.isArray(rows)) return rows
     }
     const allPlayers = await repo.findAll()
     const teamKeys = [...new Set(allPlayers.map((p) => p.teamKey).filter(Boolean))]
     const squads = []
     for (const teamKey of teamKeys) {
-      const players = await repo.findByTeam(teamKey, tournamentId || null)
+      const players = await repo.findByTeam(teamKey, resolvedTournamentId || null)
       squads.push({
         teamCode: teamKey,
         teamName: players[0]?.teamName || teamKey,
@@ -411,6 +663,8 @@ class PlayerService {
       ? payload
       : Array.isArray(payload?.players)
         ? payload.players
+        : Array.isArray(payload?.squad)
+          ? payload.squad
         : []
     const teamMeta = Array.isArray(payload) ? {} : payload || {}
     const resolvedTournamentId = await this.resolveTournamentIdFromPayload(teamMeta)
@@ -428,35 +682,55 @@ class PlayerService {
       })
     }
 
-    const data = normalizedPlayers.map((p) => {
+    const data = []
+    for (const p of normalizedPlayers) {
+      const canonicalRef =
+        p.canonicalPlayerId || p.playerRowId || p.id || p.playerId || p.player_id || ''
+      const existingCanonical =
+        canonicalRef && typeof repo.findCanonical === 'function'
+          ? await repo.findCanonical({ canonicalPlayerId: canonicalRef })
+          : null
+      if (canonicalRef && !existingCanonical && !(p.name || p.displayName)) {
+        throw new Error(`Referenced player not found: ${canonicalRef}`)
+      }
       const fullName = (p.name || p.displayName || '').toString().trim()
-      const firstName = p.firstName || p.first_name || fullName.split(/\s+/).slice(0, -1).join(' ') || fullName
-      const lastName = p.lastName || p.last_name || fullName.split(/\s+/).slice(-1).join(' ') || ''
-      return {
-        canonicalPlayerId: p.canonicalPlayerId || p.playerRowId || p.id || p.playerId || '',
+      const resolvedName =
+        fullName ||
+        existingCanonical?.displayName ||
+        [existingCanonical?.firstName, existingCanonical?.lastName].filter(Boolean).join(' ').trim()
+      const firstName =
+        p.firstName ||
+        p.first_name ||
+        resolvedName.split(/\s+/).slice(0, -1).join(' ') ||
+        resolvedName
+      const lastName =
+        p.lastName ||
+        p.last_name ||
+        resolvedName.split(/\s+/).slice(-1).join(' ') ||
+        ''
+      data.push({
+        canonicalPlayerId: canonicalRef,
         firstName,
         lastName,
-        displayName: fullName || [firstName, lastName].filter(Boolean).join(' ').trim(),
-        role: p.role,
+        displayName: resolvedName || [firstName, lastName].filter(Boolean).join(' ').trim(),
+        role: p.role || existingCanonical?.role || '',
         teamKey,
         teamName: teamMeta.teamName || p.teamName || teamKey,
-        playerId: p.playerId || p.player_id,
-        country: p.country || teamMeta.country || '',
-        imageUrl: p.imageUrl || p.player_img || '',
-        battingStyle: p.battingStyle || p.batting_style || '',
-        bowlingStyle: p.bowlingStyle || p.bowling_style || '',
+        playerId: p.playerId || p.player_id || existingCanonical?.playerId || canonicalRef,
+        country: p.country || existingCanonical?.country || teamMeta.country || '',
+        imageUrl: p.imageUrl || p.player_img || existingCanonical?.imageUrl || '',
+        battingStyle: p.battingStyle || p.batting_style || existingCanonical?.battingStyle || '',
+        bowlingStyle: p.bowlingStyle || p.bowling_style || existingCanonical?.bowlingStyle || '',
         active: p.active !== false,
         basePrice: p.basePrice ?? p.base_price ?? null,
         sourceKey:
           p.sourceKey ||
           p.source_key ||
-          p.canonicalPlayerId ||
-          p.id ||
-          p.playerId ||
-          p.player_id ||
+          canonicalRef ||
+          existingCanonical?.sourceKey ||
           null,
-      }
-    })
+      })
+    }
     if (resolvedTournamentId && typeof repo.replaceTournamentTeamPlayers === 'function') {
       return await repo.replaceTournamentTeamPlayers({
         tournamentId: resolvedTournamentId,
@@ -472,18 +746,83 @@ class PlayerService {
     return await repo.bulkCreateLegacy(data)
   }
 
+  async importTeamSquadMappings(payload = {}) {
+    const teamSquads = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload.teamSquads)
+        ? payload.teamSquads
+        : []
+    if (!teamSquads.length) throw new Error('teamSquads array is required')
+    const baseTournamentId = await this.resolveTournamentIdFromPayload(payload)
+    for (let index = 0; index < teamSquads.length; index += 1) {
+      const row = teamSquads[index] || {}
+      const teamCode = (row.teamCode || '').toString().trim().toUpperCase()
+      if (!teamCode) throw new Error(`teamSquads[${index}].teamCode is required`)
+      const resolvedTournamentId =
+        (await this.resolveTournamentIdFromPayload({
+          tournamentId: row.tournamentId || payload.tournamentId || '',
+          tournament: row.tournament || payload.tournament || '',
+        })) ||
+        baseTournamentId
+      if (!resolvedTournamentId) {
+        throw new Error(`teamSquads[${index}].tournamentId or tournament is required`)
+      }
+      const players = Array.isArray(row.players) ? row.players : row.squad
+      if (!Array.isArray(players) || !players.length) {
+        throw new Error(`teamSquads[${index}].squad must contain at least one player`)
+      }
+      players.forEach((player, playerIndex) => {
+        const hasCanonicalRef = (player?.canonicalPlayerId || '').toString().trim()
+        if (!hasCanonicalRef) {
+          this.validatePlayerPayload(player, {
+            label: `teamSquads[${index}].squad[${playerIndex}]`,
+          })
+        }
+      })
+    }
+    const results = []
+    for (const row of teamSquads) {
+      const teamCode = (row.teamCode || '').toString().trim().toUpperCase()
+      if (!teamCode) throw new Error('teamSquads[].teamCode is required')
+      const created = await this.createTeamSquad(teamCode, {
+        ...payload,
+        ...row,
+        tournamentType: 'tournament',
+        tournamentId: row.tournamentId || payload.tournamentId || '',
+        tournament: row.tournament || payload.tournament || '',
+        country: row.country || payload.country || '',
+        league: row.league || payload.league || '',
+        teamCode,
+        players: Array.isArray(row.players) ? row.players : row.squad,
+      })
+      results.push({
+        teamCode,
+        createdCount: Array.isArray(created) ? created.length : 0,
+      })
+    }
+    return {
+      ok: true,
+      importedCount: results.length,
+      teamSquads: results,
+    }
+  }
+
   async deleteTeamSquad(teamKey, tournamentId = null) {
     const repo = await factory.getPlayerRepository()
+    const resolvedTournamentId =
+      tournamentId == null
+        ? null
+        : await this.resolveTournamentIdFromPayload({ tournamentId: `${tournamentId}`.trim() })
     if (typeof repo.deleteByTeam === 'function') {
-      await repo.deleteByTeam(teamKey, tournamentId || null)
+      await repo.deleteByTeam(teamKey, resolvedTournamentId || null)
     } else {
-      const players = await repo.findByTeam(teamKey, tournamentId || null)
+      const players = await repo.findByTeam(teamKey, resolvedTournamentId || null)
       for (const player of players) {
         await repo.delete(player.id)
       }
     }
     if (typeof repo.deleteTeamSquadMeta === 'function') {
-      await repo.deleteTeamSquadMeta(teamKey, tournamentId || null)
+      await repo.deleteTeamSquadMeta(teamKey, resolvedTournamentId || null)
     }
     return { deleted: true }
   }

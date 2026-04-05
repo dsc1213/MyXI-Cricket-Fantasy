@@ -109,7 +109,9 @@ function TeamSelection() {
         const teamAPlayers = data?.teams?.teamA?.players || []
         const teamBPlayers = data?.teams?.teamB?.players || []
         const mergedPlayers = [...teamAPlayers, ...teamBPlayers]
-        const poolById = new Map(mergedPlayers.map((player) => [player.id, player]))
+        const poolById = new Map(
+          mergedPlayers.map((player) => [String(player.id), player]),
+        )
 
         setPlayerPool({
           teamAName: data?.teams?.teamA?.name || 'Team A',
@@ -128,10 +130,10 @@ function TeamSelection() {
           let hydratedBackups = []
           const savedSelection = data?.selection || null
           const pickedXI = (savedSelection?.playingXi || [])
-            .map((id) => poolById.get(id))
+            .map((id) => poolById.get(String(id)))
             .filter(Boolean)
           const pickedBackups = (savedSelection?.backups || [])
-            .map((id) => poolById.get(id))
+            .map((id) => poolById.get(String(id)))
             .filter(Boolean)
           hydratedSelected = pickedXI.slice(0, 11)
           hydratedBackups = pickedBackups.slice(0, 6)

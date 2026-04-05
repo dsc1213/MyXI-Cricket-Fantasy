@@ -26,22 +26,38 @@ const run = async () => {
   initDbPool()
   const passwordHash = bcrypt.hashSync(password, 10)
 
-  const result = await dbQuery(
-    `insert into users
-      (name, user_id, game_name, email, phone, location, password_hash, status, role)
-     values ($1, $2, $3, $4, '', '', $5, 'active', 'master_admin')
-     on conflict (email)
-     do update set
-       name = excluded.name,
-       user_id = excluded.user_id,
-       game_name = excluded.game_name,
-       password_hash = excluded.password_hash,
-       status = 'active',
-       role = 'master_admin',
-       updated_at = now()
-     returning id, email, user_id, game_name, role, status`,
-    [name, userId, gameName, email, passwordHash],
+  const existing = await dbQuery(
+    `select id
+     from users
+     where lower(email) = lower($1)
+        or role = 'master_admin'
+     order by case when lower(email) = lower($1) then 0 else 1 end, id asc
+     limit 1`,
+    [email],
   )
+
+  const result = existing.rows[0]
+    ? await dbQuery(
+        `update users
+         set name = $1,
+             user_id = $2,
+             game_name = $3,
+             email = $4,
+             password_hash = $5,
+             status = 'active',
+             role = 'master_admin',
+             updated_at = now()
+         where id = $6
+         returning id, email, user_id, game_name, role, status`,
+        [name, userId, gameName, email, passwordHash, existing.rows[0].id],
+      )
+    : await dbQuery(
+        `insert into users
+          (name, user_id, game_name, email, phone, location, password_hash, status, role)
+         values ($1, $2, $3, $4, '', '', $5, 'active', 'master_admin')
+         returning id, email, user_id, game_name, role, status`,
+        [name, userId, gameName, email, passwordHash],
+      )
 
   const user = result.rows[0]
   console.log(

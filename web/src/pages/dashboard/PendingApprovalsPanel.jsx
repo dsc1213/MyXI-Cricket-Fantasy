@@ -5,7 +5,14 @@ import StickyTable from '../../components/ui/StickyTable.jsx'
 import { fetchAdminUsers, updateAdminUser } from '../../lib/api.js'
 import { getStoredUser } from '../../lib/auth.js'
 
-function PendingApprovalsPanel() {
+function PendingApprovalsPanel({ compact = false }) {
+  const normalizeAdminUsers = (payload) => {
+    if (Array.isArray(payload)) return payload
+    if (Array.isArray(payload?.users)) return payload.users
+    if (Array.isArray(payload?.rows)) return payload.rows
+    return []
+  }
+
   const currentUser = getStoredUser()
   const [isLoading, setIsLoading] = useState(true)
   const [errorText, setErrorText] = useState('')
@@ -18,7 +25,7 @@ function PendingApprovalsPanel() {
       setIsLoading(true)
       setErrorText('')
       const rows = await fetchAdminUsers()
-      setUsers(rows || [])
+      setUsers(normalizeAdminUsers(rows))
     } catch (error) {
       setErrorText(error.message || 'Failed to load pending users')
     } finally {
@@ -108,8 +115,8 @@ function PendingApprovalsPanel() {
   ]
 
   return (
-    <section className="dashboard-section">
-      <div className="admin-card dashboard-panel-card">
+    <section className={`dashboard-section ${compact ? 'pending-approvals-section compact' : 'pending-approvals-section'}`.trim()}>
+      <div className={`admin-card dashboard-panel-card ${compact ? 'pending-approvals-panel compact' : 'pending-approvals-panel'}`.trim()}>
         <div className="contest-section-head">
           <h3>{`Pending users (${pendingUsers.length})`}</h3>
           <div className="top-actions">

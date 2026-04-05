@@ -1,17 +1,17 @@
 const regularMenuItems = [
   { key: 'joined', label: 'Dashboard' },
   { key: 'points', label: 'Scoring Rules' },
+  { key: 'players', label: 'Player Manager' },
 ]
 
 const adminMenuItems = [
-  { key: 'createTournament', label: 'Create Tournament' },
-  { key: 'players', label: 'Player Manager' },
+  { key: 'tournamentManager', label: 'Tournament Manager' },
+  { key: 'contestManager', label: 'Contest Manager' },
   { key: 'squads', label: 'Squad Manager' },
-  { key: 'admin', label: 'Admin Manager' },
-  { key: 'upload', label: 'Score Updates' },
+  { key: 'upload', label: 'Score Manager' },
   { key: 'audit', label: 'Audit Logs' },
 ]
-const masterMenuItems = [{ key: 'approvals', label: 'Pending Approvals' }]
+const masterMenuItems = [{ key: 'userManager', label: 'User Manager' }]
 
 const menuItems = [...regularMenuItems, ...adminMenuItems]
 
@@ -24,13 +24,16 @@ const gameClassMap = {
 const sectionTitles = {
   joined: 'Dashboard',
   points: 'Scoring Rules',
-  admin: 'Admin Manager',
-  createTournament: 'Create Tournament',
+  userManager: 'User Manager',
+  tournamentManager: 'Tournament Manager',
+  contestManager: 'Contest Manager',
   players: 'Player Manager',
   squads: 'Squad Manager',
-  upload: 'Score Updates',
+  upload: 'Score Manager',
   audit: 'Audit Logs',
-  approvals: 'Pending Approvals',
+  admin: 'User Manager',
+  createTournament: 'Tournament Manager',
+  approvals: 'User Manager',
 }
 
 export {

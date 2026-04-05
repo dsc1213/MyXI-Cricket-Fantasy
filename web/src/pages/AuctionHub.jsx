@@ -119,7 +119,7 @@ function AuctionHub() {
   }, [contests])
 
   return (
-    <section className="admin auction-hub">
+    <section className="admin auction-hub auction-hub-page">
       <div className="section-head-compact auction-hub-header">
         <div className="contest-section-head">
           <h2>Auction Contests</h2>
@@ -251,6 +251,7 @@ function AuctionHub() {
                           <p className="team-note">{tournamentNameMap[contest.tournamentId]}</p>
                           <p className="team-note">{participantCount} participants</p>
                           <p className="team-note">Fixed {rosterSize}-player tournament rosters</p>
+                          <p className="team-note">Leaderboard counts top 11 scoring players</p>
                           <p className="team-note">
                             Last score update:{' '}
                             {contest.lastScoreUpdatedAt

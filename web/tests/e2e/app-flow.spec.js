@@ -120,7 +120,7 @@ test.describe('Admin master scenarios', () => {
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
   })
 
-  test('add/remove tournament and create contest', async ({ page }) => {
+  test('toggle tournament visibility and create contest', async ({ page }) => {
     await ensureMasterLogin(page)
 
     await page.getByRole('button', { name: 'Admin Manager' }).click()
@@ -128,29 +128,23 @@ test.describe('Admin master scenarios', () => {
 
     const hundredRow = page.locator('tr', { hasText: 'The Hundred 2026' })
     await expect(hundredRow).toBeVisible()
-    const hundredCheckbox = hundredRow.locator('input[type="checkbox"]')
-    if (!(await hundredCheckbox.isChecked())) {
-      await hundredCheckbox.check()
-      await page.getByRole('button', { name: 'Add to Tournaments' }).click()
-      await expect(page.getByText('Dashboard feed unavailable')).toHaveCount(0)
+    const enableDisableButton = hundredRow.getByRole('button', { name: /Enable|Disable/ })
+    if ((await enableDisableButton.textContent())?.trim() === 'Enable') {
+      await enableDisableButton.click()
+      await expect(page.getByText('Tournament enabled')).toBeVisible()
     }
 
     await gotoWithRetry(page, '/fantasy')
     await expect(page.getByText('The Hundred 2026')).toBeVisible()
+    await expect(page.getByRole('button', { name: '+ Create contest' })).toBeEnabled()
 
     await page.goto('/home')
     await page.getByRole('button', { name: 'Admin Manager' }).click()
     await page.getByRole('tab', { name: /Tournaments \(/ }).click()
-    if (await hundredCheckbox.isChecked()) {
-      await hundredCheckbox.click()
-      await page.getByRole('button', { name: 'Remove from Tournaments' }).click()
-      const removeConfirm = page.locator('.ui-modal-card').getByRole('button', {
-        name: 'Remove',
-        exact: true,
-      })
-      await expect(removeConfirm).toBeVisible()
-      await removeConfirm.click({ force: true })
-      await expect(page.getByText('Dashboard feed unavailable')).toHaveCount(0)
+    const disableButton = hundredRow.getByRole('button', { name: 'Disable' })
+    if (await disableButton.isVisible()) {
+      await disableButton.click()
+      await expect(hundredRow.getByRole('button', { name: 'Enable' })).toBeVisible()
     }
 
     await page.goto('/fantasy')
@@ -167,6 +161,71 @@ test.describe('Admin master scenarios', () => {
     await page.getByRole('tab', { name: 'Contests' }).click()
     await page.getByRole('combobox').first().selectOption('t20wc-2026')
     await expect(page.locator('.catalog-table tbody tr', { hasText: contestName }).first()).toBeVisible()
+  })
+
+  test('creating a fantasy contest reloads and displays the new contest without manual refresh', async ({
+    page,
+  }) => {
+    await ensureMasterLogin(page)
+
+    await gotoWithRetry(page, '/fantasy')
+    await expect(
+      page.locator('.tournament-filter-tile', { hasText: 'T20 World Cup 2026' }).first(),
+    ).toBeVisible()
+
+    const contestName = `instant-${Date.now()}`
+    await page.getByRole('button', { name: '+ Create contest' }).click()
+    await page.getByLabel('Tournament').selectOption('t20wc-2026')
+    await page.getByLabel('Contest name').fill(contestName)
+    await page.getByLabel('Max players').fill('55')
+
+    const createButton = page.locator('.ui-modal-card').getByRole('button', { name: 'Create', exact: true })
+    await createButton.click()
+    await expect(page.locator('.ui-modal-card').getByRole('button', { name: 'Creating...' })).toBeVisible()
+    await expect(page.getByText('Contest created')).toBeVisible()
+    await expect(page.locator('.ui-modal-card')).toHaveCount(0)
+    await expect(
+      page.locator('article.compact-contest-card', { hasText: contestName }).first(),
+    ).toBeVisible()
+  })
+
+  test('fantasy contest creation enforces a minimum of two max players', async ({ page }) => {
+    await ensureMasterLogin(page)
+
+    await gotoWithRetry(page, '/fantasy')
+    await page.getByRole('button', { name: '+ Create contest' }).click()
+    await page.getByLabel('Tournament').selectOption('t20wc-2026')
+    await page.getByLabel('Contest name').fill(`min-two-${Date.now()}`)
+    await page.getByLabel('Max players').fill('1')
+
+    await expect(page.getByText('Max players must be at least 2.')).toBeVisible()
+    await expect(
+      page.locator('.ui-modal-card').getByRole('button', { name: 'Create', exact: true }),
+    ).toBeDisabled()
+  })
+
+  test('master fantasy view uses enabled admin tournaments even when public tournament feed is empty', async ({
+    page,
+  }) => {
+    await ensureMasterLogin(page)
+
+    await page.route('**/tournaments', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: '[]',
+      })
+    })
+
+    await gotoWithRetry(page, '/fantasy')
+
+    await expect(
+      page.locator('.tournament-filter-tile', { hasText: 'T20 World Cup 2026' }).first(),
+    ).toBeVisible()
+    await expect(
+      page.locator('article.compact-contest-card', { hasText: 'Huntercherry Contest' }).first(),
+    ).toBeVisible()
+    await expect(page.getByRole('button', { name: '+ Create contest' })).toBeEnabled()
   })
 
   test('manage contests from Admin Manager Contests tab and reflect in fantasy', async ({
@@ -258,6 +317,40 @@ test.describe('Admin master scenarios', () => {
       submittedCount = Number(String(raw).replace(/[^0-9]/g, '') || 0)
     }
     await expect(page.locator('.participants-table tbody tr')).toHaveCount(submittedCount)
+  })
+
+  test('contest participants payload exposes joined count and preview picks for the current viewer', async ({
+    page,
+  }) => {
+    await loginAs(page, 'kiran11', 'demo123')
+    await page.goto('/tournaments/psl-2026/contests/stump-vision-xi')
+    await expect(page.getByRole('heading', { name: 'Stump Vision XI' })).toBeVisible()
+
+    const firstRow = page.locator('.match-table tbody tr').first()
+    await expect(firstRow).toBeVisible()
+    await firstRow.click()
+
+    const matchesPayload = await page.evaluate(async () => {
+      const api = await import('/src/lib/api.js')
+      return api.fetchContestMatches({
+        contestId: 'stump-vision-xi',
+        userId: 'kiran11',
+      })
+    })
+    const matchId = Array.isArray(matchesPayload) ? matchesPayload[0]?.id || 'm1' : 'm1'
+
+    const payload = await page.evaluate(async ({ innerMatchId }) => {
+      const api = await import('/src/lib/api.js')
+      return api.fetchContestParticipants({
+        contestId: 'stump-vision-xi',
+        matchId: innerMatchId,
+        userId: 'kiran11',
+      })
+    }, { innerMatchId: matchId })
+
+    expect(Array.isArray(payload?.participants)).toBeTruthy()
+    expect(Number(payload?.joinedCount || 0)).toBeGreaterThanOrEqual(payload?.participants?.length || 0)
+    expect(Array.isArray(payload?.previewXI)).toBeTruthy()
   })
 
   test('match -> participant -> eye preview points stay in sync for multiple matches', async ({

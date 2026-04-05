@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getStoredUser, setStoredUser } from '../lib/auth.js'
+import { clearStoredAuth, getStoredUser, setStoredUser } from '../lib/auth.js'
 import { fetchAccountStatus } from '../lib/api.js'
 
 function Pending() {
@@ -27,7 +27,8 @@ function Pending() {
       })
       const status = (latest?.status || '').toString().toLowerCase()
       if (status && status !== 'pending') {
-        navigate('/home')
+        clearStoredAuth()
+        navigate('/login')
         return
       }
       setMessage('Still pending. Please check again shortly.')

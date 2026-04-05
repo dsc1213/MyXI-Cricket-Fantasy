@@ -3,6 +3,11 @@ import SelectField from '../../components/ui/SelectField.jsx'
 import { getStatusClassName } from '../../components/ui/status.js'
 import { gameClassMap } from './constants.js'
 
+const formatContestMetric = (value, { prefix = '', empty = '' } = {}) => {
+  if (value === null || value === undefined || value === '') return `${prefix}${empty}`
+  return `${prefix}${value}`
+}
+
 function JoinedPanel({
   selectedTournament,
   setSelectedTournament,
@@ -59,8 +64,8 @@ function JoinedPanel({
                     <p className="team-note">{tournamentName}</p>
                     <p className="team-note">{contest.game}</p>
                     <div className="contest-card-bottom">
-                      <span>{`Pts ${contest.points}`}</span>
-                      <span>{`Rank #${contest.rank}`}</span>
+                      <span>{formatContestMetric(contest.points, { prefix: 'Pts ' })}</span>
+                      <span>{formatContestMetric(contest.rank, { prefix: 'Rank #' })}</span>
                       <Link
                         className="ghost small"
                         to={`/tournaments/${contest.tournamentId}/contests/${contest.id}`}

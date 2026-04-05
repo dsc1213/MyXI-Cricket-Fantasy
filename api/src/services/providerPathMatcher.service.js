@@ -3,6 +3,7 @@ const providerPathPrefixes = [
   '/bootstrap',
   '/tournaments',
   '/contests',
+  '/matches',
   '/players',
   '/player-stats',
   '/team-pool',

@@ -18,6 +18,56 @@ import {
 } from '../lib/api.js'
 import { getStoredUser } from '../lib/auth.js'
 
+const normalizeContestMatches = (payload) => {
+  if (Array.isArray(payload)) return payload
+  if (Array.isArray(payload?.matches)) return payload.matches
+  return []
+}
+
+const normalizeContestParticipants = (payload) => {
+  if (Array.isArray(payload)) {
+    return {
+      participants: payload,
+      joinedCount: payload.length,
+      previewXI: [],
+      previewBackups: [],
+    }
+  }
+  return {
+    participants: Array.isArray(payload?.participants) ? payload.participants : [],
+    joinedCount: Number(payload?.joinedCount || 0),
+    previewXI: Array.isArray(payload?.previewXI) ? payload.previewXI : [],
+    previewBackups: Array.isArray(payload?.previewBackups) ? payload.previewBackups : [],
+  }
+}
+
+const normalizeMatchStatus = (value) =>
+  (value || '')
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '')
+
+const getMatchStartTime = (match) => {
+  const raw = (match?.startAt || match?.startTime || '').toString().trim()
+  if (!raw) return Number.POSITIVE_INFINITY
+  const parsed = new Date(raw)
+  const time = parsed.getTime()
+  return Number.isNaN(time) ? Number.POSITIVE_INFINITY : time
+}
+
+const sortContestMatches = (rows = []) =>
+  [...rows].sort((left, right) => {
+    const leftCompleted = normalizeMatchStatus(left?.status) === 'completed'
+    const rightCompleted = normalizeMatchStatus(right?.status) === 'completed'
+    if (leftCompleted !== rightCompleted) {
+      return leftCompleted ? 1 : -1
+    }
+    const timeDiff = getMatchStartTime(left) - getMatchStartTime(right)
+    if (timeDiff !== 0) return timeDiff
+    return String(left?.matchNo || left?.id || '').localeCompare(String(right?.matchNo || right?.id || ''))
+  })
+
 function ContestDetail() {
   const { tournamentId, contestId } = useParams()
   const location = useLocation()
@@ -30,6 +80,8 @@ function ContestDetail() {
   const canEditFullTeams = currentUser?.role === 'master_admin'
   const canDeleteContest = ['admin', 'master_admin'].includes(currentUser?.role)
   const [isLoading, setIsLoading] = useState(true)
+  const [isMetaLoading, setIsMetaLoading] = useState(true)
+  const [hasLoadedMatchesOnce, setHasLoadedMatchesOnce] = useState(false)
   const [errorText, setErrorText] = useState('')
   const [contestTitle, setContestTitle] = useState(contestId)
   const [contestMode, setContestMode] = useState('')
@@ -44,6 +96,7 @@ function ContestDetail() {
   const [previewXI, setPreviewXI] = useState([])
   const [previewBackups, setPreviewBackups] = useState([])
   const [previewPlayer, setPreviewPlayer] = useState(null)
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
   const [showLeaderboardPreview, setShowLeaderboardPreview] = useState(false)
   const [leaderboardRows, setLeaderboardRows] = useState([])
   const [isLoadingLeaderboardPreview, setIsLoadingLeaderboardPreview] = useState(false)
@@ -56,7 +109,7 @@ function ContestDetail() {
 
     const loadMeta = async () => {
       try {
-        setIsLoading(true)
+        setIsMetaLoading(true)
         setErrorText('')
         const [contest, tournaments] = await Promise.all([
           fetchContest(contestId),
@@ -72,7 +125,7 @@ function ContestDetail() {
         if (!active) return
         setErrorText(error.message || 'Failed to load contest')
       } finally {
-        if (active) setIsLoading(false)
+        if (active) setIsMetaLoading(false)
       }
     }
 
@@ -81,6 +134,14 @@ function ContestDetail() {
       active = false
     }
   }, [contestId, tournamentId])
+
+  useEffect(() => {
+    setHasLoadedMatchesOnce(false)
+  }, [contestId])
+
+  useEffect(() => {
+    setIsLoading(isMetaLoading || !hasLoadedMatchesOnce)
+  }, [hasLoadedMatchesOnce, isMetaLoading])
 
   useEffect(() => {
     let active = true
@@ -94,16 +155,19 @@ function ContestDetail() {
           team: teamFilter,
           userId: currentUserGameName,
         })
+        const rows = normalizeContestMatches(data)
         if (!active) return
-        setMatches(data)
+        setMatches(rows)
         setSelectedMatchId((prev) => {
-          if (!prev && data.length > 0) return data[0].id
-          if (prev && !data.find((item) => item.id === prev)) return data[0]?.id || ''
+          if (!prev && rows.length > 0) return rows[0].id
+          if (prev && !rows.find((item) => item.id === prev)) return rows[0]?.id || ''
           return prev
         })
       } catch (error) {
         if (!active) return
         setErrorText(error.message || 'Failed to load matches')
+      } finally {
+        if (active) setHasLoadedMatchesOnce(true)
       }
     }
 
@@ -119,15 +183,18 @@ function ContestDetail() {
 
     const loadParticipants = async () => {
       try {
-        const data = await fetchContestParticipants({
-          contestId,
-          matchId: selectedMatchId,
-          userId: currentUserGameName,
-        })
+        const payload = normalizeContestParticipants(
+          await fetchContestParticipants({
+            contestId,
+            matchId: selectedMatchId,
+            userId: currentUserGameName,
+          }),
+        )
         if (!active) return
-        setParticipants(data.participants || [])
-        setJoinedParticipantsCount(Number(data.joinedCount || 0))
-        setPreviewXI(data.previewXI || [])
+        setParticipants(payload.participants)
+        setJoinedParticipantsCount(payload.joinedCount)
+        setPreviewXI(payload.previewXI)
+        setPreviewBackups(payload.previewBackups)
       } catch (error) {
         if (!active) return
         setErrorText(error.message || 'Failed to load participants')
@@ -140,10 +207,22 @@ function ContestDetail() {
     }
   }, [contestId, selectedMatchId, currentUserGameName])
 
+  const loadParticipantsForMatch = async (matchId) =>
+    normalizeContestParticipants(
+      await fetchContestParticipants({
+          contestId,
+          matchId,
+          userId: currentUserGameName,
+        }),
+    )
+
   const onPreviewPlayer = async (player) => {
     try {
       if (!isLoggedIn) return
       setPreviewPlayer(player)
+      setIsLoadingPreview(true)
+      setPreviewXI([])
+      setPreviewBackups([])
       const data = await fetchUserPicks({
         userId: player.userId,
         tournamentId,
@@ -154,6 +233,8 @@ function ContestDetail() {
       setPreviewBackups(data?.backupsDetailed || data?.backups || [])
     } catch (error) {
       setErrorText(error.message || 'Failed to load user team')
+    } finally {
+      setIsLoadingPreview(false)
     }
   }
 
@@ -163,12 +244,8 @@ function ContestDetail() {
       const targetMatchId = match?.id || selectedMatchId
       if (!targetMatchId) return
       setSelectedMatchId(targetMatchId)
-      const participantsData = await fetchContestParticipants({
-        contestId,
-        matchId: targetMatchId,
-        userId: currentUserGameName,
-      })
-      const currentParticipant = (participantsData?.participants || []).find(
+      const participantsData = await loadParticipantsForMatch(targetMatchId)
+      const currentParticipant = participantsData.participants.find(
         (entry) =>
           entry.userId === currentUserGameName ||
           entry.name?.toLowerCase() === currentUserGameName.toLowerCase(),
@@ -178,6 +255,9 @@ function ContestDetail() {
         name: currentUser?.name || currentUserGameName,
         points: Number(currentParticipant?.points || 0),
       })
+      setIsLoadingPreview(true)
+      setPreviewXI([])
+      setPreviewBackups([])
       const data = await fetchUserPicks({
         userId: currentUserGameName,
         tournamentId,
@@ -188,14 +268,19 @@ function ContestDetail() {
       setPreviewBackups(data?.backupsDetailed || data?.backups || [])
     } catch (error) {
       setErrorText(error.message || 'Failed to load my team preview')
+    } finally {
+      setIsLoadingPreview(false)
     }
   }
 
   const activeMatch = matches.find((match) => match.id === selectedMatchId) || matches[0]
+  const sortedMatches = useMemo(() => sortContestMatches(matches), [matches])
+  const activeSortedMatch =
+    sortedMatches.find((match) => match.id === selectedMatchId) || sortedMatches[0]
 
   const teamOptions = useMemo(
-    () => Array.from(new Set(matches.flatMap((match) => [match.home, match.away]))),
-    [matches],
+    () => Array.from(new Set(sortedMatches.flatMap((match) => [match.home, match.away]))),
+    [sortedMatches],
   )
 
   useEffect(() => {
@@ -258,7 +343,7 @@ function ContestDetail() {
       <div className="admin-grid contest-grid">
         <MatchesCard
           contestMode={contestMode}
-          matches={matches}
+          matches={sortedMatches}
           selectedMatchId={selectedMatchId}
           onSelectMatch={setSelectedMatchId}
           matchFilter={matchFilter}
@@ -275,7 +360,7 @@ function ContestDetail() {
         <ParticipantsCard
           contestMode={contestMode}
           contestId={contestId}
-          activeMatch={activeMatch}
+          activeMatch={activeSortedMatch}
           participants={participants}
           joinedCount={joinedParticipantsCount}
           onPreviewPlayer={onPreviewPlayer}
@@ -287,10 +372,16 @@ function ContestDetail() {
       <TeamPreviewDrawer
         contestMode={contestMode}
         previewPlayer={previewPlayer}
-        activeMatch={activeMatch}
+        activeMatch={activeSortedMatch}
         previewXI={previewXI}
         previewBackups={previewBackups}
-        onClose={() => setPreviewPlayer(null)}
+        isLoading={isLoadingPreview}
+        onClose={() => {
+          setPreviewPlayer(null)
+          setPreviewXI([])
+          setPreviewBackups([])
+          setIsLoadingPreview(false)
+        }}
       />
 
       <Modal

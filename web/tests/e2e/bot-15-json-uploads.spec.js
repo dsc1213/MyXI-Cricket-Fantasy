@@ -446,6 +446,71 @@ test.describe('15) JSON uploads and UI validation', () => {
     await expect(row).toContainText('Enabled')
   })
 
+  test('pending approvals tolerates wrapped admin users payload without crashing', async ({
+    page,
+  }) => {
+    const pageErrors = []
+    page.on('pageerror', (error) => {
+      pageErrors.push(String(error))
+    })
+
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        'myxi-user',
+        JSON.stringify({
+          id: 1,
+          userId: 'master',
+          gameName: 'master',
+          role: 'master_admin',
+          token: 'e2e-token',
+          tokenExpiresAt: Date.now() + 60 * 60 * 1000,
+          status: 'active',
+        }),
+      )
+    })
+
+    await page.route('**/page-load-data', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          tournaments: [],
+          joinedContests: [],
+          pointsRuleTemplate: {},
+          adminManager: [],
+          masterConsole: [],
+          auditLogs: [],
+          source: 'db',
+        }),
+      })
+    })
+
+    await page.route('**/admin/users', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          users: [
+            {
+              id: 201,
+              name: 'Pending Wrapped User',
+              userId: 'pendingwrapped',
+              gameName: 'pendingwrapped',
+              email: 'pendingwrapped@myxi.local',
+              role: 'user',
+              status: 'pending',
+            },
+          ],
+        }),
+      })
+    })
+
+    await page.goto('/home?panel=approvals')
+    await page.waitForTimeout(1000)
+    expect(pageErrors.some((message) => message.includes('filter is not a function'))).toBe(false)
+    await expect(page.getByText('Pending Wrapped User')).toBeVisible()
+  })
+
   test('fantasy and auction hubs show a single empty-state message when no tournaments are available', async ({
     page,
   }) => {
@@ -746,6 +811,466 @@ test.describe('15) JSON uploads and UI validation', () => {
     }
   })
 
+  test('contest detail keeps completed matches at the bottom while preserving date order', async ({
+    page,
+    request,
+  }) => {
+    const tag = Date.now()
+    const tournamentId = `json-tour-sort-${tag}`
+    const tournamentName = `Sorted Match Tournament ${tag}`
+    let contestId = ''
+
+    try {
+      await loginUi(page, 'master')
+      await page.evaluate(
+        async ({ nextTournamentId, nextTournamentName }) => {
+          const api = await import('/src/lib/api.js')
+          await api.createAdminTournament({
+            actorUserId: 'master',
+            tournamentId: nextTournamentId,
+            name: nextTournamentName,
+            season: '2026',
+            source: 'json',
+            tournamentType: 'league',
+            country: 'india',
+            league: 'IPL',
+            selectedTeams: ['RCB', 'SRH', 'MI', 'KKR', 'RR', 'CSK'],
+            matches: [
+              {
+                id: 'm1',
+                matchNo: 1,
+                home: 'RCB',
+                away: 'SRH',
+                startAt: '2099-03-03T14:00:00.000Z',
+                venue: 'Bengaluru',
+              },
+              {
+                id: 'm2',
+                matchNo: 2,
+                home: 'MI',
+                away: 'KKR',
+                startAt: '2099-03-01T14:00:00.000Z',
+                venue: 'Mumbai',
+              },
+              {
+                id: 'm3',
+                matchNo: 3,
+                home: 'RR',
+                away: 'CSK',
+                startAt: '2099-03-02T14:00:00.000Z',
+                venue: 'Jaipur',
+              },
+            ],
+          })
+        },
+        { nextTournamentId: tournamentId, nextTournamentName: tournamentName },
+      )
+
+      contestId = await page.evaluate(async ({ targetTournamentId, innerTag }) => {
+        const api = await import('/src/lib/api.js')
+        const response = await api.createAdminContest({
+          actorUserId: 'master',
+          tournamentId: targetTournamentId,
+          name: `contest-sort-${innerTag}`,
+          game: 'Fantasy',
+          mode: 'standard',
+          maxParticipants: 20,
+        })
+        return response?.contest?.id || response?.id || ''
+      }, { targetTournamentId: tournamentId, innerTag: tag })
+
+      await page.route(`**/contests/${contestId}/matches**`, async (route) => {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify([
+            {
+              id: 'm1',
+              matchNo: 1,
+              home: 'RCB',
+              away: 'SRH',
+              status: 'completed',
+              startAt: '2099-03-03T14:00:00.000Z',
+              hasTeam: false,
+              submittedCount: 0,
+              joinedCount: 0,
+              viewerJoined: false,
+            },
+            {
+              id: 'm2',
+              matchNo: 2,
+              home: 'MI',
+              away: 'KKR',
+              status: 'notstarted',
+              startAt: '2099-03-01T14:00:00.000Z',
+              hasTeam: false,
+              submittedCount: 0,
+              joinedCount: 0,
+              viewerJoined: false,
+            },
+            {
+              id: 'm3',
+              matchNo: 3,
+              home: 'RR',
+              away: 'CSK',
+              status: 'inprogress',
+              startAt: '2099-03-02T14:00:00.000Z',
+              hasTeam: false,
+              submittedCount: 0,
+              joinedCount: 0,
+              viewerJoined: false,
+            },
+          ]),
+        })
+      })
+
+      await page.goto(`/tournaments/${tournamentId}/contests/${contestId}`)
+
+      const matchRows = page.locator('.match-table tbody tr')
+      await expect(matchRows).toHaveCount(3)
+      await expect(matchRows.nth(0)).toContainText('Match 2')
+      await expect(matchRows.nth(1)).toContainText('Match 3')
+      await expect(matchRows.nth(2)).toContainText('Match 1')
+      await expect(matchRows.nth(2)).toContainText('Completed')
+    } finally {
+      await deleteContestIfPresent(request, contestId)
+      try {
+        await request.fetch(`http://127.0.0.1:4000/admin/tournaments/${tournamentId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          data: { actorUserId: 'master' },
+        })
+      } catch {
+        // best effort cleanup
+      }
+    }
+  })
+
+  test('contest detail tolerates wrapped matches payloads without crashing', async ({
+    page,
+    request,
+  }) => {
+    const tag = Date.now()
+    const tournamentId = `json-tour-wrapped-${tag}`
+    const tournamentName = `Wrapped Match Tournament ${tag}`
+    let contestId = ''
+    const pageErrors = []
+
+    page.on('pageerror', (error) => {
+      pageErrors.push(error.message || String(error))
+    })
+
+    try {
+      await loginUi(page, 'master')
+      await page.evaluate(
+        async ({ tournamentId: targetTournamentId, tournamentName: targetTournamentName }) => {
+          const api = await import('/src/lib/api.js')
+          await api.createAdminTournament({
+            actorUserId: 'master',
+            tournamentId: targetTournamentId,
+            name: targetTournamentName,
+            season: '2026',
+            source: 'json',
+            tournamentType: 'league',
+            country: 'india',
+            league: 'IPL',
+            selectedTeams: ['RCB', 'SRH'],
+            matches: [
+              {
+                id: 'm1',
+                matchNo: 1,
+                home: 'RCB',
+                away: 'SRH',
+                startAt: '2099-03-01T14:00:00.000Z',
+                venue: 'Bengaluru',
+              },
+            ],
+          })
+        },
+        { tournamentId, tournamentName },
+      )
+      contestId = await page.evaluate(async ({ targetTournamentId, tag: innerTag }) => {
+        const api = await import('/src/lib/api.js')
+        const response = await api.createAdminContest({
+          actorUserId: 'master',
+          tournamentId: targetTournamentId,
+          name: `contest-wrapped-${innerTag}`,
+          game: 'Fantasy',
+          mode: 'standard',
+          status: 'Open',
+          maxParticipants: 20,
+        })
+        return response?.contest?.id || response?.id || ''
+      }, { targetTournamentId: tournamentId, tag })
+
+      await page.route(`**/contests/${contestId}/matches**`, async (route) => {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            matches: [
+              {
+                id: 'm1',
+                matchNo: 1,
+                home: 'RCB',
+                away: 'SRH',
+                status: 'notstarted',
+                hasTeam: false,
+                submittedCount: 0,
+                joinedCount: 0,
+                viewerJoined: false,
+              },
+            ],
+          }),
+        })
+      })
+      await page.goto(`/tournaments/${tournamentId}/contests/${contestId}`)
+
+      await expect(page.locator('.match-table tbody tr')).toHaveCount(1)
+      await expect(pageErrors).not.toContain(
+        expect.stringContaining('matches.find is not a function'),
+      )
+    } finally {
+      await deleteContestIfPresent(request, contestId)
+      try {
+        await request.fetch(`http://127.0.0.1:4000/admin/tournaments/${tournamentId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          data: { actorUserId: 'master' },
+        })
+      } catch {
+        // best effort cleanup
+      }
+    }
+  })
+
+  test('contest detail keeps loading note visible until initial matches load', async ({
+    page,
+    request,
+  }) => {
+    const tag = Date.now()
+    const tournamentId = `json-tour-loading-${tag}`
+    const tournamentName = `Loading Match Tournament ${tag}`
+    let contestId = ''
+
+    try {
+      await loginUi(page, 'master')
+      await page.evaluate(
+        async ({ nextTournamentId, nextTournamentName }) => {
+          const api = await import('/src/lib/api.js')
+          await api.createAdminTournament({
+            actorUserId: 'master',
+            tournamentId: nextTournamentId,
+            name: nextTournamentName,
+            season: '2026',
+            source: 'json',
+            tournamentType: 'league',
+            country: 'india',
+            league: 'IPL',
+            selectedTeams: ['RCB', 'SRH'],
+            matches: [
+              {
+                id: 'm1',
+                matchNo: 1,
+                home: 'RCB',
+                away: 'SRH',
+                startAt: '2099-03-01T14:00:00.000Z',
+                venue: 'Bengaluru',
+              },
+            ],
+          })
+        },
+        { nextTournamentId: tournamentId, nextTournamentName: tournamentName },
+      )
+      contestId = await page.evaluate(async ({ targetTournamentId, innerTag }) => {
+        const api = await import('/src/lib/api.js')
+        const response = await api.createAdminContest({
+          actorUserId: 'master',
+          tournamentId: targetTournamentId,
+          name: `contest-loading-${innerTag}`,
+          game: 'Fantasy',
+          mode: 'standard',
+          maxParticipants: 20,
+          matchIds: ['m1'],
+        })
+        return response?.contest?.id || response?.id || ''
+      }, { targetTournamentId: tournamentId, innerTag: tag })
+
+      await page.route(`**/contests/${contestId}/matches**`, async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 700))
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify([
+            {
+              id: 'm1',
+              matchNo: 1,
+              home: 'RCB',
+              away: 'SRH',
+              status: 'notstarted',
+              hasTeam: false,
+              submittedCount: 0,
+              joinedCount: 0,
+              viewerJoined: false,
+            },
+          ]),
+        })
+      })
+
+      await page.goto(`/tournaments/${tournamentId}/contests/${contestId}`)
+      await expect(page.locator('.loading-note')).toBeVisible()
+      await expect(page.locator('.match-table tbody tr')).toHaveCount(1)
+      await expect(page.locator('.loading-note')).toHaveCount(0)
+    } finally {
+      await deleteContestIfPresent(request, contestId)
+      try {
+        await request.fetch(`http://127.0.0.1:4000/admin/tournaments/${tournamentId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          data: { actorUserId: 'master' },
+        })
+      } catch {
+        // best effort cleanup
+      }
+    }
+  })
+
+  test('contest detail row selection shows submitted participants and preview drawer for added teams', async ({
+    page,
+    request,
+  }) => {
+    const tag = Date.now()
+    const tournamentId = `json-participants-${tag}`
+    const tournamentName = `Participants Tournament ${tag}`
+    let contestId = ''
+
+    try {
+      await loginUi(page, 'master')
+      await page.evaluate(
+        async ({ nextTournamentId, nextTournamentName }) => {
+          const api = await import('/src/lib/api.js')
+          await api.createAdminTournament({
+            actorUserId: 'master',
+            tournamentId: nextTournamentId,
+            name: nextTournamentName,
+            season: '2026',
+            source: 'json',
+            tournamentType: 'league',
+            country: 'india',
+            league: 'IPL',
+            selectedTeams: ['KKR', 'PBKS'],
+            matches: [
+              {
+                id: 'm12',
+                matchNo: 12,
+                home: 'KKR',
+                away: 'PBKS',
+                startAt: '2099-04-06T14:00:00.000Z',
+                venue: 'Kolkata',
+              },
+            ],
+          })
+        },
+        { nextTournamentId: tournamentId, nextTournamentName: tournamentName },
+      )
+
+      contestId = await page.evaluate(async ({ targetTournamentId, innerTag }) => {
+        const api = await import('/src/lib/api.js')
+        const response = await api.createAdminContest({
+          actorUserId: 'master',
+          tournamentId: targetTournamentId,
+          name: `contest-participants-${innerTag}`,
+          game: 'Fantasy',
+          mode: 'standard',
+          maxParticipants: 20,
+          matchIds: ['m12'],
+        })
+        return response?.contest?.id || response?.id || ''
+      }, { targetTournamentId: tournamentId, innerTag: tag })
+
+      await page.evaluate(async ({ nextContestId }) => {
+        const api = await import('/src/lib/api.js')
+        await api.joinContest({ contestId: nextContestId, userId: 'master' })
+      }, { nextContestId: contestId })
+
+      const pool = await page.evaluate(async ({ nextContestId }) => {
+        const api = await import('/src/lib/api.js')
+        return api.fetchTeamPool({ contestId: nextContestId, matchId: 'm12', userId: 'master' })
+      }, { nextContestId: contestId })
+      const allPlayers = [
+        ...(pool?.teams?.teamA?.players || []),
+        ...(pool?.teams?.teamB?.players || []),
+      ]
+      expect(allPlayers.length).toBeGreaterThanOrEqual(11)
+
+      await page.evaluate(
+        async ({ nextContestId, xi, backups, captainId, viceCaptainId }) => {
+          const api = await import('/src/lib/api.js')
+          await api.saveTeamSelection({
+            contestId: nextContestId,
+            matchId: 'm12',
+            userId: 'master',
+            playingXi: xi,
+            backups,
+            captainId,
+            viceCaptainId,
+          })
+        },
+        {
+          nextContestId: contestId,
+          xi: allPlayers.slice(0, 11).map((player) => player.id),
+          backups: allPlayers.slice(11, 14).map((player) => player.id),
+          captainId: allPlayers[0]?.id,
+          viceCaptainId: allPlayers[1]?.id,
+        },
+      )
+
+      await page.goto(`/tournaments/${tournamentId}/contests/${contestId}`)
+
+      const matchRow = page.locator('.match-table tbody tr').first()
+      await expect(matchRow).toBeVisible()
+      await expect(matchRow).toContainText('Added')
+
+      await matchRow.click()
+      await expect(page.locator('.participants-table tbody tr')).toHaveCount(1)
+      await page.route('**/users/player/picks**', async (route) => {
+        await page.waitForTimeout(300)
+        await route.continue()
+      })
+      await page.locator('.participants-table tbody tr').first().getByLabel(/View .* team/).click()
+      await expect(page.locator('.team-preview-drawer.open')).toBeVisible()
+      await expect(page.getByText('Loading team preview...')).toBeVisible()
+      await expect(page.locator('.team-preview-list').first().locator('.team-preview-row')).toHaveCount(11)
+    } finally {
+      await deleteContestIfPresent(request, contestId)
+      try {
+        await request.fetch(`http://127.0.0.1:4000/admin/tournaments/${tournamentId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          data: { actorUserId: 'master' },
+        })
+      } catch {
+        // best effort cleanup
+      }
+    }
+  })
+
+  test('auction upload panel shows the accepted mapped JSON contract', async ({ page }) => {
+    await loginUi(page, 'master')
+    await page.goto('/home')
+    await page.getByRole('button', { name: 'Create Tournament' }).click()
+    await page.getByRole('tab', { name: 'Auction' }).click()
+
+    await expect(page.locator('.auction-json-help')).toContainText(
+      'Accepted shape: tournamentId, contestName, and participants',
+    )
+    await expect(page.locator('.auction-json-help')).toContainText('userId')
+    await expect(page.locator('.auction-json-help')).toContainText('name')
+    await expect(page.locator('.auction-json-help')).toContainText('roster')
+    await expect(page.locator('.auction-json-help')).toContainText(
+      'api/scripts/build_auction_import.py',
+    )
+    await expect(page.locator('.dashboard-json-textarea')).toContainText('"participants"')
+    await expect(page.locator('.dashboard-json-textarea')).toContainText('"contestName"')
+  })
+
   test('auction JSON import creates a fixed-roster contest visible in Auction hub', async ({
     page,
     request,
@@ -809,6 +1334,52 @@ test.describe('15) JSON uploads and UI validation', () => {
       }
     }
   })
+
+  test('auction JSON import shows inline API errors while keeping the loading state visible', async ({
+    page,
+  }) => {
+    await loginUi(page, 'master')
+    await page.goto('/home')
+    await page.getByRole('button', { name: 'Create Tournament' }).click()
+    await page.getByRole('tab', { name: 'Auction' }).click()
+
+    await page.route('**/admin/auctions/import', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 250))
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          message: 'Tournament has no matches',
+        }),
+      })
+    })
+
+    await page.locator('.dashboard-json-textarea').fill(
+      JSON.stringify(
+        {
+          tournamentId: 'ipl-2026',
+          contestName: 'Broken Auction Import',
+          participants: [
+            {
+              userId: 'captain-a',
+              name: 'Captain A',
+              roster: ['Ruturaj Gaikwad'],
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+    )
+    await page.getByRole('button', { name: 'Import auction' }).click()
+
+    await expect(page.getByText('Importing auction data...')).toBeVisible()
+    await expect(page.locator('.create-tournament-inline-error')).toContainText(
+      'Tournament has no matches',
+    )
+    await expect(page.getByText('Importing auction data...')).toHaveCount(0)
+  })
+
 
   test('tournament JSON helper uses IPL example and admin headers stay readable in dark theme', async ({
     page,
@@ -1567,6 +2138,8 @@ test.describe('15) JSON uploads and UI validation', () => {
       await expect(page.locator('.manual-team-card')).toHaveCount(2)
       await expect(page.locator('.manual-lineup-card')).toHaveCount(2)
       await expect(page.locator('.manual-lineup-table')).toHaveCount(2)
+      await expect(page.locator('.manual-lineup-card', { hasText: `${teamAPlayers.length} players` }).first()).toBeVisible()
+      await expect(page.locator('.manual-lineup-card', { hasText: `${teamBPlayers.length} players` }).first()).toBeVisible()
       await expect(page.locator('.manual-lineup-shell')).toHaveCount(0)
       const tableWrapHeight = await page.locator('.manual-team-table-wrap').first().evaluate((node) => {
         const style = window.getComputedStyle(node)
@@ -1734,6 +2307,18 @@ test.describe('15) JSON uploads and UI validation', () => {
     expect(firstBox).toBeTruthy()
     expect(secondBox).toBeTruthy()
     expect(secondBox.y).toBeGreaterThan(firstBox.y + firstBox.height + 8)
+  })
+
+  test('mobile cricketer stats keeps player names readable', async ({ page }) => {
+    await loginUi(page, 'master')
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/tournaments/t20wc-2026/cricketer-stats')
+    await expect(page.getByRole('heading', { name: 'Cricketer Stats' })).toBeVisible()
+
+    const firstPlayerCell = page.locator('.cricketer-stats-table tbody tr').first().locator('td').first()
+    await expect(firstPlayerCell.locator('.player-identity-name')).toBeVisible()
+    await expect(firstPlayerCell.locator('.player-identity-name')).not.toHaveText(/^.$/)
+    await expect(firstPlayerCell.locator('.player-avatar')).toBeVisible()
   })
 
   test('manual score number input replaces the seeded zero when typing', async ({ page }) => {
@@ -2251,15 +2836,17 @@ test.describe('15) JSON uploads and UI validation', () => {
       )
       contestId = contest.id
 
-      await apiCall(request, 'POST', `/contests/${contestId}/join`, { userId: 'player' }, 200)
+      await loginUi(page, 'player')
+      const joinResponse = await page.evaluate(async ({ innerContestId }) => {
+        const api = await import('/src/lib/api.js')
+        return api.joinContest({ contestId: innerContestId, userId: 'player' })
+      }, { innerContestId: contestId })
+      expect(joinResponse?.joined || joinResponse?.ok || joinResponse?.contestId).toBeTruthy()
 
-      const pool = await apiCall(
-        request,
-        'GET',
-        `/team-pool?contestId=${contestId}&matchId=m1&userId=player`,
-        undefined,
-        200,
-      )
+      const pool = await page.evaluate(async ({ innerContestId }) => {
+        const api = await import('/src/lib/api.js')
+        return api.fetchTeamPool({ contestId: innerContestId, matchId: 'm1', userId: 'player' })
+      }, { innerContestId: contestId })
       const playingXi = buildValidPlayingXi(
         pool?.teams?.teamA?.players || [],
         pool?.teams?.teamB?.players || [],
@@ -2404,15 +2991,17 @@ test.describe('15) JSON uploads and UI validation', () => {
       )
       contestId = contest.id
 
-      await apiCall(request, 'POST', `/contests/${contestId}/join`, { userId: 'player' }, 200)
+      await loginUi(page, 'player')
+      const joinResponse = await page.evaluate(async ({ innerContestId }) => {
+        const api = await import('/src/lib/api.js')
+        return api.joinContest({ contestId: innerContestId, userId: 'player' })
+      }, { innerContestId: contestId })
+      expect(joinResponse?.joined || joinResponse?.ok || joinResponse?.contestId).toBeTruthy()
 
-      const pool = await apiCall(
-        request,
-        'GET',
-        `/team-pool?contestId=${contestId}&matchId=m1&userId=player`,
-        undefined,
-        200,
-      )
+      const pool = await page.evaluate(async ({ innerContestId }) => {
+        const api = await import('/src/lib/api.js')
+        return api.fetchTeamPool({ contestId: innerContestId, matchId: 'm1', userId: 'player' })
+      }, { innerContestId: contestId })
       const playingXi = buildValidPlayingXi(
         pool?.teams?.teamA?.players || [],
         pool?.teams?.teamB?.players || [],
@@ -2561,15 +3150,17 @@ test.describe('15) JSON uploads and UI validation', () => {
       )
       contestId = contest.id
 
-      await apiCall(request, 'POST', `/contests/${contestId}/join`, { userId: 'player' }, 200)
+      await loginUi(page, 'player')
+      const joinResponse = await page.evaluate(async ({ innerContestId }) => {
+        const api = await import('/src/lib/api.js')
+        return api.joinContest({ contestId: innerContestId, userId: 'player' })
+      }, { innerContestId: contestId })
+      expect(joinResponse?.joined || joinResponse?.ok || joinResponse?.contestId).toBeTruthy()
 
-      const pool = await apiCall(
-        request,
-        'GET',
-        `/team-pool?contestId=${contestId}&matchId=m1&userId=player`,
-        undefined,
-        200,
-      )
+      const pool = await page.evaluate(async ({ innerContestId }) => {
+        const api = await import('/src/lib/api.js')
+        return api.fetchTeamPool({ contestId: innerContestId, matchId: 'm1', userId: 'player' })
+      }, { innerContestId: contestId })
       const backupCandidate =
         [...(pool?.teams?.teamA?.players || []), ...(pool?.teams?.teamB?.players || [])][0]
       expect(backupCandidate).toBeTruthy()
@@ -2842,6 +3433,196 @@ test.describe('15) JSON uploads and UI validation', () => {
       await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled()
       await page.getByRole('button', { name: 'Save' }).click()
       await expect(page.getByText('Select at least 1 wicketkeeper.')).toBeVisible()
+    } finally {
+      if (contestId) {
+        await bestEffortDelete(`http://127.0.0.1:4000/admin/contests/${contestId}`, {
+          actorUserId: 'master',
+        })
+      }
+      await bestEffortDelete(`http://127.0.0.1:4000/admin/tournaments/${tournamentId}`, {
+        actorUserId: 'master',
+      })
+    }
+  })
+
+  test('edit mode restores the saved custom XI and backups even when selection ids come back as strings', async ({
+    page,
+    request,
+  }) => {
+    const tag = Date.now()
+    const tournamentId = `json-restore-team-tour-${tag}`
+    let contestId = ''
+    const bestEffortDelete = async (url, data) => {
+      await Promise.race([
+        request.fetch(url, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          data,
+        }),
+        new Promise((resolve) => setTimeout(resolve, 3000)),
+      ]).catch(() => {})
+    }
+
+    try {
+      await loginUi(page, 'master')
+      const createdTournament = await page.evaluate(async ({ tournamentId: innerTournamentId, tag: innerTag }) => {
+        const api = await import('/src/lib/api.js')
+        return api.createAdminTournament({
+          actorUserId: 'master',
+          tournamentId: innerTournamentId,
+          name: `JSON Restore Team Tournament ${innerTag}`,
+          season: '2026',
+          source: 'json',
+          tournamentType: 'league',
+          country: 'india',
+          league: 'IPL',
+          selectedTeams: ['MI', 'KKR'],
+          matches: [
+            {
+              id: 'm1',
+              matchNo: 1,
+              home: 'MI',
+              away: 'KKR',
+              startAt: '2099-03-10T14:00:00.000Z',
+              timezone: 'UTC',
+              venue: 'Mumbai',
+            },
+          ],
+        })
+      }, { tournamentId, tag })
+      expect(createdTournament?.tournament?.id || createdTournament?.id).toBeTruthy()
+
+      const contest = await page.evaluate(async ({ innerTournamentId, innerTag }) => {
+        const api = await import('/src/lib/api.js')
+        return api.createAdminContest({
+          name: `JSON Restore Team Contest ${innerTag}`,
+          tournamentId: innerTournamentId,
+          game: 'Fantasy',
+          teams: 25,
+          status: 'Open',
+          createdBy: 'master',
+          matchIds: ['m1'],
+        })
+      }, { innerTournamentId: tournamentId, innerTag: tag })
+      contestId = contest?.contest?.id || contest?.id
+
+      await loginUi(page, 'player')
+      const joinResponse = await page.evaluate(async ({ innerContestId }) => {
+        const api = await import('/src/lib/api.js')
+        return api.joinContest({ contestId: innerContestId, userId: 'player' })
+      }, { innerContestId: contestId })
+      expect(joinResponse?.joined || joinResponse?.ok || joinResponse?.contestId).toBeTruthy()
+
+      const pool = await page.evaluate(async ({ innerContestId }) => {
+        const api = await import('/src/lib/api.js')
+        return api.fetchTeamPool({ contestId: innerContestId, matchId: 'm1', userId: 'player' })
+      }, { innerContestId: contestId })
+      const teamAPlayers = pool?.teams?.teamA?.players || []
+      const teamBPlayers = pool?.teams?.teamB?.players || []
+      const allPlayers = [...teamAPlayers, ...teamBPlayers]
+      const playingXi = buildValidPlayingXi(teamAPlayers, teamBPlayers)
+      const selectedIds = new Set(playingXi)
+      const selectedPlayers = playingXi
+        .map((id) => allPlayers.find((player) => player.id === id))
+        .filter(Boolean)
+      const roleCounts = selectedPlayers.reduce((acc, player) => {
+        acc[player.role] = (acc[player.role] || 0) + 1
+        return acc
+      }, {})
+      const replacement = allPlayers.find((candidate) => {
+        if (!candidate || selectedIds.has(candidate.id)) return false
+        const removable = selectedPlayers.find(
+          (player) =>
+            player.team === candidate.team &&
+            player.role === candidate.role &&
+            (roleCounts[player.role] || 0) > 1,
+        )
+        if (!removable) return false
+        selectedIds.delete(removable.id)
+        selectedIds.add(candidate.id)
+        return true
+      })
+      expect(replacement).toBeTruthy()
+      const replacementTarget = selectedPlayers.find(
+        (player) =>
+          player.team === replacement.team &&
+          player.role === replacement.role &&
+          (roleCounts[player.role] || 0) > 1,
+      )
+      expect(replacementTarget).toBeTruthy()
+      const customPlayingXi = selectedPlayers
+        .map((player) => (player.id === replacementTarget.id ? replacement.id : player.id))
+      const customBackups = allPlayers
+        .filter((player) => !customPlayingXi.includes(player.id))
+        .slice(-6)
+        .map((player) => player.id)
+      const customPlayingNames = customPlayingXi
+        .map((id) => allPlayers.find((player) => player.id === id)?.name)
+        .filter(Boolean)
+      const customBackupNames = customBackups
+        .map((id) => allPlayers.find((player) => player.id === id)?.name)
+        .filter(Boolean)
+
+      const savedSelection = await page.evaluate(
+        async ({ innerContestId, customXi, customBackupIds }) => {
+          const api = await import('/src/lib/api.js')
+          return api.saveTeamSelection({
+            contestId: innerContestId,
+            matchId: 'm1',
+            userId: 'player',
+            playingXi: customXi,
+            backups: customBackupIds,
+            captainId: customXi[0],
+            viceCaptainId: customXi[1],
+          })
+        },
+        {
+          innerContestId: contestId,
+          customXi: customPlayingXi,
+          customBackupIds: customBackups,
+        },
+      )
+      expect(savedSelection?.playingXi || savedSelection?.selection?.playingXi).toBeTruthy()
+
+      await page.route(`**/team-pool?contestId=${contestId}&matchId=m1&userId=player**`, async (route) => {
+        const response = await route.fetch()
+        const json = await response.json()
+        const selection = json?.selection || {}
+        await route.fulfill({
+          response,
+          json: {
+            ...json,
+            selection: {
+              ...selection,
+              playingXi: Array.isArray(selection.playingXi)
+                ? selection.playingXi.map((id) => String(id))
+                : [],
+              backups: Array.isArray(selection.backups)
+                ? selection.backups.map((id) => String(id))
+                : [],
+              captainId:
+                selection.captainId == null ? null : String(selection.captainId),
+              viceCaptainId:
+                selection.viceCaptainId == null ? null : String(selection.viceCaptainId),
+            },
+          },
+        })
+      })
+      await page.goto(`/fantasy/select?contest=${contestId}&match=m1&mode=edit`)
+
+      await expect(page.locator('.count-pill')).toContainText('11 / 11')
+      await expect(page.locator('.myxi-slots .player-chip.slot-chip.compact')).toHaveCount(11)
+      await expect(page.locator('.backups-grid .player-chip.slot-chip.compact')).toHaveCount(
+        customBackups.length,
+      )
+      await expect(page.locator('.myxi-slots')).toContainText(customPlayingNames[0])
+      await expect(page.locator('.myxi-slots')).toContainText(customPlayingNames[10])
+      await expect(page.locator('.backups-grid')).toContainText(customBackupNames[0])
+      await expect(page.locator('.backups-grid')).toContainText(
+        customBackupNames[customBackupNames.length - 1],
+      )
+      await expect(page.locator('.myxi-slots')).not.toContainText(replacementTarget.name)
+      await expect(page.locator('.myxi-slots')).toContainText(replacement.name)
     } finally {
       if (contestId) {
         await bestEffortDelete(`http://127.0.0.1:4000/admin/contests/${contestId}`, {

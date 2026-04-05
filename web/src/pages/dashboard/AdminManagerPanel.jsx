@@ -13,7 +13,10 @@ import {
   enableTournaments,
   fetchAdminUsers,
   fetchTournamentCatalog,
+  fetchTournamentMatches,
+  startAdminContest,
   syncContestSelections,
+  updateAdminMatchStatus,
   updateAdminUser,
 } from '../../lib/api.js'
 import { getStoredUser } from '../../lib/auth.js'
@@ -25,17 +28,39 @@ const normalizeUsersPayload = (value) => {
   return []
 }
 
-function AdminManagerPanel() {
+const formatSafeDate = (value, formatter = 'date') => {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return formatter === 'datetime' ? date.toLocaleString() : date.toLocaleDateString()
+}
+
+const formatMatchStatusLabel = (value = '') => {
+  const normalized = value.toString().trim().toLowerCase()
+  if (normalized === 'notstarted') return 'Not Started'
+  if (normalized === 'inprogress') return 'In Progress'
+  if (normalized === 'completed') return 'Completed'
+  return value || '-'
+}
+
+function AdminManagerPanel({
+  initialTab = 'users',
+  hideTabs = false,
+  tournamentSelectorOnly = false,
+  preferredTournamentId = '',
+}) {
   const currentUser = getStoredUser()
   const isMasterUser = currentUser?.role === 'master_admin'
-  const [tab, setTab] = useState('users')
+  const [tab, setTab] = useState(initialTab)
   const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [isLoadingTournaments, setIsLoadingTournaments] = useState(true)
   const [isLoadingContests, setIsLoadingContests] = useState(true)
   const [users, setUsers] = useState([])
   const [userDrafts, setUserDrafts] = useState({})
   const [tournamentCatalog, setTournamentCatalog] = useState([])
-  const [pendingEnableIds, setPendingEnableIds] = useState([])
+  const [selectedTournamentId, setSelectedTournamentId] = useState('')
+  const [tournamentMatches, setTournamentMatches] = useState([])
+  const [isLoadingTournamentMatches, setIsLoadingTournamentMatches] = useState(false)
   const [pendingDisableIds, setPendingDisableIds] = useState([])
   const [contestCatalog, setContestCatalog] = useState([])
   const [selectedContestTournamentId, setSelectedContestTournamentId] = useState('')
@@ -44,7 +69,6 @@ function AdminManagerPanel() {
   const [notice, setNotice] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [isSavingUserRoles, setIsSavingUserRoles] = useState(false)
-  const [showDisableModal, setShowDisableModal] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [showCreateTournamentModal, setShowCreateTournamentModal] = useState(false)
   const [tournamentCreateMode, setTournamentCreateMode] = useState('manual')
@@ -87,14 +111,39 @@ function AdminManagerPanel() {
       setIsLoadingTournaments(true)
       const rows = await fetchTournamentCatalog()
       setTournamentCatalog(rows || [])
-      setPendingEnableIds([])
+      setSelectedTournamentId((prev) => {
+        if (!rows?.length) return ''
+        if (
+          preferredTournamentId &&
+          rows.some((row) => String(row.id) === String(preferredTournamentId))
+        ) {
+          return String(preferredTournamentId)
+        }
+        return rows.some((row) => String(row.id) === String(prev)) ? prev : String(rows[0].id)
+      })
       setPendingDisableIds([])
     } catch (error) {
       setErrorText(error.message || 'Failed to load tournament catalog')
     } finally {
       setIsLoadingTournaments(false)
     }
-  }, [])
+  }, [preferredTournamentId])
+
+  const loadTournamentMatches = useCallback(async (tournamentId = selectedTournamentId) => {
+    if (!tournamentId) {
+      setTournamentMatches([])
+      return
+    }
+    try {
+      setIsLoadingTournamentMatches(true)
+      const rows = await fetchTournamentMatches(tournamentId)
+      setTournamentMatches(Array.isArray(rows) ? rows : [])
+    } catch (error) {
+      setErrorText(error.message || 'Failed to load tournament matches')
+    } finally {
+      setIsLoadingTournamentMatches(false)
+    }
+  }, [selectedTournamentId])
 
   const loadContestCatalog = useCallback(async (tournamentId = selectedContestTournamentId) => {
     try {
@@ -115,6 +164,10 @@ function AdminManagerPanel() {
   }, [selectedContestTournamentId])
 
   useEffect(() => {
+    setTab(initialTab)
+  }, [initialTab])
+
+  useEffect(() => {
     void loadUsers()
     void loadTournamentCatalog()
   }, [loadTournamentCatalog, loadUsers])
@@ -129,6 +182,20 @@ function AdminManagerPanel() {
       return
     }
   }, [loadContestCatalog, loadTournamentCatalog, loadUsers, tab])
+
+  useEffect(() => {
+    if (tab !== 'tournaments') return
+    if (!selectedTournamentId) {
+      setTournamentMatches([])
+      return
+    }
+    void loadTournamentMatches(selectedTournamentId)
+  }, [loadTournamentMatches, selectedTournamentId, tab])
+
+  useEffect(() => {
+    if (!preferredTournamentId) return
+    setSelectedTournamentId(String(preferredTournamentId))
+  }, [preferredTournamentId])
 
   useEffect(() => {
     if (tab !== 'contests') return
@@ -213,15 +280,35 @@ function AdminManagerPanel() {
   }
 
   const onToggleTournament = (row) => {
-    if (row.enabled) {
-      setPendingDisableIds((prev) =>
-        prev.includes(row.id) ? prev.filter((item) => item !== row.id) : [...prev, row.id],
-      )
-      return
-    }
-    setPendingEnableIds((prev) =>
+    setPendingDisableIds((prev) =>
       prev.includes(row.id) ? prev.filter((item) => item !== row.id) : [...prev, row.id],
     )
+  }
+
+  const onSelectTournament = (row) => {
+    setSelectedTournamentId(String(row.id))
+  }
+
+  const onToggleTournamentEnabled = async (row) => {
+    try {
+      setIsSaving(true)
+      setErrorText('')
+      setNotice('')
+      const actorUserId =
+        currentUser?.gameName || currentUser?.email || currentUser?.id || ''
+      if (row.enabled) {
+        await disableTournaments([row.id], actorUserId)
+        setNotice('Tournament disabled')
+      } else {
+        await enableTournaments([row.id], actorUserId)
+        setNotice('Tournament enabled')
+      }
+      await loadTournamentCatalog()
+    } catch (error) {
+      setErrorText(error.message || 'Failed to update tournament status')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const onCreateTournament = async () => {
@@ -315,45 +402,27 @@ function AdminManagerPanel() {
     }
   }
 
-  const onEnableTournaments = async () => {
-    try {
-      if (!pendingEnableIds.length) return
-      setIsSaving(true)
-      setErrorText('')
-      setNotice('')
-      await enableTournaments(
-        pendingEnableIds,
-        currentUser?.gameName || currentUser?.email || currentUser?.id || '',
-      )
-      await loadTournamentCatalog()
-      setNotice('Tournaments added')
-    } catch (error) {
-      setErrorText(error.message || 'Failed to add tournaments')
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  const onDisableTournaments = async () => {
+  const onDeleteSelectedTournaments = async () => {
     const removableIds = pendingDisableIds.filter((id) =>
-      tournamentCatalog.find((row) => row.id === id && row.enabled),
+      tournamentCatalog.find((row) => row.id === id),
     )
     if (!removableIds.length) return
     try {
       setIsSaving(true)
       setErrorText('')
       setNotice('')
-      await disableTournaments(
-        removableIds,
-        currentUser?.gameName || currentUser?.email || currentUser?.id || '',
-      )
+      for (const tournamentId of removableIds) {
+        await deleteAdminTournament({
+          id: tournamentId,
+          actorUserId: currentUser?.gameName || currentUser?.email || currentUser?.id || '',
+        })
+      }
       await loadTournamentCatalog()
-      setNotice('Tournaments removed. You can re-enable them anytime.')
+      setNotice('Selected tournaments deleted')
     } catch (error) {
-      setErrorText(error.message || 'Failed to remove tournaments')
+      setErrorText(error.message || 'Failed to delete selected tournaments')
     } finally {
       setIsSaving(false)
-      setShowDisableModal(false)
     }
   }
 
@@ -382,20 +451,30 @@ function AdminManagerPanel() {
     }
   }
 
-  const disabledCount = useMemo(
-    () => tournamentCatalog.filter((row) => !row.enabled).length,
-    [tournamentCatalog],
-  )
   const enabledSelectedCount = useMemo(() => pendingDisableIds.length, [pendingDisableIds])
-  const disabledSelectedCount = useMemo(() => pendingEnableIds.length, [pendingEnableIds])
-  const selectedEnabledTournaments = useMemo(
-    () => tournamentCatalog.filter((row) => pendingDisableIds.includes(row.id) && row.enabled),
-    [pendingDisableIds, tournamentCatalog],
+
+  const selectedTournament = useMemo(
+    () => tournamentCatalog.find((row) => String(row.id) === String(selectedTournamentId)) || null,
+    [selectedTournamentId, tournamentCatalog],
   )
-  const activeSelectedTournaments = useMemo(
-    () => selectedEnabledTournaments.filter((row) => row.hasActiveContests),
-    [selectedEnabledTournaments],
-  )
+
+  const onStartContestNow = async (contestId) => {
+    try {
+      setIsSaving(true)
+      setErrorText('')
+      setNotice('')
+      await startAdminContest(
+        contestId,
+        currentUser?.gameName || currentUser?.email || currentUser?.id || '',
+      )
+      await loadContestCatalog(selectedContestTournamentId)
+      setNotice('Contest started')
+    } catch (error) {
+      setErrorText(error.message || 'Failed to start contest')
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const usersColumns = [
     {
@@ -415,7 +494,7 @@ function AdminManagerPanel() {
     {
       key: 'joinedAt',
       label: 'Date joined',
-      render: (row) => new Date(row.joinedAt).toLocaleDateString(),
+      render: (row) => formatSafeDate(row.joinedAt || row.createdAt),
     },
     {
       key: 'role',
@@ -463,6 +542,18 @@ function AdminManagerPanel() {
   ]
 
   const tournamentColumns = [
+    {
+      key: 'select',
+      label: 'Select',
+      render: (row) => (
+        <input
+          type="checkbox"
+          checked={pendingDisableIds.includes(row.id)}
+          onClick={(event) => event.stopPropagation()}
+          onChange={() => onToggleTournament(row)}
+        />
+      ),
+    },
     { key: 'name', label: 'Tournament' },
     { key: 'season', label: 'Season' },
     { key: 'matchesCount', label: 'Matches', render: (row) => Number(row.matchesCount || 0) },
@@ -476,67 +567,102 @@ function AdminManagerPanel() {
       key: 'updated',
       label: 'Last updated',
       render: (row) =>
-        row.lastUpdatedAt ? new Date(row.lastUpdatedAt).toLocaleString() : '-',
+        formatSafeDate(row.lastUpdatedAt, 'datetime'),
     },
     {
-      key: 'select',
-      label: 'Select',
-      render: (row) => (
-        <input
-          type="checkbox"
-          checked={row.enabled ? !pendingDisableIds.includes(row.id) : pendingEnableIds.includes(row.id)}
-          onClick={(event) => event.stopPropagation()}
-          onChange={() => onToggleTournament(row)}
-        />
-      ),
-    },
-    {
-      key: 'delete',
-      label: 'Delete',
+      key: 'action',
+      label: 'Action',
       render: (row) => (
         <Button
-          variant="danger"
+          variant={row.enabled ? 'danger' : 'primary'}
           size="small"
-          disabled={!isMasterUser}
+          disabled={isSaving}
           onClick={(event) => {
             event.stopPropagation()
-            setDeleteTarget({
-              type: 'tournament',
-              id: row.id,
-              name: row.name,
-              detail: `Delete tournament "${row.name}" and all related contests?`,
-            })
+            void onToggleTournamentEnabled(row)
           }}
         >
-          Delete
+          {row.enabled ? 'Disable' : 'Enable'}
         </Button>
       ),
+    },
+  ]
+  const tournamentMatchColumns = [
+    {
+      key: 'name',
+      label: 'Match',
+      render: (row) => row.name || `${row.home || row.teamA || ''} vs ${row.away || row.teamB || ''}`,
+    },
+    {
+      key: 'startAt',
+      label: 'Starts',
+      render: (row) => formatSafeDate(row.startAt || row.startTime, 'datetime'),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (row) => (
+        <select
+          aria-label={`Match status ${row.name || row.id}`}
+          value={(row.status || '').toString().trim().toLowerCase()}
+          disabled={isSaving}
+          onClick={(event) => event.stopPropagation()}
+          onChange={async (event) => {
+            try {
+              setIsSaving(true)
+              setErrorText('')
+              setNotice('')
+              await updateAdminMatchStatus({ id: row.id, status: event.target.value })
+              await loadTournamentMatches(selectedTournamentId)
+              setNotice('Match status updated')
+            } catch (error) {
+              setErrorText(error.message || 'Failed to update match status')
+            } finally {
+              setIsSaving(false)
+            }
+          }}
+        >
+          <option value="notstarted">Not Started</option>
+          <option value="inprogress">In Progress</option>
+          <option value="completed">Completed</option>
+        </select>
+      ),
+    },
+    {
+      key: 'statusPreview',
+      label: 'Display',
+      render: (row) => formatMatchStatusLabel(row.status),
     },
   ]
   const dirtyRoleCount = useMemo(
     () => users.filter((row) => userDrafts[row.id]?.dirty).length,
     [users, userDrafts],
   )
-  const enabledTournamentOptions = useMemo(
+  const contestTournamentOptions = useMemo(
     () =>
-      tournamentCatalog
-        .filter((row) => row.enabled)
-        .map((row) => ({ value: row.id, label: row.name })),
+      tournamentCatalog.map((row) => ({
+        value: row.id,
+        label: row.enabled ? row.name : `${row.name} (disabled)`,
+        contestsCount: Number(row.contestsCount || 0),
+      })),
     [tournamentCatalog],
   )
   useEffect(() => {
     if (tab !== 'contests') return
-    if (!enabledTournamentOptions.length) {
+    if (!contestTournamentOptions.length) {
       if (selectedContestTournamentId) setSelectedContestTournamentId('')
       return
     }
-    const exists = enabledTournamentOptions.some(
+    const exists = contestTournamentOptions.some(
       (item) => item.value === selectedContestTournamentId,
     )
     if (!exists) {
-      setSelectedContestTournamentId(enabledTournamentOptions[0].value)
+      const preferredOption =
+        contestTournamentOptions.find((item) => item.contestsCount > 0) ||
+        contestTournamentOptions[0]
+      setSelectedContestTournamentId(preferredOption.value)
     }
-  }, [enabledTournamentOptions, selectedContestTournamentId, tab])
+  }, [contestTournamentOptions, selectedContestTournamentId, tab])
 
   const contestDirty = useMemo(() => {
     const enabled = contestCatalog.filter((row) => row.enabled).map((row) => row.id)
@@ -556,7 +682,12 @@ function AdminManagerPanel() {
     {
       key: 'status',
       label: 'Status',
-      render: (row) => (row.enabled ? 'Enabled' : 'Available'),
+      render: (row) => row.status || (row.enabled ? 'Enabled' : 'Available'),
+    },
+    {
+      key: 'startAt',
+      label: 'Starts',
+      render: (row) => (row.startAt ? formatSafeDate(row.startAt, 'datetime') : 'Manual'),
     },
     {
       key: 'select',
@@ -568,6 +699,23 @@ function AdminManagerPanel() {
           onClick={(event) => event.stopPropagation()}
           onChange={() => onToggleContest(row.id)}
         />
+      ),
+    },
+    {
+      key: 'action',
+      label: 'Action',
+      render: (row) => (
+        <Button
+          variant="ghost"
+          size="small"
+          disabled={!row.canStart || isSaving}
+          onClick={(event) => {
+            event.stopPropagation()
+            void onStartContestNow(row.id)
+          }}
+        >
+          {row.canStart ? 'Start now' : 'Started'}
+        </Button>
       ),
     },
     {
@@ -597,53 +745,58 @@ function AdminManagerPanel() {
   return (
     <section className="dashboard-section">
       <div className="admin-card dashboard-panel-card admin-manager-panel">
-        <div className="upload-tab-row admin-manager-tabs compact" role="tablist" aria-label="Admin manager tabs">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'users'}
-            className={`upload-tab-btn ${tab === 'users' ? 'active' : ''}`.trim()}
-            onClick={() => setTab('users')}
-          >
-            {`Users (${users.length})`}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'tournaments'}
-            className={`upload-tab-btn ${tab === 'tournaments' ? 'active' : ''}`.trim()}
-            onClick={() => setTab('tournaments')}
-          >
-            {`Tournaments (${tournamentCatalog.length})`}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'contests'}
-            className={`upload-tab-btn ${tab === 'contests' ? 'active' : ''}`.trim()}
-            onClick={() => setTab('contests')}
-          >
-            Contests
-          </button>
-        </div>
+        {!hideTabs && (
+          <div className="upload-tab-row admin-manager-tabs compact" role="tablist" aria-label="Admin manager tabs">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'users'}
+              className={`upload-tab-btn ${tab === 'users' ? 'active' : ''}`.trim()}
+              onClick={() => setTab('users')}
+            >
+              {`Users (${users.length})`}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'tournaments'}
+              className={`upload-tab-btn ${tab === 'tournaments' ? 'active' : ''}`.trim()}
+              onClick={() => setTab('tournaments')}
+            >
+              {`Tournaments (${tournamentCatalog.length})`}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'contests'}
+              className={`upload-tab-btn ${tab === 'contests' ? 'active' : ''}`.trim()}
+              onClick={() => setTab('contests')}
+            >
+              Contests
+            </button>
+          </div>
+        )}
 
         {!!errorText && <p className="error-text">{errorText}</p>}
         {!!notice && <p className="success-text">{notice}</p>}
 
         {tab === 'users' ? (
           <>
-            <div className="top-actions">
-              <Button variant="ghost" size="small" onClick={() => void loadUsers()}>
-                Refresh users
-              </Button>
-              <Button
-                variant="primary"
-                size="small"
-                disabled={!dirtyRoleCount || isSavingUserRoles}
-                onClick={() => void onSaveAllUserRoles()}
-              >
-                {isSavingUserRoles ? 'Saving...' : `Save (${dirtyRoleCount})`}
-              </Button>
+            <div className="contest-section-head">
+              <h3>{`Available users (${users.length})`}</h3>
+              <div className="top-actions">
+                <Button variant="ghost" size="small" onClick={() => void loadUsers()}>
+                  Refresh users
+                </Button>
+                <Button
+                  variant="primary"
+                  size="small"
+                  disabled={!dirtyRoleCount || isSavingUserRoles}
+                  onClick={() => void onSaveAllUserRoles()}
+                >
+                  {isSavingUserRoles ? 'Saving...' : `Save (${dirtyRoleCount})`}
+                </Button>
+              </div>
             </div>
             {isLoadingUsers ? (
               <p className="team-note">Loading users...</p>
@@ -660,41 +813,118 @@ function AdminManagerPanel() {
           </>
         ) : tab === 'tournaments' ? (
           <>
-            <div className="contest-section-head">
-              <h3>{`Available (${disabledCount})`}</h3>
-              <div className="top-actions">
-                <Button variant="ghost" size="small" onClick={() => void loadTournamentCatalog()}>
-                  Refresh tournaments
-                </Button>
-                <Button
-                  variant="primary"
-                  size="small"
-                  disabled={!disabledSelectedCount || isSaving}
-                  onClick={onEnableTournaments}
-                >
-                  {isSaving ? 'Adding...' : 'Add to Tournaments'}
-                </Button>
-                <Button
-                  variant="danger"
-                  size="small"
-                  disabled={!enabledSelectedCount || isSaving}
-                  onClick={() => setShowDisableModal(true)}
-                >
-                  Remove from Tournaments
-                </Button>
-              </div>
-            </div>
             {isLoadingTournaments ? (
               <p className="team-note">Loading tournaments...</p>
             ) : (
-              <StickyTable
-                columns={tournamentColumns}
-                rows={tournamentCatalog}
-                rowKey={(row) => row.id}
-                emptyText="No tournaments found"
-                wrapperClassName="catalog-table-wrap"
-                tableClassName="catalog-table"
-              />
+              <>
+                {tournamentSelectorOnly ? (
+                  <div className="admin-manager-tournament-selector-shell">
+                    <div className="contest-section-head">
+                      <h3>Manage tournaments</h3>
+                      <div className="top-actions">
+                        <Button variant="ghost" size="small" onClick={() => void loadTournamentCatalog()}>
+                          Refresh tournaments
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="admin-manager-tournament-selector-row">
+                      <label className="admin-manager-inline-field">
+                        <span>Tournament</span>
+                        <select
+                          className="dashboard-text-input"
+                          value={selectedTournamentId}
+                          onChange={(event) => setSelectedTournamentId(event.target.value)}
+                        >
+                          {!tournamentCatalog.length && (
+                            <option value="" disabled>
+                              No tournaments available
+                            </option>
+                          )}
+                          {tournamentCatalog.map((row) => (
+                            <option key={row.id} value={row.id}>
+                              {row.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className="admin-manager-tournament-meta">
+                        <span>
+                          <strong>Season</strong>
+                          <em>{selectedTournament?.season || '-'}</em>
+                        </span>
+                        <span>
+                          <strong>Status</strong>
+                          <em>{selectedTournament?.enabled ? 'Enabled' : 'Available'}</em>
+                        </span>
+                        <span>
+                          <strong>Matches</strong>
+                          <em>{Number(selectedTournament?.matchesCount || 0)}</em>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="admin-manager-tournaments-pane">
+                    <div className="contest-section-head">
+                      <h3>Tournaments</h3>
+                      <div className="top-actions">
+                        <Button variant="ghost" size="small" onClick={() => void loadTournamentCatalog()}>
+                          Refresh tournaments
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="small"
+                          disabled={!enabledSelectedCount || isSaving || !isMasterUser}
+                          onClick={() => void onDeleteSelectedTournaments()}
+                        >
+                          Delete selected
+                        </Button>
+                      </div>
+                    </div>
+                    <StickyTable
+                      columns={tournamentColumns}
+                      rows={tournamentCatalog}
+                      rowKey={(row) => row.id}
+                      emptyText="No tournaments found"
+                      wrapperClassName="catalog-table-wrap"
+                      tableClassName="catalog-table"
+                      rowClassName={(row) =>
+                        String(row.id) === String(selectedTournamentId) ? 'active' : ''
+                      }
+                      onRowClick={onSelectTournament}
+                    />
+                  </div>
+                )}
+                <div className="admin-manager-matches-pane">
+                    <div className="contest-section-head">
+                      <h3>{`Matches${selectedTournament?.name ? ` • ${selectedTournament.name}` : ''}`}</h3>
+                      <div className="top-actions">
+                        <Button
+                          variant="ghost"
+                          size="small"
+                          disabled={!selectedTournamentId}
+                          onClick={() => void loadTournamentMatches(selectedTournamentId)}
+                        >
+                          Refresh matches
+                        </Button>
+                      </div>
+                    </div>
+                    {!selectedTournamentId ? (
+                      <p className="team-note">Select a tournament to manage its matches.</p>
+                    ) : isLoadingTournamentMatches ? (
+                      <p className="team-note">Loading matches...</p>
+                    ) : (
+                      <StickyTable
+                        columns={tournamentMatchColumns}
+                        rows={tournamentMatches}
+                        rowKey={(row) => row.id}
+                        emptyText="No matches found for this tournament"
+                        wrapperClassName="catalog-table-wrap"
+                        tableClassName="catalog-table"
+                      />
+                    )}
+                </div>
+              </>
             )}
           </>
         ) : (
@@ -706,12 +936,12 @@ function AdminManagerPanel() {
                   value={selectedContestTournamentId}
                   onChange={(event) => setSelectedContestTournamentId(event.target.value)}
                 >
-                  {!enabledTournamentOptions.length && (
+                  {!contestTournamentOptions.length && (
                     <option value="" disabled>
-                      No tournaments enabled
+                      No tournaments available
                     </option>
                   )}
-                  {enabledTournamentOptions.map((item) => (
+                  {contestTournamentOptions.map((item) => (
                     <option key={item.value} value={item.value}>
                       {item.label}
                     </option>
@@ -737,10 +967,10 @@ function AdminManagerPanel() {
                 </Button>
               </div>
             </div>
-            {!enabledTournamentOptions.length ? (
-              <p className="team-note">No contests selected.</p>
+            {!contestTournamentOptions.length ? (
+              <p className="team-note">No tournaments available.</p>
             ) : !selectedContestTournamentId ? (
-              <p className="team-note">No contests selected.</p>
+              <p className="team-note">Select a tournament to manage contests.</p>
             ) : isLoadingContests ? (
               <p className="team-note">Loading contests...</p>
             ) : (
@@ -748,7 +978,7 @@ function AdminManagerPanel() {
                 columns={contestColumns}
                 rows={contestCatalog}
                 rowKey={(row) => row.id}
-                emptyText="No contests selected"
+                emptyText="No contests found for this tournament"
                 wrapperClassName="catalog-table-wrap"
                 tableClassName="catalog-table"
               />
@@ -927,41 +1157,6 @@ function AdminManagerPanel() {
         }
       >
         <p className="team-note">{deleteTarget?.detail || ''}</p>
-      </Modal>
-      <Modal
-        open={showDisableModal}
-        onClose={() => setShowDisableModal(false)}
-        title="Remove tournaments?"
-        size="sm"
-        footer={
-          <>
-            <Button variant="ghost" size="small" onClick={() => setShowDisableModal(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              size="small"
-              disabled={isSaving || !enabledSelectedCount}
-              onClick={() => void onDisableTournaments()}
-            >
-              {isSaving ? 'Removing...' : 'Remove'}
-            </Button>
-          </>
-        }
-      >
-        <p>
-          {`Are you sure you want to delete ${selectedEnabledTournaments
-            .map((item) => item.name)
-            .join(', ')} tournaments?`}
-        </p>
-        {!!activeSelectedTournaments.length && (
-          <p className="error-text">
-            {`Warning: ${activeSelectedTournaments
-              .map((item) => item.name)
-              .join(', ')} are not completed yet.`}
-          </p>
-        )}
-        <p className="team-note">You can recover removed tournaments anytime from this page.</p>
       </Modal>
     </section>
   )

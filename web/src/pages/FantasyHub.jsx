@@ -10,6 +10,7 @@ import {
   createAdminContest,
   fetchContestMatchOptions,
   fetchContests,
+  fetchTournamentCatalog,
   fetchTournaments,
   joinContest,
 } from '../lib/api.js'
@@ -24,6 +25,42 @@ const tournamentPalette = [
   '#0e7490',
 ]
 
+const normalizeTournamentRow = (row = {}) => ({
+  ...row,
+  id: row?.id != null ? String(row.id) : '',
+})
+
+const normalizeContestRow = (row = {}) => ({
+  ...row,
+  id: row?.id != null ? String(row.id) : '',
+  tournamentId: row?.tournamentId != null ? String(row.tournamentId) : '',
+  teams:
+    row?.teams != null
+      ? Number(row.teams || 0)
+      : Number(row?.maxParticipants || row?.maxPlayers || 0),
+  maxPlayers:
+    row?.maxPlayers != null
+      ? Number(row.maxPlayers || 0)
+      : Number(row?.maxParticipants || row?.teams || 0),
+})
+
+const formatContestCountdown = (startAt, nowTs) => {
+  if (!startAt) return ''
+  const parsed = new Date(startAt)
+  if (Number.isNaN(parsed.getTime())) return ''
+  const diff = parsed.getTime() - nowTs
+  if (diff <= 0) return ''
+  const totalMinutes = Math.floor(diff / (60 * 1000))
+  const days = Math.floor(totalMinutes / (60 * 24))
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60)
+  const minutes = totalMinutes % 60
+  const segments = []
+  if (days > 0) segments.push(`${days}d`)
+  if (days > 0 || hours > 0) segments.push(`${hours}h`)
+  segments.push(`${minutes}m`)
+  return `${segments.join(':')} remaining`
+}
+
 function FantasyHub() {
   const [selectedTournament, setSelectedTournament] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
@@ -37,17 +74,38 @@ function FantasyHub() {
   const [contestMatchOptions, setContestMatchOptions] = useState([])
   const [selectedContestMatchIds, setSelectedContestMatchIds] = useState([])
   const [isLoadingContestMatchOptions, setIsLoadingContestMatchOptions] = useState(false)
+  const [countdownNow, setCountdownNow] = useState(() => Date.now())
   const [createContestForm, setCreateContestForm] = useState({
     name: '',
     tournamentId: '',
     game: 'Fantasy',
     teams: 0,
-    status: 'Open',
+    startAt: '',
   })
 
   const currentUser = getStoredUser()
   const currentUserId = currentUser?.userId || currentUser?.gameName || currentUser?.email || ''
   const isAdminUser = ['admin', 'master_admin'].includes(currentUser?.role)
+
+  const normalizeAdminTournamentRows = (rows = []) =>
+    (rows || [])
+      .filter((row) => row?.enabled)
+      .map((row) => ({
+        id: row?.id != null ? String(row.id) : '',
+        name: row.name,
+      }))
+
+  const applyFantasyResponses = (tournamentsRes, contestsRes) => {
+    const nextTournaments = Array.isArray(tournamentsRes)
+      ? tournamentsRes.map(normalizeTournamentRow)
+      : []
+    const nextContests = Array.isArray(contestsRes) ? contestsRes.map(normalizeContestRow) : []
+    setTournaments(nextTournaments)
+    setContests(nextContests)
+    setSelectedTournament((prev) =>
+      nextTournaments.some((item) => item.id === prev) ? prev : nextTournaments[0]?.id || '',
+    )
+  }
 
   useEffect(() => {
     let active = true
@@ -56,16 +114,24 @@ function FantasyHub() {
       try {
         setIsLoading(true)
         setErrorText('')
-        const [tournamentsRes, contestsRes] = await Promise.all([
-          fetchTournaments(),
+        const [tournamentsResult, contestsResult] = await Promise.allSettled([
+          isAdminUser ? fetchTournamentCatalog() : fetchTournaments(),
           fetchContests({ game: 'Fantasy', userId: currentUserId }),
         ])
         if (!active) return
-        setTournaments(tournamentsRes)
-        setContests(contestsRes)
-        setSelectedTournament((prev) =>
-          tournamentsRes.some((item) => item.id === prev) ? prev : tournamentsRes[0]?.id || '',
-        )
+        const tournamentsRes = tournamentsResult.status === 'fulfilled' ? tournamentsResult.value : []
+        const contestsRes = contestsResult.status === 'fulfilled' ? contestsResult.value : []
+        const effectiveTournaments = isAdminUser
+          ? normalizeAdminTournamentRows(tournamentsRes)
+          : tournamentsRes
+        applyFantasyResponses(effectiveTournaments, contestsRes)
+        if (tournamentsResult.status === 'rejected' || contestsResult.status === 'rejected') {
+          const message =
+            tournamentsResult.status === 'rejected'
+              ? tournamentsResult.reason?.message
+              : contestsResult.reason?.message
+          setErrorText(message || 'Failed to load fantasy contests')
+        }
       } catch (error) {
         if (!active) return
         setErrorText(error.message || 'Failed to load fantasy contests')
@@ -80,18 +146,32 @@ function FantasyHub() {
     return () => {
       active = false
     }
-  }, [currentUserId])
+  }, [currentUserId, isAdminUser])
 
   const reloadFantasyData = async () => {
-    const [tournamentsRes, contestsRes] = await Promise.all([
-      fetchTournaments(),
+    const [tournamentsResult, contestsResult] = await Promise.allSettled([
+      isAdminUser ? fetchTournamentCatalog() : fetchTournaments(),
       fetchContests({ game: 'Fantasy', userId: currentUserId }),
     ])
-    setTournaments(tournamentsRes)
-    setContests(contestsRes)
-    setSelectedTournament((prev) =>
-      tournamentsRes.some((item) => item.id === prev) ? prev : tournamentsRes[0]?.id || '',
-    )
+    const tournamentsRes = tournamentsResult.status === 'fulfilled' ? tournamentsResult.value : []
+    const contestsRes = contestsResult.status === 'fulfilled' ? contestsResult.value : []
+    const effectiveTournaments = isAdminUser
+      ? normalizeAdminTournamentRows(tournamentsRes)
+      : tournamentsRes
+    applyFantasyResponses(effectiveTournaments, contestsRes)
+    if (tournamentsResult.status === 'rejected' || contestsResult.status === 'rejected') {
+      const message =
+        tournamentsResult.status === 'rejected'
+          ? tournamentsResult.reason?.message
+          : contestsResult.reason?.message
+      throw new Error(message || 'Failed to load fantasy contests')
+    }
+    return {
+      tournaments: Array.isArray(effectiveTournaments)
+        ? effectiveTournaments.map(normalizeTournamentRow)
+        : [],
+      contests: Array.isArray(contestsRes) ? contestsRes.map(normalizeContestRow) : [],
+    }
   }
 
   const tournamentNameMap = useMemo(() => {
@@ -126,6 +206,13 @@ function FantasyHub() {
   const canCreateContest = !isLoading && tournaments.length > 0
   const selectableMatchOptions = useMemo(() => contestMatchOptions, [contestMatchOptions])
   const canCreateWithMatches = selectedContestMatchIds.length > 0
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setCountdownNow(Date.now())
+    }, 60 * 1000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   const badgeText = (name = '') => {
     const words = name.split(' ').filter(Boolean)
@@ -177,8 +264,8 @@ function FantasyHub() {
   }, [showCreateContestModal, createContestForm.tournamentId])
 
   return (
-    <section className="admin">
-      <div className="section-head-compact">
+    <section className="admin fantasy-hub-page">
+      <div className="section-head-compact fantasy-hub-header">
         <div className="contest-section-head">
           <h2>Fantasy Contests</h2>
           {isAdminUser && (
@@ -308,6 +395,7 @@ function FantasyHub() {
                       { value: 'all', label: 'All status' },
                       { value: 'Open', label: 'Open' },
                       { value: 'Starting Soon', label: 'Starting Soon' },
+                      { value: 'In Progress', label: 'In Progress' },
                       { value: 'Locked', label: 'Locked' },
                       { value: 'Completed', label: 'Completed' },
                     ]}
@@ -323,6 +411,7 @@ function FantasyHub() {
                       {availableContests.map((contest) => {
                         const joinedCount = Number(contest.joinedCount ?? contest.participants ?? 0)
                         const maxPlayers = Number(contest.maxPlayers ?? contest.teams ?? 0)
+                        const countdownLabel = formatContestCountdown(contest.startAt, countdownNow)
                         return (
                           <article
                             className={`compact-contest-card fantasy ${getStatusClassName(contest.status)}`.trim()}
@@ -340,6 +429,13 @@ function FantasyHub() {
                               Participants {joinedCount}
                               {maxPlayers > 0 ? ` / ${maxPlayers}` : ''}
                             </p>
+                            <p className="team-note">
+                              Starts:{' '}
+                              {contest.startAt ? new Date(contest.startAt).toLocaleString() : 'Manual start'}
+                            </p>
+                            {countdownLabel ? (
+                              <p className="team-note contest-countdown">{countdownLabel}</p>
+                            ) : null}
                             <p className="team-note">
                               Last score update:{' '}
                               {contest.lastScoreUpdatedAt
@@ -460,19 +556,37 @@ function FantasyHub() {
                 isLoadingContestMatchOptions ||
                 !createContestForm.name ||
                 !createContestForm.tournamentId ||
+                Number(createContestForm.teams || 0) < 2 ||
                 !canCreateWithMatches
               }
               onClick={async () => {
                 try {
                   setIsSavingContest(true)
+                  setIsLoading(true)
                   setErrorText('')
                   setNotice('')
-                  await createAdminContest({
+                  const createdContestResponse = await createAdminContest({
                     ...createContestForm,
+                    maxParticipants: Number(createContestForm.teams || 0),
                     createdBy: currentUserId || currentUser?.email || 'admin',
                     matchIds: selectedContestMatchIds,
+                    startAt: createContestForm.startAt
+                      ? new Date(createContestForm.startAt).toISOString()
+                      : null,
                   })
-                  await reloadFantasyData()
+                  const createdContest = normalizeContestRow(
+                    createdContestResponse?.contest || createdContestResponse || {},
+                  )
+                  const refreshed = await reloadFantasyData()
+                  if (
+                    createdContest.id &&
+                    !refreshed?.contests?.some((item) => item.id === createdContest.id)
+                  ) {
+                    setContests((prev) => [
+                      createdContest,
+                      ...prev.filter((item) => item.id !== createdContest.id),
+                    ])
+                  }
                   setSelectedTournament(createContestForm.tournamentId)
                   setShowCreateContestModal(false)
                   setCreateContestForm({
@@ -480,7 +594,7 @@ function FantasyHub() {
                     tournamentId: '',
                     game: 'Fantasy',
                     teams: 0,
-                    status: 'Open',
+                    startAt: '',
                   })
                   setContestMatchOptions([])
                   setSelectedContestMatchIds([])
@@ -488,6 +602,7 @@ function FantasyHub() {
                 } catch (error) {
                   setErrorText(error.message || 'Failed to create contest')
                 } finally {
+                  setIsLoading(false)
                   setIsSavingContest(false)
                 }
               }}
@@ -531,7 +646,7 @@ function FantasyHub() {
             <input
               className="create-contest-input"
               type="number"
-              min="0"
+              min="2"
               value={createContestForm.teams}
               onChange={(event) =>
                 setCreateContestForm((prev) => ({
@@ -540,25 +655,27 @@ function FantasyHub() {
                 }))
               }
             />
+            {Number(createContestForm.teams || 0) > 0 &&
+            Number(createContestForm.teams || 0) < 2 ? (
+              <small className="error-text">Max players must be at least 2.</small>
+            ) : null}
           </label>
           <label className="create-contest-field">
-            <span>Status</span>
-            <SelectField
+            <span>Starts at</span>
+            <input
               className="create-contest-input"
-              value={createContestForm.status}
+              type="datetime-local"
+              value={createContestForm.startAt}
               onChange={(event) =>
                 setCreateContestForm((prev) => ({
                   ...prev,
-                  status: event.target.value,
+                  startAt: event.target.value,
                 }))
               }
-              options={[
-                { value: 'Open', label: 'Open' },
-                { value: 'Starting Soon', label: 'Starting Soon' },
-                { value: 'Locked', label: 'Locked' },
-                { value: 'Completed', label: 'Completed' },
-              ]}
             />
+            <small className="team-note">
+              Leave empty to keep the contest open until an admin starts it manually.
+            </small>
           </label>
           <div className="create-contest-field create-contest-matches-field">
             <span>Matches in this contest</span>

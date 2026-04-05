@@ -259,7 +259,35 @@ const registerMockProviderRoutes = (router, ctx) => {
     return scopedMatches.length ? scopedMatches : allMatches
   }
   const isContestJoinOpen = (contest) => {
-    return !isFixedRosterContest(contest)
+    if (isFixedRosterContest(contest)) return false
+    const rawStatus = (contest?.status || '').toString().trim().toLowerCase()
+    if (['completed', 'locked', 'closed', 'inactive', 'disabled'].includes(rawStatus)) {
+      return false
+    }
+    if (contest?.startedAt) return false
+    if (contest?.startAt) {
+      const parsed = new Date(contest.startAt)
+      if (!Number.isNaN(parsed.getTime()) && parsed.getTime() <= Date.now()) {
+        return false
+      }
+    }
+    return true
+  }
+
+  const getContestDisplayStatus = (contest) => {
+    const rawStatus = (contest?.status || '').toString().trim().toLowerCase()
+    if (rawStatus === 'completed') return 'Completed'
+    if (['locked', 'closed', 'inactive', 'disabled'].includes(rawStatus)) return 'Locked'
+    if (contest?.startedAt) return 'In Progress'
+    if (contest?.startAt) {
+      const parsed = new Date(contest.startAt)
+      if (!Number.isNaN(parsed.getTime())) {
+        const msUntilStart = parsed.getTime() - Date.now()
+        if (msUntilStart <= 0) return 'In Progress'
+        if (msUntilStart <= 6 * 60 * 60 * 1000) return 'Starting Soon'
+      }
+    }
+    return 'Open'
   }
 
   router.get('/page-load-data', getMockPageLoadData)
@@ -270,6 +298,21 @@ const registerMockProviderRoutes = (router, ctx) => {
       enabledTournamentIds.has(item.id),
     )
     return res.json(list)
+  })
+
+  router.get('/tournaments/:id/matches', (req, res) => {
+    const tournamentId = (req.params.id || '').toString()
+    const matches =
+      Array.isArray(customTournamentMatches[tournamentId]) &&
+      customTournamentMatches[tournamentId].length > 0
+        ? customTournamentMatches[tournamentId]
+        : buildMatches(100, tournamentId)
+    return res.json(
+      matches.map((match) => ({
+        ...match,
+        status: match.status,
+      })),
+    )
   })
 
   router.get('/admin/users', (req, res) => {
@@ -502,6 +545,19 @@ const registerMockProviderRoutes = (router, ctx) => {
       return res.status(403).json({ message: 'Only admin/master can manage players' })
     }
     try {
+      if (Array.isArray(req.body?.players)) {
+        const result = await playerService.importPlayers(req.body || {})
+        appendAuditLog({
+          actor: actor?.gameName || actor?.name || 'Admin',
+          action: 'Imported players',
+          target: `${result.importedCount} players`,
+          detail: 'Global catalog import',
+          tournamentId: 'global',
+          module: 'players',
+        })
+        persistState()
+        return res.status(201).json(result)
+      }
       const player = await playerService.createPlayer(req.body || {})
       appendAuditLog({
         actor: actor?.gameName || actor?.name || 'Admin',
@@ -547,6 +603,23 @@ const registerMockProviderRoutes = (router, ctx) => {
     const actor = resolveAdminActor(req)
     if (!canManageTournaments(actor)) {
       return res.status(403).json({ message: 'Only admin/master can manage squads' })
+    }
+    if (Array.isArray(req.body?.teamSquads)) {
+      try {
+        const result = await playerService.importTeamSquadMappings(req.body || {})
+        appendAuditLog({
+          actor: actor?.gameName || actor?.name || 'Admin',
+          action: 'Imported squad mappings',
+          target: `${result.importedCount} teams`,
+          detail: req.body?.tournamentId || 'tournament',
+          tournamentId: req.body?.tournamentId || 'global',
+          module: 'squads',
+        })
+        persistState()
+        return res.status(201).json(result)
+      } catch (error) {
+        return res.status(400).json({ message: error.message || 'Failed to import squad mappings' })
+      }
     }
     const teamCode = normalizeTeamCode(req.body?.teamCode || '')
     if (!teamCode) {
@@ -640,20 +713,26 @@ const registerMockProviderRoutes = (router, ctx) => {
       return res.status(409).json({ message: 'Tournament already exists' })
     }
 
-    const { tournament: normalizedTournament, matches: normalizedMatches } =
-      buildImportedTournamentPayload({
-        payload: {
-          ...payload,
-          name: payloadName,
-          season: payloadSeason,
-          source,
-          matches: rawMatches,
-        },
-        fallbackSeason: payloadSeason,
-        fallbackSource: source,
-        requestedTournamentId: tournamentId || '',
-        getFallbackSquad: getTeamSquadByCode,
-      })
+    let normalizedTournament
+    let normalizedMatches
+    try {
+      ;({ tournament: normalizedTournament, matches: normalizedMatches } =
+        buildImportedTournamentPayload({
+          payload: {
+            ...payload,
+            name: payloadName,
+            season: payloadSeason,
+            source,
+            matches: rawMatches,
+          },
+          fallbackSeason: payloadSeason,
+          fallbackSource: source,
+          requestedTournamentId: tournamentId || '',
+          getFallbackSquad: getTeamSquadByCode,
+        }))
+    } catch (error) {
+      return res.status(400).json({ message: error.message || 'Invalid tournament payload' })
+    }
     if (!normalizedMatches.length) {
       return res.status(400).json({ message: 'Matches must include valid teams' })
     }
@@ -720,6 +799,14 @@ const registerMockProviderRoutes = (router, ctx) => {
     }
     if (!participants.length) {
       return res.status(400).json({ message: 'At least one participant is required' })
+    }
+    const emptyRosterIndex = participants.findIndex(
+      (entry) => !Array.isArray(entry?.roster) || !entry.roster.length,
+    )
+    if (emptyRosterIndex >= 0) {
+      return res
+        .status(400)
+        .json({ message: `participants[${emptyRosterIndex}].roster must contain at least one player` })
     }
     const tournament = getTournamentCatalogEntry(tournamentId)
     if (!tournament) {
@@ -970,10 +1057,12 @@ const registerMockProviderRoutes = (router, ctx) => {
       tournamentId,
       game = 'Fantasy',
       teams = 0,
+      maxParticipants = 0,
       status = 'Open',
       joined = false,
       createdBy = 'admin',
       matchIds = [],
+      startAt = '',
     } = req.body || {}
     if (!name || !tournamentId) {
       return res.status(400).json({ message: 'name and tournamentId are required' })
@@ -1005,20 +1094,31 @@ const registerMockProviderRoutes = (router, ctx) => {
         message: 'Select at least one tournament match for the contest',
       })
     }
+    const maxPlayers = Number(maxParticipants || teams || 0)
+    if (!Number.isFinite(maxPlayers) || maxPlayers < 2) {
+      return res.status(400).json({ message: 'Max players must be at least 2' })
+    }
+    const normalizedStartAt = startAt ? new Date(startAt).toISOString() : null
+    if (startAt && normalizedStartAt === 'Invalid Date') {
+      return res.status(400).json({ message: 'Contest start time must be a valid date' })
+    }
 
     const contest = {
       id: buildMockContestId(name),
       name: name.toString().trim(),
       tournamentId: tournamentId.toString(),
       game: game.toString(),
-      teams: Number(teams || 0),
+      teams: maxPlayers,
       status: status.toString(),
+      rawStatus: status.toString(),
       joined: Boolean(joined),
       points: 0,
       rank: '-',
       createdBy: createdBy.toString(),
       isCustom: true,
       matchIds: normalizedMatchIds,
+      startAt: normalizedStartAt,
+      startedAt: null,
       lastScoreUpdatedAt: null,
       lastScoreUpdatedBy: null,
     }
@@ -1033,7 +1133,31 @@ const registerMockProviderRoutes = (router, ctx) => {
       module: 'contests',
     })
     persistState()
-    return res.status(201).json(contest)
+    return res.status(201).json({
+      ...contest,
+      status: getContestDisplayStatus(contest),
+      joinOpen: isContestJoinOpen(contest),
+    })
+  })
+
+  router.post('/admin/contests/:contestId/start', (req, res) => {
+    const actor = resolveAdminActor(req)
+    if (!canAccessAdminUsers(actor)) {
+      return res.status(403).json({ message: 'Only admin/master can start contests' })
+    }
+    const contest = mockContests.find((item) => item.id === req.params.contestId)
+    if (!contest) {
+      return res.status(404).json({ message: 'Contest not found' })
+    }
+    contest.startedAt = new Date().toISOString()
+    persistState()
+    return res.json({
+      ...contest,
+      status: getContestDisplayStatus(contest),
+      joinOpen: isContestJoinOpen(contest),
+      enabled: true,
+      canStart: false,
+    })
   })
 
   router.delete('/admin/contests/:contestId', (req, res) => {
@@ -1086,6 +1210,9 @@ const registerMockProviderRoutes = (router, ctx) => {
       .filter((contest) => !tournamentId || contest.tournamentId === tournamentId)
       .map((contest) => ({
         ...contest,
+        status: getContestDisplayStatus(contest),
+        joinOpen: isContestJoinOpen(contest),
+        canStart: isContestJoinOpen(contest) && !isFixedRosterContest(contest),
         enabled: enabledContestIds.has(contest.id),
       }))
       .sort((a, b) => a.name.localeCompare(b.name))
@@ -1116,6 +1243,27 @@ const registerMockProviderRoutes = (router, ctx) => {
       })(),
     }))
     return res.json(rows)
+  })
+
+  router.post('/admin/matches/:id/status', (req, res) => {
+    const matchId = (req.params.id || '').toString()
+    const status = (req.body?.status || '').toString().trim().toLowerCase()
+    if (!['notstarted', 'inprogress', 'completed'].includes(status)) {
+      return res.status(400).json({ message: 'Valid status is required' })
+    }
+    for (const [tournamentId, matches] of Object.entries(customTournamentMatches)) {
+      if (!Array.isArray(matches)) continue
+      const target = matches.find((match) => String(match.id) === matchId)
+      if (!target) continue
+      target.status = status
+      target.locked = status !== 'notstarted'
+      persistState()
+      return res.json({
+        ...target,
+        tournamentId,
+      })
+    }
+    return res.status(404).json({ message: 'Match not found' })
   })
 
   router.post('/admin/contests/sync', (req, res) => {
@@ -1197,11 +1345,13 @@ const registerMockProviderRoutes = (router, ctx) => {
       const scoreMeta = computeContestLastScoreMeta(contest)
       return {
         ...contest,
+        status: getContestDisplayStatus(contest),
         joined: userId ? userJoinedSet.has(contest.id) : Boolean(contest.joined),
         joinedCount,
         maxPlayers,
         hasCapacity,
         joinOpen: !isFixedRosterContest(contest) && joinOpen && hasCapacity,
+        canStart: !isFixedRosterContest(contest) && joinOpen,
         ...scoreMeta,
       }
     })

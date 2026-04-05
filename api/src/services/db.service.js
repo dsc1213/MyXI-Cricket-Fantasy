@@ -1,6 +1,7 @@
 import tournamentService from './tournament.service.js'
 import matchService from './match.service.js'
 import contestService from './contest.service.js'
+import { buildContestView } from './contest.service.js'
 import teamSelectionService from './team-selection.service.js'
 import scoringRuleService from './scoring-rule.service.js'
 import matchScoreService from './match-score.service.js'
@@ -229,6 +230,243 @@ const createDbService = (dependencies) => {
       }
     })
 
+    router.get('/tournaments', async (req, res, next) => {
+      try {
+        const rows = await tournamentService.getVisibleTournaments()
+        return res.json(rows || [])
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.get('/tournaments/:id/matches', async (req, res, next) => {
+      try {
+        const rows = await tournamentService.getTournamentMatches(req.params.id)
+        return res.json(rows || [])
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.get('/contests', async (req, res, next) => {
+      try {
+        const allRows = await contestService.getAllContests()
+        const gameFilter = (req.query?.game || '').toString().trim().toLowerCase()
+        const tournamentIdFilter = (req.query?.tournamentId || '').toString().trim()
+        const joinedFilter = (req.query?.joined || '').toString().trim().toLowerCase()
+        const actor =
+          (await resolveDbUser(
+            req.query?.userId || req.currentUser?.id || req.currentUser?.userId || req.currentUser?.gameName,
+          )) || req.currentUser || null
+
+        const rowsWithDerivedState = await Promise.all(
+          (allRows || []).map(async (row) => {
+            const participantPayload = await contestService.getContestParticipants(row.id)
+            const participantRows = Array.isArray(participantPayload?.participants)
+              ? participantPayload.participants
+              : []
+            const joinedCount = Number(participantPayload?.joinedCount || participantRows.length || 0)
+            const joined = Boolean(
+              actor?.id &&
+                participantRows.some((participant) => Number(participant.id || 0) === Number(actor.id)),
+            )
+            return buildContestView(row, {
+              joined,
+              joinedCount,
+              participants: joinedCount,
+            })
+          }),
+        )
+
+        const filtered = rowsWithDerivedState.filter((row) => {
+          const gameOk = !gameFilter || (row?.game || '').toString().trim().toLowerCase() === gameFilter
+          const tournamentOk =
+            !tournamentIdFilter || String(row?.tournamentId || '') === tournamentIdFilter
+          const joinedOk =
+            !joinedFilter ||
+            (joinedFilter === 'true' && row.joined) ||
+            (joinedFilter === 'false' && !row.joined)
+          return gameOk && tournamentOk && joinedOk
+        })
+
+        return res.json(filtered)
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.get('/contests/:id', async (req, res, next) => {
+      try {
+        const contest = await contestService.getContestById(req.params.id)
+        if (!contest) {
+          return res.status(404).json({ message: 'Contest not found' })
+        }
+        const participantPayload = await contestService.getContestParticipants(req.params.id)
+        const joinedCount = Number(
+          participantPayload?.joinedCount ||
+            (Array.isArray(participantPayload?.participants) ? participantPayload.participants.length : 0),
+        )
+        return res.json(
+          buildContestView(contest, {
+            joinedCount,
+            participants: joinedCount,
+          }),
+        )
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.get('/contests/:id/matches', async (req, res, next) => {
+      try {
+        const actor = req.currentUser || null
+        const targetUser =
+          (await resolveDbUser(
+            req.query.userId || actor?.id || actor?.userId || actor?.gameName || actor?.email,
+          )) || actor
+        const rows = await contestService.getContestMatches(req.params.id, {
+          status: req.query.status,
+          team: req.query.team,
+          viewerUserId: targetUser?.id || null,
+        })
+        return res.json(rows || [])
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.get('/contests/:id/participants', async (req, res, next) => {
+      try {
+        const actor = req.currentUser || null
+        const targetUser =
+          (await resolveDbUser(
+            req.query.userId || actor?.id || actor?.userId || actor?.gameName || actor?.email,
+          )) || actor
+        const payload = await contestService.getContestParticipants(req.params.id, {
+          matchId: req.query?.matchId,
+          viewerUserId: targetUser?.id || null,
+        })
+        return res.json(payload || { participants: [], joinedCount: 0, previewXI: [] })
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.get('/admin/contests/catalog', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res.status(403).json({ message: 'Only admin/master can manage contests' })
+        }
+        const tournamentId = (req.query?.tournamentId || '').toString().trim()
+        const rows = tournamentId
+          ? await contestService.getContestsByTournament(tournamentId)
+          : await contestService.getAllContests()
+        return res.json((rows || []).map((row) => buildContestView(row, { enabled: true })))
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.get('/admin/match-score-context', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor) && actor?.role !== 'contest_manager') {
+          return res.status(403).json({ message: 'Only score managers/admin/master can manage scores' })
+        }
+        const requestedTournamentId = (req.query?.tournamentId || '').toString().trim()
+        const tournaments = await tournamentService.getTournamentCatalog()
+        const selectedTournamentId =
+          requestedTournamentId &&
+          (tournaments || []).some((item) => String(item.id) === requestedTournamentId)
+            ? requestedTournamentId
+            : String(tournaments?.[0]?.id || '')
+        const matches = selectedTournamentId
+          ? await tournamentService.getTournamentMatches(selectedTournamentId)
+          : []
+        return res.json({
+          tournaments: (tournaments || []).map((row) => ({
+            id: String(row.id),
+            name: row.name,
+            season: row.season,
+            status: row.enabled ? 'active' : 'inactive',
+          })),
+          selectedTournamentId,
+          matches: (matches || []).map((row) => ({
+            id: String(row.id),
+            tournamentId: String(selectedTournamentId),
+            label: row.name || `${row.teamA || row.teamAKey} vs ${row.teamB || row.teamBKey}`,
+            name: row.name || `${row.teamA || row.teamAKey} vs ${row.teamB || row.teamBKey}`,
+            home: row.teamA || row.teamAKey || '',
+            away: row.teamB || row.teamBKey || '',
+            date: row.startAt || row.startTime || row.date || '',
+          })),
+        })
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.get('/admin/users', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res.status(403).json({ message: 'Only admin/master can manage users' })
+        }
+        const { search, role, status } = req.query || {}
+        const rows = await userRepository.findAll({ search, role, status })
+        return res.json(rows || [])
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.patch('/admin/users/:id', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res.status(403).json({ message: 'Only admin/master can manage users' })
+        }
+        const target = await userRepository.findById(req.params.id)
+        if (!target) {
+          return res.status(404).json({ message: 'User not found' })
+        }
+        if (target.role === 'master_admin' && actor?.role !== 'master_admin') {
+          return res.status(403).json({ message: 'Only master can modify master admin users' })
+        }
+        const data = await userRepository.update(req.params.id, req.body || {})
+        if (!data) {
+          return res.status(404).json({ message: 'User not found' })
+        }
+        return res.json(data)
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.delete('/admin/users/:id', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!actor || actor.role !== 'master_admin') {
+          return res.status(403).json({ message: 'Only master can delete users' })
+        }
+        const target = await userRepository.findById(req.params.id)
+        if (!target) {
+          return res.status(404).json({ message: 'User not found' })
+        }
+        if (target.role === 'master_admin') {
+          return res.status(400).json({ message: 'Cannot delete master admin' })
+        }
+        const deleted = await userRepository.delete(req.params.id)
+        if (!deleted) {
+          return res.status(404).json({ message: 'User not found' })
+        }
+        return res.json({ deleted: true })
+      } catch (error) {
+        return next(error)
+      }
+    })
+
     router.post('/admin/tournaments/enable', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -309,6 +547,40 @@ const createDbService = (dependencies) => {
       }
     })
 
+    router.post('/admin/contests/:id/start', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res.status(403).json({ message: 'Only admin/master can start contests' })
+        }
+        const result = await contestService.startContest(req.params.id)
+        return res.json(result)
+      } catch (error) {
+        const statusCode = Number(error?.statusCode || 0)
+        if (statusCode >= 400) {
+          return res.status(statusCode).json({ message: error.message || 'Failed to start contest' })
+        }
+        return next(error)
+      }
+    })
+
+    router.post('/admin/matches/:id/status', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res.status(403).json({ message: 'Only admin/master can update match status' })
+        }
+        const status = (req.body?.status || '').toString().trim().toLowerCase()
+        if (!['notstarted', 'inprogress', 'completed'].includes(status)) {
+          return res.status(400).json({ message: 'Valid status is required' })
+        }
+        const result = await matchService.updateMatchStatus(req.params.id, status)
+        return res.json(result)
+      } catch (error) {
+        return next(error)
+      }
+    })
+
     router.post('/admin/auctions/import', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -350,6 +622,10 @@ const createDbService = (dependencies) => {
         if (!canManageCatalog(actor)) {
           return res.status(403).json({ message: 'Only admin/master can manage players' })
         }
+        if (Array.isArray(req.body?.players)) {
+          const result = await playerService.importPlayers(req.body || {})
+          return res.status(201).json(result)
+        }
         const player = await playerService.createPlayer(req.body || {})
         return res.status(201).json({ ok: true, player })
       } catch (error) {
@@ -377,6 +653,10 @@ const createDbService = (dependencies) => {
           return res.status(403).json({ message: 'Only admin/master can manage squads' })
         }
         const payload = req.body || {}
+        if (Array.isArray(payload.teamSquads)) {
+          const result = await playerService.importTeamSquadMappings(payload)
+          return res.status(201).json(result)
+        }
         const teamCode = (payload.teamCode || '').toString().trim().toUpperCase()
         if (!teamCode) {
           return res.status(400).json({ message: 'teamCode is required' })
@@ -404,6 +684,15 @@ const createDbService = (dependencies) => {
           .trim()
         const result = await playerService.deleteTeamSquad(teamCode, tournamentId || null)
         return res.json({ ok: true, ...result })
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.get('/players', async (req, res, next) => {
+      try {
+        const rows = await playerService.getAllPlayers()
+        return res.json(rows)
       } catch (error) {
         return next(error)
       }
@@ -450,6 +739,36 @@ const createDbService = (dependencies) => {
       }
     })
 
+    router.get('/users/:userId/picks', async (req, res, next) => {
+      try {
+        const actor = req.currentUser || null
+        const targetUser =
+          (await resolveDbUser(req.params.userId || actor?.id || actor?.userId || actor?.gameName)) ||
+          actor
+        if (!actor || !targetUser) {
+          return res.status(401).json({ message: 'Unauthorized' })
+        }
+        const isSelfRead = Boolean(
+          actor?.id && targetUser?.id && Number(actor.id) === Number(targetUser.id),
+        )
+        const isMasterAdmin = actor?.role === 'master_admin'
+        if (!isSelfRead && !isMasterAdmin) {
+          return res.status(403).json({
+            message: 'Only master admin can access another user full team.',
+          })
+        }
+        const payload = await playerService.getUserPicks({
+          userId: targetUser?.id || '',
+          tournamentId: (req.query.tournamentId || '').toString(),
+          contestId: (req.query.contestId || '').toString(),
+          matchId: (req.query.matchId || '').toString(),
+        })
+        return res.json(payload)
+      } catch (error) {
+        return next(error)
+      }
+    })
+
     router.post('/team-selection/save', async (req, res, next) => {
       try {
         const matchId = req.body?.matchId
@@ -480,6 +799,70 @@ const createDbService = (dependencies) => {
           selection: result,
           saved: true,
         })
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.post('/matches/:id/team', async (req, res, next) => {
+      try {
+        const actor = req.currentUser || null
+        const targetUser =
+          (await resolveDbUser(req.body?.userId || actor?.id || actor?.userId || actor?.gameName)) ||
+          actor
+        if (!actor || !targetUser) {
+          return res.status(401).json({ message: 'Unauthorized' })
+        }
+        const isSelfWrite = Boolean(actor?.id && targetUser?.id && Number(actor.id) === Number(targetUser.id))
+        const isMasterAdmin = actor?.role === 'master_admin'
+        if (!isSelfWrite && !isMasterAdmin) {
+          return res.status(403).json({
+            message: 'Only master admin can edit another user team.',
+          })
+        }
+        const result = await teamSelectionService.saveTeamSelection(
+          req.params.id,
+          targetUser?.id,
+          req.body?.playingXi || [],
+          req.body?.backups || [],
+          req.body?.contestId || null,
+          req.body?.captainId || null,
+          req.body?.viceCaptainId || null,
+        )
+        return res.json({
+          selection: result,
+          saved: true,
+        })
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.post('/contests/:id/join', async (req, res, next) => {
+      try {
+        const actor = req.currentUser || null
+        if (!actor?.id) {
+          return res.status(401).json({ message: 'Unauthorized' })
+        }
+        const requestedUser =
+          (await resolveDbUser(req.body?.userId || req.currentUser?.id || req.currentUser?.userId)) ||
+          actor
+        const isSelf = Number(requestedUser?.id || 0) === Number(actor?.id || 0)
+        const isMaster = actor?.role === 'master_admin'
+        if (!requestedUser?.id || (!isSelf && !isMaster)) {
+          return res.status(403).json({ message: 'Forbidden' })
+        }
+        const result = await contestService.joinContest(req.params.id, requestedUser.id)
+        return res.json(result)
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.get('/contests/:id/leaderboard', async (req, res, next) => {
+      try {
+        const rows = await contestService.getContestLeaderboard(req.params.id)
+        return res.json(rows)
       } catch (error) {
         return next(error)
       }
@@ -534,6 +917,28 @@ const createDbService = (dependencies) => {
         return res.json(payload)
       } catch (error) {
         return next(error)
+      }
+    })
+
+    router.post('/admin/match-scores/upsert', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res.status(403).json({ message: 'Only admin/master can manage match scores' })
+        }
+        const uploadedByActor =
+          (await resolveDbUser(
+            req.body?.userId || req.body?.uploadedBy || actor?.id || actor?.userId || actor?.gameName,
+          )) || actor
+        const payload = await matchScoreService.uploadMatchScores(
+          req.body?.matchId,
+          req.body?.tournamentId,
+          req.body?.playerStats || [],
+          uploadedByActor?.id || null,
+        )
+        return res.json(payload)
+      } catch (error) {
+        return res.status(400).json({ message: error.message || 'Failed to save match scores' })
       }
     })
   }

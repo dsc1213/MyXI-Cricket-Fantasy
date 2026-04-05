@@ -222,6 +222,8 @@ body.dark-theme .dashboard-nav-btn.active {
 .dashboard-section {
   display: grid;
   gap: 0.45rem;
+  height: 100%;
+  min-height: 100%;
 }
 
 .dashboard-section h3 {

@@ -55,8 +55,8 @@ const buildAuctionJsonExample = (tournamentId = 'ipl-2026-custom') => `{
   "contestName": "NWMSU-IPL-AUCTION",
   "participants": [
     {
-      "userId": "huntercherryxi",
-      "name": "HunterCherryXI",
+      "userId": "captain-a",
+      "name": "Captain A",
       "roster": ["Ruturaj Gaikwad", "Tilak Varma", "Harshal Patel"]
     },
     {
@@ -451,6 +451,11 @@ function CreateTournamentPanel({ onCreated }) {
           ? `Auction imported: ${createdName}`
           : `Tournament created: ${createdName}`,
       )
+      if (inputType === 'auction') {
+        setAuctionPayload('')
+      } else if (inputType === 'json') {
+        setJsonPayload('')
+      }
       if (inputType !== 'auction') {
         setTournamentCatalog((prev) => {
           const next = Array.isArray(prev) ? [...prev] : []
@@ -491,8 +496,18 @@ function CreateTournamentPanel({ onCreated }) {
           </div>
         </div>
 
-        {!!errorText && <p className="error-text">{errorText}</p>}
+        {!!errorText && (
+          <div className="error-text create-tournament-inline-error" role="alert">
+            {errorText}
+          </div>
+        )}
         {!!notice && <p className="success-text">{notice}</p>}
+        {isSaving && inputType === 'auction' && (
+          <div className="create-tournament-loading" role="status" aria-live="polite">
+            <strong>Importing auction data...</strong>
+            <span>Validating tournament, players, and participant rosters.</span>
+          </div>
+        )}
         {createdTournament && (
           <div className="create-tournament-success" role="status" aria-live="polite">
             <div className="create-tournament-success-copy">
@@ -512,7 +527,7 @@ function CreateTournamentPanel({ onCreated }) {
               size="small"
               onClick={() => onCreated?.({ ...createdTournament, openAdmin: true })}
             >
-              Open Admin Manager
+              Open Tournament Manager
             </Button>
           </div>
         )}
@@ -550,6 +565,12 @@ function CreateTournamentPanel({ onCreated }) {
         {inputType === 'auction' ? (
           <label>
             Auction JSON payload
+            <span className="field-help-text auction-json-help">
+              Accepted shape: <code>tournamentId</code>, <code>contestName</code>, and{' '}
+              <code>participants</code> with <code>userId</code>, <code>name</code>, and{' '}
+              <code>roster</code>. This matches the output from{' '}
+              <code>api/scripts/build_auction_import.py</code>.
+            </span>
             <textarea
               className="dashboard-json-textarea"
               rows={14}
@@ -576,10 +597,13 @@ function CreateTournamentPanel({ onCreated }) {
             </p>
             {manualStep === 'teams' ? (
               <>
-                <div className="manual-scope-row">
+                <div
+                  className={`manual-scope-row create-tournament-teams-primary-fields ${tournamentType === 'league' ? 'league-mode' : 'international-mode'}`.trim()}
+                >
                   <label>
                     Type
                     <SelectField
+                      className="dashboard-text-input"
                       value={tournamentType}
                       onChange={(event) => {
                         const next = event.target.value
@@ -594,45 +618,55 @@ function CreateTournamentPanel({ onCreated }) {
                       ]}
                     />
                   </label>
-                  {tournamentType === 'league' && (
-                    <>
-                      <label>
-                        Country
-                        <SelectField
-                          value={country}
-                          onChange={(event) => {
-                            setCountry(event.target.value)
-                            setLeague('')
-                            setSelectedTeams([])
-                          }}
-                          options={[{ value: '', label: 'Select country' }, ...Object.keys(LEAGUE_MAP).map((value) => ({ value, label: value }))]}
-                        />
-                      </label>
-                      <label>
-                        League
-                        <SelectField
-                          value={league}
-                          onChange={(event) => {
-                            setLeague(event.target.value)
-                            setSelectedTeams([])
-                          }}
-                          options={[{ value: '', label: 'Select league' }, ...leagueOptions]}
-                        />
-                      </label>
-                    </>
-                  )}
-                </div>
-
-                <div className="manual-scope-row">
                   <label>
                     Tournament name
-                    <input type="text" value={name} onChange={(event) => setName(event.target.value)} />
+                    <input
+                      className="dashboard-text-input"
+                      type="text"
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                    />
                   </label>
                   <label>
                     Season
-                    <input type="text" value={season} onChange={(event) => setSeason(event.target.value)} />
+                    <input
+                      className="dashboard-text-input"
+                      type="text"
+                      value={season}
+                      onChange={(event) => setSeason(event.target.value)}
+                    />
                   </label>
                 </div>
+
+                {tournamentType === 'league' ? (
+                  <div className="manual-scope-row create-tournament-teams-secondary-fields league-mode">
+                    <label>
+                      Country
+                      <SelectField
+                        className="dashboard-text-input"
+                        value={country}
+                        onChange={(event) => {
+                          setCountry(event.target.value)
+                          setLeague('')
+                          setSelectedTeams([])
+                        }}
+                        options={[{ value: '', label: 'Select country' }, ...Object.keys(LEAGUE_MAP).map((value) => ({ value, label: value }))]}
+                      />
+                    </label>
+                    <label>
+                      League
+                      <SelectField
+                        className="dashboard-text-input"
+                        value={league}
+                        onChange={(event) => {
+                          setLeague(event.target.value)
+                          setSelectedTeams([])
+                        }}
+                        options={[{ value: '', label: 'Select league' }, ...leagueOptions]}
+                      />
+                    </label>
+                  </div>
+                ) : null}
 
                 <div className="create-contest-field">
                   <span>Available teams</span>

@@ -6,8 +6,8 @@ import { setStoredUser } from '../lib/auth.js'
 
 function Login() {
   const navigate = useNavigate()
-  const [userId, setUserId] = useState('kiran11')
-  const [password, setPassword] = useState('demo123')
+  const [userId, setUserId] = useState('')
+  const [password, setPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorText, setErrorText] = useState('')
 

@@ -55,8 +55,7 @@ export const logoutUi = async (page) => {
 
 export const openAdminUsersTab = async (page) => {
   await page.goto('/home')
-  await page.getByRole('button', { name: 'Admin Manager' }).click()
-  await page.getByRole('tab', { name: /Users \(/ }).click()
+  await page.getByRole('button', { name: 'User Manager' }).click()
   await expect(page.locator('.catalog-table tbody tr').first()).toBeVisible()
 }
 

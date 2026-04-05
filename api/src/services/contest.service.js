@@ -1,8 +1,149 @@
 import { createRepositoryFactory } from '../repositories/repository.factory.js'
 import { dbQuery } from '../db.js'
 import { mapMatchWithDerivedStatus } from './tournamentImport.service.js'
+import teamSelectionService from './team-selection.service.js'
 
 const factory = createRepositoryFactory()
+const STARTING_SOON_WINDOW_MS = 6 * 60 * 60 * 1000
+const FIXED_ROSTER_COUNTED_SIZE = 11
+
+const normalizeContestDateInput = (value) => {
+  const raw = (value || '').toString().trim()
+  if (!raw) return null
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed.toISOString()
+}
+
+const normalizeContestStatusInput = (value) => {
+  const raw = (value || '').toString().trim().toLowerCase()
+  if (!raw) return 'Open'
+  if (['completed', 'complete'].includes(raw)) return 'Completed'
+  if (['locked', 'closed', 'inactive', 'disabled'].includes(raw)) return 'Locked'
+  return 'Open'
+}
+
+const deriveContestLifecycle = (contest = {}, nowInput = new Date()) => {
+  const now = nowInput instanceof Date ? nowInput : new Date(nowInput)
+  const rawStatus = (contest?.status || '').toString().trim().toLowerCase()
+  const scheduledStart = contest?.startAt ? new Date(contest.startAt) : null
+  const manualStart = contest?.startedAt ? new Date(contest.startedAt) : null
+  const scheduledStartValid =
+    scheduledStart instanceof Date && !Number.isNaN(scheduledStart.getTime())
+      ? scheduledStart
+      : null
+  const manualStartValid =
+    manualStart instanceof Date && !Number.isNaN(manualStart.getTime()) ? manualStart : null
+  const isCompleted = rawStatus === 'completed'
+  const isLocked = ['locked', 'closed', 'inactive', 'disabled'].includes(rawStatus)
+  const hasStarted = Boolean(
+    manualStartValid || (scheduledStartValid && scheduledStartValid.getTime() <= now.getTime()),
+  )
+
+  if (isCompleted) {
+    return {
+      status: 'Completed',
+      joinOpen: false,
+      canStart: false,
+      hasStarted: true,
+    }
+  }
+
+  if (hasStarted) {
+    return {
+      status: 'In Progress',
+      joinOpen: false,
+      canStart: false,
+      hasStarted: true,
+    }
+  }
+
+  if (isLocked) {
+    return {
+      status: 'Locked',
+      joinOpen: false,
+      canStart: false,
+      hasStarted: false,
+    }
+  }
+
+  const msUntilStart = scheduledStartValid
+    ? scheduledStartValid.getTime() - now.getTime()
+    : Number.POSITIVE_INFINITY
+  const startingSoon = Number.isFinite(msUntilStart) && msUntilStart <= STARTING_SOON_WINDOW_MS
+
+  return {
+    status: startingSoon ? 'Starting Soon' : 'Open',
+    joinOpen: true,
+    canStart: true,
+    hasStarted: false,
+  }
+}
+
+const buildContestView = (contest = {}, extras = {}) => {
+  const lifecycle = deriveContestLifecycle(contest)
+  const joinedCount = Number(extras.joinedCount ?? contest?.participantsCount ?? 0)
+  const maxPlayers = Number(contest?.maxParticipants || extras.maxPlayers || 0)
+  const hasCapacity = maxPlayers <= 0 || joinedCount < maxPlayers
+  return {
+    ...contest,
+    status: lifecycle.status,
+    rawStatus: contest?.status || 'Open',
+    joinOpen: lifecycle.joinOpen && hasCapacity,
+    canStart: lifecycle.canStart,
+    hasStarted: lifecycle.hasStarted,
+    startAt: contest?.startAt || null,
+    startedAt: contest?.startedAt || null,
+    joinedCount,
+    maxPlayers,
+    teams: maxPlayers,
+    hasCapacity,
+    ...extras,
+  }
+}
+
+const buildPreviewEntries = (selectionIds = [], playerById = new Map()) =>
+  (Array.isArray(selectionIds) ? selectionIds : [])
+    .map((id) => playerById.get(String(id)))
+    .filter(Boolean)
+
+const buildFixedRosterScoredEntries = ({
+  orderedPlayerIds = [],
+  playerById = new Map(),
+  pointsByPlayerId = new Map(),
+  activeTeamKeys = [],
+}) => {
+  const activeTeams = new Set(
+    (Array.isArray(activeTeamKeys) ? activeTeamKeys : [])
+      .map((value) => String(value || '').trim().toUpperCase())
+      .filter(Boolean),
+  )
+  const roster = (Array.isArray(orderedPlayerIds) ? orderedPlayerIds : [])
+    .map((id) => {
+      const base = playerById.get(String(id))
+      if (!base) return null
+      return {
+        ...base,
+        points: Number(pointsByPlayerId.get(Number(id)) || 0),
+      }
+    })
+    .filter(Boolean)
+
+  if (!activeTeams.size) {
+    return {
+      involved: roster.slice(0, FIXED_ROSTER_COUNTED_SIZE),
+      rest: roster.slice(FIXED_ROSTER_COUNTED_SIZE),
+    }
+  }
+
+  const involved = roster.filter((entry) =>
+    activeTeams.has(String(entry.team || entry.teamKey || '').trim().toUpperCase()),
+  )
+  const rest = roster.filter(
+    (entry) => !activeTeams.has(String(entry.team || entry.teamKey || '').trim().toUpperCase()),
+  )
+  return { involved, rest }
+}
 
 class ContestService {
   async getAllContests() {
@@ -28,6 +169,14 @@ class ContestService {
       error.statusCode = 400
       throw error
     }
+    const rawMaxParticipants =
+      data?.maxParticipants != null ? data.maxParticipants : data?.teams
+    const maxParticipants = Number(rawMaxParticipants || 0)
+    if (!Number.isFinite(maxParticipants) || maxParticipants < 2) {
+      const error = new Error('Max players must be at least 2')
+      error.statusCode = 400
+      throw error
+    }
     const matchRepo = await factory.getMatchRepository()
     const tournamentMatches = await matchRepo.findByTournament(tournamentId)
     const validMatchIds = tournamentMatches.map((match) => match.id)
@@ -45,9 +194,18 @@ class ContestService {
       error.statusCode = 400
       throw error
     }
+    const startAt = normalizeContestDateInput(data?.startAt)
+    if (data?.startAt && !startAt) {
+      const error = new Error('Contest start time must be a valid date')
+      error.statusCode = 400
+      throw error
+    }
     return await repo.create({
       ...data,
+      status: normalizeContestStatusInput(data?.status),
+      maxParticipants,
       matchIds: normalizedMatchIds,
+      startAt,
     })
   }
 
@@ -71,7 +229,17 @@ class ContestService {
 
   async updateContest(id, data) {
     const repo = await factory.getContestRepository()
-    return await repo.update(id, data)
+    const payload = { ...data }
+    if (payload.status !== undefined) {
+      payload.status = normalizeContestStatusInput(payload.status)
+    }
+    if (payload.startAt !== undefined) {
+      payload.startAt = payload.startAt ? normalizeContestDateInput(payload.startAt) : null
+    }
+    if (payload.startedAt !== undefined) {
+      payload.startedAt = payload.startedAt ? normalizeContestDateInput(payload.startedAt) : null
+    }
+    return await repo.update(id, payload)
   }
 
   async deleteContest(id) {
@@ -98,6 +266,22 @@ class ContestService {
 
   async joinContest(contestId, userId) {
     const contestRepo = await factory.getContestRepository()
+    const contest = await contestRepo.findById(contestId)
+    if (!contest) {
+      const error = new Error('Contest not found')
+      error.statusCode = 404
+      throw error
+    }
+    const lifecycle = buildContestView(contest)
+    if (!lifecycle.joinOpen) {
+      const error = new Error(
+        lifecycle.hasStarted
+          ? 'Contest join is closed because the contest has already started'
+          : 'Contest join is closed',
+      )
+      error.statusCode = 403
+      throw error
+    }
     // Check if user already joined
     const result = await dbQuery(
       `SELECT id FROM contest_joins WHERE contest_id = $1 AND user_id = $2`,
@@ -105,6 +289,11 @@ class ContestService {
     )
     if (result.rows.length > 0) {
       return { joined: true, message: 'Already joined' }
+    }
+    if (lifecycle.maxPlayers > 0 && Number(contest?.participantsCount || 0) >= lifecycle.maxPlayers) {
+      const error = new Error('Contest is full')
+      error.statusCode = 403
+      throw error
     }
     // Add join record
     await dbQuery(
@@ -141,19 +330,32 @@ class ContestService {
     return { left: false, message: 'Not joined' }
   }
 
-  async getContestParticipants(contestId) {
+  async getContestParticipants(contestId, options = {}) {
+    const contest = await this.getContestById(contestId)
+    if (!contest) {
+      return { participants: [], joinedCount: 0, withTeamCount: 0, previewXI: [], previewBackups: [] }
+    }
+    const participantSourceSql =
+      (contest.mode || '').toString() === 'fixed_roster'
+        ? `WITH participant_ids AS (
+             SELECT user_id, MIN(joined_at) as joined_at
+             FROM contest_joins
+             WHERE contest_id = $1
+             GROUP BY user_id
+             UNION
+             SELECT user_id, MIN(created_at) as joined_at
+             FROM contest_fixed_rosters
+             WHERE contest_id = $1
+             GROUP BY user_id
+           )`
+        : `WITH participant_ids AS (
+             SELECT user_id, MIN(joined_at) as joined_at
+             FROM contest_joins
+             WHERE contest_id = $1
+             GROUP BY user_id
+           )`
     const result = await dbQuery(
-      `WITH participant_ids AS (
-         SELECT user_id, MIN(joined_at) as joined_at
-         FROM contest_joins
-         WHERE contest_id = $1
-         GROUP BY user_id
-         UNION
-         SELECT user_id, MIN(created_at) as joined_at
-         FROM contest_fixed_rosters
-         WHERE contest_id = $1
-         GROUP BY user_id
-       )
+      `${participantSourceSql}
        SELECT u.id, u.name, u.user_id as "userId", u.game_name as "gameName", MIN(p.joined_at) as "joinedAt"
        FROM participant_ids p
        JOIN users u ON u.id = p.user_id
@@ -161,26 +363,268 @@ class ContestService {
        ORDER BY MIN(p.joined_at) ASC NULLS LAST, u.game_name ASC`,
       [contestId],
     )
-    return result.rows
+    const joinedParticipants = result.rows || []
+    const joinedCount = joinedParticipants.length
+    const matchId = options?.matchId ? Number(options.matchId) : null
+    const viewerUserId = options?.viewerUserId ? Number(options.viewerUserId) : null
+
+    let previewXI = []
+    let previewBackups = []
+    if (matchId && viewerUserId && (contest.mode || '').toString() === 'fixed_roster') {
+      const [playerRepo, matchRepo] = await Promise.all([
+        factory.getPlayerRepository(),
+        factory.getMatchRepository(),
+      ])
+      const [fixedRosterResult, tournamentPlayers, matchRecord, matchPointsResult] =
+        await Promise.all([
+          dbQuery(
+            `SELECT player_ids as "playerIds"
+             FROM contest_fixed_rosters
+             WHERE contest_id = $1 AND user_id = $2
+             LIMIT 1`,
+            [contestId, viewerUserId],
+          ),
+          contest.tournamentId != null
+            ? playerRepo.findByTournament(contest.tournamentId)
+            : playerRepo.findAll(),
+          matchRepo.findById ? matchRepo.findById(matchId) : null,
+          contest.tournamentId != null
+            ? dbQuery(
+                `SELECT player_id as "playerId", fantasy_points as "fantasyPoints"
+                 FROM player_match_scores
+                 WHERE tournament_id = $1 AND match_id = $2`,
+                [contest.tournamentId, matchId],
+              )
+            : { rows: [] },
+        ])
+      const playerById = new Map(
+        (tournamentPlayers || []).map((player) => [
+          String(player.id),
+          {
+            id: player.id,
+            name:
+              player.displayName ||
+              [player.firstName, player.lastName].filter(Boolean).join(' ').trim(),
+            role: player.role || '-',
+            team: player.teamKey || player.team || '',
+            imageUrl: player.imageUrl || '',
+          },
+        ]),
+      )
+      const pointsByPlayerId = new Map(
+        (matchPointsResult?.rows || []).map((row) => [
+          Number(row.playerId),
+          Number(row.fantasyPoints || 0),
+        ]),
+      )
+      const split = buildFixedRosterScoredEntries({
+        orderedPlayerIds: fixedRosterResult.rows[0]?.playerIds || [],
+        playerById,
+        pointsByPlayerId,
+        activeTeamKeys: [matchRecord?.teamAKey || matchRecord?.teamA, matchRecord?.teamBKey || matchRecord?.teamB],
+      })
+      previewXI = split.involved
+      previewBackups = split.rest
+    } else if (matchId && viewerUserId && (contest.mode || '').toString() !== 'fixed_roster') {
+      const selection = await teamSelectionService.getUserPicksByMatch(
+        viewerUserId,
+        matchId,
+        contestId,
+      )
+      if (selection) {
+        const playerRepo = await factory.getPlayerRepository()
+        const tournamentPlayers =
+          contest.tournamentId != null
+            ? await playerRepo.findByTournament(contest.tournamentId)
+            : await playerRepo.findAll()
+        const playerById = new Map(
+          (tournamentPlayers || []).map((player) => [
+            String(player.id),
+            {
+              id: player.id,
+              name: player.displayName || [player.firstName, player.lastName].filter(Boolean).join(' ').trim(),
+              imageUrl: player.imageUrl || '',
+            },
+          ]),
+        )
+        previewXI = buildPreviewEntries(selection.playingXi, playerById)
+        previewBackups = buildPreviewEntries(selection.backups, playerById)
+      }
+    }
+
+    if (!matchId) {
+      return { participants: [], joinedCount, withTeamCount: 0, previewXI, previewBackups }
+    }
+
+    if ((contest.mode || '').toString() === 'fixed_roster') {
+      const pointsResult = await dbQuery(
+        `SELECT user_id as "userId", points
+         FROM contest_scores
+         WHERE contest_id = $1
+           AND match_id = $2`,
+        [contestId, matchId],
+      )
+      const pointsByUser = new Map(
+        pointsResult.rows.map((row) => [String(row.userId), Number(row.points || 0)]),
+      )
+      return {
+        participants: joinedParticipants.map((row) => ({
+          ...row,
+          points: Number(pointsByUser.get(String(row.id)) || 0),
+        })),
+        joinedCount,
+        withTeamCount: joinedParticipants.length,
+        previewXI,
+        previewBackups,
+      }
+    }
+
+    const submittedResult = await dbQuery(
+      `SELECT ts.user_id as "userId", COALESCE(cs.points, 0) as points
+       FROM team_selections ts
+       LEFT JOIN contest_scores cs
+         ON cs.contest_id = ts.contest_id
+        AND cs.match_id = ts.match_id
+        AND cs.user_id = ts.user_id
+       WHERE ts.contest_id = $1
+         AND ts.match_id = $2`,
+      [contestId, matchId],
+    )
+    const submittedByUser = new Map(
+      submittedResult.rows.map((row) => [String(row.userId), Number(row.points || 0)]),
+    )
+    const participants = joinedParticipants
+      .filter((row) => submittedByUser.has(String(row.id)))
+      .map((row) => ({
+        ...row,
+        points: Number(submittedByUser.get(String(row.id)) || 0),
+      }))
+
+    return {
+      participants,
+      joinedCount,
+      withTeamCount: participants.length,
+      previewXI,
+      previewBackups,
+    }
   }
 
-  async getContestMatches(contestId) {
+  async getContestMatches(contestId, options = {}) {
     const contest = await this.getContestById(contestId)
     if (!contest) return []
     const matchIds = contest.matchIds || []
     if (matchIds.length === 0) return []
+    const statusFilter = (options?.status || 'all').toString().trim().toLowerCase()
+    const teamFilter = (options?.team || 'all').toString().trim().toUpperCase()
+    const viewerUserId = options?.viewerUserId ? Number(options.viewerUserId) : null
 
     const result = await dbQuery(
-      `SELECT id, name, team_a as "teamA", team_b as "teamB", start_time as "startTime", status
+      `SELECT id, name,
+              team_a as "teamA", team_b as "teamB",
+              start_time as "startTime", status
        FROM matches
        WHERE id = ANY($1::bigint[])
        ORDER BY start_time ASC`,
       [matchIds],
     )
-    return result.rows.map((row) => mapMatchWithDerivedStatus(row))
+    const baseRows = result.rows.map((row, index) =>
+      mapMatchWithDerivedStatus({
+        ...row,
+        matchNo: index + 1,
+        home: row.teamA || '',
+        away: row.teamB || '',
+        startAt: row.startTime || '',
+        date: row.startTime ? row.startTime.toString().slice(0, 10) : '',
+      }),
+    )
+    const filteredRows = baseRows.filter((row) => {
+      const normalizedStatus = (row.status || '').toString().trim().toLowerCase()
+      const statusOk = statusFilter === 'all' || normalizedStatus === statusFilter
+      const teamOk =
+        teamFilter === 'ALL' || row.home?.toUpperCase() === teamFilter || row.away?.toUpperCase() === teamFilter
+      return statusOk && teamOk
+    })
+
+    const joinedCountResult = await dbQuery(
+      `WITH participant_ids AS (
+         SELECT user_id
+         FROM contest_joins
+         WHERE contest_id = $1
+         UNION
+         SELECT user_id
+         FROM contest_fixed_rosters
+         WHERE contest_id = $1
+       )
+       SELECT COUNT(*)::int as count
+       FROM participant_ids`,
+      [contestId],
+    )
+    const joinedCount = Number(joinedCountResult.rows[0]?.count || 0)
+
+    const selectionCountsResult = await dbQuery(
+      `SELECT match_id as "matchId", COUNT(*)::int as count
+       FROM team_selections
+       WHERE contest_id = $1
+         AND match_id = ANY($2::bigint[])
+       GROUP BY match_id`,
+      [contestId, filteredRows.map((row) => row.id)],
+    )
+    const submittedCountByMatch = new Map(
+      selectionCountsResult.rows.map((row) => [String(row.matchId), Number(row.count || 0)]),
+    )
+
+    let viewerJoined = false
+    let viewerSelections = new Set()
+    let viewerHasFixedRoster = false
+    if (viewerUserId) {
+      const viewerJoinedResult = await dbQuery(
+        `SELECT EXISTS(
+           SELECT 1 FROM contest_joins WHERE contest_id = $1 AND user_id = $2
+           UNION
+           SELECT 1 FROM contest_fixed_rosters WHERE contest_id = $1 AND user_id = $2
+         ) as joined`,
+        [contestId, viewerUserId],
+      )
+      viewerJoined = Boolean(viewerJoinedResult.rows[0]?.joined)
+      const viewerSelectionsResult = await dbQuery(
+        `SELECT match_id as "matchId"
+         FROM team_selections
+         WHERE contest_id = $1
+           AND user_id = $2
+           AND match_id = ANY($3::bigint[])`,
+        [contestId, viewerUserId, filteredRows.map((row) => row.id)],
+      )
+      viewerSelections = new Set(
+        viewerSelectionsResult.rows.map((row) => String(row.matchId)),
+      )
+      if ((contest.mode || '').toString() === 'fixed_roster') {
+        const fixedRosterResult = await dbQuery(
+          `SELECT EXISTS(
+             SELECT 1
+             FROM contest_fixed_rosters
+             WHERE contest_id = $1 AND user_id = $2
+           ) as has_roster`,
+          [contestId, viewerUserId],
+        )
+        viewerHasFixedRoster = Boolean(fixedRosterResult.rows[0]?.has_roster)
+      }
+    }
+
+    return filteredRows.map((row) => ({
+      ...row,
+      hasTeam:
+        (contest.mode || '').toString() === 'fixed_roster'
+          ? viewerHasFixedRoster
+          : viewerSelections.has(String(row.id)),
+      submittedCount: Number(submittedCountByMatch.get(String(row.id)) || 0),
+      joinedCount,
+      viewerJoined,
+    }))
   }
 
   async getContestLeaderboard(contestId) {
+    const contest = await this.getContestById(contestId)
+    const isFixedRoster = (contest?.mode || '').toString().trim().toLowerCase() === 'fixed_roster'
     const result = await dbQuery(
       `WITH participant_ids AS (
          SELECT user_id
@@ -202,7 +646,11 @@ class ContestService {
        ORDER BY points DESC, u.game_name ASC`,
       [contestId],
     )
-    return result.rows
+    return result.rows.map((row) => ({
+      ...row,
+      countedPlayers: isFixedRoster ? FIXED_ROSTER_COUNTED_SIZE : null,
+      rosterSize: isFixedRoster ? 15 : null,
+    }))
   }
 
   async getContestUserMatchScores(contestId, userId, compareUserId = '') {
@@ -254,11 +702,29 @@ class ContestService {
   }
 
   async enableContest(contestId) {
-    return await this.updateContest(contestId, { status: 'active' })
+    return await this.updateContest(contestId, { status: 'Open' })
   }
 
   async disableContest(contestId) {
-    return await this.updateContest(contestId, { status: 'inactive' })
+    return await this.updateContest(contestId, { status: 'Locked' })
+  }
+
+  async startContest(contestId) {
+    const contest = await this.getContestById(contestId)
+    if (!contest) {
+      const error = new Error('Contest not found')
+      error.statusCode = 404
+      throw error
+    }
+    const lifecycle = buildContestView(contest)
+    if (lifecycle.hasStarted) {
+      return buildContestView(contest)
+    }
+    const updated = await this.updateContest(contestId, {
+      startedAt: new Date().toISOString(),
+      status: 'Open',
+    })
+    return buildContestView(updated)
   }
 
   async syncContest(contestId) {
@@ -268,3 +734,4 @@ class ContestService {
 }
 
 export default new ContestService()
+export { buildContestView, deriveContestLifecycle }

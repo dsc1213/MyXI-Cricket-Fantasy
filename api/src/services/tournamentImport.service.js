@@ -114,6 +114,7 @@ const buildImportedTournamentPayload = ({
       const home = normalizeTeamCode(row?.home || row?.homeTeam || '')
       const away = normalizeTeamCode(row?.away || row?.awayTeam || '')
       if (!home || !away) return null
+      if (home === away) return null
       const date = (row?.date || '').toString().trim()
       const startAtRaw = (row?.startAt || row?.startDateTime || '').toString().trim()
       const timezone = (row?.timezone || 'UTC').toString().trim()
@@ -167,6 +168,11 @@ const buildImportedTournamentPayload = ({
 
   if (!normalizedMatches.length) {
     throw new Error('Matches must include valid teams')
+  }
+  if (normalizedMatches.length !== rawMatches.length) {
+    throw new Error(
+      'Each match must include distinct valid home/away team codes and a valid startAt/date',
+    )
   }
 
   return {

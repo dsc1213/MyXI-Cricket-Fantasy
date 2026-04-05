@@ -8,6 +8,7 @@ function TeamPreviewDrawer({
   activeMatch,
   previewXI,
   previewBackups,
+  isLoading = false,
   onClose,
 }) {
   const isFixedRosterContest = contestMode === 'fixed_roster'
@@ -37,6 +38,7 @@ function TeamPreviewDrawer({
               </p>
             )}
             {previewPlayer && <p>{`Points: ${previewPlayer.points}`}</p>}
+            {isFixedRosterContest && <p>Leaderboard counts the top 11 scoring roster players.</p>}
           </div>
           <button type="button" className="ghost small" onClick={onClose}>
             Close
@@ -45,10 +47,14 @@ function TeamPreviewDrawer({
         <div className="team-preview-sections">
           <section className="team-preview-section team-preview-section-primary">
             <div className="team-preview-list">
-              {isFixedRosterContest && !previewXI.length && (
+              {isLoading && <p className="team-note">Loading team preview...</p>}
+              {!isLoading && isFixedRosterContest && !previewXI.length && (
                 <p className="team-note">No owned players are involved in this match.</p>
               )}
-              {previewXI.map((entry, index) => {
+              {!isLoading && !isFixedRosterContest && !previewXI.length && (
+                <p className="team-note">No saved lineup found for this match.</p>
+              )}
+              {!isLoading && previewXI.map((entry, index) => {
                 const name = typeof entry === 'string' ? entry : entry?.name || `Player ${index + 1}`
                 const points = typeof entry === 'object' ? Number(entry?.points || 0) : 0
                 return (
@@ -63,7 +69,7 @@ function TeamPreviewDrawer({
               })}
             </div>
           </section>
-          {!!previewBackups?.length && (
+          {!isLoading && !!previewBackups?.length && (
             <section className="team-preview-section team-preview-section-backups">
               <h4>{isFixedRosterContest ? 'Other owned players' : 'Backups'}</h4>
               <div className="team-preview-list">

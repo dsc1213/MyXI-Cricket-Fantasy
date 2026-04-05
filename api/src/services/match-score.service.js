@@ -10,9 +10,60 @@ import {
 } from '../scoring.js'
 
 const factory = createRepositoryFactory()
+const FIXED_ROSTER_COUNTED_SIZE = 11
+
+const sumTopFixedRosterPoints = (playerIds = [], fantasyPointsByPlayerId = new Map()) => {
+  const scored = (Array.isArray(playerIds) ? playerIds : [])
+    .map((playerId) => Number(fantasyPointsByPlayerId.get(Number(playerId)) || 0))
+    .sort((a, b) => b - a)
+  return scored.slice(0, FIXED_ROSTER_COUNTED_SIZE).reduce((sum, value) => sum + value, 0)
+}
 
 class MatchScoreService {
+  validatePlayerStatsPayload(playerStats = []) {
+    if (!Array.isArray(playerStats) || !playerStats.length) {
+      throw new Error('playerStats array required')
+    }
+    playerStats.forEach((row, index) => {
+      const hasIdentity =
+        (row?.playerId != null && `${row.playerId}`.toString().trim()) ||
+        (row?.playerName || '').toString().trim()
+      if (!hasIdentity) {
+        throw new Error(`playerStats[${index}] must include playerId or playerName`)
+      }
+      const numericFields = [
+        'runs',
+        'wickets',
+        'catches',
+        'fours',
+        'sixes',
+        'maidens',
+        'wides',
+        'stumpings',
+        'runoutDirect',
+        'runoutIndirect',
+        'ballsFaced',
+        'oversBowled',
+        'runsConceded',
+      ]
+      numericFields.forEach((field) => {
+        if (row?.[field] == null || row[field] === '') return
+        const value = Number(row[field])
+        if (!Number.isFinite(value) || value < 0) {
+          throw new Error(`playerStats[${index}].${field} must be a non-negative number`)
+        }
+      })
+      if (row?.dismissed != null && typeof row.dismissed !== 'boolean') {
+        throw new Error(`playerStats[${index}].dismissed must be true or false`)
+      }
+    })
+  }
+
   async uploadMatchScores(matchId, tournamentId, playerStats, uploadedBy) {
+    if (!matchId || !tournamentId) {
+      throw new Error('matchId and tournamentId are required')
+    }
+    this.validatePlayerStatsPayload(playerStats)
     // Deactivate previous scores
     const repo = await factory.getMatchScoreRepository()
     await repo.deactivatePrevious(matchId)
@@ -64,6 +115,60 @@ class MatchScoreService {
   async savePlayerOverrides(tournamentId, overrides) {
     // Save player stat overrides
     return { saved: true, count: overrides.length }
+  }
+
+  async rebuildStoredMatchScore(scoreRow) {
+    if (!scoreRow?.matchId || !scoreRow?.tournamentId) {
+      return { contestSummaries: [] }
+    }
+    const playerStats =
+      typeof scoreRow.playerStats === 'string'
+        ? JSON.parse(scoreRow.playerStats)
+        : scoreRow.playerStats || []
+    return this.rebuildDerivedScores({
+      matchId: scoreRow.matchId,
+      tournamentId: scoreRow.tournamentId,
+      playerStats,
+    })
+  }
+
+  async rebuildAllDerivedScores({ tournamentId = null } = {}) {
+    const params = []
+    const tournamentFilter = tournamentId ? `where active = true and tournament_id = $1` : `where active = true`
+    if (tournamentId) params.push(tournamentId)
+    const scoreResult = await dbQuery(
+      `select id, match_id as "matchId", tournament_id as "tournamentId", player_stats as "playerStats"
+       from match_scores
+       ${tournamentFilter}
+       order by tournament_id asc, match_id asc, created_at asc`,
+      params,
+    )
+    const activeScores = scoreResult.rows || []
+    if (tournamentId) {
+      await dbQuery(`delete from player_match_scores where tournament_id = $1`, [tournamentId])
+      await dbQuery(
+        `delete from contest_scores
+         where contest_id in (select id from contests where tournament_id = $1)`,
+        [tournamentId],
+      )
+    } else {
+      await dbQuery(`delete from player_match_scores`)
+      await dbQuery(`delete from contest_scores`)
+    }
+
+    const touchedContestIds = new Set()
+    for (const scoreRow of activeScores) {
+      const { contestSummaries } = await this.rebuildStoredMatchScore(scoreRow)
+      for (const summary of contestSummaries || []) {
+        if (summary?.contestId != null) touchedContestIds.add(String(summary.contestId))
+      }
+    }
+
+    return {
+      rebuiltMatches: activeScores.length,
+      rebuiltContests: touchedContestIds.size,
+      tournamentId: tournamentId || null,
+    }
   }
 
   async rebuildDerivedScores({ matchId, tournamentId, playerStats }) {
@@ -203,10 +308,7 @@ class MatchScoreService {
         )
         rows = fixedRosterResult.rows.map((row) => ({
           userId: row.userId,
-          points: (Array.isArray(row.playerIds) ? row.playerIds : []).reduce(
-            (sum, playerId) => sum + Number(fantasyPointsByPlayerId.get(Number(playerId)) || 0),
-            0,
-          ),
+          points: sumTopFixedRosterPoints(row.playerIds, fantasyPointsByPlayerId),
         }))
       } else {
         const matchRecord = (matches || []).find((item) => String(item.id) === String(matchId)) || null

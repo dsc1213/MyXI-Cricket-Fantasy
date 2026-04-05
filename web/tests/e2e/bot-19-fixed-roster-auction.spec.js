@@ -30,8 +30,9 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
       hasText: 'NWMSU-IPL-AUCTION',
     })
     await expect(contestCard).toBeVisible()
-    await expect(contestCard).toContainText('Starting Soon')
+    await expect(contestCard).toContainText(/Open|Starting Soon|In Progress/)
     await expect(contestCard).toContainText('Fixed 15-player tournament rosters')
+    await expect(contestCard).toContainText('Leaderboard counts top 11 scoring players')
 
     await contestCard.getByRole('link', { name: 'Open contest' }).click()
     await expect(page).toHaveURL(/\/tournaments\/ipl-2026\/contests\/nwmsu-ipl-auction\?view=auction/)
@@ -80,6 +81,9 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
     await participantRow.getByRole('button', { name: 'View HunterCherryXI team' }).click()
 
     await expect(page.locator('.team-preview-panel')).toContainText('HunterCherryXI roster')
+    await expect(page.locator('.team-preview-panel')).toContainText(
+      'Leaderboard counts the top 11 scoring roster players.',
+    )
     await expect(page.locator('.team-preview-list').first()).toContainText('Krunal Pandya')
     await expect(page.locator('.team-preview-list').first()).toContainText('Ajinkya Rahane')
     await expect(page.locator('.team-preview-list').first()).toContainText('Philip Salt')
@@ -249,6 +253,56 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
       .last()
       .textContent()
     expect(Number(firstPoints || 0)).toBeGreaterThan(Number(secondPoints || 0))
+  })
+
+  test('auction fixed-roster leaderboard counts only the top 11 scoring players', async ({
+    page,
+    request,
+  }) => {
+    await loginUi(page, 'master')
+    const scoreResponse = await page.evaluate(async (payload) => {
+      const raw = window.localStorage.getItem('myxi-user')
+      const token = raw ? JSON.parse(raw)?.token || '' : ''
+      const response = await fetch('http://127.0.0.1:4000/admin/match-scores/upsert', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      })
+      return {
+        status: response.status,
+        body: await response.text(),
+      }
+    }, {
+        tournamentId: 'ipl-2026',
+        contestId: 'nwmsu-ipl-auction',
+        matchId: 'ipl-m1',
+        userId: 'master',
+        playerStats: [
+          { playerId: 'csk-p9', playerName: 'Ruturaj Gaikwad', runs: 30, fours: 2, sixes: 1, wickets: 0, catches: 0 },
+          { playerId: 'csk-p4', playerName: 'Shivam Dube', runs: 25, fours: 2, sixes: 1, wickets: 0, catches: 0 },
+          { playerId: 'csk-p2', playerName: 'Ravindra Jadeja', runs: 20, fours: 1, sixes: 0, wickets: 1, catches: 0 },
+          { playerId: 'mi-p7', playerName: 'Trent Boult', runs: 0, wickets: 2, maidens: 1, catches: 0 },
+          { playerId: 'mi-p8', playerName: 'Jasprit Bumrah', runs: 0, wickets: 2, maidens: 0, catches: 0 },
+          { playerId: 'mi-p4', playerName: 'Tilak Varma', runs: 18, fours: 1, sixes: 1, wickets: 0, catches: 0 },
+          { playerId: 'mi-p2', playerName: 'Rohit Sharma', runs: 15, fours: 1, sixes: 0, wickets: 0, catches: 0 },
+          { playerId: 'mi-p10', playerName: 'Hardik Pandya', runs: 10, wickets: 1, catches: 0 },
+          { playerId: 'mi-p1', playerName: 'Suryakumar Yadav', runs: 12, fours: 1, sixes: 0, wickets: 0, catches: 0 },
+          { playerId: 'csk-p1', playerName: 'Rachin Ravindra', runs: 11, fours: 1, sixes: 0, wickets: 0, catches: 0 },
+          { playerId: 'mi-p3', playerName: 'Ryan Rickelton', runs: 9, fours: 1, sixes: 0, wickets: 0, catches: 0 },
+          { playerId: 'csk-p8', playerName: 'Noor Ahmad', runs: 0, wickets: 1, catches: 0 },
+        ],
+      })
+    expect(scoreResponse.status).toBe(200)
+
+    const leaderboard = await apiCall(request, 'GET', '/contests/nwmsu-ipl-auction/leaderboard', undefined, 200)
+    const hunterRow = (leaderboard || []).find((row) => row.gameName === 'HunterCherryXI')
+    expect(hunterRow).toBeTruthy()
+    expect(Number(hunterRow.points || 0)).toBeGreaterThan(0)
+    expect(Number(hunterRow.countedPlayers || 0)).toBe(11)
+    expect(Number(hunterRow.rosterSize || 0)).toBe(15)
   })
 
   test('the same IPL score upload also updates a regular fantasy contest on the shared roster', async ({

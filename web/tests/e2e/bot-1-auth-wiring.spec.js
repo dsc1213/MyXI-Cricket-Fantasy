@@ -12,6 +12,12 @@ import {
 test.describe('1) Auth wiring', () => {
   test.setTimeout(120000)
 
+  test('login form does not prefill credentials', async ({ page }) => {
+    await page.goto('/login')
+    await expect(page.getByLabel('User ID or Email')).toHaveValue('')
+    await expect(page.getByLabel('Password')).toHaveValue('')
+  })
+
   test('get started signup, login, forgot password, reset password', async ({ page, request }) => {
     const [bot] = createBotUsers(`auth-${Date.now()}`)
 

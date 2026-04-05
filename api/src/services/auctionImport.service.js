@@ -95,6 +95,20 @@ const normalizeParticipantRows = (payload = {}) => {
 }
 
 class AuctionImportService {
+  async resolveTournament(payload = {}) {
+    const tournamentRepo = await factory.getTournamentRepository()
+    const explicitTournamentId = (payload.tournamentId || '').toString().trim()
+    if (!explicitTournamentId) return null
+    if (/^\d+$/.test(explicitTournamentId)) {
+      return await tournamentRepo.findById(Number(explicitTournamentId))
+    }
+    if (typeof tournamentRepo.findBySourceKey === 'function') {
+      const bySourceKey = await tournamentRepo.findBySourceKey(explicitTournamentId)
+      if (bySourceKey) return bySourceKey
+    }
+    return null
+  }
+
   async importAuctionContest(payload = {}) {
     const tournamentId = (payload.tournamentId || '').toString().trim()
     const contestName = (payload.contestName || payload.name || '').toString().trim()
@@ -110,6 +124,14 @@ class AuctionImportService {
       error.statusCode = 400
       throw error
     }
+    for (let index = 0; index < participants.length; index += 1) {
+      const participant = participants[index]
+      if (!participant.roster.length) {
+        const error = new Error(`participants[${index}].roster must contain at least one player`)
+        error.statusCode = 400
+        throw error
+      }
+    }
 
     const tournamentRepo = await factory.getTournamentRepository()
     const contestRepo = await factory.getContestRepository()
@@ -117,14 +139,15 @@ class AuctionImportService {
     const playerRepo = await factory.getPlayerRepository()
     const userRepo = await factory.getUserRepository()
 
-    const tournament = await tournamentRepo.findById(tournamentId)
+    const tournament = await this.resolveTournament(payload)
     if (!tournament) {
       const error = new Error('Tournament not found')
       error.statusCode = 404
       throw error
     }
+    const resolvedTournamentId = Number(tournament.id)
 
-    const existingContests = await contestRepo.findByTournament(tournamentId)
+    const existingContests = await contestRepo.findByTournament(resolvedTournamentId)
     const duplicate = (existingContests || []).find(
       (row) => (row.name || '').toString().trim().toLowerCase() === contestName.toLowerCase(),
     )
@@ -134,7 +157,7 @@ class AuctionImportService {
       throw error
     }
 
-    const matches = await matchRepo.findByTournament(tournamentId)
+    const matches = await matchRepo.findByTournament(resolvedTournamentId)
     const matchIds = (matches || []).map((row) => row.id)
     if (!matchIds.length) {
       const error = new Error('Tournament has no matches')
@@ -144,7 +167,7 @@ class AuctionImportService {
 
     const players =
       typeof playerRepo.findByTournament === 'function'
-        ? await playerRepo.findByTournament(tournamentId)
+        ? await playerRepo.findByTournament(resolvedTournamentId)
         : await playerRepo.findAll()
     const selectedTeams =
       Array.isArray(tournament.selectedTeams) && tournament.selectedTeams.length
@@ -184,13 +207,13 @@ class AuctionImportService {
     }
 
     const createdContest = await contestRepo.create({
-      tournamentId,
+      tournamentId: resolvedTournamentId,
       name: contestName,
       matchIds,
       prizeStructure: {},
       game: 'Fantasy',
       mode: 'fixed_roster',
-      sourceKey: slugify(`${tournamentId}-${contestName}`),
+      sourceKey: slugify(`${tournament.sourceKey || resolvedTournamentId}-${contestName}`),
       status: payload.status || 'Starting Soon',
       entryFee: 0,
       maxParticipants: resolvedParticipants.length,

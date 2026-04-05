@@ -76,7 +76,7 @@ class TournamentService {
         teamAKey: match.home,
         teamBKey: match.away,
         startTime: match.startAt,
-        sourceKey: match.sourceKey,
+        sourceKey: `${createdTournament.sourceKey || createdTournament.id}:${match.sourceKey || match.id}`,
         status: match.status,
       })),
     )
@@ -85,6 +85,7 @@ class TournamentService {
       await Promise.all(
         tournament.selectedTeams.map((teamCode) =>
           playerRepo.upsertTeamSquadMeta({
+            tournamentId: createdTournament.id,
             teamCode,
             teamName: teamCode,
             tournamentType: tournament.tournamentType,
@@ -114,17 +115,22 @@ class TournamentService {
 
   async deleteTournament(id) {
     const repo = await factory.getTournamentRepository()
-    const tournament = await repo.findById(id)
+    const asNumber = Number(id)
+    const tournament =
+      Number.isFinite(asNumber) && asNumber > 0
+        ? await repo.findById(asNumber)
+        : await repo.findBySourceKey((id || '').toString().trim())
     if (!tournament) {
       return { ok: false, removedTournamentId: null, removedContests: 0 }
     }
+    const resolvedTournamentId = tournament.id
     const countResult = await dbQuery(
       `SELECT COUNT(*)::int AS count
        FROM contests
        WHERE tournament_id = $1`,
-      [id],
+      [resolvedTournamentId],
     )
-    const deleted = await repo.delete(id)
+    const deleted = await repo.delete(resolvedTournamentId)
     return {
       ok: Boolean(deleted),
       removedTournamentId: deleted ? String(id) : null,

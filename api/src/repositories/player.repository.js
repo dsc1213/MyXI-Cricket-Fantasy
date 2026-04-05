@@ -8,6 +8,9 @@ const normalizeIdentityPart = (value = '') =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
 
+const GLOBAL_PLAYER_TEAM_KEY = 'GLOBAL'
+const GLOBAL_PLAYER_TEAM_NAME = 'Global Player Pool'
+
 const buildCanonicalSourceKey = ({
   sourceKey,
   playerId,
@@ -27,6 +30,23 @@ const buildCanonicalSourceKey = ({
 }
 
 class PlayerRepository {
+  async findByDisplayNameAndCountry(displayName, country) {
+    const result = await dbQuery(
+      `SELECT id, first_name as "firstName", last_name as "lastName", role, team_key as "teamKey",
+              team_name as "teamName", player_id as "playerId", display_name as "displayName",
+              country, image_url as "imageUrl", active, batting_style as "battingStyle",
+              bowling_style as "bowlingStyle", base_price as "basePrice", source_key as "sourceKey",
+              created_at as "createdAt", updated_at as "updatedAt"
+       FROM players
+       WHERE lower(trim(display_name)) = lower(trim($1))
+         AND lower(trim(coalesce(country, ''))) = lower(trim($2))
+       ORDER BY id ASC
+       LIMIT 1`,
+      [displayName, country],
+    )
+    return result.rows[0] || null
+  }
+
   async findAll() {
     const result = await dbQuery(
       `SELECT id, first_name as "firstName", last_name as "lastName", role, team_key as "teamKey",
@@ -163,6 +183,13 @@ class PlayerRepository {
       lastName,
       country,
     })
+    const resolvedTeamKey = (teamKey || '').toString().trim() || GLOBAL_PLAYER_TEAM_KEY
+    const providedTeamName = (teamName || '').toString().trim()
+    const resolvedTeamName = providedTeamName
+      ? providedTeamName
+      : resolvedTeamKey === GLOBAL_PLAYER_TEAM_KEY
+        ? GLOBAL_PLAYER_TEAM_NAME
+        : resolvedTeamKey
     const result = await dbQuery(
       `INSERT INTO players (
          first_name, last_name, role, team_key, team_name, player_id, display_name, country,
@@ -178,8 +205,8 @@ class PlayerRepository {
         firstName,
         lastName,
         role,
-        teamKey,
-        teamName || teamKey,
+        resolvedTeamKey,
+        resolvedTeamName,
         playerId,
         displayName || [firstName, lastName].filter(Boolean).join(' '),
         country || '',
@@ -197,18 +224,35 @@ class PlayerRepository {
   async findCanonical(data = {}) {
     const explicitId = data.canonicalPlayerId || data.id || null
     if (explicitId != null && `${explicitId}`.trim()) {
-      const byId = await dbQuery(
-        `SELECT id, first_name as "firstName", last_name as "lastName", role, team_key as "teamKey",
-                team_name as "teamName", player_id as "playerId", display_name as "displayName",
-                country, image_url as "imageUrl", active, batting_style as "battingStyle",
-                bowling_style as "bowlingStyle", base_price as "basePrice", source_key as "sourceKey",
-                created_at as "createdAt", updated_at as "updatedAt"
-         FROM players
-         WHERE id = $1
-         LIMIT 1`,
-        [explicitId],
-      )
-      if (byId.rows[0]) return byId.rows[0]
+      const normalizedExplicitId = `${explicitId}`.trim()
+      if (/^\d+$/.test(normalizedExplicitId)) {
+        const byId = await dbQuery(
+          `SELECT id, first_name as "firstName", last_name as "lastName", role, team_key as "teamKey",
+                  team_name as "teamName", player_id as "playerId", display_name as "displayName",
+                  country, image_url as "imageUrl", active, batting_style as "battingStyle",
+                  bowling_style as "bowlingStyle", base_price as "basePrice", source_key as "sourceKey",
+                  created_at as "createdAt", updated_at as "updatedAt"
+           FROM players
+           WHERE id = $1
+           LIMIT 1`,
+          [Number(normalizedExplicitId)],
+        )
+        if (byId.rows[0]) return byId.rows[0]
+      } else {
+        const byExternalKey = await dbQuery(
+          `SELECT id, first_name as "firstName", last_name as "lastName", role, team_key as "teamKey",
+                  team_name as "teamName", player_id as "playerId", display_name as "displayName",
+                  country, image_url as "imageUrl", active, batting_style as "battingStyle",
+                  bowling_style as "bowlingStyle", base_price as "basePrice", source_key as "sourceKey",
+                  created_at as "createdAt", updated_at as "updatedAt"
+           FROM players
+           WHERE source_key = $1
+              OR player_id = $1
+           LIMIT 1`,
+          [normalizedExplicitId],
+        )
+        if (byExternalKey.rows[0]) return byExternalKey.rows[0]
+      }
     }
     const canonicalSourceKey = buildCanonicalSourceKey(data)
     if (canonicalSourceKey) {

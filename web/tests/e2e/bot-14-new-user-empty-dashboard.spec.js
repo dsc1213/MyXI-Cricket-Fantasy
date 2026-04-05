@@ -29,5 +29,40 @@ test.describe('14) New user dashboard should not show pre-joined contests', () =
       await deleteUserIfPresent(request, bot.gameName)
     }
   })
-})
 
+  test('joined contest cards render empty pts and rank without undefined text', async ({
+    page,
+  }) => {
+    await loginUi(page, 'master')
+    await page.route('**/contests?**', async (route) => {
+      const url = new URL(route.request().url())
+      if (url.searchParams.get('userId') !== 'master') {
+        await route.continue()
+        return
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            id: 'joined-empty-metrics',
+            tournamentId: 'ipl-2026',
+            name: 'TEST IPL',
+            game: 'Fantasy',
+            status: 'Open',
+            joined: true,
+          },
+        ]),
+      })
+    })
+
+    await page.goto('/home')
+
+    const card = page.locator('.joined-contest-grid .compact-contest-card', { hasText: 'TEST IPL' }).first()
+    await expect(card).toBeVisible()
+    await expect(card).toContainText('Pts ')
+    await expect(card).toContainText('Rank #')
+    await expect(card).not.toContainText('undefined')
+    await expect(card).not.toContainText('#undefined')
+  })
+})

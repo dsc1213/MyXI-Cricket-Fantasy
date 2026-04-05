@@ -79,6 +79,8 @@ class PlayerMockRepository {
 
   async create(data) {
     const id =
+      data.canonicalPlayerId ||
+      data.id ||
       data.playerId ||
       `p${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const displayName =
@@ -152,6 +154,25 @@ class PlayerMockRepository {
           .trim()
           .toLowerCase()
         return itemName === normalizedName
+      }) || null
+    )
+  }
+
+  async findByDisplayNameAndCountry(displayName, country) {
+    const normalizedName = (displayName || '').toString().trim().toLowerCase()
+    const normalizedCountry = (country || '').toString().trim().toLowerCase()
+    return (
+      this.allKnownPlayers.find((item) => {
+        const itemName = (
+          item.displayName ||
+          item.name ||
+          [item.firstName, item.lastName].filter(Boolean).join(' ')
+        )
+          .toString()
+          .trim()
+          .toLowerCase()
+        const itemCountry = (item.country || item.nationality || '').toString().trim().toLowerCase()
+        return itemName === normalizedName && itemCountry === normalizedCountry
       }) || null
     )
   }

@@ -27,14 +27,6 @@ function UploadPanel({
   onManualStatChange,
   onSaveManualScores,
   isLoadingManualPool,
-  uploadFileName,
-  setUploadFileName,
-  isDragOver,
-  setIsDragOver,
-  onProcessExcel,
-  isProcessingExcel,
-  excelPreviewRows,
-  excelPreviewMeta,
   onSaveScores,
   isSavingScores,
 }) {
@@ -213,9 +205,12 @@ function UploadPanel({
 
   const renderManualTeamTable = (title, players) => (
     <article className="manual-team-card">
-      <h4>
-        <CountryText value={title} />
-      </h4>
+      <div className="manual-team-head">
+        <h4>
+          <CountryText value={title} />
+        </h4>
+        <span className="manual-team-meta">{`${players.length} players`}</span>
+      </div>
       <StickyTable
         columns={manualColumns}
         rows={players}
@@ -273,9 +268,12 @@ function UploadPanel({
     return (
       <article className="manual-team-card manual-lineup-card" key={team.key}>
         <div className="manual-lineup-head">
-          <h4>
-            <CountryText value={team.name} />
-          </h4>
+          <div className="manual-team-head-copy">
+            <h4>
+              <CountryText value={team.name} />
+            </h4>
+            <span className="manual-team-meta">{`${team.players.length} players`}</span>
+          </div>
           <span
             className={`manual-lineup-count ${selectedNames.size >= 11 && selectedNames.size <= 12 ? 'ready' : ''}`.trim()}
           >
@@ -300,81 +298,80 @@ function UploadPanel({
       <div className="admin-card dashboard-panel-card match-scores-panel">
         <div className="match-upload-form">
           <div className="upload-tab-head">
-            <div className="upload-tab-row match-ops-row" role="tablist" aria-label="Match operations">
-              <Button
-                type="button"
-                role="tab"
-                aria-selected={activeMatchOpsTab === 'lineups'}
-                className={`upload-tab-btn ${activeMatchOpsTab === 'lineups' ? 'active' : ''}`.trim()}
-                onClick={() => setActiveMatchOpsTab('lineups')}
-              >
-                Playing XI
-              </Button>
-              <Button
-                type="button"
-                role="tab"
-                aria-selected={activeMatchOpsTab === 'scores'}
-                className={`upload-tab-btn ${activeMatchOpsTab === 'scores' ? 'active' : ''}`.trim()}
-                onClick={() => setActiveMatchOpsTab('scores')}
-              >
-                Scorecards
-              </Button>
-            </div>
-            <div className="upload-tab-row" role="tablist" aria-label="Upload type">
-              {activeMatchOpsTab === 'lineups' ? (
-                <>
+            <div className="upload-tab-groups">
+              <div className="upload-tab-group upload-tab-group-primary">
+                <span className="upload-tab-group-label">Mode</span>
+                <div className="upload-tab-row match-ops-row" role="tablist" aria-label="Match operations">
                   <Button
                     type="button"
                     role="tab"
-                    aria-selected={lineupUploadTab === 'manual'}
-                    className={`upload-tab-btn ${lineupUploadTab === 'manual' ? 'active' : ''}`.trim()}
-                    onClick={() => setLineupUploadTab('manual')}
+                    aria-selected={activeMatchOpsTab === 'lineups'}
+                    className={`upload-tab-btn ${activeMatchOpsTab === 'lineups' ? 'active' : ''}`.trim()}
+                    onClick={() => setActiveMatchOpsTab('lineups')}
                   >
-                    Manual Entry
+                    Playing XI
                   </Button>
                   <Button
                     type="button"
                     role="tab"
-                    aria-selected={lineupUploadTab === 'json'}
-                    className={`upload-tab-btn ${lineupUploadTab === 'json' ? 'active' : ''}`.trim()}
-                    onClick={() => setLineupUploadTab('json')}
+                    aria-selected={activeMatchOpsTab === 'scores'}
+                    className={`upload-tab-btn ${activeMatchOpsTab === 'scores' ? 'active' : ''}`.trim()}
+                    onClick={() => setActiveMatchOpsTab('scores')}
                   >
-                    JSON Upload
+                    Scorecards
                   </Button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    type="button"
-                    role="tab"
-                    aria-selected={uploadTab === 'manual'}
-                    className={`upload-tab-btn ${uploadTab === 'manual' ? 'active' : ''}`.trim()}
-                    onClick={() => setUploadTab('manual')}
-                  >
-                    Manual Entry
-                  </Button>
-                  <Button
-                    type="button"
-                    role="tab"
-                    aria-selected={uploadTab === 'json'}
-                    className={`upload-tab-btn ${uploadTab === 'json' ? 'active' : ''}`.trim()}
-                    onClick={() => setUploadTab('json')}
-                  >
-                    JSON Upload
-                  </Button>
-                  <Button
-                    type="button"
-                    role="tab"
-                    aria-selected={uploadTab === 'excel'}
-                    className={`upload-tab-btn ${uploadTab === 'excel' ? 'active' : ''}`.trim()}
-                    disabled
-                    title="Excel upload is disabled for MVP. Use JSON or Manual."
-                    onClick={() => setUploadTab('excel')}
-                  >
-                    Excel Upload
-                  </Button>
-                </>
-              )}
+                </div>
+              </div>
+              <div className="upload-tab-group upload-tab-group-secondary">
+                <span className="upload-tab-group-label">
+                  {activeMatchOpsTab === 'lineups' ? 'Playing XI Entry' : 'Scorecard Entry'}
+                </span>
+                <div className="upload-tab-row" role="tablist" aria-label="Upload type">
+                  {activeMatchOpsTab === 'lineups' ? (
+                    <>
+                      <Button
+                        type="button"
+                        role="tab"
+                        aria-selected={lineupUploadTab === 'manual'}
+                        className={`upload-tab-btn ${lineupUploadTab === 'manual' ? 'active' : ''}`.trim()}
+                        onClick={() => setLineupUploadTab('manual')}
+                      >
+                        Manual Entry
+                      </Button>
+                      <Button
+                        type="button"
+                        role="tab"
+                        aria-selected={lineupUploadTab === 'json'}
+                        className={`upload-tab-btn ${lineupUploadTab === 'json' ? 'active' : ''}`.trim()}
+                        onClick={() => setLineupUploadTab('json')}
+                      >
+                        JSON Upload
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        type="button"
+                        role="tab"
+                        aria-selected={uploadTab === 'manual'}
+                        className={`upload-tab-btn ${uploadTab === 'manual' ? 'active' : ''}`.trim()}
+                        onClick={() => setUploadTab('manual')}
+                      >
+                        Manual Entry
+                      </Button>
+                      <Button
+                        type="button"
+                        role="tab"
+                        aria-selected={uploadTab === 'json'}
+                        className={`upload-tab-btn ${uploadTab === 'json' ? 'active' : ''}`.trim()}
+                        onClick={() => setUploadTab('json')}
+                      >
+                        JSON Upload
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
             {activeMatchOpsTab === 'lineups' && lineupUploadTab === 'manual' && (
               <div className="top-actions upload-head-actions">
@@ -537,7 +534,7 @@ function UploadPanel({
                 </>
               )}
             </div>
-          ) : uploadTab === 'json' ? (
+          ) : (
             <div className="match-upload-grid json-mode">
               <label className="match-upload-json">
                 JSON schema
@@ -572,88 +569,6 @@ function UploadPanel({
                 >
                   {isSavingScores ? 'Saving...' : 'Save'}
                 </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="excel-upload-layout">
-              <div className="excel-left">
-                <label className="upload-field">
-                  Excel Upload
-                  <input
-                    id="excel-upload"
-                    type="file"
-                    accept=".xlsx,.xls,.csv"
-                    className="native-file-input"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0]
-                      setUploadFileName(file ? file.name : 'No file selected')
-                    }}
-                  />
-                  <label
-                    htmlFor="excel-upload"
-                    className={`upload-dropzone ${isDragOver ? 'dragover' : ''}`.trim()}
-                    onDragOver={(event) => {
-                      event.preventDefault()
-                      setIsDragOver(true)
-                    }}
-                    onDragLeave={() => setIsDragOver(false)}
-                    onDrop={(event) => {
-                      event.preventDefault()
-                      setIsDragOver(false)
-                      const file = event.dataTransfer.files?.[0]
-                      setUploadFileName(file ? file.name : 'No file selected')
-                    }}
-                  >
-                    <strong>Drop Excel here</strong>
-                    <span>or click to upload (.xlsx, .xls, .csv)</span>
-                    <em>{uploadFileName}</em>
-                  </label>
-                </label>
-                <div className="excel-actions">
-                  <Button
-                    type="button"
-                    className="cta small upload-action-btn"
-                    onClick={onProcessExcel}
-                    disabled={isProcessingExcel}
-                  >
-                    {isProcessingExcel ? 'Processing...' : 'Process Excel'}
-                  </Button>
-                  <Button
-                    type="button"
-                    className="cta small upload-action-btn primary"
-                    onClick={onSaveScores}
-                    disabled={
-                      isSavingScores ||
-                      !excelPreviewRows.length ||
-                      !manualTournamentId ||
-                      !manualMatchId
-                    }
-                  >
-                    {isSavingScores ? 'Saving...' : 'Save'}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="excel-right">
-                <div className="excel-preview-head">
-                  <h4>Processed Preview</h4>
-                  <p>
-                    {excelPreviewMeta
-                      ? `${excelPreviewMeta.processedRows} rows from ${excelPreviewMeta.fileName}`
-                      : 'Upload and process an Excel file to preview data'}
-                  </p>
-                </div>
-                {!!excelPreviewRows.length && (
-                  <div className="excel-preview-table-wrap">
-                    <StickyTable
-                      columns={excelPreviewColumns}
-                      rows={excelPreviewRows}
-                      rowKey={(row) => row.playerId}
-                      tableClassName="excel-preview-table"
-                      emptyText="No preview rows"
-                    />
-                  </div>
-                )}
               </div>
             </div>
           )}

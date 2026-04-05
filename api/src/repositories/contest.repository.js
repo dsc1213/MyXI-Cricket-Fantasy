@@ -6,6 +6,7 @@ class ContestRepository {
       `SELECT id, tournament_id as "tournamentId", name, match_ids as "matchIds", prize_structure as "prizeStructure",
               game, mode, source_key as "sourceKey", status, entry_fee as "entryFee",
               max_participants as "maxParticipants", participants_count as "participantsCount",
+              start_at as "startAt", started_at as "startedAt",
               created_at as "createdAt", updated_at as "updatedAt"
        FROM contests
        ORDER BY created_at DESC`,
@@ -26,6 +27,7 @@ class ContestRepository {
       `SELECT id, tournament_id as "tournamentId", name, match_ids as "matchIds", prize_structure as "prizeStructure",
               game, mode, source_key as "sourceKey", status, entry_fee as "entryFee",
               max_participants as "maxParticipants", participants_count as "participantsCount",
+              start_at as "startAt", started_at as "startedAt",
               created_at as "createdAt", updated_at as "updatedAt"
        FROM contests
        WHERE id = $1`,
@@ -49,6 +51,7 @@ class ContestRepository {
       `SELECT id, tournament_id as "tournamentId", name, match_ids as "matchIds", prize_structure as "prizeStructure",
               game, mode, source_key as "sourceKey", status, entry_fee as "entryFee",
               max_participants as "maxParticipants", participants_count as "participantsCount",
+              start_at as "startAt", started_at as "startedAt",
               created_at as "createdAt", updated_at as "updatedAt"
        FROM contests
        WHERE tournament_id = $1
@@ -78,16 +81,19 @@ class ContestRepository {
       status,
       entryFee,
       maxParticipants,
+      startAt,
+      startedAt,
     } = data
     const result = await dbQuery(
       `INSERT INTO contests (
          tournament_id, name, match_ids, prize_structure, game, mode, source_key, status,
-         entry_fee, max_participants, participants_count, created_at, updated_at
+         entry_fee, max_participants, participants_count, start_at, started_at, created_at, updated_at
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, now(), now())
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, $11, $12, now(), now())
        RETURNING id, tournament_id as "tournamentId", name, match_ids as "matchIds", prize_structure as "prizeStructure",
                  game, mode, source_key as "sourceKey", status, entry_fee as "entryFee",
                  max_participants as "maxParticipants", participants_count as "participantsCount",
+                 start_at as "startAt", started_at as "startedAt",
                  created_at as "createdAt", updated_at as "updatedAt"`,
       [
         tournamentId,
@@ -100,6 +106,8 @@ class ContestRepository {
         status || 'active',
         entryFee || 0,
         maxParticipants || 100,
+        startAt || null,
+        startedAt || null,
       ],
     )
     const row = result.rows[0]
@@ -115,7 +123,7 @@ class ContestRepository {
   }
 
   async update(id, data) {
-    const { name, matchIds, prizeStructure, game, mode, sourceKey, status, entryFee, maxParticipants } = data
+    const { name, matchIds, prizeStructure, game, mode, sourceKey, status, entryFee, maxParticipants, startAt, startedAt } = data
     const updates = []
     const values = []
     let paramIndex = 1
@@ -156,6 +164,14 @@ class ContestRepository {
       updates.push(`max_participants = $${paramIndex++}`)
       values.push(maxParticipants)
     }
+    if (startAt !== undefined) {
+      updates.push(`start_at = $${paramIndex++}`)
+      values.push(startAt)
+    }
+    if (startedAt !== undefined) {
+      updates.push(`started_at = $${paramIndex++}`)
+      values.push(startedAt)
+    }
     if (updates.length === 0) return this.findById(id)
 
     updates.push(`updated_at = now()`)
@@ -168,6 +184,7 @@ class ContestRepository {
        RETURNING id, tournament_id as "tournamentId", name, match_ids as "matchIds", prize_structure as "prizeStructure",
                  game, mode, source_key as "sourceKey", status, entry_fee as "entryFee",
                  max_participants as "maxParticipants", participants_count as "participantsCount",
+                 start_at as "startAt", started_at as "startedAt",
                  created_at as "createdAt", updated_at as "updatedAt"`,
       values,
     )

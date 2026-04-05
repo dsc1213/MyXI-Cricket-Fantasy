@@ -496,6 +496,11 @@ const createAdminPlayer = (payload) =>
     method: 'POST',
     body: JSON.stringify(payload || {}),
   })
+const importAdminPlayers = (payload) =>
+  request('/admin/players', {
+    method: 'POST',
+    body: JSON.stringify(payload || {}),
+  })
 const deleteAdminPlayer = ({ id, actorUserId }) =>
   request(`/admin/players/${id}`, {
     method: 'DELETE',
@@ -598,6 +603,8 @@ const deleteAdminUser = ({ id, actorUserId }) =>
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
 const fetchTournamentCatalog = () => request('/admin/tournaments/catalog')
+const fetchTournamentMatches = (tournamentId = '') =>
+  request(`/tournaments/${encodeURIComponent(tournamentId)}/matches`)
 const enableTournaments = (ids = [], actorUserId = '') =>
   request('/admin/tournaments/enable', {
     method: 'POST',
@@ -622,6 +629,11 @@ const deleteAdminTournament = ({ id, actorUserId }) =>
   request(`/admin/tournaments/${id}`, {
     method: 'DELETE',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
+  })
+const updateAdminMatchStatus = ({ id, status }) =>
+  request(`/admin/matches/${id}/status`, {
+    method: 'POST',
+    body: JSON.stringify({ status }),
   })
 const fetchAdminTeamSquads = (args = '') => {
   const teamCode =
@@ -654,6 +666,11 @@ const createAdminContest = (payload) =>
   request('/admin/contests', {
     method: 'POST',
     body: JSON.stringify(payload || {}),
+  })
+const startAdminContest = (contestId, actorUserId = '') =>
+  request(`/admin/contests/${contestId}/start`, {
+    method: 'POST',
+    body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
 const fetchContestMatchOptions = (tournamentId = '') => {
   const params = new URLSearchParams()
@@ -731,6 +748,7 @@ export {
   fetchUserPicks,
   fetchPlayers,
   createAdminPlayer,
+  importAdminPlayers,
   deleteAdminPlayer,
   fetchPlayerStats,
   fetchMatchOptions,
@@ -746,15 +764,18 @@ export {
   updateAdminUser,
   deleteAdminUser,
   fetchTournamentCatalog,
+  fetchTournamentMatches,
   enableTournaments,
   disableTournaments,
   createAdminTournament,
   createAdminAuctionImport,
   deleteAdminTournament,
+  updateAdminMatchStatus,
   fetchAdminTeamSquads,
   upsertAdminTeamSquad,
   deleteAdminTeamSquad,
   createAdminContest,
+  startAdminContest,
   fetchContestMatchOptions,
   deleteAdminContest,
   fetchContestCatalog,

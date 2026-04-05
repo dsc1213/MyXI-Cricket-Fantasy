@@ -1,5 +1,6 @@
 import js from '@eslint/js'
 import globals from 'globals'
+import importPlugin from 'eslint-plugin-import'
 import prettier from 'eslint-config-prettier'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
@@ -33,6 +34,22 @@ export default defineConfig([
           max: 500,
           skipBlankLines: true,
           skipComments: true,
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/**/*.js'],
+    plugins: {
+      import: importPlugin,
+    },
+    rules: {
+      'import/no-unused-modules': [
+        'warn',
+        {
+          unusedExports: true,
+          missingExports: true,
+          ignoreExports: ['src/index.js'],
         },
       ],
     },
