@@ -167,7 +167,7 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
     await loginUi(page, 'master')
     await page.goto('/admin/dashboard')
 
-    await page.getByRole('button', { name: 'Score Updates' }).click()
+    await page.getByRole('button', { name: 'Score Manager' }).click()
     const panel = page.locator('.match-scores-panel')
     await expect(panel).toBeVisible()
     await expect(panel.locator('label', { hasText: /^Type$/ })).toHaveCount(0)

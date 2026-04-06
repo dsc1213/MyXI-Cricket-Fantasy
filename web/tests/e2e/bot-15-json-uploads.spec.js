@@ -1888,7 +1888,7 @@ test.describe('15) JSON uploads and UI validation', () => {
 
     await loginUi(page, 'master')
     await page.goto('/home')
-    await page.getByRole('button', { name: 'Score Updates' }).click()
+    await page.getByRole('button', { name: 'Score Manager' }).click()
     await page.getByRole('tab', { name: 'JSON Upload' }).click()
 
     const manualScopeRow = page.locator('.manual-scope-row')
@@ -2355,7 +2355,7 @@ test.describe('15) JSON uploads and UI validation', () => {
 
       await loginUi(page, 'master')
       await page.goto('/home')
-      await page.getByRole('button', { name: 'Score Updates' }).click()
+      await page.getByRole('button', { name: 'Score Manager' }).click()
       const shellHeight = await page
         .locator('.dashboard-shell')
         .evaluate((node) => node.clientHeight)
@@ -2499,7 +2499,7 @@ test.describe('15) JSON uploads and UI validation', () => {
 
       await loginUi(page, 'master')
       await page.goto('/home')
-      await page.getByRole('button', { name: 'Score Updates' }).click()
+      await page.getByRole('button', { name: 'Score Manager' }).click()
       const scopeRow = page.locator('.manual-scope-row')
       await scopeRow.getByLabel('Tournament').selectOption(tournamentId)
       await scopeRow.getByLabel('Match').selectOption('m1')
@@ -2530,7 +2530,7 @@ test.describe('15) JSON uploads and UI validation', () => {
     await page.setViewportSize({ width: 430, height: 932 })
     await loginUi(page, 'master')
     await page.goto('/home')
-    await page.getByRole('button', { name: 'Score Updates' }).click()
+    await page.getByRole('button', { name: 'Score Manager' }).click()
     await page.getByRole('tab', { name: 'Scorecards' }).click()
     await page.getByRole('tab', { name: 'Manual Entry' }).click()
     await expect(
@@ -2598,7 +2598,7 @@ test.describe('15) JSON uploads and UI validation', () => {
   }) => {
     await loginUi(page, 'master')
     await page.goto('/home')
-    await page.getByRole('button', { name: 'Score Updates' }).click()
+    await page.getByRole('button', { name: 'Score Manager' }).click()
     await page.getByRole('tab', { name: 'Scorecards' }).click()
     await page.getByRole('tab', { name: 'Manual Entry' }).click()
 
@@ -2630,7 +2630,7 @@ test.describe('15) JSON uploads and UI validation', () => {
   }) => {
     await loginUi(page, 'master')
     await page.goto('/home')
-    await page.getByRole('button', { name: 'Score Updates' }).click()
+    await page.getByRole('button', { name: 'Score Manager' }).click()
     await page.getByRole('tab', { name: 'Scorecards' }).click()
     await page.getByRole('tab', { name: 'Manual Entry' }).click()
 
@@ -2670,7 +2670,7 @@ test.describe('15) JSON uploads and UI validation', () => {
   }) => {
     await loginUi(page, 'master')
     await page.goto('/home')
-    await page.getByRole('button', { name: 'Score Updates' }).click()
+    await page.getByRole('button', { name: 'Score Manager' }).click()
     await page.getByRole('tab', { name: 'Scorecards' }).click()
     await page.getByRole('tab', { name: 'Manual Entry' }).click()
 
@@ -2767,7 +2767,7 @@ test.describe('15) JSON uploads and UI validation', () => {
 
       await loginUi(page, 'master')
       await page.goto('/home')
-      await page.getByRole('button', { name: 'Score Updates' }).click()
+      await page.getByRole('button', { name: 'Score Manager' }).click()
       const scopeRow = page.locator('.manual-scope-row')
       await scopeRow.getByLabel('Tournament').selectOption(tournamentId)
       await scopeRow.getByLabel('Match').selectOption('m1')
@@ -2888,7 +2888,7 @@ test.describe('15) JSON uploads and UI validation', () => {
 
       await loginUi(page, 'master')
       await page.goto('/home')
-      await page.getByRole('button', { name: 'Score Updates' }).click()
+      await page.getByRole('button', { name: 'Score Manager' }).click()
 
       const scopeRow = page.locator('.manual-scope-row')
       await scopeRow.getByLabel('Tournament').selectOption(tournamentId)

@@ -48,7 +48,7 @@ test.describe('6) Contest manager score update', () => {
 
       await logoutUi(page)
       await loginUi(page, cde.gameName)
-      await expect(page.getByRole('button', { name: 'Score Updates' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Score Manager' })).toBeVisible()
       await expect(page.getByRole('button', { name: 'Admin Manager' })).toHaveCount(0)
 
       const scopedOk = await request.fetch('http://127.0.0.1:4000/admin/match-scores/upsert', {

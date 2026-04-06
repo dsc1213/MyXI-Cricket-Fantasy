@@ -4,7 +4,8 @@ const { Pool } = pg
 
 let pool = null
 
-const getDbProvider = () => (process.env.DB_PROVIDER || '').toString().trim().toLowerCase()
+const getDbProvider = () =>
+  (process.env.DB_PROVIDER || '').toString().trim().toLowerCase()
 const getDatabaseUrl = () => (process.env.DATABASE_URL || '').toString().trim()
 const shouldUsePostgres = () => getDbProvider() === 'postgres'
 
@@ -24,6 +25,10 @@ const initDbPool = () => {
   pool = new Pool({
     connectionString: databaseUrl,
     ssl: getSslConfig(),
+  })
+  pool.on('error', (error) => {
+    const message = error?.message || 'Unknown Postgres pool error'
+    console.error(`[db] Postgres pool error: ${message}`)
   })
   return pool
 }

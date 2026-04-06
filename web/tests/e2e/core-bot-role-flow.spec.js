@@ -407,10 +407,10 @@ test.describe('Core bot user role and contest flows', () => {
 
       await logoutUi(page)
       await loginUi(page, BOT_USERS[2].gameName)
-      await expect(page.getByRole('button', { name: 'Score Updates' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Score Manager' })).toBeVisible()
       await expect(page.getByRole('button', { name: 'Admin Manager' })).toHaveCount(0)
 
-      await page.getByRole('button', { name: 'Score Updates' }).click()
+      await page.getByRole('button', { name: 'Score Manager' }).click()
       await expect(page.locator('.match-scores-section')).toBeVisible()
       const tournamentSelect = page.locator(
         '.manual-scope-row label:has-text("Tournament") select',

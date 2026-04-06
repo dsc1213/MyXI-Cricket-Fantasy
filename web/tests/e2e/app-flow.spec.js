@@ -29,8 +29,8 @@ test.describe('Role and navigation flow', () => {
   test('default player account should not see admin sections', async ({ page }) => {
     await loginAs(page, 'player', 'demo123')
 
-    await expect(page.getByRole('button', { name: 'Admin Manager' })).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Score Updates' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Tournament Manager' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Score Manager' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Audit Logs' })).toHaveCount(0)
   })
 
@@ -39,8 +39,8 @@ test.describe('Role and navigation flow', () => {
   }) => {
     await loginAs(page, 'player', 'demo123')
 
-    await expect(page.getByRole('button', { name: 'Admin Manager' })).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Score Updates' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Tournament Manager' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Score Manager' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Audit Logs' })).toHaveCount(0)
 
     await page.locator('a.brand').click()
@@ -50,8 +50,8 @@ test.describe('Role and navigation flow', () => {
   test('admin should see admin section but not master section', async ({ page }) => {
     await ensureAdminLogin(page)
 
-    await expect(page.getByRole('button', { name: 'Admin Manager' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Score Updates' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Tournament Manager' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Score Manager' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Audit Logs' })).toBeVisible()
 
     await expect(page.getByRole('link', { name: 'All Pages' })).toHaveCount(0)
@@ -63,8 +63,8 @@ test.describe('Role and navigation flow', () => {
   }) => {
     await loginAs(page, 'contestmgr', 'demo123')
 
-    await expect(page.getByRole('button', { name: 'Admin Manager' })).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Score Updates' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Tournament Manager' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Score Manager' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Audit Logs' })).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'All Pages' })).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'All APIs' })).toHaveCount(0)
@@ -73,8 +73,8 @@ test.describe('Role and navigation flow', () => {
   test('master admin should see admin and master sections', async ({ page }) => {
     await ensureMasterLogin(page)
 
-    await expect(page.getByRole('button', { name: 'Admin Manager' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Score Updates' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Tournament Manager' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Score Manager' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Audit Logs' })).toBeVisible()
 
     await expect(page.getByRole('link', { name: 'All Pages' })).toBeVisible()
@@ -91,9 +91,13 @@ test.describe('Admin master scenarios', () => {
       await loginAs(page, userId, 'demo123')
       await expect(page).toHaveURL(/\/home/)
       if (userId === 'player') {
-        await expect(page.getByRole('button', { name: 'Admin Manager' })).toHaveCount(0)
+        await expect(
+          page.getByRole('button', { name: 'Tournament Manager' }),
+        ).toHaveCount(0)
       } else {
-        await expect(page.getByRole('button', { name: 'Admin Manager' })).toBeVisible()
+        await expect(
+          page.getByRole('button', { name: 'Tournament Manager' }),
+        ).toBeVisible()
       }
       await page.goto('/login')
     }
@@ -117,14 +121,13 @@ test.describe('Admin master scenarios', () => {
     await page.reload({ waitUntil: 'domcontentloaded' })
 
     await expect(page).toHaveURL(/\/home/, { timeout: 15000 })
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    await expect(page.getByLabel('User ID or Email')).toHaveCount(0)
   })
 
   test('toggle tournament visibility and create contest', async ({ page }) => {
     await ensureMasterLogin(page)
 
-    await page.getByRole('button', { name: 'Admin Manager' }).click()
-    await page.getByRole('tab', { name: /Tournaments \(/ }).click()
+    await page.getByRole('button', { name: 'Tournament Manager' }).click()
 
     const hundredRow = page.locator('tr', { hasText: 'The Hundred 2026' })
     await expect(hundredRow).toBeVisible()
@@ -139,8 +142,7 @@ test.describe('Admin master scenarios', () => {
     await expect(page.getByRole('button', { name: '+ Create contest' })).toBeEnabled()
 
     await page.goto('/home')
-    await page.getByRole('button', { name: 'Admin Manager' }).click()
-    await page.getByRole('tab', { name: /Tournaments \(/ }).click()
+    await page.getByRole('button', { name: 'Tournament Manager' }).click()
     const disableButton = hundredRow.getByRole('button', { name: 'Disable' })
     if (await disableButton.isVisible()) {
       await disableButton.click()
@@ -157,8 +159,7 @@ test.describe('Admin master scenarios', () => {
     await page.getByLabel('Max players').fill('77')
     await page.getByRole('button', { name: 'Create', exact: true }).click()
     await page.goto('/home')
-    await page.getByRole('button', { name: 'Admin Manager' }).click()
-    await page.getByRole('tab', { name: 'Contests' }).click()
+    await page.getByRole('button', { name: 'Contest Manager' }).click()
     await page.getByRole('combobox').first().selectOption('t20wc-2026')
     await expect(
       page.locator('.catalog-table tbody tr', { hasText: contestName }).first(),
@@ -243,8 +244,7 @@ test.describe('Admin master scenarios', () => {
   }) => {
     await ensureMasterLogin(page)
 
-    await page.getByRole('button', { name: 'Admin Manager' }).click()
-    await page.getByRole('tab', { name: 'Contests' }).click()
+    await page.getByRole('button', { name: 'Contest Manager' }).click()
     await page.getByRole('combobox').first().selectOption('t20wc-2026')
 
     const rows = page.locator('.catalog-table tbody tr')
@@ -273,8 +273,7 @@ test.describe('Admin master scenarios', () => {
     await expect(page.getByText(contestName)).toHaveCount(0)
 
     await page.goto('/home')
-    await page.getByRole('button', { name: 'Admin Manager' }).click()
-    await page.getByRole('tab', { name: 'Contests' }).click()
+    await page.getByRole('button', { name: 'Contest Manager' }).click()
     await page.getByRole('combobox').first().selectOption('t20wc-2026')
     const restoreRow = page
       .locator('.catalog-table tbody tr', { hasText: contestName })
