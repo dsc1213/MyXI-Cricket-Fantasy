@@ -438,6 +438,16 @@ select.dashboard-text-input {
   gap: 0.9rem;
 }
 
+.admin-user-filter-row {
+  width: 100%;
+  max-width: 520px;
+}
+
+.admin-tournament-filter-row {
+  width: 100%;
+  max-width: 520px;
+}
+
 .admin-manager-panel .catalog-table tbody tr {
   transition:
     background 0.16s ease,
@@ -478,7 +488,7 @@ select.dashboard-text-input {
 
 .user-manager-layout {
   display: grid;
-  grid-template-rows: minmax(420px, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.75rem;
   min-height: 0;
   height: 100%;
@@ -486,7 +496,17 @@ select.dashboard-text-input {
 
 .user-manager-primary,
 .user-manager-secondary {
+  display: flex;
   min-height: 0;
+  height: 100%;
+}
+
+.user-manager-primary > .dashboard-section,
+.user-manager-secondary > .dashboard-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
 }
 
 .dashboard-shell.panel-userManager .dashboard-panel-view,
@@ -554,6 +574,13 @@ select.dashboard-text-input {
 
   .user-manager-layout {
     grid-template-rows: auto auto;
+    height: auto;
+  }
+
+  .user-manager-primary,
+  .user-manager-secondary,
+  .user-manager-primary > .dashboard-section,
+  .user-manager-secondary > .dashboard-section {
     height: auto;
   }
 

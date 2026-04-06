@@ -57,8 +57,10 @@ function AdminManagerPanel({
   const [isLoadingTournaments, setIsLoadingTournaments] = useState(true)
   const [isLoadingContests, setIsLoadingContests] = useState(true)
   const [users, setUsers] = useState([])
+  const [userFilterQuery, setUserFilterQuery] = useState('')
   const [userDrafts, setUserDrafts] = useState({})
   const [tournamentCatalog, setTournamentCatalog] = useState([])
+  const [tournamentFilterQuery, setTournamentFilterQuery] = useState('')
   const [selectedTournamentId, setSelectedTournamentId] = useState('')
   const [tournamentMatches, setTournamentMatches] = useState([])
   const [isLoadingTournamentMatches, setIsLoadingTournamentMatches] = useState(false)
@@ -476,12 +478,45 @@ function AdminManagerPanel({
     [pendingDisableIds],
   )
 
+  const normalizedUserFilterQuery = userFilterQuery.trim().toLowerCase()
+  const filteredUsers = useMemo(() => {
+    if (!normalizedUserFilterQuery) return users
+    return users.filter((row) =>
+      [
+        row.name,
+        row.userId,
+        row.gameName,
+        row.email,
+        row.phone,
+        row.location,
+        row.role,
+      ].some((value) =>
+        String(value || '')
+          .toLowerCase()
+          .includes(normalizedUserFilterQuery),
+      ),
+    )
+  }, [normalizedUserFilterQuery, users])
+
   const selectedTournament = useMemo(
     () =>
       tournamentCatalog.find((row) => String(row.id) === String(selectedTournamentId)) ||
       null,
     [selectedTournamentId, tournamentCatalog],
   )
+
+  const normalizedTournamentFilterQuery = tournamentFilterQuery.trim().toLowerCase()
+  const filteredTournamentCatalog = useMemo(() => {
+    if (!normalizedTournamentFilterQuery) return tournamentCatalog
+    return tournamentCatalog.filter((row) =>
+      [row.name, row.season, row.status, row.enabled ? 'enabled' : 'available'].some(
+        (value) =>
+          String(value || '')
+            .toLowerCase()
+            .includes(normalizedTournamentFilterQuery),
+      ),
+    )
+  }, [normalizedTournamentFilterQuery, tournamentCatalog])
 
   const onStartContestNow = async (contestId) => {
     try {
@@ -841,7 +876,9 @@ function AdminManagerPanel({
         {tab === 'users' ? (
           <>
             <div className="contest-section-head">
-              <h3>{`Available users (${users.length})`}</h3>
+              <h3>
+                {`Available users (${filteredUsers.length}${normalizedUserFilterQuery ? ` / ${users.length}` : ''})`}
+              </h3>
               <div className="top-actions">
                 <Button variant="ghost" size="small" onClick={() => void loadUsers()}>
                   Refresh users
@@ -856,14 +893,28 @@ function AdminManagerPanel({
                 </Button>
               </div>
             </div>
+            <div className="admin-user-filter-row">
+              <input
+                type="search"
+                className="dashboard-text-input"
+                placeholder="Search users by name, id, email, location, or role"
+                value={userFilterQuery}
+                onChange={(event) => setUserFilterQuery(event.target.value)}
+                aria-label="Search users"
+              />
+            </div>
             {isLoadingUsers ? (
               <p className="team-note">Loading users...</p>
             ) : (
               <StickyTable
                 columns={usersColumns}
-                rows={users}
+                rows={filteredUsers}
                 rowKey={(row) => row.id}
-                emptyText="No users found"
+                emptyText={
+                  normalizedUserFilterQuery
+                    ? 'No users match this filter'
+                    : 'No users found'
+                }
                 wrapperClassName="catalog-table-wrap"
                 tableClassName="catalog-table"
               />
@@ -889,11 +940,25 @@ function AdminManagerPanel({
                         </Button>
                       </div>
                     </div>
+                    <div className="admin-tournament-filter-row">
+                      <input
+                        type="search"
+                        className="dashboard-text-input"
+                        placeholder="Search tournaments by name, season, or status"
+                        value={tournamentFilterQuery}
+                        onChange={(event) => setTournamentFilterQuery(event.target.value)}
+                        aria-label="Search tournaments"
+                      />
+                    </div>
                     <StickyTable
                       columns={tournamentColumns}
-                      rows={tournamentCatalog}
+                      rows={filteredTournamentCatalog}
                       rowKey={(row) => row.id}
-                      emptyText="No tournaments found"
+                      emptyText={
+                        normalizedTournamentFilterQuery
+                          ? 'No tournaments match this search'
+                          : 'No tournaments found'
+                      }
                       wrapperClassName="catalog-table-wrap"
                       tableClassName="catalog-table"
                       rowClassName={(row) =>
@@ -901,43 +966,6 @@ function AdminManagerPanel({
                       }
                       onRowClick={onSelectTournament}
                     />
-                    <div className="admin-manager-tournament-selector-row">
-                      <label className="admin-manager-inline-field">
-                        <span>Tournament</span>
-                        <select
-                          className="dashboard-text-input"
-                          value={selectedTournamentId}
-                          onChange={(event) =>
-                            setSelectedTournamentId(event.target.value)
-                          }
-                        >
-                          {!tournamentCatalog.length && (
-                            <option value="" disabled>
-                              No tournaments available
-                            </option>
-                          )}
-                          {tournamentCatalog.map((row) => (
-                            <option key={row.id} value={row.id}>
-                              {row.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <div className="admin-manager-tournament-meta">
-                        <span>
-                          <strong>Season</strong>
-                          <em>{selectedTournament?.season || '-'}</em>
-                        </span>
-                        <span>
-                          <strong>Status</strong>
-                          <em>{selectedTournament?.enabled ? 'Enabled' : 'Available'}</em>
-                        </span>
-                        <span>
-                          <strong>Matches</strong>
-                          <em>{Number(selectedTournament?.matchesCount || 0)}</em>
-                        </span>
-                      </div>
-                    </div>
                   </div>
                 ) : (
                   <div className="admin-manager-tournaments-pane">
