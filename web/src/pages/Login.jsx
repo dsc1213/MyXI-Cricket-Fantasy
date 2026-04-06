@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
-import { login } from '../lib/api.js'
+import { login, API_BASE } from '../lib/api.js'
+import ApiStatusDot from '../components/ui/ApiStatusDot.jsx'
+import Button from '../components/ui/Button.jsx'
 import { setStoredUser } from '../lib/auth.js'
+import useApiHealthStatus from '../hooks/useApiHealthStatus.js'
 
 function Login() {
   const navigate = useNavigate()
@@ -10,6 +13,14 @@ function Login() {
   const [password, setPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorText, setErrorText] = useState('')
+
+  const { apiStatus, setApiStatus, apiDotRef, checkingApi, checkApi } =
+    useApiHealthStatus({
+      autoRetry: false,
+      checkDurationMs: 800,
+      initialCheck: true,
+    })
+  const showApiStatusSection = apiStatus !== 'ok'
 
   const onSubmit = async (event) => {
     event.preventDefault()
@@ -39,6 +50,40 @@ function Login() {
 
   return (
     <section className="auth">
+      {showApiStatusSection && (
+        <div
+          className="login-api-status-row"
+          style={{
+            position: 'absolute',
+            right: 24,
+            top: 18,
+            zIndex: 10,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <ApiStatusDot
+            ref={apiDotRef}
+            apiBase={API_BASE}
+            interval={0}
+            onStatus={setApiStatus}
+          />
+          <span style={{ fontSize: 13, color: '#888' }}>
+            {apiStatus === 'fail' ? 'API unavailable' : 'Checking API...'}
+          </span>
+          <Button
+            variant="secondary"
+            size="small"
+            className="api-status-refresh-btn"
+            onClick={() => checkApi(false)}
+            disabled={checkingApi}
+            aria-label="Refresh API status"
+          >
+            Refresh
+          </Button>
+        </div>
+      )}
       <div className="auth-panel">
         <h2>Welcome back</h2>
         <p>Login to manage your teams and tournaments.</p>

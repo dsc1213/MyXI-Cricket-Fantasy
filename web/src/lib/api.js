@@ -1,6 +1,6 @@
 import { updateStoredSession } from './auth.js'
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
+export const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 const inFlightGetRequests = new Map()
 const cachedGetResponses = new Map()
 const apiActivityListeners = new Set()
@@ -734,7 +734,6 @@ const updateUserProfile = ({ id, payload }) =>
   })
 
 export {
-  API_BASE,
   subscribeApiActivity,
   login,
   refreshSession,

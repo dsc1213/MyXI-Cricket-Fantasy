@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import {
+  Link,
+  NavLink,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom'
 import './App.css'
 import Home from './pages/Home.jsx'
 import Dashboard from './pages/Dashboard.jsx'
@@ -25,12 +33,37 @@ import DraftsHub from './pages/DraftsHub.jsx'
 import PickemHub from './pages/PickemHub.jsx'
 import ChangePassword from './pages/ChangePassword.jsx'
 import CricketerStats from './pages/CricketerStats.jsx'
-import { logout, prefetchAppData, refreshSession, subscribeApiActivity } from './lib/api.js'
+import {
+  logout,
+  prefetchAppData,
+  refreshSession,
+  subscribeApiActivity,
+} from './lib/api.js'
 import { clearStoredAuth, getStoredUser } from './lib/auth.js'
 import GlobalApiLoader from './components/ui/GlobalApiLoader.jsx'
+import ApiStatusDot from './components/ui/ApiStatusDot.jsx'
+import ApiFailureTile from './components/ui/ApiFailureTile.jsx'
+import { API_BASE } from './lib/api.js'
 import CricketRouteLoader from './components/ui/CricketRouteLoader.jsx'
+import useApiHealthStatus from './hooks/useApiHealthStatus.js'
 
 function App() {
+  const {
+    setApiStatus,
+    apiDotRef,
+    showApiError,
+    checkingApi,
+    reconnectAttempt,
+    maxRetries,
+    checkApi,
+  } = useApiHealthStatus({
+    autoRetry: true,
+    retryIntervalMs: 30000,
+    maxRetries: 10,
+    checkDurationMs: 800,
+    initialCheck: true,
+  })
+
   const location = useLocation()
   const navigate = useNavigate()
   const [isMobileHeader, setIsMobileHeader] = useState(() => {
@@ -40,7 +73,9 @@ function App() {
   const [currentUser, setCurrentUser] = useState(() => {
     return getStoredUser()
   })
-  const [isRestoringSession, setIsRestoringSession] = useState(() => Boolean(getStoredUser()))
+  const [isRestoringSession, setIsRestoringSession] = useState(() =>
+    Boolean(getStoredUser()),
+  )
   const showAuthLinks = location.pathname === '/'
   const searchParams = new URLSearchParams(location.search)
   const viewMode = (searchParams.get('view') || '').toString().trim().toLowerCase()
@@ -55,8 +90,9 @@ function App() {
   const isFantasyHubPage =
     location.pathname === '/fantasy' || location.pathname === '/team'
   const isAuctionHubPage = location.pathname === '/auction'
-  const isContestDetailPage =
-    /^\/tournaments\/[^/]+\/contests\/[^/]+$/.test(location.pathname)
+  const isContestDetailPage = /^\/tournaments\/[^/]+\/contests\/[^/]+$/.test(
+    location.pathname,
+  )
   const isLeaderboardPage =
     location.pathname === '/leaderboard' ||
     /^\/tournaments\/[^/]+(\/contests\/[^/]+)?\/leaderboard$/.test(location.pathname)
@@ -383,6 +419,15 @@ function App() {
                 </div>
               </div>
             )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 8 }}>
+              <ApiStatusDot
+                ref={apiDotRef}
+                apiBase={API_BASE}
+                interval={0}
+                onStatus={setApiStatus}
+              />
+              <span style={{ fontSize: 13, color: '#888' }}>API</span>
+            </div>
           </div>
         </header>
       </div>
@@ -476,7 +521,8 @@ function App() {
           <section className="session-warning-card">
             <h3>Session expiring soon</h3>
             <p>
-              Your session will expire in <strong>{sessionWarningSeconds}</strong> seconds.
+              Your session will expire in <strong>{sessionWarningSeconds}</strong>{' '}
+              seconds.
             </p>
             <div className="session-warning-actions">
               <button
@@ -497,12 +543,36 @@ function App() {
       <main
         className={`main ${isTeamPage ? 'main-team' : ''} ${isLowerContentPage ? 'main-lower-content' : ''}`.trim()}
       >
+        {showApiError && !isAuthPage && !isLanding && (
+          <div style={{ padding: '16px 16px 0' }}>
+            <ApiFailureTile
+              title="API unavailable"
+              message={
+                checkingApi
+                  ? `Checking API health... (Attempt ${Math.min(reconnectAttempt + 1, maxRetries)}/${maxRetries})`
+                  : reconnectAttempt > 0
+                    ? `Reconnect attempt ${Math.min(reconnectAttempt + 1, maxRetries)}/${maxRetries}.`
+                    : 'Waiting for API to connect. Please retry.'
+              }
+              onRetry={() => checkApi(false)}
+            />
+          </div>
+        )}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/home" element={requireAuth(<Dashboard />)} />
-          <Route path="/dashboard" element={requireAuth(<Navigate to="/home" replace />)} />
-          <Route path="/login" element={currentUser ? <Navigate to="/home" replace /> : <Login />} />
-          <Route path="/register" element={currentUser ? <Navigate to="/home" replace /> : <Register />} />
+          <Route
+            path="/dashboard"
+            element={requireAuth(<Navigate to="/home" replace />)}
+          />
+          <Route
+            path="/login"
+            element={currentUser ? <Navigate to="/home" replace /> : <Login />}
+          />
+          <Route
+            path="/register"
+            element={currentUser ? <Navigate to="/home" replace /> : <Register />}
+          />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/pending" element={<Pending />} />
           <Route path="/tournaments" element={requireAuth(<Tournaments />)} />
