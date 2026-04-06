@@ -5,8 +5,11 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
-    "dev": "nodemon src/index.js",
+    "dev": "node src/index.js",
     "dev:inspect": "nodemon --inspect src/index.js",
+    "start": "node src/index.js",
+    "prod:local": "NODE_ENV=production node src/index.js",
+    "test:prod": "vitest run",
     "db:migrate": "node scripts/db-migrate.js",
     "db:reset:data": "node scripts/db-reset-data.js",
     "db:seed:master": "node scripts/db-seed-master.js",

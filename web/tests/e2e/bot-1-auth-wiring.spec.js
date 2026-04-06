@@ -12,13 +12,31 @@ import {
 test.describe('1) Auth wiring', () => {
   test.setTimeout(120000)
 
+  test('login network failure shows env-based API guidance', async ({ page }) => {
+    await page.route('**/auth/login', async (route) => {
+      await route.abort()
+    })
+
+    await page.goto('/login')
+    await page.getByLabel('User ID or Email').fill('player')
+    await page.getByLabel('Password').fill(PASSWORD)
+    await page.getByRole('button', { name: 'Sign in' }).click()
+
+    const errorText = page.locator('.error-text')
+    await expect(errorText).toContainText('Check VITE_API_BASE_URL.')
+    await expect(errorText).not.toContainText('port 4000')
+  })
+
   test('login form does not prefill credentials', async ({ page }) => {
     await page.goto('/login')
     await expect(page.getByLabel('User ID or Email')).toHaveValue('')
     await expect(page.getByLabel('Password')).toHaveValue('')
   })
 
-  test('get started signup, login, forgot password, reset password', async ({ page, request }) => {
+  test('get started signup, login, forgot password, reset password', async ({
+    page,
+    request,
+  }) => {
     const [bot] = createBotUsers(`auth-${Date.now()}`)
 
     try {
@@ -60,18 +78,24 @@ test.describe('1) Auth wiring', () => {
         'placeholder',
         'userId or email',
       )
-      await expect(page.getByRole('button', { name: 'Load security questions' })).toBeVisible()
+      await expect(
+        page.getByRole('button', { name: 'Load security questions' }),
+      ).toBeVisible()
       await page.getByLabel('User ID or Email').fill(bot.gameName)
       await page.getByRole('button', { name: 'Load security questions' }).click()
       await expect(page.getByText('Security questions loaded')).toBeVisible()
-      await page.getByLabel(/What was your first school name/).fill(bot.securityAnswers[0])
+      await page
+        .getByLabel(/What was your first school name/)
+        .fill(bot.securityAnswers[0])
       await page.getByLabel(/Who is your favorite cricketer/).fill(bot.securityAnswers[1])
       await page.getByLabel(/What city were you born in/).fill(bot.securityAnswers[2])
       const uiNewPassword = 'demo1234'
       await page.getByLabel('New password').fill(uiNewPassword)
       await page.getByLabel('Confirm password').fill(uiNewPassword)
       await page.getByRole('button', { name: 'Update password' }).click()
-      await expect(page.getByText('Password updated. Redirecting to login...')).toBeVisible()
+      await expect(
+        page.getByText('Password updated. Redirecting to login...'),
+      ).toBeVisible()
 
       await loginUi(page, bot.gameName, uiNewPassword)
     } finally {

@@ -1,6 +1,6 @@
 import { updateStoredSession } from './auth.js'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 const inFlightGetRequests = new Map()
 const cachedGetResponses = new Map()
 const apiActivityListeners = new Set()
@@ -247,7 +247,10 @@ async function request(path, options = {}) {
           text.includes('networkerror') ||
           text.includes('load failed')
         ) {
-          throw new Error(`API unavailable on ${API_BASE}. Start server on port 4000.`)
+          const configuredBase = API_BASE || 'current origin'
+          throw new Error(
+            `API unavailable on ${configuredBase}. Check VITE_API_BASE_URL.`,
+          )
         }
         throw error
       }

@@ -28,10 +28,37 @@ const app = express()
 const jwtSecret = process.env.JWT_SECRET || 'dev-secret'
 const jwtExpiresIn = process.env.JWT_EXPIRES_IN || '7d'
 const requestedAutoSeedTeams = isAutoSeedTeamsRequested()
+const runtimeEnv = (process.env.NODE_ENV || 'development').toLowerCase()
+
+const configuredCorsOrigins = (process.env.CORS_ORIGIN || process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean)
+
+const corsOrigin = (() => {
+  if (configuredCorsOrigins.length > 0) {
+    return (origin, callback) => {
+      if (!origin || configuredCorsOrigins.includes(origin)) {
+        callback(null, true)
+        return
+      }
+      callback(new Error('Not allowed by CORS'))
+    }
+  }
+
+  if (runtimeEnv !== 'production') {
+    return true
+  }
+
+  console.warn(
+    '[config] CORS_ORIGIN is not set in production. Cross-origin browser requests are blocked.',
+  )
+  return false
+})()
 
 app.use(
   cors({
-    origin: true,
+    origin: corsOrigin,
     credentials: true,
   }),
 )
@@ -39,6 +66,16 @@ app.use(express.json())
 
 const dataState = initDataState()
 console.log(`[config] DATA_PROVIDER=${dataState.enabled ? 'seed' : 'db'}`)
+if (runtimeEnv === 'production' && dataState.enabled) {
+  console.warn(
+    '[config] Production is running with seed/mock data provider enabled. Switch to DB_PROVIDER=postgres for real persistence.',
+  )
+}
+if (runtimeEnv === 'production' && !shouldUsePostgres()) {
+  console.warn(
+    '[config] Production is running without Postgres. Set DB_PROVIDER=postgres and DATABASE_URL to avoid in-memory runtime.',
+  )
+}
 if (!dataState.loadedFromFile) {
   seedMasterAdmin()
   seedInitialUsers()
@@ -49,9 +86,7 @@ if (!dataState.loadedFromFile) {
 }
 const autoSeedTeams = Boolean(dataState.enabled && requestedAutoSeedTeams)
 if (!dataState.enabled && requestedAutoSeedTeams) {
-  console.warn(
-    '[config] AUTO_SEED_TEAMS is ignored because seed provider is disabled.',
-  )
+  console.warn('[config] AUTO_SEED_TEAMS is ignored because seed provider is disabled.')
 }
 
 const resolveUserById = async (id) => {
@@ -88,7 +123,10 @@ const resolveUserById = async (id) => {
   return getUserById(id)
 }
 
-const { authenticate, requireRole } = buildAuth({ getUserById: resolveUserById, jwtSecret })
+const { authenticate, requireRole } = buildAuth({
+  getUserById: resolveUserById,
+  jwtSecret,
+})
 
 const routerConfig = {
   authenticate,
