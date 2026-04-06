@@ -51,25 +51,14 @@ function Login() {
   return (
     <section className="auth">
       {showApiStatusSection && (
-        <div
-          className="login-api-status-row"
-          style={{
-            position: 'absolute',
-            right: 24,
-            top: 18,
-            zIndex: 10,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
+        <div className="login-api-status-row">
           <ApiStatusDot
             ref={apiDotRef}
             apiBase={API_BASE}
             interval={0}
             onStatus={setApiStatus}
           />
-          <span style={{ fontSize: 13, color: '#888' }}>
+          <span className="login-api-status-text">
             {apiStatus === 'fail' ? 'API unavailable' : 'Checking API...'}
           </span>
           <Button

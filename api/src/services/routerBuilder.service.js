@@ -6,10 +6,9 @@ import { createDbService } from './db.service.js'
 import { createMockService } from './mock.service.js'
 import { shouldHandleProviderPath } from './providerPathMatcher.service.js'
 import { registerAuthRoutes } from '../routes/auth.route.js'
-import { createMockProviderContext } from './mockProviderContext.service.js'
 import { setMockContext } from '../repositories/repository.factory.js'
 
-const createRouter = ({
+const createRouter = async ({
   authenticate,
   requireRole,
   jwtSecret,
@@ -19,7 +18,8 @@ const createRouter = ({
   persistSeedState = () => {},
 }) => {
   const router = Router()
-  const mockApiEnabled = (process.env.MOCK_API || '').toString().trim().toLowerCase() === 'true'
+  const mockApiEnabled =
+    (process.env.MOCK_API || '').toString().trim().toLowerCase() === 'true'
 
   router.use((req, res, next) => {
     const originalJson = res.json.bind(res)
@@ -38,13 +38,21 @@ const createRouter = ({
     return next()
   })
 
-  const mockContext = {
-    ...createMockProviderContext({
-      seedProviderEnabled,
-      autoSeedTeams,
-      persistSeedState,
-    }),
+  let mockContext = {
+    appendAuditLog: () => {},
     bcrypt,
+  }
+
+  if (mockApiEnabled) {
+    const { createMockProviderContext } = await import('./mockProviderContext.service.js')
+    mockContext = {
+      ...createMockProviderContext({
+        seedProviderEnabled,
+        autoSeedTeams,
+        persistSeedState,
+      }),
+      bcrypt,
+    }
   }
 
   // Inject mock context into repository factory for mock mode
@@ -64,15 +72,21 @@ const createRouter = ({
     if (req.path.startsWith('/auth/') || req.path.startsWith('/api/auth/')) {
       return next()
     }
-    if (mockApiEnabled && seedProviderEnabled && shouldHandleProviderPath(req.path || '')) {
+    if (
+      mockApiEnabled &&
+      seedProviderEnabled &&
+      shouldHandleProviderPath(req.path || '')
+    ) {
       return next()
     }
     return authenticate(req, res, next)
   })
 
   const mockProviderRouter = Router()
-  const mockService = createMockService(mockContext)
-  mockService.register(mockProviderRouter)
+  if (mockApiEnabled) {
+    const mockService = createMockService(mockContext)
+    mockService.register(mockProviderRouter)
+  }
 
   const dbProviderRouter = Router()
   const dbService = createDbService(mockContext)

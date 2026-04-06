@@ -158,6 +158,8 @@ function App() {
     false
   const isAuctionNavActive = location.pathname === '/auction' || isAuctionView
   const showCricketRouteLoader = isApiLoading && isHomeFantasyRoute
+  const showMobileApiOnlyError =
+    showApiError && isMobileHeader && !isAuthPage && !isLanding
 
   useEffect(() => {
     window.localStorage.setItem('myxi-theme', theme)
@@ -419,14 +421,14 @@ function App() {
                 </div>
               </div>
             )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 8 }}>
+            <div className="topbar-api-status">
               <ApiStatusDot
                 ref={apiDotRef}
                 apiBase={API_BASE}
                 interval={0}
                 onStatus={setApiStatus}
               />
-              <span style={{ fontSize: 13, color: '#888' }}>API</span>
+              <span className="topbar-api-status-label">API</span>
             </div>
           </div>
         </header>
@@ -544,7 +546,7 @@ function App() {
         className={`main ${isTeamPage ? 'main-team' : ''} ${isLowerContentPage ? 'main-lower-content' : ''}`.trim()}
       >
         {showApiError && !isAuthPage && !isLanding && (
-          <div style={{ padding: '16px 16px 0' }}>
+          <div className="app-api-failure-wrap">
             <ApiFailureTile
               title="API unavailable"
               message={
@@ -558,92 +560,97 @@ function App() {
             />
           </div>
         )}
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/home" element={requireAuth(<Dashboard />)} />
-          <Route
-            path="/dashboard"
-            element={requireAuth(<Navigate to="/home" replace />)}
-          />
-          <Route
-            path="/login"
-            element={currentUser ? <Navigate to="/home" replace /> : <Login />}
-          />
-          <Route
-            path="/register"
-            element={currentUser ? <Navigate to="/home" replace /> : <Register />}
-          />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/pending" element={<Pending />} />
-          <Route path="/tournaments" element={requireAuth(<Tournaments />)} />
-          <Route
-            path="/tournaments/:tournamentId"
-            element={requireAuth(<TournamentContests />)}
-          />
-          <Route
-            path="/tournaments/:tournamentId/contests"
-            element={requireAuth(<TournamentContests />)}
-          />
-          <Route
-            path="/tournaments/:tournamentId/contests/:contestId"
-            element={requireAuth(<ContestDetail />)}
-          />
-          <Route
-            path="/tournaments/:tournamentId/contests/:contestId/leaderboard"
-            element={requireAuth(<Leaderboard />)}
-          />
-          <Route
-            path="/tournaments/:tournamentId/leaderboard"
-            element={requireAuth(<Leaderboard />)}
-          />
-          <Route path="/fantasy" element={requireAuth(<FantasyHub />)} />
-          <Route path="/auction" element={requireAuth(<AuctionHub />)} />
-          <Route path="/fantasy/select" element={requireAuth(<TeamSelection />)} />
-          <Route path="/team" element={requireAuth(<Navigate to="/fantasy" replace />)} />
-          <Route
-            path="/team/select"
-            element={requireAuth(<Navigate to="/fantasy/select" replace />)}
-          />
-          <Route path="/drafts" element={requireAuth(<DraftsHub />)} />
-          <Route path="/pickem" element={requireAuth(<PickemHub />)} />
-          <Route path="/my-team" element={requireAuth(<MyTeam />)} />
-          <Route path="/cricketer-stats" element={requireAuth(<CricketerStats />)} />
-          <Route
-            path="/tournaments/:tournamentId/cricketer-stats"
-            element={requireAuth(<CricketerStats />)}
-          />
-          <Route path="/profile" element={requireAuth(<Profile />)} />
-          <Route path="/users/:userId" element={requireAuth(<UserProfileAdmin />)} />
-          <Route path="/change-password" element={requireAuth(<ChangePassword />)} />
-          <Route path="/all-pages" element={requireAuth(<AllPages />)} />
-          <Route path="/all-apis" element={requireAuth(<AllApis />)} />
-          <Route
-            path="/admin/dashboard"
-            element={requireAuth(<Dashboard defaultPanel="admin" />)}
-          />
-          <Route
-            path="/master/dashboard"
-            element={requireAuth(<Navigate to="/home" replace />)}
-          />
-          <Route
-            path="/admin/scoring"
-            element={requireAuth(<Dashboard defaultPanel="points" />)}
-          />
-          <Route
-            path="/admin/score-upload"
-            element={requireAuth(<Dashboard defaultPanel="upload" />)}
-          />
-          <Route path="/leaderboard" element={requireAuth(<Leaderboard />)} />
-          <Route
-            path="/tournaments/:tournamentId/contests/:contestId/users/:userId"
-            element={requireAuth(<TournamentUserPage />)}
-          />
-          <Route
-            path="/tournaments/:tournamentId/users/:userId"
-            element={requireAuth(<TournamentUserPage />)}
-          />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        {!showMobileApiOnlyError && (
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/home" element={requireAuth(<Dashboard />)} />
+            <Route
+              path="/dashboard"
+              element={requireAuth(<Navigate to="/home" replace />)}
+            />
+            <Route
+              path="/login"
+              element={currentUser ? <Navigate to="/home" replace /> : <Login />}
+            />
+            <Route
+              path="/register"
+              element={currentUser ? <Navigate to="/home" replace /> : <Register />}
+            />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/pending" element={<Pending />} />
+            <Route path="/tournaments" element={requireAuth(<Tournaments />)} />
+            <Route
+              path="/tournaments/:tournamentId"
+              element={requireAuth(<TournamentContests />)}
+            />
+            <Route
+              path="/tournaments/:tournamentId/contests"
+              element={requireAuth(<TournamentContests />)}
+            />
+            <Route
+              path="/tournaments/:tournamentId/contests/:contestId"
+              element={requireAuth(<ContestDetail />)}
+            />
+            <Route
+              path="/tournaments/:tournamentId/contests/:contestId/leaderboard"
+              element={requireAuth(<Leaderboard />)}
+            />
+            <Route
+              path="/tournaments/:tournamentId/leaderboard"
+              element={requireAuth(<Leaderboard />)}
+            />
+            <Route path="/fantasy" element={requireAuth(<FantasyHub />)} />
+            <Route path="/auction" element={requireAuth(<AuctionHub />)} />
+            <Route path="/fantasy/select" element={requireAuth(<TeamSelection />)} />
+            <Route
+              path="/team"
+              element={requireAuth(<Navigate to="/fantasy" replace />)}
+            />
+            <Route
+              path="/team/select"
+              element={requireAuth(<Navigate to="/fantasy/select" replace />)}
+            />
+            <Route path="/drafts" element={requireAuth(<DraftsHub />)} />
+            <Route path="/pickem" element={requireAuth(<PickemHub />)} />
+            <Route path="/my-team" element={requireAuth(<MyTeam />)} />
+            <Route path="/cricketer-stats" element={requireAuth(<CricketerStats />)} />
+            <Route
+              path="/tournaments/:tournamentId/cricketer-stats"
+              element={requireAuth(<CricketerStats />)}
+            />
+            <Route path="/profile" element={requireAuth(<Profile />)} />
+            <Route path="/users/:userId" element={requireAuth(<UserProfileAdmin />)} />
+            <Route path="/change-password" element={requireAuth(<ChangePassword />)} />
+            <Route path="/all-pages" element={requireAuth(<AllPages />)} />
+            <Route path="/all-apis" element={requireAuth(<AllApis />)} />
+            <Route
+              path="/admin/dashboard"
+              element={requireAuth(<Dashboard defaultPanel="admin" />)}
+            />
+            <Route
+              path="/master/dashboard"
+              element={requireAuth(<Navigate to="/home" replace />)}
+            />
+            <Route
+              path="/admin/scoring"
+              element={requireAuth(<Dashboard defaultPanel="points" />)}
+            />
+            <Route
+              path="/admin/score-upload"
+              element={requireAuth(<Dashboard defaultPanel="upload" />)}
+            />
+            <Route path="/leaderboard" element={requireAuth(<Leaderboard />)} />
+            <Route
+              path="/tournaments/:tournamentId/contests/:contestId/users/:userId"
+              element={requireAuth(<TournamentUserPage />)}
+            />
+            <Route
+              path="/tournaments/:tournamentId/users/:userId"
+              element={requireAuth(<TournamentUserPage />)}
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        )}
       </main>
     </div>
   )

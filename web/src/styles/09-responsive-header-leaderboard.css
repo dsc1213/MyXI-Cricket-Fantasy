@@ -27,6 +27,18 @@
   justify-self: center;
 }
 
+.topbar-api-status {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 8px;
+}
+
+.topbar-api-status-label {
+  font-size: 13px;
+  color: #888;
+}
+
 @media (max-width: 1100px) {
   .topbar.compact {
     grid-template-columns: 1fr auto;
@@ -42,6 +54,21 @@
 
   .topbar.compact .nav-actions {
     grid-area: actions;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: 0.35rem;
+  }
+
+  .topbar.compact.landing .topbar-api-status {
+    flex-basis: 100%;
+    justify-content: flex-end;
+    margin-left: 0;
+  }
+
+  .topbar.compact:not(.landing) .topbar-api-status {
+    flex-basis: auto;
+    margin-left: 8px;
   }
 
   .topbar.compact .nav-tabs {
@@ -65,6 +92,14 @@
 
   .topbar.compact .nav-actions {
     margin-left: 0;
+  }
+
+  .topbar.compact.landing .topbar-api-status {
+    justify-content: flex-start;
+  }
+
+  .topbar.compact:not(.landing) .topbar-api-status {
+    justify-content: flex-end;
   }
 }
 

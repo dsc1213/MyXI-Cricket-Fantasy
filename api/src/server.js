@@ -12,17 +12,22 @@ import {
 } from './store.js'
 import { initDataState, isAutoSeedTeamsRequested } from './services/stateStore.service.js'
 import { createRouter } from './routes/index.js'
+
+dotenv.config()
+
+const runtimeEnv = (process.env.NODE_ENV || 'development').toLowerCase()
 let resetMockState = () => {}
 let resetMockProviderContexts = () => {}
-if (process.env.MOCK_API === 'true' || process.env.NODE_ENV !== 'production') {
+if (
+  (process.env.MOCK_API || '').toString().trim().toLowerCase() === 'true' ||
+  runtimeEnv !== 'production'
+) {
   try {
     ;({ resetMockState } = await import('../mocks/mockStateStore.js'))
     ;({ resetMockProviderContexts } =
       await import('./services/mockProviderContext.service.js'))
   } catch {}
 }
-
-dotenv.config()
 
 try {
   await checkDbConnection()
@@ -35,7 +40,6 @@ const app = express()
 const jwtSecret = process.env.JWT_SECRET || 'dev-secret'
 const jwtExpiresIn = process.env.JWT_EXPIRES_IN || '7d'
 const requestedAutoSeedTeams = isAutoSeedTeamsRequested()
-const runtimeEnv = (process.env.NODE_ENV || 'development').toLowerCase()
 
 const configuredCorsOrigins = (process.env.CORS_ORIGIN || process.env.FRONTEND_URL || '')
   .split(',')
@@ -158,8 +162,11 @@ const resetStore = () => {
   syncUserIdentifiers()
 }
 
-app.use(createRouter(routerConfig))
-app.use('/api', createRouter(routerConfig))
+const rootRouter = await createRouter(routerConfig)
+const apiRouter = await createRouter(routerConfig)
+
+app.use(rootRouter)
+app.use('/api', apiRouter)
 
 app.use((error, req, res, next) => {
   void next

@@ -1,3 +1,7 @@
+.app-api-failure-wrap {
+  padding: 16px 16px 0;
+}
+
 .api-failure-tile {
   width: min(860px, 100%);
   margin: 1.25rem auto 0;
@@ -31,8 +35,11 @@
   height: 100px;
   margin: 0.95rem auto 0.4rem;
   border-radius: 16px;
-  background:
-    linear-gradient(to top, rgba(80, 145, 69, 0.38) 0 28%, rgba(218, 188, 129, 0.56) 28% 100%);
+  background: linear-gradient(
+    to top,
+    rgba(80, 145, 69, 0.38) 0 28%,
+    rgba(218, 188, 129, 0.56) 28% 100%
+  );
   border: 1px solid rgba(15, 23, 42, 0.1);
   overflow: hidden;
 }

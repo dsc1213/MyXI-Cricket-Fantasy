@@ -236,11 +236,27 @@
 }
 
 .auth {
+  position: relative;
   width: 100%;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 2.5rem;
   align-items: center;
+}
+
+.login-api-status-row {
+  position: absolute;
+  right: 24px;
+  top: 18px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.login-api-status-text {
+  font-size: 13px;
+  color: #888;
 }
 
 .team {
