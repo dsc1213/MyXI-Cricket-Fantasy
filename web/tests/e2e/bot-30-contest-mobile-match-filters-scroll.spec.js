@@ -90,9 +90,12 @@ test('contest matches card scrolls horizontally on mobile without shrinking rows
 
     expect(metrics.overflowX).toBe('visible')
 
-    const tableMetrics = await page.locator('.matches-card .match-table').first().evaluate((node) => ({
-      width: node.getBoundingClientRect().width,
-    }))
+    const tableMetrics = await page
+      .locator('.matches-card .match-table')
+      .first()
+      .evaluate((node) => ({
+        width: node.getBoundingClientRect().width,
+      }))
     expect(tableMetrics.width).toBeGreaterThan(700)
 
     const tableWrapMetrics = await page

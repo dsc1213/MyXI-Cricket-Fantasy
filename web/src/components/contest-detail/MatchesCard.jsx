@@ -5,11 +5,29 @@ import LoadingNote from '../ui/LoadingNote.jsx'
 import SelectField from '../ui/SelectField.jsx'
 import StickyTable from '../ui/StickyTable.jsx'
 
-const monthShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const monthShort = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+]
 
 function EditActionIcon() {
   return (
-    <svg className="action-icon" viewBox="0 0 24 24" role="presentation" aria-hidden="true">
+    <svg
+      className="action-icon"
+      viewBox="0 0 24 24"
+      role="presentation"
+      aria-hidden="true"
+    >
       <path
         fill="currentColor"
         d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25Zm2.92 2.08H5v-.92l9.06-9.06.92.92L5.92 19.33ZM20.71 7.04a1 1 0 0 0 0-1.41L18.37 3.3a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83Z"
@@ -20,7 +38,12 @@ function EditActionIcon() {
 
 function ViewActionIcon() {
   return (
-    <svg className="action-icon" viewBox="0 0 24 24" role="presentation" aria-hidden="true">
+    <svg
+      className="action-icon"
+      viewBox="0 0 24 24"
+      role="presentation"
+      aria-hidden="true"
+    >
       <path
         fill="currentColor"
         d="M12 5c-5.5 0-9.59 3.44-11 7 1.41 3.56 5.5 7 11 7s9.59-3.44 11-7c-1.41-3.56-5.5-7-11-7Zm0 12c-3.54 0-6.53-2.07-7.94-5 1.41-2.93 4.4-5 7.94-5s6.53 2.07 7.94 5c-1.41 2.93-4.4 5-7.94 5Zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"
@@ -30,11 +53,7 @@ function ViewActionIcon() {
 }
 
 function normalizeMatchStatus(value) {
-  return (value || '')
-    .toString()
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '')
+  return (value || '').toString().trim().toLowerCase().replace(/\s+/g, '')
 }
 
 function formatMatchStatus(value) {
@@ -112,7 +131,8 @@ function MatchesCard({
     {
       key: 'myTeam',
       label: isFixedRosterContest ? 'My Roster' : 'My Team',
-      render: (match) => (match.hasTeam ? (isFixedRosterContest ? 'Owned players' : 'Added') : 'Not added'),
+      render: (match) =>
+        match.hasTeam ? (isFixedRosterContest ? 'Owned players' : 'Added') : 'Not added',
     },
     {
       key: 'action',

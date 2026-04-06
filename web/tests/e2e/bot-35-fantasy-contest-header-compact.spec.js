@@ -1,9 +1,5 @@
 import { expect, test } from '@playwright/test'
-import {
-  apiCall,
-  deleteContestIfPresent,
-  loginUi,
-} from './helpers/mock-e2e.js'
+import { apiCall, deleteContestIfPresent, loginUi } from './helpers/mock-e2e.js'
 
 const E2E_API_BASE = process.env.PW_E2E_API_BASE_URL || 'http://127.0.0.1:4000'
 
@@ -89,16 +85,20 @@ test('fantasy contest card shows compact tournament + contest header and hides t
       .first()
     await expect(card).toBeVisible()
 
-    await expect(card.locator('.contest-title-combo .contest-tournament-pill')).toHaveText(
-      tournamentName,
-    )
+    await expect(
+      card.locator('.contest-title-combo .contest-tournament-pill'),
+    ).toHaveText(tournamentName)
     await expect(card.locator('.contest-title-combo strong')).toHaveText(contestName)
     const contestColorVar = await card.evaluate((node) =>
       node.style.getPropertyValue('--contest-tournament-color').trim(),
     )
     expect(contestColorVar.length).toBeGreaterThan(0)
-    await expect(card.locator('.team-note').filter({ hasText: /\bteams\b/i })).toHaveCount(0)
-    await expect(card.locator('.team-note').filter({ hasText: /^Starts:/i })).toHaveCount(0)
+    await expect(
+      card.locator('.team-note').filter({ hasText: /\bteams\b/i }),
+    ).toHaveCount(0)
+    await expect(card.locator('.team-note').filter({ hasText: /^Starts:/i })).toHaveCount(
+      0,
+    )
   } finally {
     await deleteContestIfPresent(request, contestId, 'master')
     await request.fetch(`${E2E_API_BASE}/admin/tournaments/${tournamentId}`, {

@@ -91,7 +91,8 @@ function FantasyHub() {
   })
 
   const currentUser = getStoredUser()
-  const currentUserId = currentUser?.userId || currentUser?.gameName || currentUser?.email || ''
+  const currentUserId =
+    currentUser?.userId || currentUser?.gameName || currentUser?.email || ''
   const isAdminUser = ['admin', 'master_admin'].includes(currentUser?.role)
 
   const normalizeAdminTournamentRows = (rows = []) =>
@@ -106,11 +107,15 @@ function FantasyHub() {
     const nextTournaments = Array.isArray(tournamentsRes)
       ? tournamentsRes.map(normalizeTournamentRow)
       : []
-    const nextContests = Array.isArray(contestsRes) ? contestsRes.map(normalizeContestRow) : []
+    const nextContests = Array.isArray(contestsRes)
+      ? contestsRes.map(normalizeContestRow)
+      : []
     setTournaments(nextTournaments)
     setContests(nextContests)
     setSelectedTournament((prev) =>
-      nextTournaments.some((item) => item.id === prev) ? prev : nextTournaments[0]?.id || '',
+      nextTournaments.some((item) => item.id === prev)
+        ? prev
+        : nextTournaments[0]?.id || '',
     )
   }
 
@@ -126,13 +131,18 @@ function FantasyHub() {
           fetchContests({ game: 'Fantasy', userId: currentUserId }),
         ])
         if (!active) return
-        const tournamentsRes = tournamentsResult.status === 'fulfilled' ? tournamentsResult.value : []
-        const contestsRes = contestsResult.status === 'fulfilled' ? contestsResult.value : []
+        const tournamentsRes =
+          tournamentsResult.status === 'fulfilled' ? tournamentsResult.value : []
+        const contestsRes =
+          contestsResult.status === 'fulfilled' ? contestsResult.value : []
         const effectiveTournaments = isAdminUser
           ? normalizeAdminTournamentRows(tournamentsRes)
           : tournamentsRes
         applyFantasyResponses(effectiveTournaments, contestsRes)
-        if (tournamentsResult.status === 'rejected' || contestsResult.status === 'rejected') {
+        if (
+          tournamentsResult.status === 'rejected' ||
+          contestsResult.status === 'rejected'
+        ) {
           const message =
             tournamentsResult.status === 'rejected'
               ? tournamentsResult.reason?.message
@@ -160,7 +170,8 @@ function FantasyHub() {
       isAdminUser ? fetchTournamentCatalog() : fetchTournaments(),
       fetchContests({ game: 'Fantasy', userId: currentUserId }),
     ])
-    const tournamentsRes = tournamentsResult.status === 'fulfilled' ? tournamentsResult.value : []
+    const tournamentsRes =
+      tournamentsResult.status === 'fulfilled' ? tournamentsResult.value : []
     const contestsRes = contestsResult.status === 'fulfilled' ? contestsResult.value : []
     const effectiveTournaments = isAdminUser
       ? normalizeAdminTournamentRows(tournamentsRes)
@@ -198,7 +209,8 @@ function FantasyHub() {
   const tournamentContests = useMemo(() => {
     return contests.filter((contest) => {
       if (contest.mode === 'fixed_roster') return false
-      const tournamentOk = selectedTournament && contest.tournamentId === selectedTournament
+      const tournamentOk =
+        selectedTournament && contest.tournamentId === selectedTournament
       const statusOk = selectedStatus === 'all' || contest.status === selectedStatus
       return tournamentOk && statusOk
     })
@@ -308,7 +320,10 @@ function FantasyHub() {
             </div>
           )}
         </div>
-        <LoadingNote loading={isLoading} errorText={showApiFailureTile ? '' : errorText} />
+        <LoadingNote
+          loading={isLoading}
+          errorText={showApiFailureTile ? '' : errorText}
+        />
         {!!notice && <p className="success-text">{notice}</p>}
       </div>
 
@@ -344,7 +359,8 @@ function FantasyHub() {
                     key={item.id}
                     className={`team-card tournament-card tournament-filter-tile ${selectedTournament === item.id ? 'active' : ''}`.trim()}
                     style={{
-                      '--tournament-color': tournamentPalette[index % tournamentPalette.length],
+                      '--tournament-color':
+                        tournamentPalette[index % tournamentPalette.length],
                       '--tile-index': index,
                     }}
                     role="button"
@@ -362,7 +378,8 @@ function FantasyHub() {
                       <div>
                         <h3>{item.name}</h3>
                         <p className="team-note">
-                          {(contestsByTournament[item.id] || []).length} contests available
+                          {(contestsByTournament[item.id] || []).length} contests
+                          available
                         </p>
                       </div>
                     </div>
@@ -397,7 +414,9 @@ function FantasyHub() {
             {tournaments.length === 0 && !isLoading ? (
               <div className="dashboard-empty-state">
                 <h3>No tournaments available</h3>
-                <p>Ask an admin to add a tournament to Fantasy, then it will appear here.</p>
+                <p>
+                  Ask an admin to add a tournament to Fantasy, then it will appear here.
+                </p>
               </div>
             ) : (
               <>
@@ -423,10 +442,20 @@ function FantasyHub() {
                     </div>
                     <div className="compact-card-grid contest-discovery-grid">
                       {availableContests.map((contest) => {
-                        const joinedCount = Number(contest.joinedCount ?? contest.participants ?? 0)
-                        const maxPlayers = Number(contest.maxPlayers ?? contest.teams ?? 0)
-                        const countdownLabel = formatContestCountdown(contest.startAt, countdownNow)
-                        const showContestStart = shouldShowContestStart(contest.startAt, countdownNow)
+                        const joinedCount = Number(
+                          contest.joinedCount ?? contest.participants ?? 0,
+                        )
+                        const maxPlayers = Number(
+                          contest.maxPlayers ?? contest.teams ?? 0,
+                        )
+                        const countdownLabel = formatContestCountdown(
+                          contest.startAt,
+                          countdownNow,
+                        )
+                        const showContestStart = shouldShowContestStart(
+                          contest.startAt,
+                          countdownNow,
+                        )
                         return (
                           <article
                             className={`compact-contest-card fantasy ${getStatusClassName(contest.status)}`.trim()}
@@ -443,7 +472,9 @@ function FantasyHub() {
                                 </small>
                                 <strong>{contest.name}</strong>
                               </span>
-                              <span className={`contest-status-text ${getStatusClassName(contest.status)}`.trim()}>
+                              <span
+                                className={`contest-status-text ${getStatusClassName(contest.status)}`.trim()}
+                              >
                                 {contest.status}
                               </span>
                             </div>
@@ -460,14 +491,18 @@ function FantasyHub() {
                               </p>
                             ) : null}
                             {countdownLabel ? (
-                              <p className="team-note contest-countdown">{countdownLabel}</p>
+                              <p className="team-note contest-countdown">
+                                {countdownLabel}
+                              </p>
                             ) : null}
                             <p className="team-note">
                               Last score update:{' '}
                               {contest.lastScoreUpdatedAt
                                 ? new Date(contest.lastScoreUpdatedAt).toLocaleString()
                                 : '-'}
-                              {contest.lastScoreUpdatedBy ? ` by ${contest.lastScoreUpdatedBy}` : ''}
+                              {contest.lastScoreUpdatedBy
+                                ? ` by ${contest.lastScoreUpdatedBy}`
+                                : ''}
                             </p>
                             <div className="contest-card-bottom">
                               <Button
@@ -486,7 +521,9 @@ function FantasyHub() {
                                     })
                                     await reloadFantasyData()
                                   } catch (error) {
-                                    setErrorText(error.message || 'Failed to join contest')
+                                    setErrorText(
+                                      error.message || 'Failed to join contest',
+                                    )
                                   }
                                 }}
                               >
@@ -515,8 +552,12 @@ function FantasyHub() {
                     </div>
                     <div className="compact-card-grid contest-discovery-grid">
                       {joinedContests.map((contest) => {
-                        const joinedCount = Number(contest.joinedCount ?? contest.participants ?? 0)
-                        const maxPlayers = Number(contest.maxPlayers ?? contest.teams ?? 0)
+                        const joinedCount = Number(
+                          contest.joinedCount ?? contest.participants ?? 0,
+                        )
+                        const maxPlayers = Number(
+                          contest.maxPlayers ?? contest.teams ?? 0,
+                        )
                         return (
                           <article
                             className={`compact-contest-card fantasy ${getStatusClassName(contest.status)}`.trim()}
@@ -533,7 +574,9 @@ function FantasyHub() {
                                 </small>
                                 <strong>{contest.name}</strong>
                               </span>
-                              <span className={`contest-status-text ${getStatusClassName(contest.status)}`.trim()}>
+                              <span
+                                className={`contest-status-text ${getStatusClassName(contest.status)}`.trim()}
+                              >
                                 {contest.status}
                               </span>
                             </div>
@@ -546,7 +589,9 @@ function FantasyHub() {
                               {contest.lastScoreUpdatedAt
                                 ? new Date(contest.lastScoreUpdatedAt).toLocaleString()
                                 : '-'}
-                              {contest.lastScoreUpdatedBy ? ` by ${contest.lastScoreUpdatedBy}` : ''}
+                              {contest.lastScoreUpdatedBy
+                                ? ` by ${contest.lastScoreUpdatedBy}`
+                                : ''}
                             </p>
                             <div className="contest-card-bottom">
                               <Link
@@ -737,17 +782,18 @@ function FantasyHub() {
                 Selected {selectedContestMatchIds.length} / {contestMatchOptions.length}
               </small>
             </div>
-            <div className="create-contest-match-grid" role="group" aria-label="Contest matches">
+            <div
+              className="create-contest-match-grid"
+              role="group"
+              aria-label="Contest matches"
+            >
               {isLoadingContestMatchOptions ? (
                 <p className="team-note">Loading matches...</p>
               ) : contestMatchOptions.length ? (
                 contestMatchOptions.map((match) => {
                   const checked = selectedContestMatchIds.includes(match.id)
                   return (
-                    <label
-                      key={match.id}
-                      className="create-contest-match-row"
-                    >
+                    <label key={match.id} className="create-contest-match-row">
                       <input
                         type="checkbox"
                         checked={checked}
@@ -779,7 +825,6 @@ function FantasyHub() {
           </div>
         </div>
       </Modal>
-
     </section>
   )
 }

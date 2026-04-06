@@ -76,7 +76,9 @@ test('contest open shows loading text instead of no matches flash while matches 
     await expect(page.getByText('Loading matches...')).toBeVisible()
     await expect(page.getByText('No matches found')).toHaveCount(0)
 
-    await expect(page.locator('.match-table tbody tr').first()).toBeVisible({ timeout: 15000 })
+    await expect(page.locator('.match-table tbody tr').first()).toBeVisible({
+      timeout: 15000,
+    })
     await expect(page.getByText('Loading matches...')).toHaveCount(0)
   } finally {
     await deleteContestIfPresent(request, contestId, 'master')

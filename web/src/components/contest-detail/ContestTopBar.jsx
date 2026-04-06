@@ -35,7 +35,8 @@ function ContestTopBar({
         </div>
         <p className="team-note">{tournamentName}</p>
         <p className="team-note">
-          Last score update: {lastScoreUpdatedAt ? new Date(lastScoreUpdatedAt).toLocaleString() : '-'}
+          Last score update:{' '}
+          {lastScoreUpdatedAt ? new Date(lastScoreUpdatedAt).toLocaleString() : '-'}
           {lastScoreUpdatedBy ? ` by ${lastScoreUpdatedBy}` : ''}
         </p>
         <LoadingNote loading={isLoading} errorText={errorText} />

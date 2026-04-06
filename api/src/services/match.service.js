@@ -13,9 +13,7 @@ const toIdArray = (value) => {
 const toNameArray = (value) => {
   const rows = typeof value === 'string' ? JSON.parse(value) : value
   return Array.isArray(rows)
-    ? rows
-        .map((item) => String(item || '').trim())
-        .filter(Boolean)
+    ? rows.map((item) => String(item || '').trim()).filter(Boolean)
     : []
 }
 
@@ -100,7 +98,9 @@ class MatchService {
 
     const playerIdByTeamAndName = new Map(
       (playerResult.rows || []).map((row) => [
-        `${String(row.teamCode || '').trim().toUpperCase()}::${String(row.displayName || '')
+        `${String(row.teamCode || '')
+          .trim()
+          .toUpperCase()}::${String(row.displayName || '')
           .trim()
           .toLowerCase()}`,
         Number(row.id),
@@ -109,7 +109,9 @@ class MatchService {
 
     const activePlayerIds = []
     for (const row of lineupResult.rows || []) {
-      const teamCode = String(row.teamCode || '').trim().toUpperCase()
+      const teamCode = String(row.teamCode || '')
+        .trim()
+        .toUpperCase()
       const names = toNameArray(row.playingXI)
       for (const name of names) {
         const key = `${teamCode}::${name.toLowerCase()}`
@@ -118,7 +120,9 @@ class MatchService {
       }
     }
 
-    const normalizedActiveIds = Array.from(new Set(activePlayerIds.map(Number).filter(Boolean)))
+    const normalizedActiveIds = Array.from(
+      new Set(activePlayerIds.map(Number).filter(Boolean)),
+    )
     if (!normalizedActiveIds.length) {
       return { updatedSelections: 0, skippedSelections: 0 }
     }
@@ -160,14 +164,20 @@ class MatchService {
         .filter(Boolean)
 
       const nextPlayingSet = new Set(nextPlayingXi)
-      const nextBackups = currentBackups.filter((value) => !nextPlayingSet.has(Number(value)))
+      const nextBackups = currentBackups.filter(
+        (value) => !nextPlayingSet.has(Number(value)),
+      )
 
       const isSamePlayingXi =
         nextPlayingXi.length === currentPlayingXi.length &&
-        nextPlayingXi.every((value, index) => Number(currentPlayingXi[index]) === Number(value))
+        nextPlayingXi.every(
+          (value, index) => Number(currentPlayingXi[index]) === Number(value),
+        )
       const isSameBackups =
         nextBackups.length === currentBackups.length &&
-        nextBackups.every((value, index) => Number(currentBackups[index]) === Number(value))
+        nextBackups.every(
+          (value, index) => Number(currentBackups[index]) === Number(value),
+        )
 
       if (isSamePlayingXi && isSameBackups) {
         skippedSelections += 1
@@ -195,7 +205,13 @@ class MatchService {
           const placeholders = nextPlayingXi
             .map((playerId, index) => {
               const offset = index * 5
-              values.push(tournamentId, row.contestId, matchId, row.userId, Number(playerId))
+              values.push(
+                tournamentId,
+                row.contestId,
+                matchId,
+                row.userId,
+                Number(playerId),
+              )
               return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, 'selection-auto-swap', now(), now())`
             })
             .join(', ')

@@ -25,7 +25,8 @@ function AuctionHub() {
   const [contests, setContests] = useState([])
 
   const currentUser = getStoredUser()
-  const currentUserId = currentUser?.userId || currentUser?.gameName || currentUser?.email || ''
+  const currentUserId =
+    currentUser?.userId || currentUser?.gameName || currentUser?.email || ''
 
   useEffect(() => {
     let active = true
@@ -43,7 +44,9 @@ function AuctionHub() {
         const auctionContests = (contestsRes || []).filter(
           (contest) => contest.mode === 'fixed_roster',
         )
-        const tournamentIds = new Set(auctionContests.map((contest) => contest.tournamentId))
+        const tournamentIds = new Set(
+          auctionContests.map((contest) => contest.tournamentId),
+        )
         const auctionTournaments = (tournamentsRes || []).filter((item) =>
           tournamentIds.has(item.id),
         )
@@ -74,13 +77,19 @@ function AuctionHub() {
       fetchTournaments(),
       fetchContests({ game: 'Fantasy', userId: currentUserId }),
     ])
-    const auctionContests = (contestsRes || []).filter((contest) => contest.mode === 'fixed_roster')
+    const auctionContests = (contestsRes || []).filter(
+      (contest) => contest.mode === 'fixed_roster',
+    )
     const tournamentIds = new Set(auctionContests.map((contest) => contest.tournamentId))
-    const auctionTournaments = (tournamentsRes || []).filter((item) => tournamentIds.has(item.id))
+    const auctionTournaments = (tournamentsRes || []).filter((item) =>
+      tournamentIds.has(item.id),
+    )
     setTournaments(auctionTournaments)
     setContests(auctionContests)
     setSelectedTournament((prev) =>
-      auctionTournaments.some((item) => item.id === prev) ? prev : auctionTournaments[0]?.id || '',
+      auctionTournaments.some((item) => item.id === prev)
+        ? prev
+        : auctionTournaments[0]?.id || '',
     )
   }
 
@@ -93,7 +102,8 @@ function AuctionHub() {
 
   const tournamentContests = useMemo(() => {
     return contests.filter((contest) => {
-      const tournamentOk = selectedTournament && contest.tournamentId === selectedTournament
+      const tournamentOk =
+        selectedTournament && contest.tournamentId === selectedTournament
       const statusOk = selectedStatus === 'all' || contest.status === selectedStatus
       return tournamentOk && statusOk
     })
@@ -125,9 +135,13 @@ function AuctionHub() {
           <h2>Auction Contests</h2>
         </div>
         <p className="team-note auction-hub-note">
-          Browse imported contests and follow squads, matches, and leaderboard in one place.
+          Browse imported contests and follow squads, matches, and leaderboard in one
+          place.
         </p>
-        <LoadingNote loading={isLoading} errorText={showApiFailureTile ? '' : errorText} />
+        <LoadingNote
+          loading={isLoading}
+          errorText={showApiFailureTile ? '' : errorText}
+        />
       </div>
 
       {showApiFailureTile ? (
@@ -164,7 +178,8 @@ function AuctionHub() {
                     key={item.id}
                     className={`team-card tournament-card tournament-filter-tile ${selectedTournament === item.id ? 'active' : ''}`.trim()}
                     style={{
-                      '--tournament-color': tournamentPalette[index % tournamentPalette.length],
+                      '--tournament-color':
+                        tournamentPalette[index % tournamentPalette.length],
                       '--tile-index': index,
                     }}
                     role="button"
@@ -210,7 +225,9 @@ function AuctionHub() {
             {tournaments.length === 0 && !isLoading ? (
               <div className="dashboard-empty-state">
                 <h3>No tournaments available</h3>
-                <p>Ask an admin to publish an auction tournament, then it will appear here.</p>
+                <p>
+                  Ask an admin to publish an auction tournament, then it will appear here.
+                </p>
               </div>
             ) : (
               <div className="fantasy-contest-sections">
@@ -244,20 +261,30 @@ function AuctionHub() {
                         >
                           <div className="contest-card-top">
                             <strong>{contest.name}</strong>
-                            <span className={`contest-status-text ${getStatusClassName(contest.status)}`.trim()}>
+                            <span
+                              className={`contest-status-text ${getStatusClassName(contest.status)}`.trim()}
+                            >
                               {contest.status}
                             </span>
                           </div>
-                          <p className="team-note">{tournamentNameMap[contest.tournamentId]}</p>
+                          <p className="team-note">
+                            {tournamentNameMap[contest.tournamentId]}
+                          </p>
                           <p className="team-note">{participantCount} participants</p>
-                          <p className="team-note">Fixed {rosterSize}-player tournament rosters</p>
-                          <p className="team-note">Leaderboard counts top 11 scoring players</p>
+                          <p className="team-note">
+                            Fixed {rosterSize}-player tournament rosters
+                          </p>
+                          <p className="team-note">
+                            Leaderboard counts top 11 scoring players
+                          </p>
                           <p className="team-note">
                             Last score update:{' '}
                             {contest.lastScoreUpdatedAt
                               ? new Date(contest.lastScoreUpdatedAt).toLocaleString()
                               : '-'}
-                            {contest.lastScoreUpdatedBy ? ` by ${contest.lastScoreUpdatedBy}` : ''}
+                            {contest.lastScoreUpdatedBy
+                              ? ` by ${contest.lastScoreUpdatedBy}`
+                              : ''}
                           </p>
                           <div className="contest-card-bottom">
                             <Link
@@ -271,15 +298,17 @@ function AuctionHub() {
                       )
                     })}
                   </div>
-                  {!isLoading && selectedTournament && tournamentContests.length === 0 && (
-                    <div className="dashboard-empty-state">
-                      <h3>No auction contests yet</h3>
-                      <p>
-                        This tournament is loaded, but there are no imported external contests for the
-                        selected filters.
-                      </p>
-                    </div>
-                  )}
+                  {!isLoading &&
+                    selectedTournament &&
+                    tournamentContests.length === 0 && (
+                      <div className="dashboard-empty-state">
+                        <h3>No auction contests yet</h3>
+                        <p>
+                          This tournament is loaded, but there are no imported external
+                          contests for the selected filters.
+                        </p>
+                      </div>
+                    )}
                 </div>
               </div>
             )}

@@ -42,11 +42,7 @@ const normalizeContestParticipants = (payload) => {
 }
 
 const normalizeMatchStatus = (value) =>
-  (value || '')
-    .toString()
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '')
+  (value || '').toString().trim().toLowerCase().replace(/\s+/g, '')
 
 const getMatchStartTime = (match) => {
   const raw = (match?.startAt || match?.startTime || '').toString().trim()
@@ -90,7 +86,9 @@ const sortContestMatches = (rows = []) =>
       if (timeDiff !== 0) return timeDiff
     }
 
-    return String(left?.matchNo || left?.id || '').localeCompare(String(right?.matchNo || right?.id || ''))
+    return String(left?.matchNo || left?.id || '').localeCompare(
+      String(right?.matchNo || right?.id || ''),
+    )
   })
 
 function ContestDetail() {
@@ -237,10 +235,10 @@ function ContestDetail() {
   const loadParticipantsForMatch = async (matchId) =>
     normalizeContestParticipants(
       await fetchContestParticipants({
-          contestId,
-          matchId,
-          userId: currentUserGameName,
-        }),
+        contestId,
+        matchId,
+        userId: currentUserGameName,
+      }),
     )
 
   const onPreviewPlayer = async (player) => {
@@ -465,7 +463,11 @@ function ContestDetail() {
         size="md"
         footer={
           <>
-            <Button variant="ghost" size="small" onClick={() => setShowLeaderboardPreview(false)}>
+            <Button
+              variant="ghost"
+              size="small"
+              onClick={() => setShowLeaderboardPreview(false)}
+            >
               Close
             </Button>
             <Button
@@ -478,8 +480,12 @@ function ContestDetail() {
           </>
         }
       >
-        {isLoadingLeaderboardPreview && <p className="team-note">Loading leaderboard...</p>}
-        {!!leaderboardPreviewError && <p className="error-text">{leaderboardPreviewError}</p>}
+        {isLoadingLeaderboardPreview && (
+          <p className="team-note">Loading leaderboard...</p>
+        )}
+        {!!leaderboardPreviewError && (
+          <p className="error-text">{leaderboardPreviewError}</p>
+        )}
         {!isLoadingLeaderboardPreview && !leaderboardPreviewError && (
           <StickyTable
             columns={leaderboardColumns}

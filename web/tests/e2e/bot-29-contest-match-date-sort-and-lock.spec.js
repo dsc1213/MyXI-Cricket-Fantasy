@@ -86,7 +86,13 @@ test('contest detail sorts matches by date bucket and locks edit when start time
     })
     contestId = contest.id
 
-    await apiCall(request, 'POST', `/contests/${contestId}/join`, { userId: 'master' }, 200)
+    await apiCall(
+      request,
+      'POST',
+      `/contests/${contestId}/join`,
+      { userId: 'master' },
+      200,
+    )
 
     const apiMatches = await apiCall(
       request,

@@ -47,7 +47,8 @@ const dbHandlers = {
   '/admin/matches/import-fixtures': (data) =>
     matchService.importFixtures(data.tournamentId, data.fixtures),
   '/admin/matches/:id/status': (id, status) => matchService.updateMatchStatus(id, status),
-  '/admin/matches/:id/replace-backups': (id) => matchService.forceApplyBackupReplacement(id),
+  '/admin/matches/:id/replace-backups': (id) =>
+    matchService.forceApplyBackupReplacement(id),
   '/admin/matches/:id/score-upload': (id, data) =>
     matchService.uploadScore(id, data.tournamentId, data.playerStats, data.uploadedBy),
   '/admin/matches/:id/score-history': (id) => matchService.getScoreHistory(id),
@@ -94,11 +95,7 @@ const dbHandlers = {
       data.uploadedBy,
     ),
   '/admin/match-scores/reset': (data) =>
-    matchScoreService.resetMatchScores(
-      data.matchId,
-      data.tournamentId,
-      data.resetBy,
-    ),
+    matchScoreService.resetMatchScores(data.matchId, data.tournamentId, data.resetBy),
   '/match-scores/process-excel': (data) => matchScoreService.processExcelScores(data),
   '/match-scores/save': (data) =>
     matchScoreService.saveExcelProcessedScores(
@@ -1087,7 +1084,9 @@ const createDbService = (dependencies) => {
 
         const { tournamentId, matchId } = req.body || {}
         if (!tournamentId || !matchId) {
-          return res.status(400).json({ message: 'tournamentId and matchId are required' })
+          return res
+            .status(400)
+            .json({ message: 'tournamentId and matchId are required' })
         }
 
         const payload = await matchScoreService.resetMatchScores(

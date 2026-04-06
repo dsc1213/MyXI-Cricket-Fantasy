@@ -14,11 +14,17 @@ const normalizeTeamCode = (value = '') =>
     .replace(/[^A-Z0-9]/g, '')
 
 const normalizeMatchStatus = (value = '') => {
-  const normalized = (value || '').toString().trim().toLowerCase().replace(/[\s_-]+/g, '')
+  const normalized = (value || '')
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '')
   if (!normalized) return 'notstarted'
-  if (['scheduled', 'upcoming', 'open', 'notstarted'].includes(normalized)) return 'notstarted'
+  if (['scheduled', 'upcoming', 'open', 'notstarted'].includes(normalized))
+    return 'notstarted'
   if (['live', 'inprogress', 'started'].includes(normalized)) return 'inprogress'
-  if (['done', 'complete', 'completed', 'closed', 'finished'].includes(normalized)) return 'completed'
+  if (['done', 'complete', 'completed', 'closed', 'finished'].includes(normalized))
+    return 'completed'
   return 'notstarted'
 }
 
@@ -75,13 +81,7 @@ const normalizeImportedSquadEntry = (entry) => {
   return {
     ...entry,
     id: (entry.id || '').toString().trim(),
-    name: (
-      entry.name ||
-      entry.playerName ||
-      entry.fullName ||
-      entry.displayName ||
-      ''
-    )
+    name: (entry.name || entry.playerName || entry.fullName || entry.displayName || '')
       .toString()
       .trim(),
     role: (entry.role || '').toString().trim().toUpperCase(),
@@ -189,8 +189,12 @@ const buildImportedTournamentPayload = ({
       id: normalizedTournamentId || `tournament-${Date.now()}`,
       name: payloadName,
       season: payloadSeason,
-      source: (payload.source || fallbackSource).toString().trim().toLowerCase() || 'manual',
-      tournamentType: (payload.tournamentType || 'international').toString().trim().toLowerCase(),
+      source:
+        (payload.source || fallbackSource).toString().trim().toLowerCase() || 'manual',
+      tournamentType: (payload.tournamentType || 'international')
+        .toString()
+        .trim()
+        .toLowerCase(),
       country: (payload.country || '').toString().trim().toLowerCase(),
       league: (payload.league || '').toString().trim(),
       selectedTeams: Array.isArray(payload.selectedTeams)

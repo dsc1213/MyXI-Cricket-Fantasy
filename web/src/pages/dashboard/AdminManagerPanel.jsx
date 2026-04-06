@@ -739,8 +739,12 @@ function AdminManagerPanel({
               setNotice('')
               const result = await replaceAdminMatchBackups({ id: row.id })
               await loadTournamentMatches(selectedTournamentId)
-              const updatedSelections = Number(result?.autoReplacement?.updatedSelections || 0)
-              const skippedSelections = Number(result?.autoReplacement?.skippedSelections || 0)
+              const updatedSelections = Number(
+                result?.autoReplacement?.updatedSelections || 0,
+              )
+              const skippedSelections = Number(
+                result?.autoReplacement?.skippedSelections || 0,
+              )
               setNotice(
                 `Backups replaced (${updatedSelections} updated, ${skippedSelections} skipped)`,
               )

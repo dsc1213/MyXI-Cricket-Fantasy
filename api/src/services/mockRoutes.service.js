@@ -141,7 +141,10 @@ const registerMockProviderRoutes = (router, ctx) => {
     if (!tournamentName) return new Set()
     return new Set(
       teamSquads
-        .filter((item) => (item?.tournament || '').toString().trim().toLowerCase() === tournamentName)
+        .filter(
+          (item) =>
+            (item?.tournament || '').toString().trim().toLowerCase() === tournamentName,
+        )
         .map((item) => normalizeTeamCode(item?.teamCode || ''))
         .filter(Boolean),
     )
@@ -149,7 +152,9 @@ const registerMockProviderRoutes = (router, ctx) => {
   const getTournamentPlayers = (tournamentId = '') => {
     if (!tournamentId) return [...allKnownPlayers]
     const squadTeamCodes = getTournamentSquadTeamCodes(tournamentId)
-    const teamCodes = squadTeamCodes.size ? squadTeamCodes : getTournamentTeamCodes(tournamentId)
+    const teamCodes = squadTeamCodes.size
+      ? squadTeamCodes
+      : getTournamentTeamCodes(tournamentId)
     const filtered = allKnownPlayers.filter((player) =>
       teamCodes.has(normalizeTeamCode(player?.team || '')),
     )
@@ -272,7 +277,9 @@ const registerMockProviderRoutes = (router, ctx) => {
           [...currentPlayingXi, ...currentBackups].filter((playerId) =>
             activeNameSet.has(
               normalizeUserKey(
-                idToPlayerName.get(playerId) || idToPlayerName.get(Number(playerId)) || '',
+                idToPlayerName.get(playerId) ||
+                  idToPlayerName.get(Number(playerId)) ||
+                  '',
               ),
             ),
           ),
@@ -320,7 +327,10 @@ const registerMockProviderRoutes = (router, ctx) => {
 
       if (updatedSelection?.userId) {
         sampleUserPicks[updatedSelection.userId] = nextPlayingXi
-          .map((playerId) => idToPlayerName.get(playerId) || idToPlayerName.get(Number(playerId)))
+          .map(
+            (playerId) =>
+              idToPlayerName.get(playerId) || idToPlayerName.get(Number(playerId)),
+          )
           .filter(Boolean)
       }
 
@@ -576,9 +586,7 @@ const registerMockProviderRoutes = (router, ctx) => {
     })
     for (const [key, selection] of mockTeamSelections.entries()) {
       const selectionKeys = new Set(
-        [selection?.userId]
-          .filter(Boolean)
-          .map((value) => normalizeActorId(value)),
+        [selection?.userId].filter(Boolean).map((value) => normalizeActorId(value)),
       )
       const shouldDelete = [...selectionKeys].some((value) => removedKeys.has(value))
       if (shouldDelete) {
@@ -606,7 +614,9 @@ const registerMockProviderRoutes = (router, ctx) => {
     const rows = getTournamentCatalogRows().map((item) => ({
       ...item,
       enabled: enabledTournamentIds.has(item.id),
-      teamCodes: Array.from(getTournamentTeamCodes(item.id)).sort((a, b) => a.localeCompare(b)),
+      teamCodes: Array.from(getTournamentTeamCodes(item.id)).sort((a, b) =>
+        a.localeCompare(b),
+      ),
       hasActiveContests: mockContests.some(
         (contest) =>
           contest.tournamentId === item.id &&
@@ -724,7 +734,9 @@ const registerMockProviderRoutes = (router, ctx) => {
         persistState()
         return res.status(201).json(result)
       } catch (error) {
-        return res.status(400).json({ message: error.message || 'Failed to import squad mappings' })
+        return res
+          .status(400)
+          .json({ message: error.message || 'Failed to import squad mappings' })
       }
     }
     const teamCode = normalizeTeamCode(req.body?.teamCode || '')
@@ -768,7 +780,9 @@ const registerMockProviderRoutes = (router, ctx) => {
       return res.status(403).json({ message: 'Only admin/master can manage squads' })
     }
     const teamCode = normalizeTeamCode(req.params.teamCode || '')
-    const tournamentId = (req.body?.tournamentId || req.query?.tournamentId || '').toString().trim()
+    const tournamentId = (req.body?.tournamentId || req.query?.tournamentId || '')
+      .toString()
+      .trim()
     await playerService.deleteTeamSquad(teamCode, tournamentId || null)
     appendAuditLog({
       actor: actor?.gameName || actor?.name || 'Admin',
@@ -837,7 +851,9 @@ const registerMockProviderRoutes = (router, ctx) => {
           getFallbackSquad: getTeamSquadByCode,
         }))
     } catch (error) {
-      return res.status(400).json({ message: error.message || 'Invalid tournament payload' })
+      return res
+        .status(400)
+        .json({ message: error.message || 'Invalid tournament payload' })
     }
     if (!normalizedMatches.length) {
       return res.status(400).json({ message: 'Matches must include valid teams' })
@@ -894,14 +910,18 @@ const registerMockProviderRoutes = (router, ctx) => {
   router.post('/admin/auctions/import', (req, res) => {
     const actor = resolveAdminActor(req)
     if (!canManageTournaments(actor)) {
-      return res.status(403).json({ message: 'Only admin/master can import auction contests' })
+      return res
+        .status(403)
+        .json({ message: 'Only admin/master can import auction contests' })
     }
     const payload = req.body || {}
     const tournamentId = (payload.tournamentId || '').toString().trim()
     const contestName = (payload.contestName || payload.name || '').toString().trim()
     const participants = Array.isArray(payload.participants) ? payload.participants : []
     if (!tournamentId || !contestName) {
-      return res.status(400).json({ message: 'tournamentId and contestName are required' })
+      return res
+        .status(400)
+        .json({ message: 'tournamentId and contestName are required' })
     }
     if (!participants.length) {
       return res.status(400).json({ message: 'At least one participant is required' })
@@ -912,7 +932,9 @@ const registerMockProviderRoutes = (router, ctx) => {
     if (emptyRosterIndex >= 0) {
       return res
         .status(400)
-        .json({ message: `participants[${emptyRosterIndex}].roster must contain at least one player` })
+        .json({
+          message: `participants[${emptyRosterIndex}].roster must contain at least one player`,
+        })
     }
     const tournament = getTournamentCatalogEntry(tournamentId)
     if (!tournament) {
@@ -924,12 +946,14 @@ const registerMockProviderRoutes = (router, ctx) => {
         (row.name || '').toString().trim().toLowerCase() === contestName.toLowerCase(),
     )
     if (duplicateContest) {
-      return res.status(409).json({ message: `Auction contest already exists: ${contestName}` })
+      return res
+        .status(409)
+        .json({ message: `Auction contest already exists: ${contestName}` })
     }
 
     const allowedTeams = new Set(
-      (Array.isArray(tournament.selectedTeams) ? tournament.selectedTeams : []).map((item) =>
-        normalizeTeamCode(item),
+      (Array.isArray(tournament.selectedTeams) ? tournament.selectedTeams : []).map(
+        (item) => normalizeTeamCode(item),
       ),
     )
     const playerLookup = new Map()
@@ -951,7 +975,9 @@ const registerMockProviderRoutes = (router, ctx) => {
     const bcrypt = ctx.bcrypt || globalThis.bcrypt
 
     for (const entry of participants) {
-      const name = (entry?.name || entry?.gameName || entry?.userId || '').toString().trim()
+      const name = (entry?.name || entry?.gameName || entry?.userId || '')
+        .toString()
+        .trim()
       const userId = (entry?.userId || entry?.gameName || name || '').toString().trim()
       const gameName = (entry?.gameName || userId || name || '').toString().trim()
       if (!name && !userId && !gameName) continue
@@ -986,7 +1012,8 @@ const registerMockProviderRoutes = (router, ctx) => {
         ? entry.roster.map((item) => item?.toString?.().trim?.() || '').filter(Boolean)
         : []
       roster.forEach((playerName) => {
-        if (!playerLookup.has(normalizeRosterName(playerName))) missingNames.add(playerName)
+        if (!playerLookup.has(normalizeRosterName(playerName)))
+          missingNames.add(playerName)
       })
       fixedParticipants.push({
         userId: user.userId || user.gameName,
@@ -1186,7 +1213,10 @@ const registerMockProviderRoutes = (router, ctx) => {
       : []
     const normalizedMatchIds = Array.from(
       new Set(
-        (requestedMatchIds.length ? requestedMatchIds : tournamentMatches.map((match) => match.id))
+        (requestedMatchIds.length
+          ? requestedMatchIds
+          : tournamentMatches.map((match) => match.id)
+        )
           .map((id) => id?.toString?.() || '')
           .filter((id) => allowedMatchIds.has(id)),
       ),
@@ -1499,7 +1529,9 @@ const registerMockProviderRoutes = (router, ctx) => {
     const contest = mockContests.find((item) => item.id === contestId)
     if (!contest) return res.status(404).json({ message: 'Contest not found' })
     if (isFixedRosterContest(contest)) {
-      return res.status(403).json({ message: 'This contest has fixed participant rosters' })
+      return res
+        .status(403)
+        .json({ message: 'This contest has fixed participant rosters' })
     }
     const joinedSet = getJoinedSetForUser(userId)
     if (joinedSet.has(contestId)) {
@@ -1660,7 +1692,9 @@ const registerMockProviderRoutes = (router, ctx) => {
           userId,
           name: seededUser.name,
           points: computedPoints,
-          canView: isFixedRosterContest(contest) ? true : activeMatch.status !== 'notstarted',
+          canView: isFixedRosterContest(contest)
+            ? true
+            : activeMatch.status !== 'notstarted',
           hasTeam: isFixedRosterContest(contest) ? true : pickNames.length > 0,
         }
       })
@@ -1991,10 +2025,14 @@ const registerMockProviderRoutes = (router, ctx) => {
       return res.status(404).json({ message: 'Match not found' })
     }
     if (isFixedRosterContest(contest)) {
-      return res.status(403).json({ message: 'Fixed-roster contests cannot save match-wise teams' })
+      return res
+        .status(403)
+        .json({ message: 'Fixed-roster contests cannot save match-wise teams' })
     }
     if (normalizeMatchStatus(activeMatch.status) !== 'notstarted') {
-      return res.status(403).json({ message: 'Match is locked. Teams cannot be edited after start time.' })
+      return res
+        .status(403)
+        .json({ message: 'Match is locked. Teams cannot be edited after start time.' })
     }
     const actor = resolveTeamActor(req, userId)
     if (!actor) {
@@ -2017,7 +2055,10 @@ const registerMockProviderRoutes = (router, ctx) => {
     if (backups.length > 6) {
       return res.status(400).json({ message: 'backups must be 0-6 players' })
     }
-    if (captainId && !playingXi.map((item) => item.toString()).includes(captainId.toString())) {
+    if (
+      captainId &&
+      !playingXi.map((item) => item.toString()).includes(captainId.toString())
+    ) {
       return res.status(400).json({ message: 'captainId must be part of playingXi' })
     }
     if (
@@ -2026,11 +2067,7 @@ const registerMockProviderRoutes = (router, ctx) => {
     ) {
       return res.status(400).json({ message: 'viceCaptainId must be part of playingXi' })
     }
-    if (
-      captainId &&
-      viceCaptainId &&
-      captainId.toString() === viceCaptainId.toString()
-    ) {
+    if (captainId && viceCaptainId && captainId.toString() === viceCaptainId.toString()) {
       return res.status(400).json({ message: 'captainId and viceCaptainId cannot match' })
     }
 
@@ -2141,9 +2178,10 @@ const registerMockProviderRoutes = (router, ctx) => {
       ? matchPointsByName
       : fallbackMatchPointsByName
     const pointsByPlayerId = getTournamentPlayerStatsIndex(tournamentId)
-    const fixedRoster = contest && isFixedRosterContest(contest)
-      ? getFixedRosterNames({ contest, userId, matchId })
-      : null
+    const fixedRoster =
+      contest && isFixedRosterContest(contest)
+        ? getFixedRosterNames({ contest, userId, matchId })
+        : null
     const picks = fixedRoster
       ? fixedRoster.roster
       : selection?.playingXi?.map((id) => idToName.get(id)).filter(Boolean) || []

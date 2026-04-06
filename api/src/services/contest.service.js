@@ -33,11 +33,14 @@ const deriveContestLifecycle = (contest = {}, nowInput = new Date()) => {
       ? scheduledStart
       : null
   const manualStartValid =
-    manualStart instanceof Date && !Number.isNaN(manualStart.getTime()) ? manualStart : null
+    manualStart instanceof Date && !Number.isNaN(manualStart.getTime())
+      ? manualStart
+      : null
   const isCompleted = rawStatus === 'completed'
   const isLocked = ['locked', 'closed', 'inactive', 'disabled'].includes(rawStatus)
   const hasStarted = Boolean(
-    manualStartValid || (scheduledStartValid && scheduledStartValid.getTime() <= now.getTime()),
+    manualStartValid ||
+    (scheduledStartValid && scheduledStartValid.getTime() <= now.getTime()),
   )
 
   if (isCompleted) {
@@ -70,7 +73,8 @@ const deriveContestLifecycle = (contest = {}, nowInput = new Date()) => {
   const msUntilStart = scheduledStartValid
     ? scheduledStartValid.getTime() - now.getTime()
     : Number.POSITIVE_INFINITY
-  const startingSoon = Number.isFinite(msUntilStart) && msUntilStart <= STARTING_SOON_WINDOW_MS
+  const startingSoon =
+    Number.isFinite(msUntilStart) && msUntilStart <= STARTING_SOON_WINDOW_MS
 
   return {
     status: startingSoon ? 'Starting Soon' : 'Open',
@@ -115,7 +119,11 @@ const buildFixedRosterScoredEntries = ({
 }) => {
   const activeTeams = new Set(
     (Array.isArray(activeTeamKeys) ? activeTeamKeys : [])
-      .map((value) => String(value || '').trim().toUpperCase())
+      .map((value) =>
+        String(value || '')
+          .trim()
+          .toUpperCase(),
+      )
       .filter(Boolean),
   )
   const roster = (Array.isArray(orderedPlayerIds) ? orderedPlayerIds : [])
@@ -137,10 +145,19 @@ const buildFixedRosterScoredEntries = ({
   }
 
   const involved = roster.filter((entry) =>
-    activeTeams.has(String(entry.team || entry.teamKey || '').trim().toUpperCase()),
+    activeTeams.has(
+      String(entry.team || entry.teamKey || '')
+        .trim()
+        .toUpperCase(),
+    ),
   )
   const rest = roster.filter(
-    (entry) => !activeTeams.has(String(entry.team || entry.teamKey || '').trim().toUpperCase()),
+    (entry) =>
+      !activeTeams.has(
+        String(entry.team || entry.teamKey || '')
+          .trim()
+          .toUpperCase(),
+      ),
   )
   return { involved, rest }
 }
@@ -252,7 +269,9 @@ class ContestService {
       .map((match) => ({
         id: String(match.id),
         matchNo: match.matchNo ?? null,
-        name: match.name || `${match.teamA || match.teamAKey} vs ${match.teamB || match.teamBKey}`,
+        name:
+          match.name ||
+          `${match.teamA || match.teamAKey} vs ${match.teamB || match.teamBKey}`,
         date: match.startTime || match.date || '',
         startAt: match.startTime || match.startAt || '',
         status: match.status,
@@ -268,10 +287,14 @@ class ContestService {
       payload.status = normalizeContestStatusInput(payload.status)
     }
     if (payload.startAt !== undefined) {
-      payload.startAt = payload.startAt ? normalizeContestDateInput(payload.startAt) : null
+      payload.startAt = payload.startAt
+        ? normalizeContestDateInput(payload.startAt)
+        : null
     }
     if (payload.startedAt !== undefined) {
-      payload.startedAt = payload.startedAt ? normalizeContestDateInput(payload.startedAt) : null
+      payload.startedAt = payload.startedAt
+        ? normalizeContestDateInput(payload.startedAt)
+        : null
     }
     return await repo.update(id, payload)
   }
@@ -324,7 +347,10 @@ class ContestService {
     if (result.rows.length > 0) {
       return { joined: true, message: 'Already joined' }
     }
-    if (lifecycle.maxPlayers > 0 && Number(contest?.participantsCount || 0) >= lifecycle.maxPlayers) {
+    if (
+      lifecycle.maxPlayers > 0 &&
+      Number(contest?.participantsCount || 0) >= lifecycle.maxPlayers
+    ) {
       const error = new Error('Contest is full')
       error.statusCode = 403
       throw error
@@ -367,7 +393,13 @@ class ContestService {
   async getContestParticipants(contestId, options = {}) {
     const contest = await this.getContestById(contestId)
     if (!contest) {
-      return { participants: [], joinedCount: 0, withTeamCount: 0, previewXI: [], previewBackups: [] }
+      return {
+        participants: [],
+        joinedCount: 0,
+        withTeamCount: 0,
+        previewXI: [],
+        previewBackups: [],
+      }
     }
     const participantSourceSql =
       (contest.mode || '').toString() === 'fixed_roster'
@@ -455,11 +487,18 @@ class ContestService {
         orderedPlayerIds: fixedRosterResult.rows[0]?.playerIds || [],
         playerById,
         pointsByPlayerId,
-        activeTeamKeys: [matchRecord?.teamAKey || matchRecord?.teamA, matchRecord?.teamBKey || matchRecord?.teamB],
+        activeTeamKeys: [
+          matchRecord?.teamAKey || matchRecord?.teamA,
+          matchRecord?.teamBKey || matchRecord?.teamB,
+        ],
       })
       previewXI = split.involved
       previewBackups = split.rest
-    } else if (matchId && viewerUserId && (contest.mode || '').toString() !== 'fixed_roster') {
+    } else if (
+      matchId &&
+      viewerUserId &&
+      (contest.mode || '').toString() !== 'fixed_roster'
+    ) {
       const selection = await teamSelectionService.getUserPicksByMatch(
         viewerUserId,
         matchId,
@@ -476,7 +515,9 @@ class ContestService {
             String(player.id),
             {
               id: player.id,
-              name: player.displayName || [player.firstName, player.lastName].filter(Boolean).join(' ').trim(),
+              name:
+                player.displayName ||
+                [player.firstName, player.lastName].filter(Boolean).join(' ').trim(),
               imageUrl: player.imageUrl || '',
             },
           ]),
@@ -487,7 +528,13 @@ class ContestService {
     }
 
     if (!matchId) {
-      return { participants: [], joinedCount, withTeamCount: 0, previewXI, previewBackups }
+      return {
+        participants: [],
+        joinedCount,
+        withTeamCount: 0,
+        previewXI,
+        previewBackups,
+      }
     }
 
     if ((contest.mode || '').toString() === 'fixed_roster') {
@@ -575,7 +622,9 @@ class ContestService {
       const normalizedStatus = (row.status || '').toString().trim().toLowerCase()
       const statusOk = statusFilter === 'all' || normalizedStatus === statusFilter
       const teamOk =
-        teamFilter === 'ALL' || row.home?.toUpperCase() === teamFilter || row.away?.toUpperCase() === teamFilter
+        teamFilter === 'ALL' ||
+        row.home?.toUpperCase() === teamFilter ||
+        row.away?.toUpperCase() === teamFilter
       return statusOk && teamOk
     })
 
@@ -604,7 +653,10 @@ class ContestService {
       [contestId, filteredRows.map((row) => row.id)],
     )
     const submittedCountByMatch = new Map(
-      selectionCountsResult.rows.map((row) => [String(row.matchId), Number(row.count || 0)]),
+      selectionCountsResult.rows.map((row) => [
+        String(row.matchId),
+        Number(row.count || 0),
+      ]),
     )
 
     let viewerJoined = false
@@ -658,7 +710,8 @@ class ContestService {
 
   async getContestLeaderboard(contestId) {
     const contest = await this.getContestById(contestId)
-    const isFixedRoster = (contest?.mode || '').toString().trim().toLowerCase() === 'fixed_roster'
+    const isFixedRoster =
+      (contest?.mode || '').toString().trim().toLowerCase() === 'fixed_roster'
     const result = await dbQuery(
       `WITH participant_ids AS (
          SELECT user_id
@@ -689,7 +742,14 @@ class ContestService {
 
   async getContestUserMatchScores(contestId, userId, compareUserId = '') {
     const contest = await this.getContestById(contestId)
-    if (!contest) return { contestId, userId, compareUserId, totals: { userPoints: 0, comparePoints: 0, delta: 0 }, rows: [] }
+    if (!contest)
+      return {
+        contestId,
+        userId,
+        compareUserId,
+        totals: { userPoints: 0, comparePoints: 0, delta: 0 },
+        rows: [],
+      }
     const matches = await this.getContestMatches(contestId)
     const scoreResult = await dbQuery(
       `SELECT match_id as "matchId", user_id as "userId", points
@@ -699,7 +759,10 @@ class ContestService {
       [contestId, [Number(userId), ...(compareUserId ? [Number(compareUserId)] : [])]],
     )
     const scoreIndex = new Map(
-      scoreResult.rows.map((row) => [`${row.userId}:${row.matchId}`, Number(row.points || 0)]),
+      scoreResult.rows.map((row) => [
+        `${row.userId}:${row.matchId}`,
+        Number(row.points || 0),
+      ]),
     )
     const rows = matches.map((match) => ({
       matchId: match.id,
@@ -708,7 +771,9 @@ class ContestService {
       date: match.startTime,
       status: mapMatchWithDerivedStatus(match).status,
       userPoints: Number(scoreIndex.get(`${userId}:${match.id}`) || 0),
-      comparePoints: compareUserId ? Number(scoreIndex.get(`${compareUserId}:${match.id}`) || 0) : 0,
+      comparePoints: compareUserId
+        ? Number(scoreIndex.get(`${compareUserId}:${match.id}`) || 0)
+        : 0,
       delta:
         Number(scoreIndex.get(`${userId}:${match.id}`) || 0) -
         Number(scoreIndex.get(`${compareUserId}:${match.id}`) || 0),

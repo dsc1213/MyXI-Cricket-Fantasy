@@ -85,7 +85,9 @@ test('fantasy contest tile shows last score update timestamp and updater', async
       undefined,
       200,
     )
-    const apiContest = (contestsApi || []).find((row) => String(row.id) === String(contestId))
+    const apiContest = (contestsApi || []).find(
+      (row) => String(row.id) === String(contestId),
+    )
     expect(apiContest?.lastScoreUpdatedAt).toBeTruthy()
     expect(String(apiContest?.lastScoreUpdatedBy || '').trim().length).toBeGreaterThan(0)
 
@@ -103,7 +105,9 @@ test('fantasy contest tile shows last score update timestamp and updater', async
       .first()
     await expect(contestCard).toBeVisible()
 
-    const scoreMetaLine = contestCard.locator('.team-note', { hasText: 'Last score update:' })
+    const scoreMetaLine = contestCard.locator('.team-note', {
+      hasText: 'Last score update:',
+    })
     await expect(scoreMetaLine).toBeVisible()
     await expect(scoreMetaLine).not.toContainText('Last score update: -')
     await expect(scoreMetaLine).toContainText(/by\s+\S+/i)

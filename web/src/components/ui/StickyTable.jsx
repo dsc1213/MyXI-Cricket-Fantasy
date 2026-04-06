@@ -2,9 +2,7 @@ import { useMemo, useState } from 'react'
 
 function isSortablePrimitive(value) {
   return (
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean'
+    typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
   )
 }
 
@@ -83,17 +81,21 @@ function StickyTable({
             {columns.map((column) => {
               const sortable = isColumnSortable(column)
               const isActive = sortState.key === column.key
-              const icon = isActive
-                ? sortState.direction === 'asc'
-                  ? '▲'
-                  : '▼'
-                : '▲▼'
+              const icon = isActive ? (sortState.direction === 'asc' ? '▲' : '▼') : '▲▼'
               const columnStyle =
                 column.width != null
-                  ? { width: column.width, minWidth: column.width, maxWidth: column.width }
+                  ? {
+                      width: column.width,
+                      minWidth: column.width,
+                      maxWidth: column.width,
+                    }
                   : undefined
               return (
-                <th key={column.key} className={column.headerClassName || ''} style={columnStyle}>
+                <th
+                  key={column.key}
+                  className={column.headerClassName || ''}
+                  style={columnStyle}
+                >
                   {sortable ? (
                     <button
                       type="button"
@@ -101,7 +103,9 @@ function StickyTable({
                       onClick={() => onToggleSort(column)}
                     >
                       <span>{column.label}</span>
-                      {!column.hideSortIcon && <span className="table-sort-icon">{icon}</span>}
+                      {!column.hideSortIcon && (
+                        <span className="table-sort-icon">{icon}</span>
+                      )}
                     </button>
                   ) : (
                     <span>{column.label}</span>
@@ -140,13 +144,11 @@ function StickyTable({
                 ))}
               </tr>
             ))
-          ) : (
-            showEmptyRow ? (
-              <tr>
-                <td colSpan={columns.length}>{emptyText}</td>
-              </tr>
-            ) : null
-          )}
+          ) : showEmptyRow ? (
+            <tr>
+              <td colSpan={columns.length}>{emptyText}</td>
+            </tr>
+          ) : null}
         </tbody>
       </table>
     </div>

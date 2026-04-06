@@ -32,7 +32,10 @@ import {
   sectionTitles,
 } from './dashboard/constants.js'
 import { getStoredUser } from '../lib/auth.js'
-import { cloneDefaultPointsRules, normalizePointsRuleTemplate } from '../lib/defaultPointsRules.js'
+import {
+  cloneDefaultPointsRules,
+  normalizePointsRuleTemplate,
+} from '../lib/defaultPointsRules.js'
 
 const defaultPointsRules = cloneDefaultPointsRules()
 
@@ -77,7 +80,6 @@ const buildManualStatsState = (players = [], savedRows = []) => {
   ;(players || []).forEach((player) => {
     next[player.id] = buildDefaultManualStatsRow()
   })
-
   ;(savedRows || []).forEach((row) => {
     const targetId =
       (row?.playerId != null && next[row.playerId] ? row.playerId : null) ||
@@ -136,9 +138,12 @@ function Dashboard({ defaultPanel = 'joined' }) {
   const [pageLoadData, setPageLoadData] = useState(buildFallbackBootstrap)
   const [pointsRules, setPointsRules] = useState(defaultPointsRules)
   const currentUser = getStoredUser()
-  const currentUserId = currentUser?.userId || currentUser?.gameName || currentUser?.email || ''
+  const currentUserId =
+    currentUser?.userId || currentUser?.gameName || currentUser?.email || ''
   const mobilePanelValue =
-    activePanel === '__all-pages__' || activePanel === '__all-apis__' ? defaultPanel : activePanel
+    activePanel === '__all-pages__' || activePanel === '__all-apis__'
+      ? defaultPanel
+      : activePanel
   const panelAliases = {
     admin: 'userManager',
     createTournament: 'tournamentManager',
@@ -174,7 +179,9 @@ function Dashboard({ defaultPanel = 'joined' }) {
     const allPlayers = [...teamAPlayers, ...teamBPlayers]
     try {
       const savedScore = await fetchAdminMatchScores({ tournamentId, matchId })
-      setManualPlayerStats(buildManualStatsState(allPlayers, savedScore?.playerStats || []))
+      setManualPlayerStats(
+        buildManualStatsState(allPlayers, savedScore?.playerStats || []),
+      )
     } catch {
       setManualPlayerStats(buildManualStatsState(allPlayers, []))
     }
@@ -269,7 +276,8 @@ function Dashboard({ defaultPanel = 'joined' }) {
         ? currentUser?.contestManagerContestId || ''
         : ''
     return (allContests || []).filter((contest) => {
-      const tournamentOk = !manualTournamentId || contest.tournamentId === manualTournamentId
+      const tournamentOk =
+        !manualTournamentId || contest.tournamentId === manualTournamentId
       const scopeOk = !contestManagerScopeId || contest.id === contestManagerScopeId
       return tournamentOk && scopeOk
     })
@@ -403,16 +411,13 @@ function Dashboard({ defaultPanel = 'joined' }) {
   const showAdminTools = ['admin', 'master_admin', 'contest_manager'].includes(
     currentUser?.role,
   )
-  const visibleAdminMenuItems = useMemo(
-    () => {
-      if (!showAdminTools) return []
-      if (currentUser?.role === 'contest_manager') {
-        return adminMenuItems.filter((item) => item.key === 'upload')
-      }
-      return adminMenuItems
-    },
-    [currentUser?.role, showAdminTools],
-  )
+  const visibleAdminMenuItems = useMemo(() => {
+    if (!showAdminTools) return []
+    if (currentUser?.role === 'contest_manager') {
+      return adminMenuItems.filter((item) => item.key === 'upload')
+    }
+    return adminMenuItems
+  }, [currentUser?.role, showAdminTools])
   const visibleMenuItems = useMemo(
     () => [
       ...regularMenuItems,
@@ -500,7 +505,8 @@ function Dashboard({ defaultPanel = 'joined' }) {
       setIsSavingScores(true)
       const effectiveContestId =
         manualContestId ||
-        filteredManualContests.find((item) => item.tournamentId === manualTournamentId)?.id ||
+        filteredManualContests.find((item) => item.tournamentId === manualTournamentId)
+          ?.id ||
         ''
       const response = await saveMatchScores({
         payloadText: uploadPayloadText,
@@ -601,7 +607,8 @@ function Dashboard({ defaultPanel = 'joined' }) {
       await upsertMatchLineups({
         tournamentId: manualTournamentId,
         matchId: manualMatchId,
-        updatedBy: currentUser?.gameName || currentUser?.email || currentUser?.id || 'admin',
+        updatedBy:
+          currentUser?.gameName || currentUser?.email || currentUser?.id || 'admin',
         source: 'manual-xi',
         lineups: payload,
       })
@@ -630,7 +637,8 @@ function Dashboard({ defaultPanel = 'joined' }) {
       const response = await upsertMatchLineups({
         tournamentId: manualTournamentId,
         matchId: manualMatchId,
-        updatedBy: currentUser?.gameName || currentUser?.email || currentUser?.id || 'admin',
+        updatedBy:
+          currentUser?.gameName || currentUser?.email || currentUser?.id || 'admin',
         source: 'json-lineup',
         strictSquad: false,
         lineups,
@@ -670,7 +678,8 @@ function Dashboard({ defaultPanel = 'joined' }) {
       )
       const effectiveContestId =
         manualContestId ||
-        filteredManualContests.find((item) => item.tournamentId === manualTournamentId)?.id ||
+        filteredManualContests.find((item) => item.tournamentId === manualTournamentId)
+          ?.id ||
         ''
       const response = await upsertManualMatchScores({
         tournamentId: manualTournamentId,
@@ -827,7 +836,10 @@ function Dashboard({ defaultPanel = 'joined' }) {
       />
     ),
     audit: (
-      <AuditLogsPanel rows={infoPanelMap.audit || []} tournaments={pageLoadData.tournaments} />
+      <AuditLogsPanel
+        rows={infoPanelMap.audit || []}
+        tournaments={pageLoadData.tournaments}
+      />
     ),
     approvals: (
       <>
@@ -913,7 +925,9 @@ function Dashboard({ defaultPanel = 'joined' }) {
         <div className="section-head-compact">
           <h2>{sectionTitles[activePanel]}</h2>
           {isLoading && <p className="team-note">Loading dashboard...</p>}
-          {!showApiFailureTile && !!errorText && <p className="error-text">{errorText}</p>}
+          {!showApiFailureTile && !!errorText && (
+            <p className="error-text">{errorText}</p>
+          )}
           {!!saveNotice && <p className="success-text">{saveNotice}</p>}
         </div>
         <div className="dashboard-panel-view">
