@@ -1,0 +1,1787 @@
+{
+    "players": [
+        {
+            "id": "02e239d1-c27b-48f4-af45-9c6f45f4fdb3",
+            "name": "Shubham Dubey",
+            "role": "BAT",
+            "ipl_team": "RR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "0380aa9b-e930-4db1-9f23-3510d7e9bc5f",
+            "name": "Finn Allen",
+            "role": "BAT",
+            "ipl_team": "KKR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/08924d57-b4d3-4ed0-903d-087a8384be12.jpg",
+            "nationality": "New Zealand",
+            "flagged": false
+        },
+        {
+            "id": "03862f46-5f2d-4fae-bc48-f1c7aa39e875",
+            "name": "Jaydev Unadkat",
+            "role": "BOWL",
+            "ipl_team": "SRH",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/f589d2a9-4e44-464d-9741-e224354a1370.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "043eb603-b776-406e-903d-2cee164a7d46",
+            "name": "Mitchell Owen",
+            "role": "AR",
+            "ipl_team": "PBKS",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "Australia",
+            "flagged": false
+        },
+        {
+            "id": "049941d5-bc74-420a-9ff9-cc933e6683de",
+            "name": "Prasidh Krishna",
+            "role": "BOWL",
+            "ipl_team": "GT",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/99eb6b5c-379f-46da-bab7-dc8fd31ba435.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "093524c8-7c26-4621-9c37-17ca3370becf",
+            "name": "Nuwan Thushara",
+            "role": "BOWL",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/eb911b3b-10b3-40f8-9294-e63ba030af83.jpg",
+            "nationality": "Sri Lanka",
+            "flagged": false
+        },
+        {
+            "id": "0a5469c9-dbbf-4e43-9fdc-7f6e41274256",
+            "name": "Ravi Singh",
+            "role": "WK",
+            "ipl_team": "RR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "0b4d5408-0447-414a-b220-10d013f99e8b",
+            "name": "Jason Holder",
+            "role": "AR",
+            "ipl_team": "GT",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/f8e6accd-6b73-4869-93a6-d45519a361f0.jpg",
+            "nationality": "West Indies",
+            "flagged": false
+        },
+        {
+            "id": "0d209040-f027-437c-8084-545a39bd9960",
+            "name": "AM Ghazanfar",
+            "role": "BOWL",
+            "ipl_team": "MI",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "Afghanistan",
+            "flagged": false
+        },
+        {
+            "id": "0de5d9de-b819-4419-bd81-f85c0e67330f",
+            "name": "Shardul Thakur",
+            "role": "AR",
+            "ipl_team": "MI",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/c1257351-51ca-446f-b7f5-01fe92e75076.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "0e149e61-d9dc-4de7-9837-9ed9049dd4b1",
+            "name": "Krunal Pandya",
+            "role": "AR",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/81c09c1b-1b1d-4e87-9eaa-d7d0a89a6159.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "100c0631-3db2-4bca-9d6b-9941e683247c",
+            "name": "Yash Dayal",
+            "role": "BOWL",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "11104d33-8722-41f5-a6de-036e6c305918",
+            "name": "KL Rahul",
+            "role": "WK",
+            "ipl_team": "DC",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/a034346c-b408-4d29-a0f0-8b12430be28e.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "11826f30-0e10-4d6c-a3d4-38fa3b45a2cd",
+            "name": "Harshit Rana",
+            "role": "BOWL",
+            "ipl_team": "KKR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "131f7711-f18b-47f3-8fe6-80dddc1f22bd",
+            "name": "Umran Malik",
+            "role": "BOWL",
+            "ipl_team": "KKR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/b367db88-a73e-445f-8cdd-3f6335617b07.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "133fa5b1-fde3-4168-bc7c-df88dc5e8bfd",
+            "name": "Aiden Markram",
+            "role": "BAT",
+            "ipl_team": "LSG",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/3fef81b0-c1e9-45eb-954f-519f3b33d640.jpg",
+            "nationality": "South Africa",
+            "flagged": false
+        },
+        {
+            "id": "75ceef6f-b894-4c09-9e73-44e6cc7021c9",
+            "name": "Mukesh Choudhary",
+            "role": "BOWL",
+            "ipl_team": "CSK",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "fdafd7b1-a934-4a6e-9bcc-65c7d895b14f",
+            "name": "Zakary Foulkes",
+            "role": "AR",
+            "ipl_team": "CSK",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "New Zealand",
+            "flagged": false
+        },
+        {
+            "id": "29a54a0c-3ce0-4f31-aa74-f4e2ee0bc145",
+            "name": "Sai Sudharsan",
+            "role": "BAT",
+            "ipl_team": "GT",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "2e40e0de-a339-46d0-b58b-3891406364bc",
+            "name": "Rajat Patidar",
+            "role": "BAT",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "2f612ad1-6501-4c4e-a52e-67bb8ebc497c",
+            "name": "Yudhvir Singh Charak",
+            "role": "BOWL",
+            "ipl_team": "RR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "3b6ce5c7-2afa-4f17-9137-9ea7312e1733",
+            "name": "Sushant Mishra",
+            "role": "BOWL",
+            "ipl_team": "RR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "502cfe85-681b-4495-8f69-414af5e7b817",
+            "name": "Josh Hazlewood",
+            "role": "BOWL",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/2190c28d-1712-4fd2-ae44-9ac54319fc21.jpg",
+            "nationality": "Australia",
+            "flagged": false
+        },
+        {
+            "id": "503d2e75-188c-4f96-a144-0e07cabdaf12",
+            "name": "Tilak Varma",
+            "role": "BAT",
+            "ipl_team": "MI",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/aefd9074-da5a-408d-94f1-3be0e79d3b82.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "5311b530-8bef-4d48-827b-c8fb49a6ad55",
+            "name": "Kumar Kushagra",
+            "role": "WK",
+            "ipl_team": "GT",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "53f147a2-7975-4580-a3a5-92ea6c2dbd96",
+            "name": "Raj Bawa",
+            "role": "AR",
+            "ipl_team": "MI",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/b64ccf20-292a-4834-b3d7-9de55187f44a.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "54ed8eff-d94c-41fb-94da-b853d5126b0a",
+            "name": "Jacob Duffy",
+            "role": "BOWL",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/6e05cbea-6a4b-42ef-8e2e-b44e4b434c2f.jpg",
+            "nationality": "New Zealand",
+            "flagged": false
+        },
+        {
+            "id": "56da70d0-d301-4191-98b9-1e08ce3eefaa",
+            "name": "Josh Inglis",
+            "role": "WK",
+            "ipl_team": "LSG",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/c040878f-3995-444c-a0f2-10a456f6c84d.jpg",
+            "nationality": "Australia",
+            "flagged": false
+        },
+        {
+            "id": "5873134f-4562-4819-b326-99af19303f6e",
+            "name": "Eshan Malinga",
+            "role": "BOWL",
+            "ipl_team": "SRH",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "Sri Lanka",
+            "flagged": false
+        },
+        {
+            "id": "5cd6fc97-a1b9-40bb-85c1-064f067df512",
+            "name": "Rahul Tewatia",
+            "role": "AR",
+            "ipl_team": "GT",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/085d49b0-d5e5-4fc5-955b-39758a134545.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "5d00ca56-9275-4f9c-9cab-5056f88d25c4",
+            "name": "Harnoor Singh",
+            "role": "BAT",
+            "ipl_team": "PBKS",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/56ec7d07-d0d8-4d25-84df-64b0b3ce963d.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "60007db3-01bc-44bf-a2dd-8dcf0f7a6d4f",
+            "name": "Harsh Dubey",
+            "role": "AR",
+            "ipl_team": "SRH",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "6b018757-2be9-44a7-8b62-c88d8a955da0",
+            "name": "Gurjapneet Singh",
+            "role": "BOWL",
+            "ipl_team": "CSK",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "6f1bf6d3-cff7-423b-9f34-254f87b254ee",
+            "name": "Rahul Chahar",
+            "role": "BOWL",
+            "ipl_team": "CSK",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/d774adaf-78f0-4bf3-965e-8182c05b4517.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "8c727fcd-6574-49a1-a82d-04c3f21a4e12",
+            "name": "Jayant Yadav",
+            "role": "AR",
+            "ipl_team": "GT",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/9fc99793-a5b5-4eb2-9f7b-48cc3dc3cf8d.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "8df60762-73b4-4bd7-a5cb-19794784e785",
+            "name": "Vignesh Puthur",
+            "role": "BOWL",
+            "ipl_team": "RR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "adca1d05-5657-400f-a0a2-34cb5e0771f3",
+            "name": "Prashant Veer",
+            "role": "BOWL",
+            "ipl_team": "CSK",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "b833be53-fa1e-4cb4-9044-c7e9c2b3ced9",
+            "name": "Wanindu Hasaranga",
+            "role": "AR",
+            "ipl_team": "LSG",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/ba4ba8aa-3ebb-431a-83a9-a78844a68e26.jpg",
+            "nationality": "Sri Lanka",
+            "flagged": false
+        },
+        {
+            "id": "b8ffd37a-685c-42ce-97d7-751e37bcec6f",
+            "name": "Quinton de Kock",
+            "role": "WK",
+            "ipl_team": "MI",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/000f9f7c-cc24-4a85-8638-b013b0f4760e.jpg",
+            "nationality": "South Africa",
+            "flagged": false
+        },
+        {
+            "id": "d6a461af-a036-4e8d-bb24-d38f697ecf78",
+            "name": "Prashant Solanki",
+            "role": "BOWL",
+            "ipl_team": "KKR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "e63ffd3a-711a-4c60-a393-757d3c9bd9a0",
+            "name": "Amit Kumar",
+            "role": "BAT",
+            "ipl_team": "SRH",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "ed8f51e5-0de4-4092-ab5c-00f43dce963b",
+            "name": "Dewald Brevis",
+            "role": "BAT",
+            "ipl_team": "CSK",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/14a56d48-499a-4b03-aa0f-bd3f592e9d94.jpg",
+            "nationality": "South Africa",
+            "flagged": false
+        },
+        {
+            "id": "f268e8ee-89a9-4c4b-a826-aaf2c13d138f",
+            "name": "Cameron Green",
+            "role": "AR",
+            "ipl_team": "KKR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/abe58090-e933-4888-8538-64f4611ee259.jpg",
+            "nationality": "Australia",
+            "flagged": false
+        },
+        {
+            "id": "f4ac1cea-7eab-45fe-aea2-97227f8d3407",
+            "name": "Kartik Sharma",
+            "role": "WK",
+            "ipl_team": "CSK",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "fe4fe91c-668b-471e-baf4-2f52ed829aab",
+            "name": "Nandre Burger",
+            "role": "BOWL",
+            "ipl_team": "RR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "South Africa",
+            "flagged": false
+        },
+        {
+            "id": "b7374840-3a86-4c69-8f3a-30dcc20e69ca",
+            "name": "Lhuan-dre Pretorius",
+            "role": "WK",
+            "ipl_team": "RR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "South Africa",
+            "flagged": false
+        },
+        {
+            "id": "8f8525ae-d832-4c9c-9927-60fc64929771",
+            "name": "Naman Tiwari",
+            "role": "BOWL",
+            "ipl_team": "LSG",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "13ea2aa3-0fbc-450b-80d2-4cfd1402237a",
+            "name": "Sam Curran",
+            "role": "AR",
+            "ipl_team": "RR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/45613012-5c4f-4a7a-a1c4-d9827939b2bf.jpg",
+            "nationality": "England",
+            "flagged": false
+        },
+        {
+            "id": "15798f76-21a7-4fff-a257-a5bb04c6e447",
+            "name": "Rovman Powell",
+            "role": "BAT",
+            "ipl_team": "KKR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/c699ec2b-a5f6-4ee0-a42d-79391b65b293.jpg",
+            "nationality": "West Indies",
+            "flagged": false
+        },
+        {
+            "id": "159677d6-e0ea-4d09-8621-29fca19086b7",
+            "name": "Shahbaz Ahmed",
+            "role": "AR",
+            "ipl_team": "LSG",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/8f4c667c-4bb2-4808-a77b-ebece70f4273.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "15dddc43-df94-4e29-b0a3-28bc790164dd",
+            "name": "Vishnu Vinod",
+            "role": "WK",
+            "ipl_team": "PBKS",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "15ee5daf-a187-4672-b446-9b56fd0b1c93",
+            "name": "David Miller",
+            "role": "BAT",
+            "ipl_team": "DC",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/2f50df2f-809d-44f9-b5be-ccb846515861.jpg",
+            "nationality": "South Africa",
+            "flagged": false
+        },
+        {
+            "id": "16c8968d-e3ff-4575-9249-eb48ddece902",
+            "name": "Akash Maharaj Singh",
+            "role": "BOWL",
+            "ipl_team": "LSG",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "16d6c1fb-489c-4203-89ad-7c89811575be",
+            "name": "Sherfane Rutherford",
+            "role": "AR",
+            "ipl_team": "MI",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/c978ce48-495b-4773-89c9-8a64d0257896.jpg",
+            "nationality": "West Indies",
+            "flagged": false
+        },
+        {
+            "id": "19f32936-5d5b-4ed5-ae40-dd5ed0867d6f",
+            "name": "Ajinkya Rahane",
+            "role": "BAT",
+            "ipl_team": "KKR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/cdc2646c-1fe7-4bc2-b26e-42453f45a212.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "1a2993f1-de1f-4b2c-8f8d-b3c12f5752c3",
+            "name": "Abhishek Sharma",
+            "role": "AR",
+            "ipl_team": "SRH",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/83fe6ab6-d63c-420e-9416-a93d59a9a964.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "1b73030e-ada5-4a99-a192-4e6656c301d9",
+            "name": "Prince Yadav",
+            "role": "BOWL",
+            "ipl_team": "LSG",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "1e3014c3-02ef-462b-95f7-0d5b764022de",
+            "name": "Himmat Singh",
+            "role": "BAT",
+            "ipl_team": "LSG",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "1faca8d2-a857-45a2-854a-b875e529b3cf",
+            "name": "Ayush Mhatre",
+            "role": "BAT",
+            "ipl_team": "CSK",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "23455208-bda2-4ade-a4d6-ab63ea69ceee",
+            "name": "Bhuvneshwar Kumar",
+            "role": "BOWL",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/3f3ecf51-8411-4046-9477-18c0fe3da6ac.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "2510a439-1b23-428d-954c-b3ce85fd9c6c",
+            "name": "Washington Sundar",
+            "role": "AR",
+            "ipl_team": "GT",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/309d3ffd-3d06-460d-9427-c559a604d471.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "25bd404d-faf5-4613-a9b1-44a08ce747b2",
+            "name": "Azmatullah Omarzai",
+            "role": "AR",
+            "ipl_team": "PBKS",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/7c341a4c-d3fa-4054-b95d-f75f94eee00c.jpg",
+            "nationality": "Afghanistan",
+            "flagged": false
+        },
+        {
+            "id": "2756e1d8-374d-49f1-be05-8251f53c0709",
+            "name": "Shreyas Iyer",
+            "role": "BAT",
+            "ipl_team": "PBKS",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/77791963-6c1b-4979-b07a-f910dee28cd9.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "31614122-b779-49f2-b71b-41777fa8d83b",
+            "name": "Kartik Tyagi",
+            "role": "BOWL",
+            "ipl_team": "KKR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/ff17824f-0e1c-4eb7-acd3-8b5d116934bc.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "33df98b5-9664-43ad-8395-ad8f3669fb19",
+            "name": "Dushmantha Chameera",
+            "role": "BOWL",
+            "ipl_team": "DC",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/75fb3972-0436-40ee-bf45-73b1dba7b53e.jpg",
+            "nationality": "Sri Lanka",
+            "flagged": false
+        },
+        {
+            "id": "34d5a5a9-326d-427e-9572-90886fa82582",
+            "name": "Marco Jansen",
+            "role": "AR",
+            "ipl_team": "PBKS",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/d3c53885-7016-4228-8a20-1dd98214489d.jpg",
+            "nationality": "South Africa",
+            "flagged": false
+        },
+        {
+            "id": "36a1648d-afb1-4d0e-a532-39414a07dffa",
+            "name": "Trent Boult",
+            "role": "BOWL",
+            "ipl_team": "MI",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/6004fd3f-2264-470d-b39f-340d530b19b3.jpg",
+            "nationality": "New Zealand",
+            "flagged": false
+        },
+        {
+            "id": "3776740d-d3ee-4c34-85c4-8cc252fbfebe",
+            "name": "Rinku Singh",
+            "role": "BAT",
+            "ipl_team": "KKR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/11864f31-b766-4766-9cbc-5026015ace48.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "38ecf67f-0e32-4d4b-a827-50569e8a9a2a",
+            "name": "Will Jacks",
+            "role": "AR",
+            "ipl_team": "MI",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "England",
+            "flagged": false
+        },
+        {
+            "id": "39a00ccd-8bc5-4738-be22-3ea1c31d270c",
+            "name": "Mitchell Santner",
+            "role": "AR",
+            "ipl_team": "MI",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/16ec245b-022d-4104-bd8f-ccc780428390.jpg",
+            "nationality": "New Zealand",
+            "flagged": false
+        },
+        {
+            "id": "3ae37af1-6201-4194-b1df-f16f82e10c99",
+            "name": "Deepak Chahar",
+            "role": "BOWL",
+            "ipl_team": "MI",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/237a1ef2-1eae-4877-8b94-d20d84faf635.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "3d68db25-76c3-4cdd-b161-a88f2bc7fdef",
+            "name": "Auqib Nabi Dar",
+            "role": "AR",
+            "ipl_team": "DC",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "41d8899d-9c37-4e50-b5e1-36be070981b4",
+            "name": "Ayush Badoni",
+            "role": "AR",
+            "ipl_team": "LSG",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "46bec0f5-0f32-4604-839e-bcf361890767",
+            "name": "Devdutt Padikkal",
+            "role": "BAT",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/74c6584a-45a5-4781-a5e7-c0c9340da954.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "48db3e26-294e-4c67-a74d-efd29c0ea651",
+            "name": "Kyle Jamieson",
+            "role": "BOWL",
+            "ipl_team": "DC",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/5673ee27-bf33-44b8-8973-41fd37923fed.jpg",
+            "nationality": "New Zealand",
+            "flagged": false
+        },
+        {
+            "id": "493b3a66-f85d-44ee-9509-176900c03d88",
+            "name": "Mohsin Khan",
+            "role": "BOWL",
+            "ipl_team": "LSG",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "517710e9-e57a-442f-b22b-37b4aaccc879",
+            "name": "Arjun Tendulkar",
+            "role": "AR",
+            "ipl_team": "LSG",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/6ceed869-d2b7-4707-b6fd-cb84419cda12.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "521e7528-f84b-4ef8-b83e-54d2a0b0f513",
+            "name": "Mitchell Starc",
+            "role": "BOWL",
+            "ipl_team": "DC",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/bceb7084-1dda-4d76-b691-43c5a29d39a7.jpg",
+            "nationality": "Australia",
+            "flagged": false
+        },
+        {
+            "id": "531060c4-f74f-4e37-953a-78b434287403",
+            "name": "Kwena Maphaka",
+            "role": "BOWL",
+            "ipl_team": "RR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "South Africa",
+            "flagged": false
+        },
+        {
+            "id": "60c5ee9e-2e41-447d-a251-f494c449a3c0",
+            "name": "Swapnil Singh",
+            "role": "AR",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "60da8594-cf88-48ae-9502-bb6a6cd3436c",
+            "name": "T Natarajan",
+            "role": "BOWL",
+            "ipl_team": "DC",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/d8826d0d-ef95-4dce-a47a-b09b97f49f07.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "61302346-781c-4df7-ace2-2eaa203b977d",
+            "name": "Tom Banton",
+            "role": "WK",
+            "ipl_team": "GT",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/6364e591-1f4b-4fe6-867c-ae61ea21f6f0.jpg",
+            "nationality": "England",
+            "flagged": false
+        },
+        {
+            "id": "65663ae2-e159-41ca-b824-8e9cd9dd4cf9",
+            "name": "Tripurana Vijay",
+            "role": "AR",
+            "ipl_team": "DC",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "66865a16-1927-4200-b178-9dd67a5254e3",
+            "name": "Madhav Tiwari",
+            "role": "AR",
+            "ipl_team": "DC",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "672761b3-8e37-404f-a30c-5d6c82c36324",
+            "name": "Shivam Mavi",
+            "role": "BOWL",
+            "ipl_team": "SRH",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/f00ccdba-6137-4852-a490-ba782044b866.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "676c6dc4-0e75-4636-be1a-89dd5aa3b932",
+            "name": "Abhinandan Singh",
+            "role": "BOWL",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "6779b163-234f-432d-a4ea-1db73a2169e3",
+            "name": "Tim David",
+            "role": "BAT",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/69718248-2a3a-45d4-9a2a-6f4dfc6942a5.jpg",
+            "nationality": "Australia",
+            "flagged": false
+        },
+        {
+            "id": "68e24e49-3675-4483-ba95-55faf6d37bc1",
+            "name": "Praful Hinge",
+            "role": "BOWL",
+            "ipl_team": "SRH",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "69ce2736-0bc6-4346-b48a-5dd5eafdf2f8",
+            "name": "Yash Thakur",
+            "role": "BOWL",
+            "ipl_team": "PBKS",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "6a37def1-6a40-4689-a869-cd63fd7cb347",
+            "name": "Ashwani Kumar",
+            "role": "BOWL",
+            "ipl_team": "MI",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "6b2faa7f-8e7f-4bf2-a310-49e414bf325a",
+            "name": "Naman Dhir",
+            "role": "BAT",
+            "ipl_team": "MI",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "6c313d90-bd7c-4b4c-8a52-c91cd323fdd0",
+            "name": "Jacob Bethell",
+            "role": "AR",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "England",
+            "flagged": false
+        },
+        {
+            "id": "71aaa9f3-a77a-4d86-9228-77f796f8aada",
+            "name": "Vaibhav Arora",
+            "role": "BOWL",
+            "ipl_team": "KKR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "72a0bfb5-895a-407a-8b9e-fce120431273",
+            "name": "Ruturaj Gaikwad",
+            "role": "BAT",
+            "ipl_team": "CSK",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/50b70c71-1535-41c0-87fd-c12883105ede.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "74d666cf-6c97-482c-a394-799c900e8996",
+            "name": "Mohammed Siraj",
+            "role": "BOWL",
+            "ipl_team": "GT",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/2a8d8640-2213-4cf6-ac7e-309d8b733e96.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "75e030a6-76a1-426d-a756-b010346aa38b",
+            "name": "Nicholas Pooran",
+            "role": "WK",
+            "ipl_team": "LSG",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/4e8ab9cd-c5af-430e-887b-d22bf74ad052.jpg",
+            "nationality": "West Indies",
+            "flagged": false
+        },
+        {
+            "id": "76463b1a-8b0b-46f9-b7fd-0797f0aae816",
+            "name": "Anukul Roy",
+            "role": "AR",
+            "ipl_team": "KKR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/2958faf6-f7d1-4150-aa9e-e261a629ba0d.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "78190621-086b-440f-9246-e8222045ba41",
+            "name": "Luke Wood",
+            "role": "BOWL",
+            "ipl_team": "GT",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/fe5f4f96-c207-4e3f-b0d5-cebc74435448.jpg",
+            "nationality": "England",
+            "flagged": false
+        },
+        {
+            "id": "78fc8398-a23e-4add-aa5d-75f88be130bc",
+            "name": "Ravisrinivasan Sai Kishore",
+            "role": "AR",
+            "ipl_team": "GT",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/7d6bbd6c-c5bb-4e1c-9374-aaa829e77611.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "7d0ff211-ed9a-40e7-afa9-2a7e7f51e952",
+            "name": "Liam Livingstone",
+            "role": "AR",
+            "ipl_team": "SRH",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/d1c0a448-6ee6-473a-90a2-e6a486698a8a.jpg",
+            "nationality": "England",
+            "flagged": false
+        },
+        {
+            "id": "7e3c7797-2a03-479a-800f-15a8de914d34",
+            "name": "Sakib Hussain",
+            "role": "BOWL",
+            "ipl_team": "SRH",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "80c959b8-fdf5-4720-9343-05905cd2cfd7",
+            "name": "Varun Chakaravarthy",
+            "role": "BOWL",
+            "ipl_team": "KKR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/702254aa-2764-4fe4-b28e-20336a0ab069.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "813255c7-ee35-4357-8c65-789a41725e54",
+            "name": "Ben Duckett",
+            "role": "BAT",
+            "ipl_team": "DC",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/180036fe-fcb5-4fcf-ba8a-28bb2b750cc6.jpg",
+            "nationality": "England",
+            "flagged": false
+        },
+        {
+            "id": "82f30598-0826-4ecd-b64e-91d9bef33419",
+            "name": "Suryansh Shedge",
+            "role": "AR",
+            "ipl_team": "PBKS",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "83645857-682a-4935-ae98-43106d18d8f0",
+            "name": "Rasikh Salam Dar",
+            "role": "BOWL",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "899fa946-48b9-47e5-927c-3506bfe51a76",
+            "name": "Ramakrishna Ghosh",
+            "role": "AR",
+            "ipl_team": "CSK",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "8a0f5784-85bf-442c-8a05-45cd85541031",
+            "name": "Kuldeep Yadav",
+            "role": "BOWL",
+            "ipl_team": "DC",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/1e651cfb-57f1-48da-bf9d-83cbff1733d1.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "8c671fe7-870f-4400-a3ae-82a0582314de",
+            "name": "Pat Cummins",
+            "role": "BOWL",
+            "ipl_team": "SRH",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/13b3d56e-0fba-4d31-a174-d211211404e2.jpg",
+            "nationality": "Australia",
+            "flagged": false
+        },
+        {
+            "id": "8cfb47a7-a9c8-488e-99df-e6251490ccce",
+            "name": "Arshad Khan",
+            "role": "AR",
+            "ipl_team": "GT",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "9026d9ee-6db4-451e-a7c1-79150fdc4cb6",
+            "name": "Mitchell Marsh",
+            "role": "AR",
+            "ipl_team": "LSG",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/6eaac800-13e7-4a07-8ee2-14acd04cc53f.jpg",
+            "nationality": "Australia",
+            "flagged": false
+        },
+        {
+            "id": "91d42095-67ed-4e89-a19f-c9f4bcfe8981",
+            "name": "Tim Seifert",
+            "role": "WK",
+            "ipl_team": "KKR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/812fc568-a932-4f29-a1c4-b7c929e6a248.jpg",
+            "nationality": "New Zealand",
+            "flagged": false
+        },
+        {
+            "id": "92b731f8-06f8-4fe3-a24a-477fcfd0da0e",
+            "name": "Jitesh Sharma",
+            "role": "WK",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/e28de73b-f5df-49eb-bdf6-c50471319404.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "94276a6a-9578-4301-9398-4d3706cfef14",
+            "name": "Rishabh Pant",
+            "role": "WK",
+            "ipl_team": "LSG",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/a52b2d20-7c98-4238-9ba4-ec78419a5cc2.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "9bf94785-275b-4fbc-8385-14edaf166a61",
+            "name": "Suyash Sharma",
+            "role": "BOWL",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "9cfde491-cbc5-4f98-bc9d-751dd6e12852",
+            "name": "Nitish Kumar Reddy",
+            "role": "AR",
+            "ipl_team": "SRH",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "9f483fca-f49a-490e-94c3-97b0935341e4",
+            "name": "Kuldeep Sen",
+            "role": "BOWL",
+            "ipl_team": "RR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "9f6dba0b-2501-43c5-8bbc-b0cdf8350a69",
+            "name": "MS Dhoni",
+            "role": "WK",
+            "ipl_team": "CSK",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/b6e7aa41-b0bb-4b0f-8f59-59f729283be5.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "a0113d43-6135-4ab1-89df-f6da37fa6312",
+            "name": "Anshul Kamboj",
+            "role": "AR",
+            "ipl_team": "CSK",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "a099cac0-1cd7-4ddc-84ba-914e2082c0c7",
+            "name": "Sameer Rizvi",
+            "role": "BAT",
+            "ipl_team": "DC",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "a348d6f5-858f-4dab-b795-c978a493c83c",
+            "name": "Mohammed Shami",
+            "role": "BOWL",
+            "ipl_team": "LSG",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/11d06633-aa20-469c-8fbb-676a1ae33eed.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "a3f7ed06-57f5-4249-90c5-463b16b7f9f0",
+            "name": "Heinrich Klaasen",
+            "role": "WK",
+            "ipl_team": "SRH",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/7d662361-8f12-4a52-9a4b-01e8734bd31d.jpg",
+            "nationality": "South Africa",
+            "flagged": false
+        },
+        {
+            "id": "a4b627c9-9122-4814-b2ed-ddec891cd81e",
+            "name": "Zeeshan Ansari",
+            "role": "BOWL",
+            "ipl_team": "SRH",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "a5ae8508-e878-4818-b3e8-aea8dd8e7ad4",
+            "name": "Jack Edwards",
+            "role": "BAT",
+            "ipl_team": "SRH",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/6d751be3-3023-43b9-8415-8259d19689fd.jpg",
+            "nationality": "Australia",
+            "flagged": false
+        },
+        {
+            "id": "a7439fa7-d116-46af-bad3-8255ce24aaf2",
+            "name": "Shivam Dube",
+            "role": "AR",
+            "ipl_team": "CSK",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/22ee45d8-0538-4e3e-a758-c515f9b86d11.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "a84e48cd-6ad7-44e8-a5e7-c68f6526d8e3",
+            "name": "Matthew Short",
+            "role": "BAT",
+            "ipl_team": "CSK",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/b55e1386-231c-4d40-9f6a-4d5a9512079c.jpg",
+            "nationality": "Australia",
+            "flagged": false
+        },
+        {
+            "id": "a8f7ac4f-59ec-4bd4-b08a-ae75e1f02756",
+            "name": "Brydon Carse",
+            "role": "BOWL",
+            "ipl_team": "SRH",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "England",
+            "flagged": false
+        },
+        {
+            "id": "b279dbf1-8e44-46c2-9183-ab58f5dbaeb6",
+            "name": "Yashasvi Jaiswal",
+            "role": "BAT",
+            "ipl_team": "RR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/a254feed-0d7c-4f04-a2ab-7bf9ceef156b.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "b74099cd-7625-4fbc-8b52-42cc0c39316c",
+            "name": "Aniket Verma",
+            "role": "BAT",
+            "ipl_team": "SRH",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "b7ba3531-f399-43af-9e90-23e2d6d81040",
+            "name": "Matthew Breetzke",
+            "role": "WK",
+            "ipl_team": "LSG",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/b7f8b3f5-1759-43fe-914f-d9dc7f4269e2.jpg",
+            "nationality": "South Africa",
+            "flagged": false
+        },
+        {
+            "id": "b92ab3d3-a503-4aec-8971-e20fbb316e7a",
+            "name": "Vijaykumar Vyshak",
+            "role": "BOWL",
+            "ipl_team": "PBKS",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "bb6e2070-c906-425f-8567-48fb6ba4ad32",
+            "name": "Kamindu Mendis",
+            "role": "AR",
+            "ipl_team": "SRH",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "Sri Lanka",
+            "flagged": false
+        },
+        {
+            "id": "bc8f6f03-4650-44c7-a01e-ce2e95e2abde",
+            "name": "Shahrukh Khan",
+            "role": "AR",
+            "ipl_team": "GT",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/d0f69230-16e0-4a79-92aa-f9f7c588d5d3.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "be2243b9-5158-4bb2-847f-2360cd49e179",
+            "name": "Yash Raj Punja",
+            "role": "BAT",
+            "ipl_team": "RR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "c05a368c-dacd-4cfb-8404-61abd4a8b725",
+            "name": "Vihaan Malhotra",
+            "role": "BAT",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "c1397313-a520-459b-b949-6c2d93810e70",
+            "name": "Jordan Cox",
+            "role": "WK",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "England",
+            "flagged": false
+        },
+        {
+            "id": "c221990d-44f4-4773-b955-492027ad9d05",
+            "name": "Abdul Samad",
+            "role": "AR",
+            "ipl_team": "LSG",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/dd665f5d-04e8-436b-b376-8fd2a9b8bf8a.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "c23717e5-7951-4ca0-961a-42623ed0bdd6",
+            "name": "Manimaran Siddharth",
+            "role": "BOWL",
+            "ipl_team": "LSG",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "c2cc35a0-88fc-4ec1-a6f5-26f6ce4b5c56",
+            "name": "Ben Dwarshuis",
+            "role": "BOWL",
+            "ipl_team": "PBKS",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/388b664b-de80-4290-ab82-420873293b91.jpg",
+            "nationality": "Australia",
+            "flagged": false
+        },
+        {
+            "id": "c4dd4761-12e3-4de0-a064-cdb928dce99b",
+            "name": "Ashutosh Sharma",
+            "role": "AR",
+            "ipl_team": "DC",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "c6735372-49d3-434d-8c9a-b2daba6848c3",
+            "name": "Lungi Ngidi",
+            "role": "BOWL",
+            "ipl_team": "DC",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/a1782393-3479-4caa-9c27-79cb87df9abc.jpg",
+            "nationality": "South Africa",
+            "flagged": false
+        },
+        {
+            "id": "c6f5bf9e-6166-4ad8-aeea-feb8b936fac4",
+            "name": "Sarfaraz Khan",
+            "role": "BAT",
+            "ipl_team": "CSK",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/ec1b806b-de33-4b79-b3ba-8a5ad78df163.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "c8319601-4572-41bd-9b3b-156dc809de46",
+            "name": "Corbin Bosch",
+            "role": "AR",
+            "ipl_team": "MI",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/f1dea685-fa68-4339-b582-ba70839e5ca9.jpg",
+            "nationality": "South Africa",
+            "flagged": false
+        },
+        {
+            "id": "c91de1c6-c598-4d37-8dd3-00ffc94d63a4",
+            "name": "Matheesha Pathirana",
+            "role": "BOWL",
+            "ipl_team": "KKR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "Sri Lanka",
+            "flagged": false
+        },
+        {
+            "id": "ca9fd36f-48d3-40db-a22c-7fddb4db7097",
+            "name": "Virat Kohli",
+            "role": "BAT",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/c61d247d-7f77-452c-b495-2813a9cd0ac4.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "cb1dff41-b6c0-4ad2-beab-cb320da1ca6b",
+            "name": "Arshdeep Singh",
+            "role": "BOWL",
+            "ipl_team": "PBKS",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/607ff10c-5619-411d-a822-06ba28992230.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "cb866df0-72a5-44fc-87a0-86ebe6a721d0",
+            "name": "Lockie Ferguson",
+            "role": "BOWL",
+            "ipl_team": "PBKS",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/604d7c88-4f5d-40d9-b08b-330420964d87.jpg",
+            "nationality": "New Zealand",
+            "flagged": false
+        },
+        {
+            "id": "cbee0f73-6296-468c-95e0-f1e589d85678",
+            "name": "Shreyas Gopal",
+            "role": "BOWL",
+            "ipl_team": "CSK",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/b65be7fe-33cd-41d1-b601-31f25b4f72a4.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "cd96951f-bc2b-4d63-9e59-9509a0f54d80",
+            "name": "Cooper Connolly",
+            "role": "AR",
+            "ipl_team": "PBKS",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "Australia",
+            "flagged": false
+        },
+        {
+            "id": "d27e16e5-398a-4ec9-809b-eb720e6dd4b4",
+            "name": "Adam Milne",
+            "role": "BOWL",
+            "ipl_team": "RR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/f49539fc-c565-4779-83c1-df3dfdaae171.jpg",
+            "nationality": "New Zealand",
+            "flagged": false
+        },
+        {
+            "id": "d504c9e1-fbca-4f7d-af4e-267275bf29e3",
+            "name": "Praveen Dubey",
+            "role": "AR",
+            "ipl_team": "PBKS",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/11beb0e3-9594-4304-b770-9f65b52a5ff9.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "d519f574-77e4-4706-b538-6bc0d1e845a6",
+            "name": "Shashank Singh",
+            "role": "AR",
+            "ipl_team": "PBKS",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "d5278be0-bb28-457c-b0b7-72db84a7a348",
+            "name": "Ishan Kishan",
+            "role": "WK",
+            "ipl_team": "SRH",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/9ae68636-48d9-488f-8adc-e62a19815d85.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "d93642eb-f716-4a68-8138-2dbbdebdba9f",
+            "name": "Akeal Hosein",
+            "role": "BOWL",
+            "ipl_team": "CSK",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/7d053d4e-a735-4c96-bb98-4098dee523df.jpg",
+            "nationality": "West Indies",
+            "flagged": false
+        },
+        {
+            "id": "da09128c-a7ab-452b-a0d8-8aa108f5ad03",
+            "name": "Riyan Parag",
+            "role": "AR",
+            "ipl_team": "RR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/b51bb4e5-acdf-423b-abb3-7a1e6694d2c2.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "dac6a366-f0ce-4b8b-aa70-4c1e48750187",
+            "name": "Xavier Bartlett",
+            "role": "BOWL",
+            "ipl_team": "PBKS",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/cba19be9-7aec-4083-ba61-26f0aee31721.jpg",
+            "nationality": "Australia",
+            "flagged": false
+        },
+        {
+            "id": "dbd4bad9-8e93-40b2-8a16-5e91ac31679e",
+            "name": "Venkatesh Iyer",
+            "role": "AR",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/c3236037-6694-404a-8f01-9ad880564ea9.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "dc42fe8f-47de-4bdc-890c-cb5f3aa2856b",
+            "name": "Rohit Sharma",
+            "role": "BAT",
+            "ipl_team": "MI",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/03bda674-3916-4d64-952e-00a6c19c01e1.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "dd1eaadc-1512-42cd-b7bb-04da2399ae53",
+            "name": "Musheer Khan",
+            "role": "AR",
+            "ipl_team": "PBKS",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "dd69177b-b044-4acc-9e91-eb4838af154a",
+            "name": "Kagiso Rabada",
+            "role": "BOWL",
+            "ipl_team": "GT",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/a81da20a-e420-476a-baf6-204fc219dbdd.jpg",
+            "nationality": "South Africa",
+            "flagged": false
+        },
+        {
+            "id": "dffaac50-9ec9-4eac-b7a8-c57ef3f2070c",
+            "name": "Glenn Phillips",
+            "role": "AR",
+            "ipl_team": "GT",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/9e6fa482-3ad3-4831-b05d-4fed2510cdf5.jpg",
+            "nationality": "New Zealand",
+            "flagged": false
+        },
+        {
+            "id": "e1008f85-bcd2-4dad-8e62-192d4f42aad0",
+            "name": "Angkrish Raghuvanshi",
+            "role": "BAT",
+            "ipl_team": "KKR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "e3c901e6-a962-4ac6-8893-b390376dc19e",
+            "name": "Sandeep Sharma",
+            "role": "BOWL",
+            "ipl_team": "RR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/3f18b02d-0e1a-49be-aec4-c2fc11503505.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "e5291d53-1aab-48b9-8d8d-c89a1e54c36a",
+            "name": "Rachin Ravindra",
+            "role": "AR",
+            "ipl_team": "KKR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/e6d28951-8524-43ca-95cf-9e73ae68bc12.jpg",
+            "nationality": "New Zealand",
+            "flagged": false
+        },
+        {
+            "id": "e54649c8-4365-4566-b96e-a44d5bf91de4",
+            "name": "Mukesh Kumar",
+            "role": "BOWL",
+            "ipl_team": "DC",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "e5c51bdd-f3b6-4acf-8792-fb53e9318937",
+            "name": "Nehal Wadhera",
+            "role": "BAT",
+            "ipl_team": "PBKS",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "e7d5f22e-3542-4417-9c81-091f8625b9d2",
+            "name": "Tushar Deshpande",
+            "role": "BOWL",
+            "ipl_team": "RR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/f3876b65-0643-49df-9255-4a06dd3fa051.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "e87eee47-5250-4cd7-9acc-9b7880be9079",
+            "name": "Tristan Stubbs",
+            "role": "WK",
+            "ipl_team": "DC",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "South Africa",
+            "flagged": false
+        },
+        {
+            "id": "e9f6f53c-24d2-46bd-b47e-63119e5725b5",
+            "name": "Jos Buttler",
+            "role": "WK",
+            "ipl_team": "GT",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/7567e305-1b40-4eee-9290-e2fcb8804496.jpg",
+            "nationality": "England",
+            "flagged": false
+        },
+        {
+            "id": "eaa63284-966d-4303-9012-b6e19a3763b3",
+            "name": "Jasprit Bumrah",
+            "role": "BOWL",
+            "ipl_team": "MI",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/6602d875-cf56-46a3-866c-de80aaa006bc.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "ebbfb03b-91b3-4002-b8e1-7b879d015d0b",
+            "name": "Mayank Yadav",
+            "role": "BOWL",
+            "ipl_team": "LSG",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "ee4eaf4d-1984-44fd-aed7-ba5af26821bc",
+            "name": "Nishant Sindhu",
+            "role": "AR",
+            "ipl_team": "GT",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "f1030cca-1f6e-41ce-a3e1-0e30dd6f0d9d",
+            "name": "Vicky Ostwal",
+            "role": "BOWL",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/b9701b53-3b9e-4eda-93b1-3543809674d4.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "f167b145-c371-4ca3-843f-40625ca2dd4c",
+            "name": "Akash Deep",
+            "role": "BOWL",
+            "ipl_team": "KKR",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "f1f7be9f-be3d-42b1-b6a4-ad750ffc90da",
+            "name": "Noor Ahmad",
+            "role": "BOWL",
+            "ipl_team": "CSK",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/3cbc5a08-62af-4ca5-b709-c7712db6e8b6.jpg",
+            "nationality": "Afghanistan",
+            "flagged": false
+        },
+        {
+            "id": "f689395f-1202-43ca-afc6-f60fb94a5c5c",
+            "name": "Kanishk Chouhan",
+            "role": "BAT",
+            "ipl_team": "RCB",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/icon512.png",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "f8cb13c1-da4e-4068-ab5e-693d6b36f62e",
+            "name": "Khaleel Ahmed",
+            "role": "BOWL",
+            "ipl_team": "CSK",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/8df6183b-1c95-46d2-85c0-e185792d03f1.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "f9898e7b-0b2f-47dc-9815-e32f3b31d536",
+            "name": "Harshal Patel",
+            "role": "BOWL",
+            "ipl_team": "SRH",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/15bccb4f-8c3c-4da6-acd9-551782278bfd.jpg",
+            "nationality": "India",
+            "flagged": false
+        },
+        {
+            "id": "fc4b83ef-f4ff-448e-b741-b94f022355c4",
+            "name": "Prabhsimran Singh",
+            "role": "WK",
+            "ipl_team": "PBKS",
+            "base_price": 25,
+            "player_img": "https://h.cricapi.com/img/players/a15dfada-704c-42c3-9545-91c332ffca73.jpg",
+            "nationality": "India",
+            "flagged": false
+        }
+    ],
+    "confirmed": false,
+    "confirmed_count": 1,
+    "total_count": 9
+}

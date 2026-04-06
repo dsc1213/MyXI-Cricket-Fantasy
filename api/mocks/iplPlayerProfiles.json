@@ -1,0 +1,597 @@
+{
+  "finnallen": {
+    "name": "Finn Allen",
+    "imageUrl": "https://h.cricapi.com/img/players/08924d57-b4d3-4ed0-903d-087a8384be12.jpg",
+    "team": "KKR",
+    "role": "BAT",
+    "nationality": "New Zealand"
+  },
+  "mitchellowen": {
+    "name": "Mitchell Owen",
+    "imageUrl": "https://h.cricapi.com/img/icon512.png",
+    "team": "PBKS",
+    "role": "AR",
+    "nationality": "Australia"
+  },
+  "prasidhkrishna": {
+    "name": "Prasidh Krishna",
+    "imageUrl": "https://h.cricapi.com/img/players/99eb6b5c-379f-46da-bab7-dc8fd31ba435.jpg",
+    "team": "GT",
+    "role": "BOWL",
+    "nationality": "India"
+  },
+  "nuwanthushara": {
+    "name": "Nuwan Thushara",
+    "imageUrl": "https://h.cricapi.com/img/players/eb911b3b-10b3-40f8-9294-e63ba030af83.jpg",
+    "team": "RCB",
+    "role": "BOWL",
+    "nationality": "Sri Lanka"
+  },
+  "jasonholder": {
+    "name": "Jason Holder",
+    "imageUrl": "https://h.cricapi.com/img/players/f8e6accd-6b73-4869-93a6-d45519a361f0.jpg",
+    "team": "GT",
+    "role": "AR",
+    "nationality": "West Indies"
+  },
+  "shardulthakur": {
+    "name": "Shardul Thakur",
+    "imageUrl": "https://h.cricapi.com/img/players/c1257351-51ca-446f-b7f5-01fe92e75076.jpg",
+    "team": "MI",
+    "role": "AR",
+    "nationality": "India"
+  },
+  "krunalpandya": {
+    "name": "Krunal Pandya",
+    "imageUrl": "https://h.cricapi.com/img/players/81c09c1b-1b1d-4e87-9eaa-d7d0a89a6159.jpg",
+    "team": "RCB",
+    "role": "AR",
+    "nationality": "India"
+  },
+  "yashdayal": {
+    "name": "Yash Dayal",
+    "imageUrl": "https://h.cricapi.com/img/icon512.png",
+    "team": "RCB",
+    "role": "BOWL",
+    "nationality": "India"
+  },
+  "harshitrana": {
+    "name": "Harshit Rana",
+    "imageUrl": "https://h.cricapi.com/img/icon512.png",
+    "team": "KKR",
+    "role": "BOWL",
+    "nationality": "India"
+  },
+  "aidenmarkram": {
+    "name": "Aiden Markram",
+    "imageUrl": "https://h.cricapi.com/img/players/3fef81b0-c1e9-45eb-954f-519f3b33d640.jpg",
+    "team": "LSG",
+    "role": "BAT",
+    "nationality": "South Africa"
+  },
+  "mukeshchoudhary": {
+    "name": "Mukesh Choudhary",
+    "imageUrl": "https://h.cricapi.com/img/icon512.png",
+    "team": "CSK",
+    "role": "BOWL",
+    "nationality": "India"
+  },
+  "rajatpatidar": {
+    "name": "Rajat Patidar",
+    "imageUrl": "https://h.cricapi.com/img/icon512.png",
+    "team": "RCB",
+    "role": "BAT",
+    "nationality": "India"
+  },
+  "yudhvirsinghcharak": {
+    "name": "Yudhvir Singh Charak",
+    "imageUrl": "https://h.cricapi.com/img/icon512.png",
+    "team": "RR",
+    "role": "BOWL",
+    "nationality": "India"
+  },
+  "tilakvarma": {
+    "name": "Tilak Varma",
+    "imageUrl": "https://h.cricapi.com/img/players/aefd9074-da5a-408d-94f1-3be0e79d3b82.jpg",
+    "team": "MI",
+    "role": "BAT",
+    "nationality": "India"
+  },
+  "jacobduffy": {
+    "name": "Jacob Duffy",
+    "imageUrl": "https://h.cricapi.com/img/players/6e05cbea-6a4b-42ef-8e2e-b44e4b434c2f.jpg",
+    "team": "RCB",
+    "role": "BOWL",
+    "nationality": "New Zealand"
+  },
+  "joshinglis": {
+    "name": "Josh Inglis",
+    "imageUrl": "https://h.cricapi.com/img/players/c040878f-3995-444c-a0f2-10a456f6c84d.jpg",
+    "team": "LSG",
+    "role": "WK",
+    "nationality": "Australia"
+  },
+  "eshanmalinga": {
+    "name": "Eshan Malinga",
+    "imageUrl": "https://h.cricapi.com/img/icon512.png",
+    "team": "SRH",
+    "role": "BOWL",
+    "nationality": "Sri Lanka"
+  },
+  "vigneshputhur": {
+    "name": "Vignesh Puthur",
+    "imageUrl": "https://h.cricapi.com/img/icon512.png",
+    "team": "RR",
+    "role": "BOWL",
+    "nationality": "India"
+  },
+  "quintondekock": {
+    "name": "Quinton de Kock",
+    "imageUrl": "https://h.cricapi.com/img/players/000f9f7c-cc24-4a85-8638-b013b0f4760e.jpg",
+    "team": "MI",
+    "role": "WK",
+    "nationality": "South Africa"
+  },
+  "dewaldbrevis": {
+    "name": "Dewald Brevis",
+    "imageUrl": "https://h.cricapi.com/img/players/14a56d48-499a-4b03-aa0f-bd3f592e9d94.jpg",
+    "team": "CSK",
+    "role": "BAT",
+    "nationality": "South Africa"
+  },
+  "camerongreen": {
+    "name": "Cameron Green",
+    "imageUrl": "https://h.cricapi.com/img/players/abe58090-e933-4888-8538-64f4611ee259.jpg",
+    "team": "KKR",
+    "role": "AR",
+    "nationality": "Australia"
+  },
+  "samcurran": {
+    "name": "Sam Curran",
+    "imageUrl": "https://h.cricapi.com/img/players/45613012-5c4f-4a7a-a1c4-d9827939b2bf.jpg",
+    "team": "RR",
+    "role": "AR",
+    "nationality": "England"
+  },
+  "rovmanpowell": {
+    "name": "Rovman Powell",
+    "imageUrl": "https://h.cricapi.com/img/players/c699ec2b-a5f6-4ee0-a42d-79391b65b293.jpg",
+    "team": "KKR",
+    "role": "BAT",
+    "nationality": "West Indies"
+  },
+  "davidmiller": {
+    "name": "David Miller",
+    "imageUrl": "https://h.cricapi.com/img/players/2f50df2f-809d-44f9-b5be-ccb846515861.jpg",
+    "team": "DC",
+    "role": "BAT",
+    "nationality": "South Africa"
+  },
+  "sherfanerutherford": {
+    "name": "Sherfane Rutherford",
+    "imageUrl": "https://h.cricapi.com/img/players/c978ce48-495b-4773-89c9-8a64d0257896.jpg",
+    "team": "MI",
+    "role": "AR",
+    "nationality": "West Indies"
+  },
+  "ajinkyarahane": {
+    "name": "Ajinkya Rahane",
+    "imageUrl": "https://h.cricapi.com/img/players/cdc2646c-1fe7-4bc2-b26e-42453f45a212.jpg",
+    "team": "KKR",
+    "role": "BAT",
+    "nationality": "India"
+  },
+  "abhisheksharma": {
+    "name": "Abhishek Sharma",
+    "imageUrl": "https://h.cricapi.com/img/players/83fe6ab6-d63c-420e-9416-a93d59a9a964.jpg",
+    "team": "SRH",
+    "role": "AR",
+    "nationality": "India"
+  },
+  "washingtonsundar": {
+    "name": "Washington Sundar",
+    "imageUrl": "https://h.cricapi.com/img/players/309d3ffd-3d06-460d-9427-c559a604d471.jpg",
+    "team": "GT",
+    "role": "AR",
+    "nationality": "India"
+  },
+  "azmatullahomarzai": {
+    "name": "Azmatullah Omarzai",
+    "imageUrl": "https://h.cricapi.com/img/players/7c341a4c-d3fa-4054-b95d-f75f94eee00c.jpg",
+    "team": "PBKS",
+    "role": "AR",
+    "nationality": "Afghanistan"
+  },
+  "shreyasiyer": {
+    "name": "Shreyas Iyer",
+    "imageUrl": "https://h.cricapi.com/img/players/77791963-6c1b-4979-b07a-f910dee28cd9.jpg",
+    "team": "PBKS",
+    "role": "BAT",
+    "nationality": "India"
+  },
+  "dushmanthachameera": {
+    "name": "Dushmantha Chameera",
+    "imageUrl": "https://h.cricapi.com/img/players/75fb3972-0436-40ee-bf45-73b1dba7b53e.jpg",
+    "team": "DC",
+    "role": "BOWL",
+    "nationality": "Sri Lanka"
+  },
+  "marcojansen": {
+    "name": "Marco Jansen",
+    "imageUrl": "https://h.cricapi.com/img/players/d3c53885-7016-4228-8a20-1dd98214489d.jpg",
+    "team": "PBKS",
+    "role": "AR",
+    "nationality": "South Africa"
+  },
+  "trentboult": {
+    "name": "Trent Boult",
+    "imageUrl": "https://h.cricapi.com/img/players/6004fd3f-2264-470d-b39f-340d530b19b3.jpg",
+    "team": "MI",
+    "role": "BOWL",
+    "nationality": "New Zealand"
+  },
+  "rinkusingh": {
+    "name": "Rinku Singh",
+    "imageUrl": "https://h.cricapi.com/img/players/11864f31-b766-4766-9cbc-5026015ace48.jpg",
+    "team": "KKR",
+    "role": "BAT",
+    "nationality": "India"
+  },
+  "mitchellsantner": {
+    "name": "Mitchell Santner",
+    "imageUrl": "https://h.cricapi.com/img/players/16ec245b-022d-4104-bd8f-ccc780428390.jpg",
+    "team": "MI",
+    "role": "AR",
+    "nationality": "New Zealand"
+  },
+  "deepakchahar": {
+    "name": "Deepak Chahar",
+    "imageUrl": "https://h.cricapi.com/img/players/237a1ef2-1eae-4877-8b94-d20d84faf635.jpg",
+    "team": "MI",
+    "role": "BOWL",
+    "nationality": "India"
+  },
+  "kylejamieson": {
+    "name": "Kyle Jamieson",
+    "imageUrl": "https://h.cricapi.com/img/players/5673ee27-bf33-44b8-8973-41fd37923fed.jpg",
+    "team": "DC",
+    "role": "BOWL",
+    "nationality": "New Zealand"
+  },
+  "mitchellstarc": {
+    "name": "Mitchell Starc",
+    "imageUrl": "https://h.cricapi.com/img/players/bceb7084-1dda-4d76-b691-43c5a29d39a7.jpg",
+    "team": "DC",
+    "role": "BOWL",
+    "nationality": "Australia"
+  },
+  "kwenamaphaka": {
+    "name": "Kwena Maphaka",
+    "imageUrl": "https://h.cricapi.com/img/icon512.png",
+    "team": "RR",
+    "role": "BOWL",
+    "nationality": "South Africa"
+  },
+  "swapnilsingh": {
+    "name": "Swapnil Singh",
+    "imageUrl": "https://h.cricapi.com/img/icon512.png",
+    "team": "RCB",
+    "role": "AR",
+    "nationality": "India"
+  },
+  "tombanton": {
+    "name": "Tom Banton",
+    "imageUrl": "https://h.cricapi.com/img/players/6364e591-1f4b-4fe6-867c-ae61ea21f6f0.jpg",
+    "team": "GT",
+    "role": "WK",
+    "nationality": "England"
+  },
+  "timdavid": {
+    "name": "Tim David",
+    "imageUrl": "https://h.cricapi.com/img/players/69718248-2a3a-45d4-9a2a-6f4dfc6942a5.jpg",
+    "team": "RCB",
+    "role": "BAT",
+    "nationality": "Australia"
+  },
+  "namandhir": {
+    "name": "Naman Dhir",
+    "imageUrl": "https://h.cricapi.com/img/icon512.png",
+    "team": "MI",
+    "role": "BAT",
+    "nationality": "India"
+  },
+  "jacobbethell": {
+    "name": "Jacob Bethell",
+    "imageUrl": "https://h.cricapi.com/img/icon512.png",
+    "team": "RCB",
+    "role": "AR",
+    "nationality": "England"
+  },
+  "vaibhavarora": {
+    "name": "Vaibhav Arora",
+    "imageUrl": "https://h.cricapi.com/img/icon512.png",
+    "team": "KKR",
+    "role": "BOWL",
+    "nationality": "India"
+  },
+  "ruturajgaikwad": {
+    "name": "Ruturaj Gaikwad",
+    "imageUrl": "https://h.cricapi.com/img/players/50b70c71-1535-41c0-87fd-c12883105ede.jpg",
+    "team": "CSK",
+    "role": "BAT",
+    "nationality": "India"
+  },
+  "mohammedsiraj": {
+    "name": "Mohammed Siraj",
+    "imageUrl": "https://h.cricapi.com/img/players/2a8d8640-2213-4cf6-ac7e-309d8b733e96.jpg",
+    "team": "GT",
+    "role": "BOWL",
+    "nationality": "India"
+  },
+  "anukulroy": {
+    "name": "Anukul Roy",
+    "imageUrl": "https://h.cricapi.com/img/players/2958faf6-f7d1-4150-aa9e-e261a629ba0d.jpg",
+    "team": "KKR",
+    "role": "AR",
+    "nationality": "India"
+  },
+  "lukewood": {
+    "name": "Luke Wood",
+    "imageUrl": "https://h.cricapi.com/img/players/fe5f4f96-c207-4e3f-b0d5-cebc74435448.jpg",
+    "team": "GT",
+    "role": "BOWL",
+    "nationality": "England"
+  },
+  "varunchakaravarthy": {
+    "name": "Varun Chakaravarthy",
+    "imageUrl": "https://h.cricapi.com/img/players/702254aa-2764-4fe4-b28e-20336a0ab069.jpg",
+    "team": "KKR",
+    "role": "BOWL",
+    "nationality": "India"
+  },
+  "benduckett": {
+    "name": "Ben Duckett",
+    "imageUrl": "https://h.cricapi.com/img/players/180036fe-fcb5-4fcf-ba8a-28bb2b750cc6.jpg",
+    "team": "DC",
+    "role": "BAT",
+    "nationality": "England"
+  },
+  "kuldeepyadav": {
+    "name": "Kuldeep Yadav",
+    "imageUrl": "https://h.cricapi.com/img/players/1e651cfb-57f1-48da-bf9d-83cbff1733d1.jpg",
+    "team": "DC",
+    "role": "BOWL",
+    "nationality": "India"
+  },
+  "mitchellmarsh": {
+    "name": "Mitchell Marsh",
+    "imageUrl": "https://h.cricapi.com/img/players/6eaac800-13e7-4a07-8ee2-14acd04cc53f.jpg",
+    "team": "LSG",
+    "role": "AR",
+    "nationality": "Australia"
+  },
+  "timseifert": {
+    "name": "Tim Seifert",
+    "imageUrl": "https://h.cricapi.com/img/players/812fc568-a932-4f29-a1c4-b7c929e6a248.jpg",
+    "team": "KKR",
+    "role": "WK",
+    "nationality": "New Zealand"
+  },
+  "suyashsharma": {
+    "name": "Suyash Sharma",
+    "imageUrl": "https://h.cricapi.com/img/icon512.png",
+    "team": "RCB",
+    "role": "BOWL",
+    "nationality": "India"
+  },
+  "nitishkumarreddy": {
+    "name": "Nitish Kumar Reddy",
+    "imageUrl": "https://h.cricapi.com/img/icon512.png",
+    "team": "SRH",
+    "role": "AR",
+    "nationality": "India"
+  },
+  "msdhoni": {
+    "name": "MS Dhoni",
+    "imageUrl": "https://h.cricapi.com/img/players/b6e7aa41-b0bb-4b0f-8f59-59f729283be5.jpg",
+    "team": "CSK",
+    "role": "WK",
+    "nationality": "India"
+  },
+  "heinrichklaasen": {
+    "name": "Heinrich Klaasen",
+    "imageUrl": "https://h.cricapi.com/img/players/7d662361-8f12-4a52-9a4b-01e8734bd31d.jpg",
+    "team": "SRH",
+    "role": "WK",
+    "nationality": "South Africa"
+  },
+  "shivamdube": {
+    "name": "Shivam Dube",
+    "imageUrl": "https://h.cricapi.com/img/players/22ee45d8-0538-4e3e-a758-c515f9b86d11.jpg",
+    "team": "CSK",
+    "role": "AR",
+    "nationality": "India"
+  },
+  "kamindumendis": {
+    "name": "Kamindu Mendis",
+    "imageUrl": "https://h.cricapi.com/img/icon512.png",
+    "team": "SRH",
+    "role": "AR",
+    "nationality": "Sri Lanka"
+  },
+  "shahrukhkhan": {
+    "name": "Shahrukh Khan",
+    "imageUrl": "https://h.cricapi.com/img/players/d0f69230-16e0-4a79-92aa-f9f7c588d5d3.jpg",
+    "team": "GT",
+    "role": "AR",
+    "nationality": "India"
+  },
+  "bendwarshuis": {
+    "name": "Ben Dwarshuis",
+    "imageUrl": "https://h.cricapi.com/img/players/388b664b-de80-4290-ab82-420873293b91.jpg",
+    "team": "PBKS",
+    "role": "BOWL",
+    "nationality": "Australia"
+  },
+  "lungingidi": {
+    "name": "Lungi Ngidi",
+    "imageUrl": "https://h.cricapi.com/img/players/a1782393-3479-4caa-9c27-79cb87df9abc.jpg",
+    "team": "DC",
+    "role": "BOWL",
+    "nationality": "South Africa"
+  },
+  "corbinbosch": {
+    "name": "Corbin Bosch",
+    "imageUrl": "https://h.cricapi.com/img/players/f1dea685-fa68-4339-b582-ba70839e5ca9.jpg",
+    "team": "MI",
+    "role": "AR",
+    "nationality": "South Africa"
+  },
+  "matheeshapathirana": {
+    "name": "Matheesha Pathirana",
+    "imageUrl": "https://h.cricapi.com/img/icon512.png",
+    "team": "KKR",
+    "role": "BOWL",
+    "nationality": "Sri Lanka"
+  },
+  "viratkohli": {
+    "name": "Virat Kohli",
+    "imageUrl": "https://h.cricapi.com/img/players/c61d247d-7f77-452c-b495-2813a9cd0ac4.jpg",
+    "team": "RCB",
+    "role": "BAT",
+    "nationality": "India"
+  },
+  "arshdeepsingh": {
+    "name": "Arshdeep Singh",
+    "imageUrl": "https://h.cricapi.com/img/players/607ff10c-5619-411d-a822-06ba28992230.jpg",
+    "team": "PBKS",
+    "role": "BOWL",
+    "nationality": "India"
+  },
+  "lockieferguson": {
+    "name": "Lockie Ferguson",
+    "imageUrl": "https://h.cricapi.com/img/players/604d7c88-4f5d-40d9-b08b-330420964d87.jpg",
+    "team": "PBKS",
+    "role": "BOWL",
+    "nationality": "New Zealand"
+  },
+  "cooperconnolly": {
+    "name": "Cooper Connolly",
+    "imageUrl": "https://h.cricapi.com/img/icon512.png",
+    "team": "PBKS",
+    "role": "AR",
+    "nationality": "Australia"
+  },
+  "ishankishan": {
+    "name": "Ishan Kishan",
+    "imageUrl": "https://h.cricapi.com/img/players/9ae68636-48d9-488f-8adc-e62a19815d85.jpg",
+    "team": "SRH",
+    "role": "WK",
+    "nationality": "India"
+  },
+  "akealhosein": {
+    "name": "Akeal Hosein",
+    "imageUrl": "https://h.cricapi.com/img/players/7d053d4e-a735-4c96-bb98-4098dee523df.jpg",
+    "team": "CSK",
+    "role": "BOWL",
+    "nationality": "West Indies"
+  },
+  "riyanparag": {
+    "name": "Riyan Parag",
+    "imageUrl": "https://h.cricapi.com/img/players/b51bb4e5-acdf-423b-abb3-7a1e6694d2c2.jpg",
+    "team": "RR",
+    "role": "AR",
+    "nationality": "India"
+  },
+  "xavierbartlett": {
+    "name": "Xavier Bartlett",
+    "imageUrl": "https://h.cricapi.com/img/players/cba19be9-7aec-4083-ba61-26f0aee31721.jpg",
+    "team": "PBKS",
+    "role": "BOWL",
+    "nationality": "Australia"
+  },
+  "venkateshiyer": {
+    "name": "Venkatesh Iyer",
+    "imageUrl": "https://h.cricapi.com/img/players/c3236037-6694-404a-8f01-9ad880564ea9.jpg",
+    "team": "RCB",
+    "role": "AR",
+    "nationality": "India"
+  },
+  "rohitsharma": {
+    "name": "Rohit Sharma",
+    "imageUrl": "https://h.cricapi.com/img/players/03bda674-3916-4d64-952e-00a6c19c01e1.jpg",
+    "team": "MI",
+    "role": "BAT",
+    "nationality": "India"
+  },
+  "kagisorabada": {
+    "name": "Kagiso Rabada",
+    "imageUrl": "https://h.cricapi.com/img/players/a81da20a-e420-476a-baf6-204fc219dbdd.jpg",
+    "team": "GT",
+    "role": "BOWL",
+    "nationality": "South Africa"
+  },
+  "glennphillips": {
+    "name": "Glenn Phillips",
+    "imageUrl": "https://h.cricapi.com/img/players/9e6fa482-3ad3-4831-b05d-4fed2510cdf5.jpg",
+    "team": "GT",
+    "role": "AR",
+    "nationality": "New Zealand"
+  },
+  "rachinravindra": {
+    "name": "Rachin Ravindra",
+    "imageUrl": "https://h.cricapi.com/img/players/e6d28951-8524-43ca-95cf-9e73ae68bc12.jpg",
+    "team": "KKR",
+    "role": "AR",
+    "nationality": "New Zealand"
+  },
+  "nehalwadhera": {
+    "name": "Nehal Wadhera",
+    "imageUrl": "https://h.cricapi.com/img/icon512.png",
+    "team": "PBKS",
+    "role": "BAT",
+    "nationality": "India"
+  },
+  "tushardeshpande": {
+    "name": "Tushar Deshpande",
+    "imageUrl": "https://h.cricapi.com/img/players/f3876b65-0643-49df-9255-4a06dd3fa051.jpg",
+    "team": "RR",
+    "role": "BOWL",
+    "nationality": "India"
+  },
+  "tristanstubbs": {
+    "name": "Tristan Stubbs",
+    "imageUrl": "https://h.cricapi.com/img/icon512.png",
+    "team": "DC",
+    "role": "WK",
+    "nationality": "South Africa"
+  },
+  "josbuttler": {
+    "name": "Jos Buttler",
+    "imageUrl": "https://h.cricapi.com/img/players/7567e305-1b40-4eee-9290-e2fcb8804496.jpg",
+    "team": "GT",
+    "role": "WK",
+    "nationality": "England"
+  },
+  "jaspritbumrah": {
+    "name": "Jasprit Bumrah",
+    "imageUrl": "https://h.cricapi.com/img/players/6602d875-cf56-46a3-866c-de80aaa006bc.jpg",
+    "team": "MI",
+    "role": "BOWL",
+    "nationality": "India"
+  },
+  "noorahmad": {
+    "name": "Noor Ahmad",
+    "imageUrl": "https://h.cricapi.com/img/players/3cbc5a08-62af-4ca5-b709-c7712db6e8b6.jpg",
+    "team": "CSK",
+    "role": "BOWL",
+    "nationality": "Afghanistan"
+  },
+  "harshalpatel": {
+    "name": "Harshal Patel",
+    "imageUrl": "https://h.cricapi.com/img/players/15bccb4f-8c3c-4da6-acd9-551782278bfd.jpg",
+    "team": "SRH",
+    "role": "BOWL",
+    "nationality": "India"
+  }
+}

@@ -1,0 +1,157 @@
+/* Dark theme readability overrides */
+body.dark-theme .section-head-compact h2,
+body.dark-theme .dashboard-section h3,
+body.dark-theme .contest-card-top strong,
+body.dark-theme .player-row strong,
+body.dark-theme .match-name-btn strong,
+body.dark-theme .points-group h4,
+body.dark-theme .points-input-row span,
+body.dark-theme .leaderboard-row span,
+body.dark-theme .leaderboard-link,
+body.dark-theme .leaderboard-link.button-link,
+body.dark-theme .team-bar-title,
+body.dark-theme .team-column h3,
+body.dark-theme .admin-card h3 {
+  color: var(--text-primary);
+}
+
+body.dark-theme .team-note,
+body.dark-theme .status-legend,
+body.dark-theme .match-name-btn span,
+body.dark-theme .match-row span,
+body.dark-theme .leaderboard-row.header span,
+body.dark-theme .admin-card p,
+body.dark-theme .eyebrow,
+body.dark-theme .lead,
+body.dark-theme .dashboard-nav-btn small {
+  color: var(--text-muted);
+}
+
+body.dark-theme .dashboard-nav-btn span {
+  color: var(--text-primary);
+}
+
+body.dark-theme .dashboard-nav-btn {
+  background: rgba(34, 49, 76, 0.92);
+}
+
+body.dark-theme .dashboard-nav-btn.active {
+  background: rgba(84, 146, 239, 0.28);
+  border-color: rgba(147, 190, 249, 0.55);
+}
+
+body.dark-theme .points-input-row input,
+body.dark-theme .module-filters select,
+body.dark-theme .match-row.header {
+  color: var(--text-primary);
+}
+
+body.dark-theme .match-table thead th,
+body.dark-theme .participants-table thead th {
+  background: #2b3f61;
+  color: var(--text-muted);
+}
+
+body.dark-theme .badge.light {
+  color: var(--text-primary);
+}
+
+body.dark-theme .status-legend-item {
+  background: rgba(197, 215, 241, 0.12);
+}
+
+body.dark-theme .status-legend-item.status-open .status-swatch {
+  background: #86efac;
+}
+
+body.dark-theme .status-legend-item.status-progress .status-swatch {
+  background: #facc15;
+}
+
+body.dark-theme .status-legend-item.status-locked .status-swatch {
+  background: #f87171;
+}
+
+body.dark-theme .status-legend-item.status-complete .status-swatch {
+  background: #93c5fd;
+}
+
+body.dark-theme .contest-status-text.status-open {
+  color: #86efac;
+}
+
+body.dark-theme .contest-status-text.status-progress {
+  color: #facc15;
+}
+
+body.dark-theme .contest-status-text.status-locked {
+  color: #f87171;
+}
+
+body.dark-theme .contest-status-text.status-complete {
+  color: #93c5fd;
+}
+
+body.dark-theme .leaderboard-table thead th {
+  background: #2b3f61;
+  color: var(--text-muted);
+}
+
+body.dark-theme .leaderboard-table tbody tr:nth-child(odd) {
+  background: rgba(26, 44, 72, 0.54);
+}
+
+body.dark-theme .leaderboard-table tbody tr:nth-child(even) {
+  background: rgba(41, 60, 94, 0.62);
+}
+
+body.dark-theme .user-menu-item,
+body.dark-theme .user-theme-toggle span {
+  color: var(--text-primary);
+}
+
+body.dark-theme .admin-card .player-row span,
+body.dark-theme .admin-card .player-row strong,
+body.dark-theme .admin-card .contest-card-top strong,
+body.dark-theme .admin-card .contest-card-top .badge,
+body.dark-theme .dashboard-panel-card .player-row span,
+body.dark-theme .dashboard-panel-card .player-row strong {
+  color: var(--text-primary) !important;
+}
+
+body.dark-theme .dashboard-panel-card .player-row {
+  border: 1px solid rgba(191, 213, 243, 0.18);
+}
+
+body.dark-theme .dashboard-panel-card .player-row:nth-child(odd) {
+  background: rgba(70, 96, 140, 0.28);
+}
+
+body.dark-theme .dashboard-panel-card .player-row:nth-child(even) {
+  background: rgba(53, 78, 120, 0.28);
+}
+
+body.dark-theme .participants-card .player-row {
+  background: rgba(67, 91, 130, 0.3);
+  border-color: rgba(179, 205, 237, 0.26);
+}
+
+.error-text {
+  margin: 0;
+  color: #dc2626;
+  font-size: 0.86rem;
+}
+
+.success-text {
+  margin: 0;
+  color: #16a34a;
+  font-size: 0.86rem;
+}
+
+body.dark-theme .error-text {
+  color: #fca5a5;
+}
+
+body.dark-theme .success-text {
+  color: #86efac;
+}

@@ -1,0 +1,11 @@
+/* Nav + logout button harmony */
+.nav-actions .logout {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+  color: rgba(15, 23, 42, 0.75);
+}
+
+.nav-actions .logout:hover {
+  background: rgba(255, 255, 255, 0.85);
+}

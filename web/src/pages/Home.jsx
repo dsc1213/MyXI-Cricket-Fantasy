@@ -4,11 +4,10 @@ function Home() {
   return (
     <section className="hero">
       <div className="hero-copy">
-        <p className="eyebrow">Fantasy cricket tournaments</p>
         <h1>Build a fantasy league for your friends in minutes.</h1>
         <p className="lead">
-          Pick tournaments, create contests, and track scores with simple admin
-          tools. Manual score overrides keep things accurate after each match.
+          Pick tournaments, create contests, and track scores with simple admin tools.
+          Manual score overrides keep things accurate after each match.
         </p>
         <div className="hero-actions">
           <Link to="/register" className="cta">

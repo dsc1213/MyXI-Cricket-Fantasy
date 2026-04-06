@@ -1,0 +1,469 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import ContestTopBar from '../components/contest-detail/ContestTopBar.jsx'
+import MatchesCard from '../components/contest-detail/MatchesCard.jsx'
+import ParticipantsCard from '../components/contest-detail/ParticipantsCard.jsx'
+import TeamPreviewDrawer from '../components/contest-detail/TeamPreviewDrawer.jsx'
+import Button from '../components/ui/Button.jsx'
+import Modal from '../components/ui/Modal.jsx'
+import StickyTable from '../components/ui/StickyTable.jsx'
+import {
+  deleteAdminContest,
+  fetchContest,
+  fetchContestLeaderboard,
+  fetchContestMatches,
+  fetchContestParticipants,
+  fetchTournaments,
+  fetchUserPicks,
+} from '../lib/api.js'
+import { getStoredUser } from '../lib/auth.js'
+
+const normalizeContestMatches = (payload) => {
+  if (Array.isArray(payload)) return payload
+  if (Array.isArray(payload?.matches)) return payload.matches
+  return []
+}
+
+const normalizeContestParticipants = (payload) => {
+  if (Array.isArray(payload)) {
+    return {
+      participants: payload,
+      joinedCount: payload.length,
+      previewXI: [],
+      previewBackups: [],
+    }
+  }
+  return {
+    participants: Array.isArray(payload?.participants) ? payload.participants : [],
+    joinedCount: Number(payload?.joinedCount || 0),
+    previewXI: Array.isArray(payload?.previewXI) ? payload.previewXI : [],
+    previewBackups: Array.isArray(payload?.previewBackups) ? payload.previewBackups : [],
+  }
+}
+
+const normalizeMatchStatus = (value) =>
+  (value || '')
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '')
+
+const getMatchStartTime = (match) => {
+  const raw = (match?.startAt || match?.startTime || '').toString().trim()
+  if (!raw) return Number.POSITIVE_INFINITY
+  const parsed = new Date(raw)
+  const time = parsed.getTime()
+  return Number.isNaN(time) ? Number.POSITIVE_INFINITY : time
+}
+
+const sortContestMatches = (rows = []) =>
+  [...rows].sort((left, right) => {
+    const leftCompleted = normalizeMatchStatus(left?.status) === 'completed'
+    const rightCompleted = normalizeMatchStatus(right?.status) === 'completed'
+    if (leftCompleted !== rightCompleted) {
+      return leftCompleted ? 1 : -1
+    }
+    const timeDiff = getMatchStartTime(left) - getMatchStartTime(right)
+    if (timeDiff !== 0) return timeDiff
+    return String(left?.matchNo || left?.id || '').localeCompare(String(right?.matchNo || right?.id || ''))
+  })
+
+function ContestDetail() {
+  const { tournamentId, contestId } = useParams()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const viewMode = new URLSearchParams(location.search).get('view') || ''
+  const currentUser = getStoredUser()
+  const isLoggedIn = Boolean(currentUser)
+  const currentUserGameName =
+    currentUser?.userId || currentUser?.gameName || currentUser?.email || 'kiran11'
+  const canEditFullTeams = currentUser?.role === 'master_admin'
+  const canDeleteContest = ['admin', 'master_admin'].includes(currentUser?.role)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isMetaLoading, setIsMetaLoading] = useState(true)
+  const [hasLoadedMatchesOnce, setHasLoadedMatchesOnce] = useState(false)
+  const [errorText, setErrorText] = useState('')
+  const [contestTitle, setContestTitle] = useState(contestId)
+  const [contestMode, setContestMode] = useState('')
+  const [tournamentName, setTournamentName] = useState(tournamentId)
+  const [lastScoreUpdatedAt, setLastScoreUpdatedAt] = useState('')
+  const [matches, setMatches] = useState([])
+  const [selectedMatchId, setSelectedMatchId] = useState('')
+  const [matchFilter, setMatchFilter] = useState('all')
+  const [teamFilter, setTeamFilter] = useState('all')
+  const [participants, setParticipants] = useState([])
+  const [joinedParticipantsCount, setJoinedParticipantsCount] = useState(0)
+  const [previewXI, setPreviewXI] = useState([])
+  const [previewBackups, setPreviewBackups] = useState([])
+  const [previewPlayer, setPreviewPlayer] = useState(null)
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
+  const [showLeaderboardPreview, setShowLeaderboardPreview] = useState(false)
+  const [leaderboardRows, setLeaderboardRows] = useState([])
+  const [isLoadingLeaderboardPreview, setIsLoadingLeaderboardPreview] = useState(false)
+  const [leaderboardPreviewError, setLeaderboardPreviewError] = useState('')
+  const [showDeleteContestModal, setShowDeleteContestModal] = useState(false)
+  const [isDeletingContest, setIsDeletingContest] = useState(false)
+
+  useEffect(() => {
+    let active = true
+
+    const loadMeta = async () => {
+      try {
+        setIsMetaLoading(true)
+        setErrorText('')
+        const [contest, tournaments] = await Promise.all([
+          fetchContest(contestId),
+          fetchTournaments(),
+        ])
+        if (!active) return
+        setContestTitle(contest.name)
+        setContestMode(contest.mode || '')
+        setLastScoreUpdatedAt(contest.lastScoreUpdatedAt || '')
+        const tournament = tournaments.find((item) => item.id === tournamentId)
+        setTournamentName(tournament?.name || tournamentId)
+      } catch (error) {
+        if (!active) return
+        setErrorText(error.message || 'Failed to load contest')
+      } finally {
+        if (active) setIsMetaLoading(false)
+      }
+    }
+
+    loadMeta()
+    return () => {
+      active = false
+    }
+  }, [contestId, tournamentId])
+
+  useEffect(() => {
+    setHasLoadedMatchesOnce(false)
+  }, [contestId])
+
+  useEffect(() => {
+    setIsLoading(isMetaLoading || !hasLoadedMatchesOnce)
+  }, [hasLoadedMatchesOnce, isMetaLoading])
+
+  useEffect(() => {
+    let active = true
+
+    const loadMatches = async () => {
+      try {
+        setErrorText('')
+        const data = await fetchContestMatches({
+          contestId,
+          status: matchFilter,
+          team: teamFilter,
+          userId: currentUserGameName,
+        })
+        const rows = normalizeContestMatches(data)
+        if (!active) return
+        setMatches(rows)
+        setSelectedMatchId((prev) => {
+          if (!prev && rows.length > 0) return rows[0].id
+          if (prev && !rows.find((item) => item.id === prev)) return rows[0]?.id || ''
+          return prev
+        })
+      } catch (error) {
+        if (!active) return
+        setErrorText(error.message || 'Failed to load matches')
+      } finally {
+        if (active) setHasLoadedMatchesOnce(true)
+      }
+    }
+
+    loadMatches()
+    return () => {
+      active = false
+    }
+  }, [contestId, matchFilter, teamFilter, currentUserGameName])
+
+  useEffect(() => {
+    if (!selectedMatchId) return
+    let active = true
+
+    const loadParticipants = async () => {
+      try {
+        const payload = normalizeContestParticipants(
+          await fetchContestParticipants({
+            contestId,
+            matchId: selectedMatchId,
+            userId: currentUserGameName,
+          }),
+        )
+        if (!active) return
+        setParticipants(payload.participants)
+        setJoinedParticipantsCount(payload.joinedCount)
+        setPreviewXI(payload.previewXI)
+        setPreviewBackups(payload.previewBackups)
+      } catch (error) {
+        if (!active) return
+        setErrorText(error.message || 'Failed to load participants')
+      }
+    }
+
+    loadParticipants()
+    return () => {
+      active = false
+    }
+  }, [contestId, selectedMatchId, currentUserGameName])
+
+  const loadParticipantsForMatch = async (matchId) =>
+    normalizeContestParticipants(
+      await fetchContestParticipants({
+          contestId,
+          matchId,
+          userId: currentUserGameName,
+        }),
+    )
+
+  const onPreviewPlayer = async (player) => {
+    try {
+      if (!isLoggedIn) return
+      setPreviewPlayer(player)
+      setIsLoadingPreview(true)
+      setPreviewXI([])
+      setPreviewBackups([])
+      const data = await fetchUserPicks({
+        userId: player.userId,
+        tournamentId,
+        contestId,
+        matchId: selectedMatchId,
+      })
+      setPreviewXI(data?.picksDetailed || data?.picks || [])
+      setPreviewBackups(data?.backupsDetailed || data?.backups || [])
+    } catch (error) {
+      setErrorText(error.message || 'Failed to load user team')
+    } finally {
+      setIsLoadingPreview(false)
+    }
+  }
+
+  const onPreviewMyTeamFromMatch = async (match) => {
+    try {
+      if (!isLoggedIn) return
+      const targetMatchId = match?.id || selectedMatchId
+      if (!targetMatchId) return
+      setSelectedMatchId(targetMatchId)
+      const participantsData = await loadParticipantsForMatch(targetMatchId)
+      const currentParticipant = participantsData.participants.find(
+        (entry) =>
+          entry.userId === currentUserGameName ||
+          entry.name?.toLowerCase() === currentUserGameName.toLowerCase(),
+      )
+      setPreviewPlayer({
+        userId: currentUserGameName,
+        name: currentUser?.name || currentUserGameName,
+        points: Number(currentParticipant?.points || 0),
+      })
+      setIsLoadingPreview(true)
+      setPreviewXI([])
+      setPreviewBackups([])
+      const data = await fetchUserPicks({
+        userId: currentUserGameName,
+        tournamentId,
+        contestId,
+        matchId: targetMatchId,
+      })
+      setPreviewXI(data?.picksDetailed || data?.picks || [])
+      setPreviewBackups(data?.backupsDetailed || data?.backups || [])
+    } catch (error) {
+      setErrorText(error.message || 'Failed to load my team preview')
+    } finally {
+      setIsLoadingPreview(false)
+    }
+  }
+
+  const activeMatch = matches.find((match) => match.id === selectedMatchId) || matches[0]
+  const sortedMatches = useMemo(() => sortContestMatches(matches), [matches])
+  const activeSortedMatch =
+    sortedMatches.find((match) => match.id === selectedMatchId) || sortedMatches[0]
+
+  const teamOptions = useMemo(
+    () => Array.from(new Set(sortedMatches.flatMap((match) => [match.home, match.away]))),
+    [sortedMatches],
+  )
+
+  useEffect(() => {
+    if (!showLeaderboardPreview) return
+    let active = true
+    const loadLeaderboardPreview = async () => {
+      try {
+        setIsLoadingLeaderboardPreview(true)
+        setLeaderboardPreviewError('')
+        const data = await fetchContestLeaderboard(contestId)
+        if (!active) return
+        setLeaderboardRows(data?.rows || [])
+      } catch (error) {
+        if (!active) return
+        setLeaderboardPreviewError(error.message || 'Failed to load leaderboard preview')
+      } finally {
+        if (active) {
+          setIsLoadingLeaderboardPreview(false)
+        }
+      }
+    }
+    loadLeaderboardPreview()
+    return () => {
+      active = false
+    }
+  }, [contestId, showLeaderboardPreview])
+
+  const leaderboardColumns = [
+    { key: 'rank', label: 'Rank', render: (_, index) => index + 1 },
+    { key: 'name', label: 'Game Name', render: (row) => row.name },
+    { key: 'points', label: 'Points', render: (row) => Number(row.points || 0) },
+  ]
+
+  return (
+    <section className="admin contest-detail">
+      <ContestTopBar
+        contestTitle={contestTitle}
+        tournamentName={tournamentName}
+        lastScoreUpdatedAt={lastScoreUpdatedAt}
+        isLoading={isLoading}
+        errorText={errorText}
+        tournamentId={tournamentId}
+        viewMode={viewMode}
+        actions={
+          canDeleteContest ? (
+            <Button
+              variant="danger"
+              size="small"
+              onClick={() => {
+                setErrorText('')
+                setShowDeleteContestModal(true)
+              }}
+            >
+              Delete contest
+            </Button>
+          ) : null
+        }
+      />
+
+      <div className="admin-grid contest-grid">
+        <MatchesCard
+          contestMode={contestMode}
+          matches={sortedMatches}
+          selectedMatchId={selectedMatchId}
+          onSelectMatch={setSelectedMatchId}
+          matchFilter={matchFilter}
+          onChangeMatchFilter={setMatchFilter}
+          teamFilter={teamFilter}
+          onChangeTeamFilter={setTeamFilter}
+          teamOptions={teamOptions}
+          contestId={contestId}
+          onPreviewLeaderboard={() => setShowLeaderboardPreview(true)}
+          onPreviewTeam={onPreviewMyTeamFromMatch}
+          isLoggedIn={isLoggedIn}
+        />
+
+        <ParticipantsCard
+          contestMode={contestMode}
+          contestId={contestId}
+          activeMatch={activeSortedMatch}
+          participants={participants}
+          joinedCount={joinedParticipantsCount}
+          onPreviewPlayer={onPreviewPlayer}
+          canEditFullTeams={canEditFullTeams}
+          isLoggedIn={isLoggedIn}
+        />
+      </div>
+
+      <TeamPreviewDrawer
+        contestMode={contestMode}
+        previewPlayer={previewPlayer}
+        activeMatch={activeSortedMatch}
+        previewXI={previewXI}
+        previewBackups={previewBackups}
+        isLoading={isLoadingPreview}
+        onClose={() => {
+          setPreviewPlayer(null)
+          setPreviewXI([])
+          setPreviewBackups([])
+          setIsLoadingPreview(false)
+        }}
+      />
+
+      <Modal
+        open={showDeleteContestModal}
+        onClose={() => setShowDeleteContestModal(false)}
+        title="Delete contest"
+        size="sm"
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              size="small"
+              onClick={() => setShowDeleteContestModal(false)}
+            >
+              No
+            </Button>
+            <Button
+              variant="danger"
+              size="small"
+              disabled={isDeletingContest}
+              onClick={async () => {
+                try {
+                  setIsDeletingContest(true)
+                  setErrorText('')
+                  await deleteAdminContest(
+                    contestId,
+                    currentUser?.gameName || currentUser?.email || '',
+                  )
+                  setShowDeleteContestModal(false)
+                  navigate('/fantasy')
+                } catch (error) {
+                  setErrorText(error.message || 'Failed to delete contest')
+                } finally {
+                  setIsDeletingContest(false)
+                }
+              }}
+            >
+              {isDeletingContest ? 'Deleting...' : 'Yes, delete'}
+            </Button>
+          </>
+        }
+      >
+        <p className="error-text">
+          This removes the contest and all join mappings for this contest. Continue?
+        </p>
+      </Modal>
+
+      <Modal
+        open={showLeaderboardPreview}
+        onClose={() => setShowLeaderboardPreview(false)}
+        title="Quick leaderboard preview"
+        size="md"
+        footer={
+          <>
+            <Button variant="ghost" size="small" onClick={() => setShowLeaderboardPreview(false)}>
+              Close
+            </Button>
+            <Button
+              variant="primary"
+              size="small"
+              to={`/tournaments/${tournamentId}/contests/${contestId}/leaderboard${viewMode ? `?view=${encodeURIComponent(viewMode)}` : ''}`}
+            >
+              Open leaderboard page
+            </Button>
+          </>
+        }
+      >
+        {isLoadingLeaderboardPreview && <p className="team-note">Loading leaderboard...</p>}
+        {!!leaderboardPreviewError && <p className="error-text">{leaderboardPreviewError}</p>}
+        {!isLoadingLeaderboardPreview && !leaderboardPreviewError && (
+          <StickyTable
+            columns={leaderboardColumns}
+            rows={leaderboardRows.slice(0, 15)}
+            rowKey={(row, index) => row.id || `${row.name}-${index}`}
+            emptyText="No leaderboard rows"
+            wrapperClassName="leaderboard-preview-table-wrap"
+            tableClassName="leaderboard-table"
+          />
+        )}
+      </Modal>
+    </section>
+  )
+}
+
+export default ContestDetail

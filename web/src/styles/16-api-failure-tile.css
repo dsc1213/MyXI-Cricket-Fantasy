@@ -1,0 +1,116 @@
+.api-failure-tile {
+  width: min(860px, 100%);
+  margin: 1.25rem auto 0;
+  padding: clamp(1.2rem, 2.4vw, 2rem);
+  border-radius: 22px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background:
+    radial-gradient(circle at 10% 0%, rgba(255, 211, 117, 0.34), transparent 44%),
+    radial-gradient(circle at 100% 10%, rgba(78, 123, 217, 0.22), transparent 48%),
+    linear-gradient(145deg, #f9f4e7 0%, #eef4ff 100%);
+  box-shadow: 0 20px 44px rgba(15, 23, 42, 0.14);
+  text-align: center;
+}
+
+.api-failure-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.26rem 0.72rem;
+  border-radius: 999px;
+  background: rgba(13, 27, 42, 0.9);
+  color: #ffe8ab;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.api-failure-visual {
+  position: relative;
+  width: 180px;
+  height: 100px;
+  margin: 0.95rem auto 0.4rem;
+  border-radius: 16px;
+  background:
+    linear-gradient(to top, rgba(80, 145, 69, 0.38) 0 28%, rgba(218, 188, 129, 0.56) 28% 100%);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  overflow: hidden;
+}
+
+.api-failure-visual .stump {
+  position: absolute;
+  bottom: 1.2rem;
+  width: 8px;
+  height: 40px;
+  border-radius: 3px;
+  background: #f4ede0;
+  box-shadow: inset 0 0 0 1px rgba(13, 27, 42, 0.16);
+}
+
+.api-failure-visual .stump-one {
+  left: 72px;
+}
+
+.api-failure-visual .stump-two {
+  left: 86px;
+}
+
+.api-failure-visual .stump-three {
+  left: 100px;
+}
+
+.api-failure-visual .ball {
+  position: absolute;
+  top: 18px;
+  left: 34px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #da3b26;
+  box-shadow: 64px 16px 0 -1px rgba(218, 59, 38, 0.24);
+  animation: ball-swing 1.8s ease-in-out infinite;
+}
+
+.api-failure-tile h3 {
+  margin: 0.35rem 0 0;
+}
+
+.api-failure-tile p {
+  margin: 0.36rem 0 0;
+}
+
+.api-failure-actions {
+  margin-top: 0.95rem;
+  display: flex;
+  justify-content: center;
+}
+
+body.dark-theme .api-failure-tile {
+  border-color: rgba(183, 200, 232, 0.3);
+  background:
+    radial-gradient(circle at 15% 0%, rgba(220, 182, 100, 0.22), transparent 46%),
+    radial-gradient(circle at 92% 8%, rgba(96, 136, 224, 0.22), transparent 46%),
+    linear-gradient(145deg, #1a2a43 0%, #1b314f 100%);
+  box-shadow: 0 22px 44px rgba(8, 12, 24, 0.42);
+}
+
+body.dark-theme .api-failure-badge {
+  background: rgba(245, 201, 113, 0.18);
+  color: #ffe29f;
+}
+
+body.dark-theme .api-failure-visual {
+  border-color: rgba(183, 200, 232, 0.22);
+}
+
+@keyframes ball-swing {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate(86px, 32px) rotate(18deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+}

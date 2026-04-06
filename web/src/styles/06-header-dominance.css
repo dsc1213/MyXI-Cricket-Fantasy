@@ -1,0 +1,383 @@
+/* Make header bar less dominant */
+.team-bar {
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.player-chip.slot-chip.compact {
+  text-align: center;
+}
+
+.player-chip.slot-chip.compact span,
+.player-chip.slot-chip.compact small {
+  text-align: center;
+}
+
+.backups-card .player-chip.slot-chip.compact,
+.backup-chip.empty {
+  text-align: center;
+  justify-items: center;
+}
+
+.backup-chip,
+.backup-chip.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.myxi-slots {
+  align-content: center;
+  justify-items: center;
+}
+
+.myxi-roles-strip,
+.myxi-role-card {
+  justify-items: stretch;
+}
+
+.myxi-slots .empty {
+  align-self: center;
+}
+
+.icon-button.logout {
+  width: auto;
+  height: 32px;
+  padding: 0 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.logout-icon {
+  font-size: 0.9rem;
+}
+
+.logout-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.myxi-slots .player-chip.slot-chip.compact,
+.backups-grid .player-chip.slot-chip.compact,
+.backup-chip.empty {
+  width: 120px;
+  height: 32px;
+}
+
+.myxi-slots {
+  grid-auto-rows: 38px;
+}
+
+.backups-grid {
+  grid-auto-rows: 32px;
+}
+
+.myxi-slots {
+  align-content: center;
+  justify-content: center;
+  grid-template-columns: repeat(3, 130px);
+}
+
+.backups-grid .player-chip.slot-chip.compact,
+.backup-chip.empty {
+  width: 120px;
+  height: 32px;
+}
+
+.backups-grid {
+  grid-auto-rows: 32px;
+}
+
+.myxi-slots .player-chip.slot-chip.compact {
+  width: 130px;
+  height: 30px;
+}
+
+.myxi-slots {
+  grid-auto-rows: 32px;
+}
+
+.compact-brand {
+  gap: 0.6rem;
+}
+
+.compact-brand .brand-text {
+  line-height: 1;
+}
+
+.compact-brand .brand-text span {
+  letter-spacing: 0.22em;
+  font-size: 0.62rem;
+}
+
+.compact-brand .brand-text strong {
+  font-size: 1rem;
+}
+
+@media (max-width: 900px) {
+  .compact-brand {
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .right-column {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    padding: 1rem;
+    background: rgba(10, 16, 24, 0.4);
+    backdrop-filter: blur(6px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+  }
+
+  .right-column.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .right-column .myxi-card,
+  .right-column .backups-card {
+    width: min(92vw, 380px);
+    height: auto;
+  }
+
+  .right-column .myxi-card {
+    max-height: 60vh;
+    overflow: auto;
+  }
+
+  .right-column .backups-card {
+    max-height: 25vh;
+    overflow: auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .nav-actions {
+    margin-left: auto;
+  }
+
+  .nav-actions .logout {
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .team-grid-2 {
+    gap: 0.8rem;
+  }
+
+  .team-column {
+    padding: 0.5rem;
+  }
+
+  .tile-grid.two-col {
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+  }
+
+  .player-tile {
+    padding: 0.3rem 0.45rem;
+  }
+
+  .player-chip.slot-chip.compact {
+    width: auto;
+    height: auto;
+    padding: 0.18rem 0.35rem;
+  }
+
+  .player-chip.slot-chip.compact span {
+    font-size: 0.62rem;
+  }
+
+  .player-chip.slot-chip.compact small {
+    font-size: 0.58rem;
+  }
+
+  .tile-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+  }
+}
+
+@media (max-width: 900px) {
+  .player-chip.slot-chip.compact {
+    max-width: 150px;
+  }
+}
+
+@media (max-width: 900px) {
+  .right-column {
+    justify-content: flex-start;
+    overflow: auto;
+  }
+
+  .right-column .myxi-card {
+    order: 1;
+    margin: 0 auto;
+  }
+
+  .right-column .backups-card {
+    order: 2;
+    margin: 0 auto;
+  }
+}
+
+.mobile-modal {
+  display: contents;
+}
+
+@media (max-width: 900px) {
+  .mobile-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    background: rgba(10, 16, 24, 0.4);
+    backdrop-filter: blur(6px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  .mobile-modal.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .mobile-modal-card {
+    width: min(92vw, 420px);
+    max-height: 88vh;
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.2);
+    display: grid;
+    grid-template-rows: auto 1fr;
+    overflow: hidden;
+  }
+
+  .mobile-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.8rem;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    font-weight: 600;
+  }
+
+  .mobile-modal-card .right-column {
+    position: static;
+    inset: auto;
+    padding: 0.8rem;
+    background: transparent;
+    overflow: auto;
+    height: auto;
+    gap: 0.6rem;
+  }
+
+  .right-column {
+    grid-template-rows: auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    background: rgba(10, 16, 24, 0.4);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    overscroll-behavior: contain;
+  }
+
+  .modal-card {
+    width: min(92vw, 420px);
+    max-height: 88vh;
+    background: var(--panel-bg);
+    color: var(--text-primary);
+    border-radius: 18px;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.2);
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    overflow: hidden;
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.8rem;
+    border-bottom: 1px solid var(--panel-border);
+    font-weight: 600;
+  }
+
+  .modal-close {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    border: 1px solid var(--input-border);
+    background: var(--input-bg);
+    color: var(--input-text);
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .modal-body {
+    padding: 0.8rem;
+    overflow: auto;
+    display: grid;
+    gap: 0.6rem;
+  }
+
+  .modal-footer {
+    padding: 0.6rem 0.8rem;
+    border-top: 1px solid var(--panel-border);
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .right-column {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .modal-body .myxi-card,
+  .modal-body .backups-card {
+    height: auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .modal-body .myxi-card {
+    display: grid;
+  }
+}
+
+@media (max-width: 900px) {
+  .modal-body .myxi-card {
+    position: static;
+    inset: auto;
+    transform: none;
+  }
+}

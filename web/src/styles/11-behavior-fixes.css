@@ -1,0 +1,369 @@
+/* Final behavior fixes */
+.app {
+  min-height: 100svh;
+}
+
+.app.landing {
+  gap: 1rem;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.app.landing .main {
+  align-items: center;
+}
+
+.app.landing .hero {
+  gap: 1.25rem;
+}
+
+.app.landing .hero-copy h1 {
+  font-size: clamp(2.1rem, 4.4vw, 4rem);
+  margin-bottom: 0.5rem;
+}
+
+.topbar.compact.landing {
+  grid-template-columns: auto 1fr;
+}
+
+.topbar.compact.landing .nav-actions {
+  justify-self: end;
+}
+
+.topbar.compact .nav-actions {
+  justify-self: end;
+}
+
+.app.app-lower-content .main.main-lower-content {
+  padding-top: clamp(0.25rem, 0.9vh, 0.55rem);
+}
+
+.app.app-auth .main.main-lower-content {
+  padding-top: 0.9rem;
+}
+
+.auth {
+  width: 100%;
+  align-items: stretch;
+}
+
+.auth-panel,
+.auth-aside {
+  padding: 1rem;
+}
+
+button,
+.cta,
+.ghost,
+.link-button,
+.user-menu-item,
+.leaderboard-link.button-link {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+.menu-backdrop {
+  z-index: 170;
+}
+
+.user-menu-dropdown {
+  background: #ffffff;
+}
+
+body.dark-theme .user-menu-dropdown {
+  background: #1f2f4d;
+}
+
+.status-legend {
+  margin: -0.2rem 0 0.2rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.status-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.24rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.status-legend-item .status-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.status-legend-item.status-open .status-swatch {
+  background: #22c55e;
+}
+
+.status-legend-item.status-progress .status-swatch {
+  background: #f59e0b;
+}
+
+.status-legend-item.status-locked .status-swatch {
+  background: #ef4444;
+}
+
+.status-legend-item.status-complete .status-swatch {
+  background: #3b82f6;
+}
+
+.contest-status-text {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.contest-status-text.status-open {
+  color: #16a34a;
+}
+
+.contest-status-text.status-progress {
+  color: #d97706;
+}
+
+.contest-status-text.status-locked {
+  color: #dc2626;
+}
+
+.contest-status-text.status-complete {
+  color: #2563eb;
+}
+
+.contest-countdown {
+  font-weight: 700;
+  color: #f8d26a;
+}
+
+body.dark-theme .contest-countdown {
+  color: #fde68a;
+}
+
+.points-editor-card {
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+}
+
+.points-editor-card .top-actions {
+  grid-column: 1 / -1;
+  justify-content: center;
+}
+
+.match-upload-form {
+  width: 100%;
+  margin-inline: auto;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.match-upload-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  grid-template-areas:
+    'json excel'
+    'actions actions';
+  gap: 0.5rem;
+  align-items: start;
+  border: none;
+  background: transparent;
+  justify-content: space-evenly;
+}
+
+.match-upload-json {
+  grid-area: json;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.match-upload-excel {
+  grid-area: excel;
+  display: grid;
+  gap: 0.7rem;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.match-upload-json textarea {
+  min-height: 180px;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  padding: 0.55rem 0.65rem;
+  border-radius: 11px;
+}
+
+.upload-field {
+  display: grid;
+  gap: 0.32rem;
+}
+
+.native-file-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.file-picker-shell {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
+  padding: 0.24rem 0.3rem;
+  background: var(--input-bg);
+  min-height: 40px;
+}
+
+.file-picker-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  padding: 0 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: linear-gradient(160deg, rgba(246, 196, 83, 0.95), rgba(232, 175, 57, 0.95));
+  color: #172138;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.file-picker-name {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-actions {
+  justify-content: flex-end;
+}
+
+.upload-actions-full {
+  grid-area: actions;
+  justify-content: center;
+  width: 100%;
+  padding-right: 0;
+}
+
+.upload-actions-full .cta.small {
+  padding: 0.44rem 1.05rem;
+  font-size: 0.88rem;
+}
+
+body.dark-theme .file-picker-shell {
+  background: rgba(35, 52, 82, 0.78);
+}
+
+body.dark-theme .file-picker-btn {
+  color: #1d2b45;
+}
+
+.match-row {
+  display: grid;
+  grid-template-columns: 1.45fr 0.72fr 0.5fr 0.6fr auto;
+  align-items: center;
+}
+
+.match-row.header {
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 0.36rem 0.42rem;
+  margin-bottom: 0.26rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  background: var(--panel-bg);
+}
+
+.module-filters.compact.three {
+  grid-template-columns: repeat(3, minmax(150px, 1fr));
+}
+
+.leaderboard-card.compact {
+  padding-top: 0;
+  overflow: hidden;
+}
+
+.leaderboard-card.compact .leaderboard-row.header {
+  position: static;
+  border-radius: 0;
+}
+
+.leaderboard-card.compact .leaderboard-row:not(.header) {
+  margin: 0.18rem 0.6rem;
+}
+
+.button-link {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: inherit;
+  text-decoration: underline;
+  font: inherit;
+}
+
+.team-preview-panel.solid {
+  background: #ffffff;
+}
+
+body.dark-theme .team-preview-panel.solid {
+  background: #1f2f4d;
+}
+
+@media (max-width: 980px) {
+  .points-editor-card {
+    grid-template-columns: 1fr;
+  }
+
+  .match-upload-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'json'
+      'excel'
+      'actions';
+    gap: 0.55rem;
+  }
+
+  .upload-actions {
+    justify-content: center;
+  }
+
+  .match-row {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
+  }
+
+  .match-row.header {
+    display: none;
+  }
+
+  .topbar.compact.landing {
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+  }
+
+  .topbar.compact.landing .nav-actions {
+    justify-self: end;
+  }
+}

@@ -1,6 +1,7 @@
 # API Readme
 
 ## Run
+
 ```
 cd api
 cp .env.example .env
@@ -9,6 +10,7 @@ npm run dev
 ```
 
 ## Env
+
 ```
 PORT=4000
 MASTER_ADMIN_NAME=Admin
@@ -19,6 +21,7 @@ JWT_EXPIRES_IN=7d
 ```
 
 ## Auth
+
 - `POST /auth/register`
   - body: `{ name, gameName, email, password }`
 - `POST /auth/login`
@@ -28,6 +31,7 @@ JWT_EXPIRES_IN=7d
   - body: `{ userId, status: "active" | "rejected" }`
 
 ## Users
+
 - `GET /users?q=...` (admin/master)
   - header: `Authorization: Bearer <token>`
 - `PATCH /users/:id` (self/admin/master)
@@ -37,6 +41,7 @@ JWT_EXPIRES_IN=7d
   - header: `Authorization: Bearer <token>`
 
 ## Tournaments + Matches
+
 - `GET /tournaments`
 - `GET /tournaments/:id/matches`
 - `GET /admin/tournaments` (admin/master)
@@ -52,9 +57,25 @@ JWT_EXPIRES_IN=7d
   - body: `{ status: "scheduled" | "live" | "completed" }`
 
 ## Team Selection
+
 - `POST /matches/:id/team`
   - header: `Authorization: Bearer <token>`
   - body: `{ playingXi: [11], backups: [0..6] }`
 - `POST /admin/matches/:id/auto-swap` (admin/master)
   - header: `Authorization: Bearer <token>`
   - body: `{ playingXiConfirmed: [playerIds] }`
+
+## Scoring
+
+- `GET /admin/matches/:id/score-history` (admin/master; owner or master)
+  - header: `Authorization: Bearer <token>`
+- `POST /admin/matches/:id/score-rollback` (admin/master; owner or master)
+  - header: `Authorization: Bearer <token>`
+  - body: `{ scoreId }`
+- `POST /admin/scoring-rules` (admin/master)
+  - header: `Authorization: Bearer <token>`
+  - body: `{ tournamentId, rules }`
+- `POST /admin/matches/:id/score-upload` (admin/master)
+  - header: `Authorization: Bearer <token>`
+  - body: `{ playerStats: [{ playerId, runs, wickets, catches, fours, sixes }] }`
+- `GET /tournaments/:id/leaderboard`
