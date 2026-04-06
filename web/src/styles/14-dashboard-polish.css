@@ -497,16 +497,20 @@ select.dashboard-text-input {
 .user-manager-primary,
 .user-manager-secondary {
   display: flex;
+  flex-direction: column;
   min-height: 0;
   height: 100%;
+  width: 100%;
 }
 
 .user-manager-primary > .dashboard-section,
 .user-manager-secondary > .dashboard-section {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   min-height: 0;
   height: 100%;
+  width: 100%;
 }
 
 .dashboard-shell.panel-userManager .dashboard-panel-view,
@@ -522,6 +526,17 @@ select.dashboard-text-input {
 
 .pending-approvals-panel.compact {
   gap: 0.6rem;
+}
+
+.pending-approvals-panel.compact .contest-section-head {
+  margin-bottom: 0.12rem;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pending-approvals-panel.compact .contest-section-head .top-actions {
+  width: auto;
+  justify-content: flex-end;
 }
 
 .pending-approvals-panel .catalog-table-wrap,
