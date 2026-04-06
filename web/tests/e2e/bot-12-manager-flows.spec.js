@@ -136,40 +136,46 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       message: 'teamSquads[0].squad[0] role is required',
     })
 
-    const invalidAuctionImport = await request.fetch(`${E2E_API_BASE}/admin/auctions/import`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      data: {
-        actorUserId: 'master',
-        tournamentId,
-        contestName: `Auction ${tag}`,
-        participants: [{ userId: `u-${tag}`, roster: [] }],
+    const invalidAuctionImport = await request.fetch(
+      `${E2E_API_BASE}/admin/auctions/import`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        data: {
+          actorUserId: 'master',
+          tournamentId,
+          contestName: `Auction ${tag}`,
+          participants: [{ userId: `u-${tag}`, roster: [] }],
+        },
       },
-    })
+    )
     expect(invalidAuctionImport.status()).toBe(400)
     expect(await invalidAuctionImport.json()).toMatchObject({
       message: 'participants[0].roster must contain at least one player',
     })
 
-    const invalidTournamentImport = await request.fetch(`${E2E_API_BASE}/admin/tournaments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      data: {
-        actorUserId: 'master',
-        tournamentId: `bad-${tag}`,
-        name: `Bad Tournament ${tag}`,
-        season: '2026',
-        matches: [
-          {
-            id: 'm1',
-            matchNo: 1,
-            home: 'AAA',
-            away: 'AAA',
-            startAt: '2099-03-10T14:00:00.000Z',
-          },
-        ],
+    const invalidTournamentImport = await request.fetch(
+      `${E2E_API_BASE}/admin/tournaments`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        data: {
+          actorUserId: 'master',
+          tournamentId: `bad-${tag}`,
+          name: `Bad Tournament ${tag}`,
+          season: '2026',
+          matches: [
+            {
+              id: 'm1',
+              matchNo: 1,
+              home: 'AAA',
+              away: 'AAA',
+              startAt: '2099-03-10T14:00:00.000Z',
+            },
+          ],
+        },
       },
-    })
+    )
     expect(invalidTournamentImport.status()).toBe(400)
     expect(await invalidTournamentImport.json()).toMatchObject({
       message: 'Matches must include valid teams',
@@ -182,7 +188,10 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await expect(page.locator('.upload-tab-row')).not.toContainText('Excel Upload')
   })
 
-  test('squad manager manual + json save stays in sync after refresh', async ({ page, request }) => {
+  test('squad manager manual + json save stays in sync after refresh', async ({
+    page,
+    request,
+  }) => {
     const tag = Date.now()
     const tournamentId = `squad-manual-${tag}`
     const tournamentName = `Squad Manual ${tag}`
@@ -231,7 +240,9 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       await modal.getByLabel('Name').fill(playerOne)
       await modal.getByLabel('Country').selectOption('pakistan')
       await modal.getByLabel('Role').selectOption('BAT')
-      await modal.getByLabel('Image URL').fill(`https://images.example.com/${playerOne}.png`)
+      await modal
+        .getByLabel('Image URL')
+        .fill(`https://images.example.com/${playerOne}.png`)
       await modal.getByRole('button', { name: 'Add player' }).click()
       await expect(page.getByText('Player saved')).toBeVisible()
 
@@ -277,7 +288,9 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       expect(savedManual[0]?.squad?.[0]?.imageUrl).toBe(
         `https://images.example.com/${playerOne}.png`,
       )
-      expect(savedManual[0]?.squad?.some((player) => player.country === 'australia')).toBe(true)
+      expect(
+        savedManual[0]?.squad?.some((player) => player.country === 'australia'),
+      ).toBe(true)
 
       await page.reload()
       await page.getByRole('button', { name: 'Squad Manager' }).click()
@@ -299,7 +312,12 @@ test.describe('12) Squad manager + tournament manager flows', () => {
         squad: [
           { name: playerOne, country: 'pakistan', role: 'BAT', active: true },
           { name: playerTwo, country: 'pakistan', role: 'BOWL', active: true },
-          { name: `mocke2ebot-player-3-${tag}`, country: 'pakistan', role: 'AR', active: true },
+          {
+            name: `mocke2ebot-player-3-${tag}`,
+            country: 'pakistan',
+            role: 'AR',
+            active: true,
+          },
         ],
       }
       await page.locator('textarea').fill(JSON.stringify(jsonPayload, null, 2))
@@ -314,7 +332,9 @@ test.describe('12) Squad manager + tournament manager flows', () => {
         200,
       )
       expect(savedJson[0]?.squad?.length).toBe(3)
-      expect(savedJson[0]?.squad?.some((p) => p.name === `mocke2ebot-player-3-${tag}`)).toBe(true)
+      expect(
+        savedJson[0]?.squad?.some((p) => p.name === `mocke2ebot-player-3-${tag}`),
+      ).toBe(true)
     } finally {
       try {
         await request.fetch(`${E2E_API_BASE}/admin/team-squads/${teamCode}`, {
@@ -337,15 +357,22 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     }
   })
 
-  test('tournament manager separates manage and create flows and loads matches from the selected tournament', async ({ page }) => {
+  test('tournament manager separates manage and create flows and loads matches from the selected tournament', async ({
+    page,
+  }) => {
     await loginUi(page, 'master')
     await page.goto('/home?panel=tournamentManager')
 
     await expect(page.getByRole('tab', { name: 'Manage' })).toBeVisible()
     await expect(page.getByRole('tab', { name: 'Create' })).toBeVisible()
-    await expect(page.getByRole('tab', { name: 'Manage' })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByRole('tab', { name: 'Manage' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
 
-    const tournamentSelect = page.locator('.admin-manager-tournament-selector-row select').first()
+    const tournamentSelect = page
+      .locator('.admin-manager-tournament-selector-row select')
+      .first()
     await expect(tournamentSelect).toBeVisible()
     const optionTexts = await tournamentSelect.locator('option').allTextContents()
     expect(optionTexts.some((text) => text.includes('IPL 2026'))).toBe(true)
@@ -353,10 +380,15 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     const iplOption = optionTexts.find((text) => text.includes('IPL 2026'))
     await tournamentSelect.selectOption({ label: iplOption })
     await expect(page.getByRole('heading', { name: 'Matches • IPL 2026' })).toBeVisible()
-    await expect(page.locator('.admin-manager-matches-pane .catalog-table tbody tr').first()).toBeVisible()
-    const sectionHeight = await page.locator('.dashboard-panel-view .dashboard-section').first().evaluate((node) => {
-      return window.getComputedStyle(node).height
-    })
+    await expect(
+      page.locator('.admin-manager-matches-pane .catalog-table tbody tr').first(),
+    ).toBeVisible()
+    const sectionHeight = await page
+      .locator('.dashboard-panel-view .dashboard-section')
+      .first()
+      .evaluate((node) => {
+        return window.getComputedStyle(node).height
+      })
     expect(sectionHeight).not.toBe('auto')
 
     await page.getByRole('tab', { name: 'Create' }).click()
@@ -412,7 +444,9 @@ test.describe('12) Squad manager + tournament manager flows', () => {
 
     const playersAfterDelete = await apiCall(request, 'GET', '/players', undefined, 200)
     expect(
-      (playersAfterDelete || []).some((row) => String(row.id) === String(createdPlayerId)),
+      (playersAfterDelete || []).some(
+        (row) => String(row.id) === String(createdPlayerId),
+      ),
     ).toBe(false)
   })
 
@@ -427,7 +461,10 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     const modal = page.locator('.player-manager-create-modal')
     await expect(modal).toBeVisible()
 
-    const countryOptions = await modal.getByLabel('Country').locator('option').allTextContents()
+    const countryOptions = await modal
+      .getByLabel('Country')
+      .locator('option')
+      .allTextContents()
     expect(countryOptions).toContain('USA')
     expect(countryOptions).toContain('UAE')
     expect(countryOptions).toContain('Netherlands')
@@ -582,22 +619,22 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     expect(parseFloat(textareaHeight)).toBeGreaterThanOrEqual(300)
 
     await jsonTextarea.fill(
-        JSON.stringify(
-          {
-            teamSquads: [
-              {
-                teamCode: 'CSK',
-                squad: [
-                  {
-                    name: 'Broken Import Player',
-                    country: 'india',
-                  },
-                ],
-              },
-            ],
-          },
-          null,
-          2,
+      JSON.stringify(
+        {
+          teamSquads: [
+            {
+              teamCode: 'CSK',
+              squad: [
+                {
+                  name: 'Broken Import Player',
+                  country: 'india',
+                },
+              ],
+            },
+          ],
+        },
+        null,
+        2,
       ),
     )
 
@@ -677,7 +714,9 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await page.getByRole('button', { name: 'Save squad' }).click()
     const successNotice = page.locator('.squad-manager-success')
     await expect(successNotice).toHaveText('Squad saved')
-    const successColor = await successNotice.evaluate((node) => window.getComputedStyle(node).color)
+    const successColor = await successNotice.evaluate(
+      (node) => window.getComputedStyle(node).color,
+    )
     expect(successColor).toBe('rgb(21, 128, 61)')
   })
 
@@ -788,7 +827,9 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await expect(squadJson).toHaveValue('')
   })
 
-  test('dashboard panel query param keeps player manager selected after reload', async ({ page }) => {
+  test('dashboard panel query param keeps player manager selected after reload', async ({
+    page,
+  }) => {
     await loginUi(page, 'master')
     await page.goto('/home')
     await page.getByRole('button', { name: 'Player Manager' }).click()
@@ -796,15 +837,17 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await expect(page).toHaveURL(/\/home\?panel=players$/)
     await expect(page.locator('.player-manager-panel .catalog-table')).toBeVisible()
 
-    const playerManagerLayout = await page.locator('.player-manager-panel').evaluate((node) => {
-      const panelStyle = window.getComputedStyle(node)
-      const wrap = node.querySelector('.catalog-table-wrap')
-      const wrapStyle = wrap ? window.getComputedStyle(wrap) : null
-      return {
-        panelOverflow: panelStyle.overflow,
-        wrapOverflowY: wrapStyle?.overflowY || '',
-      }
-    })
+    const playerManagerLayout = await page
+      .locator('.player-manager-panel')
+      .evaluate((node) => {
+        const panelStyle = window.getComputedStyle(node)
+        const wrap = node.querySelector('.catalog-table-wrap')
+        const wrapStyle = wrap ? window.getComputedStyle(wrap) : null
+        return {
+          panelOverflow: panelStyle.overflow,
+          wrapOverflowY: wrapStyle?.overflowY || '',
+        }
+      })
     expect(playerManagerLayout.panelOverflow).toBe('hidden')
     expect(['auto', 'scroll']).toContain(playerManagerLayout.wrapOverflowY)
 
@@ -835,7 +878,9 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await expect(mobileSelect.locator('optgroup')).toHaveCount(0)
   })
 
-  test('dashboard nav buttons keep panel query params in sync across manager sections', async ({ page }) => {
+  test('dashboard nav buttons keep panel query params in sync across manager sections', async ({
+    page,
+  }) => {
     await loginUi(page, 'master')
     await page.goto('/home')
 
@@ -868,7 +913,9 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await page.goto('/home')
     await page.getByRole('button', { name: 'Contest Manager' }).click()
     await expect(page.locator('.contest-section-head select').first()).toBeVisible()
-    const contestRow = page.locator('.catalog-table tbody tr', { hasText: 'Huntercherry Contest' })
+    const contestRow = page.locator('.catalog-table tbody tr', {
+      hasText: 'Huntercherry Contest',
+    })
     await expect(contestRow).toBeVisible()
     await expect(contestRow.getByRole('button', { name: 'Delete' })).toBeVisible()
     await contestRow.getByRole('button', { name: 'Delete' }).click()
@@ -877,12 +924,14 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await expect(page.getByText('Delete contest "Huntercherry Contest"?')).toHaveCount(0)
 
     await page.getByRole('button', { name: 'Tournament Manager' }).click()
-    const tournamentRow = page.locator('.catalog-table tbody tr', { hasText: 'T20 World Cup 2026' })
+    const tournamentRow = page.locator('.catalog-table tbody tr', {
+      hasText: 'T20 World Cup 2026',
+    })
     await expect(tournamentRow).toBeVisible()
-    await expect(tournamentRow.getByRole('button', { name: 'Delete' })).toHaveCount(0)
+    await expect(tournamentRow.getByRole('button', { name: 'Delete' })).toBeVisible()
     await expect(tournamentRow.locator('input[type="checkbox"]')).toBeVisible()
     await expect(tournamentRow.getByRole('button', { name: 'Disable' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Delete selected' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Delete selected' })).toHaveCount(0)
   })
 
   test('contest manager auto-selects a tournament with contests and shows existing contest rows', async ({
@@ -898,7 +947,11 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       .poll(async () => tournamentSelect.locator('option').count())
       .toBeGreaterThan(0)
     await expect(page.locator('.catalog-table').first()).toBeVisible()
-    await expect(page.locator('.catalog-table tbody tr', { hasText: 'Huntercherry Contest' }).first()).toBeVisible()
+    await expect(
+      page
+        .locator('.catalog-table tbody tr', { hasText: 'Huntercherry Contest' })
+        .first(),
+    ).toBeVisible()
   })
 
   test('score manager context API returns tournament and match options for manual score operations', async ({
@@ -945,7 +998,9 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await expect(page.locator('.manual-lineup-layout .manual-lineup-card')).toHaveCount(2)
     await expect(page.locator('.manual-lineup-layout .manual-team-table')).toHaveCount(2)
     await expect(page.locator('.manual-lineup-layout .manual-team-meta')).toHaveCount(2)
-    await expect(page.locator('.manual-lineup-layout .manual-team-meta').first()).toContainText('players')
+    await expect(
+      page.locator('.manual-lineup-layout .manual-team-meta').first(),
+    ).toContainText('players')
     expect(pageErrors).toEqual([])
   })
 
@@ -959,8 +1014,18 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await expect(page.getByRole('heading', { name: 'User Manager' })).toBeVisible()
     await expect(page.getByRole('heading', { name: /Available users \(/ })).toBeVisible()
     await expect(page.getByRole('heading', { name: /Pending users \(/ })).toBeVisible()
-    await expect(page.locator('.user-manager-layout .user-manager-primary .admin-manager-panel .catalog-table').first()).toBeVisible()
-    await expect(page.locator('.user-manager-layout .user-manager-secondary .pending-approvals-panel').first()).toBeVisible()
+    await expect(
+      page
+        .locator(
+          '.user-manager-layout .user-manager-primary .admin-manager-panel .catalog-table',
+        )
+        .first(),
+    ).toBeVisible()
+    await expect(
+      page
+        .locator('.user-manager-layout .user-manager-secondary .pending-approvals-panel')
+        .first(),
+    ).toBeVisible()
     await expect(page.getByText('Invalid Date')).toHaveCount(0)
   })
 
@@ -1004,12 +1069,16 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       await page.goto('/home')
       await page.getByRole('button', { name: 'Tournament Manager' }).click()
 
-      const tournamentRow = page.locator('.catalog-table tbody tr', { hasText: tournamentName }).first()
+      const tournamentRow = page
+        .locator('.catalog-table tbody tr', { hasText: tournamentName })
+        .first()
       await expect(tournamentRow).toBeVisible()
       await tournamentRow.click()
       await expect(tournamentRow).toHaveClass(/active/)
 
-      await expect(page.getByRole('heading', { name: `Matches • ${tournamentName}` })).toBeVisible()
+      await expect(
+        page.getByRole('heading', { name: `Matches • ${tournamentName}` }),
+      ).toBeVisible()
       const matchesTable = page.locator('.catalog-table').nth(1)
       await expect(matchesTable).toContainText('RCB')
       await expect(matchesTable).toContainText('SRH')
@@ -1021,19 +1090,24 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       await expect(matchesTable).toContainText('Completed')
     } finally {
       await page
-        .evaluate(async ({ nextTournamentId }) => {
-          const api = await import('/src/lib/api.js')
-          const rows = await api.fetchTournamentCatalog()
-          const target = (rows || []).find((row) => row.sourceKey === nextTournamentId)
-          if (target?.id) {
-            await api.deleteAdminTournament({ id: target.id, actorUserId: 'master' })
-          }
-        }, { nextTournamentId: tournamentId })
+        .evaluate(
+          async ({ nextTournamentId }) => {
+            const api = await import('/src/lib/api.js')
+            const rows = await api.fetchTournamentCatalog()
+            const target = (rows || []).find((row) => row.sourceKey === nextTournamentId)
+            if (target?.id) {
+              await api.deleteAdminTournament({ id: target.id, actorUserId: 'master' })
+            }
+          },
+          { nextTournamentId: tournamentId },
+        )
         .catch(() => {})
     }
   })
 
-  test('mobile home navigation resets dashboard back to the main panel', async ({ page }) => {
+  test('mobile home navigation resets dashboard back to the main panel', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await loginUi(page, 'master')
     await page.goto('/home')
@@ -1098,9 +1172,9 @@ test.describe('12) Squad manager + tournament manager flows', () => {
         201,
       )
 
-    await loginUi(page, 'master')
-    await page.goto('/home')
-    await page.getByRole('button', { name: 'Squad Manager' }).click()
+      await loginUi(page, 'master')
+      await page.goto('/home')
+      await page.getByRole('button', { name: 'Squad Manager' }).click()
 
       const scopeRow = page.locator('.manual-scope-row').first()
       const scopeSelects = scopeRow.locator('select')
@@ -1276,14 +1350,17 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       await page.goto(`/fantasy/select?contest=${contestId}&match=m1&mode=add`)
       await expect(page.getByText('Spencer Johnson (BOWL)')).toBeVisible()
 
-      const fallbackStyles = await page.locator('.player-avatar-fallback').first().evaluate((node) => {
-        const style = window.getComputedStyle(node)
-        return {
-          display: style.display,
-          alignItems: style.alignItems,
-          justifyContent: style.justifyContent,
-        }
-      })
+      const fallbackStyles = await page
+        .locator('.player-avatar-fallback')
+        .first()
+        .evaluate((node) => {
+          const style = window.getComputedStyle(node)
+          return {
+            display: style.display,
+            alignItems: style.alignItems,
+            justifyContent: style.justifyContent,
+          }
+        })
       expect(fallbackStyles).toEqual({
         display: 'inline-flex',
         alignItems: 'center',
@@ -1394,11 +1471,19 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       await expect(scopeSelects).toHaveCount(2)
       await scopeSelects.nth(1).selectOption('AAA')
       await expect(page.getByText('No players')).toBeVisible()
-      await addPlayersFromSquadModal(page, [{ name: playerName, country: 'south africa' }])
+      await addPlayersFromSquadModal(page, [
+        { name: playerName, country: 'south africa' },
+      ])
       await page.getByRole('button', { name: 'Save squad' }).click()
       await expect(page.getByText('Squad saved')).toBeVisible()
 
-      const playersAfterFirstSave = await apiCall(request, 'GET', '/players', undefined, 200)
+      const playersAfterFirstSave = await apiCall(
+        request,
+        'GET',
+        '/players',
+        undefined,
+        200,
+      )
       expect(
         (playersAfterFirstSave || []).filter((row) => {
           const name = (
@@ -1417,7 +1502,9 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       await scopeSelects.nth(1).selectOption('CCC')
 
       await expect(page.getByText('No players')).toBeVisible()
-      await addPlayersFromSquadModal(page, [{ name: playerName, country: 'south africa' }])
+      await addPlayersFromSquadModal(page, [
+        { name: playerName, country: 'south africa' },
+      ])
       await page.getByRole('button', { name: 'Save squad' }).click()
       await expect(page.getByText('Squad saved')).toBeVisible()
 
@@ -1554,9 +1641,13 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await expect(page.getByRole('button', { name: 'JSON import' })).toHaveCount(0)
   })
 
-  test('fantasy contest cards show remaining time for scheduled starts', async ({ page }) => {
+  test('fantasy contest cards show remaining time for scheduled starts', async ({
+    page,
+  }) => {
     const tag = Date.now()
-    const startAt = new Date(Date.now() + ((3 * 24 + 3) * 60 + 22) * 60 * 1000).toISOString()
+    const startAt = new Date(
+      Date.now() + ((3 * 24 + 3) * 60 + 22) * 60 * 1000,
+    ).toISOString()
 
     await page.route('**/admin/tournaments/catalog', async (route) => {
       await route.fulfill({
@@ -1596,7 +1687,9 @@ test.describe('12) Squad manager + tournament manager flows', () => {
 
     await loginUi(page, 'master')
     await page.goto('/fantasy')
-    const card = page.locator('.compact-contest-card', { hasText: `Countdown Contest ${tag}` }).first()
+    const card = page
+      .locator('.compact-contest-card', { hasText: `Countdown Contest ${tag}` })
+      .first()
     await expect(card).toBeVisible()
     await expect(card.locator('.contest-countdown')).toContainText('remaining')
   })
@@ -1613,7 +1706,10 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     try {
       await loginUi(page, 'master')
       await page.evaluate(
-        async ({ tournamentId: nextTournamentId, tournamentName: nextTournamentName }) => {
+        async ({
+          tournamentId: nextTournamentId,
+          tournamentName: nextTournamentName,
+        }) => {
           const api = await import('/src/lib/api.js')
           await api.createAdminTournament({
             actorUserId: 'master',
@@ -1665,32 +1761,49 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       await page.goto('/home')
       await page.getByRole('button', { name: 'Admin Manager' }).click()
       await page.getByRole('tab', { name: 'Contests' }).click()
-      await page.locator('.contest-section-head select').selectOption({ label: tournamentName })
-      const contestRow = page.locator('.catalog-table tbody tr', { hasText: contestName }).first()
+      await page
+        .locator('.contest-section-head select')
+        .selectOption({ label: tournamentName })
+      const contestRow = page
+        .locator('.catalog-table tbody tr', { hasText: contestName })
+        .first()
       await expect(contestRow).toContainText('Starting Soon')
       await expect(contestRow.getByRole('button', { name: 'Start now' })).toBeVisible()
-      await page.evaluate(async ({ nextContestName }) => {
-        const api = await import('/src/lib/api.js')
-        const rows = await api.fetchContestCatalog()
-        const target = (rows || []).find((row) => row.name === nextContestName)
-        if (!target?.id) throw new Error('Contest not found in catalog')
-        await api.startAdminContest(target.id, 'master')
-      }, { nextContestName: contestName })
-      await page.locator('.contest-section-head button', { hasText: 'Refresh contests' }).click()
+      await page.evaluate(
+        async ({ nextContestName }) => {
+          const api = await import('/src/lib/api.js')
+          const rows = await api.fetchContestCatalog()
+          const target = (rows || []).find((row) => row.name === nextContestName)
+          if (!target?.id) throw new Error('Contest not found in catalog')
+          await api.startAdminContest(target.id, 'master')
+        },
+        { nextContestName: contestName },
+      )
+      await page
+        .locator('.contest-section-head button', { hasText: 'Refresh contests' })
+        .click()
 
       const afterStartContests = await page.evaluate(async () => {
         const api = await import('/src/lib/api.js')
         return api.fetchContests({ game: 'Fantasy', userId: 'master' })
       })
-      const afterStartContest = (afterStartContests || []).find((row) => row.name === contestName)
+      const afterStartContest = (afterStartContests || []).find(
+        (row) => row.name === contestName,
+      )
       expect(afterStartContest?.status).toBe('In Progress')
       expect(afterStartContest?.joinOpen).toBe(false)
     } finally {
       try {
-        await page.evaluate(async ({ nextTournamentId }) => {
-          const api = await import('/src/lib/api.js')
-          await api.deleteAdminTournament({ id: nextTournamentId, actorUserId: 'master' })
-        }, { nextTournamentId: tournamentId })
+        await page.evaluate(
+          async ({ nextTournamentId }) => {
+            const api = await import('/src/lib/api.js')
+            await api.deleteAdminTournament({
+              id: nextTournamentId,
+              actorUserId: 'master',
+            })
+          },
+          { nextTournamentId: tournamentId },
+        )
       } catch {
         // best effort cleanup
       }

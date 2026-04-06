@@ -79,8 +79,7 @@ const dbHandlers = {
   // Scoring rules
   '/admin/scoring-rules': (data) =>
     scoringRuleService.createScoringRule(data.tournamentId, data.rules),
-  '/scoring-rules/save': (data) =>
-    scoringRuleService.saveDefaultScoringRules(data.rules),
+  '/scoring-rules/save': (data) => scoringRuleService.saveDefaultScoringRules(data.rules),
 
   // Match scores
   '/admin/match-scores/:tournamentId/:matchId': (tournamentId, matchId) =>
@@ -148,7 +147,9 @@ const createDbService = (dependencies) => {
           req.currentUser?.id ||
           req.currentUser?.userId ||
           req.currentUser?.gameName,
-      )) || req.currentUser || null
+      )) ||
+      req.currentUser ||
+      null
 
     router.get('/page-load-data', async (req, res, next) => {
       try {
@@ -180,9 +181,13 @@ const createDbService = (dependencies) => {
               req.currentUser?.gameName,
           )) || req.currentUser
         if (!canManageCatalog(actor)) {
-          return res.status(403).json({ message: 'Only admin/master can manage scoring rules' })
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can manage scoring rules' })
         }
-        const payload = await scoringRuleService.saveDefaultScoringRules(req.body?.rules || null)
+        const payload = await scoringRuleService.saveDefaultScoringRules(
+          req.body?.rules || null,
+        )
         return res.json({ ok: true, savedAt: new Date().toISOString(), ...payload })
       } catch (error) {
         return next(error)
@@ -193,7 +198,9 @@ const createDbService = (dependencies) => {
       try {
         const actor = await resolveCatalogActor(req)
         if (!canManageCatalog(actor)) {
-          return res.status(403).json({ message: 'Only admin/master can delete contests' })
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can delete contests' })
         }
         const result = await contestService.deleteContest(req.params.contestId)
         if (!result?.ok) {
@@ -209,7 +216,9 @@ const createDbService = (dependencies) => {
       try {
         const actor = await resolveCatalogActor(req)
         if (!canManageCatalog(actor)) {
-          return res.status(403).json({ message: 'Only admin/master can delete tournaments' })
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can delete tournaments' })
         }
         const result = await tournamentService.deleteTournament(req.params.id)
         if (!result?.ok) {
@@ -256,8 +265,13 @@ const createDbService = (dependencies) => {
         const joinedFilter = (req.query?.joined || '').toString().trim().toLowerCase()
         const actor =
           (await resolveDbUser(
-            req.query?.userId || req.currentUser?.id || req.currentUser?.userId || req.currentUser?.gameName,
-          )) || req.currentUser || null
+            req.query?.userId ||
+              req.currentUser?.id ||
+              req.currentUser?.userId ||
+              req.currentUser?.gameName,
+          )) ||
+          req.currentUser ||
+          null
 
         const rowsWithDerivedState = await Promise.all(
           (allRows || []).map(async (row) => {
@@ -265,10 +279,14 @@ const createDbService = (dependencies) => {
             const participantRows = Array.isArray(participantPayload?.participants)
               ? participantPayload.participants
               : []
-            const joinedCount = Number(participantPayload?.joinedCount || participantRows.length || 0)
+            const joinedCount = Number(
+              participantPayload?.joinedCount || participantRows.length || 0,
+            )
             const joined = Boolean(
               actor?.id &&
-                participantRows.some((participant) => Number(participant.id || 0) === Number(actor.id)),
+              participantRows.some(
+                (participant) => Number(participant.id || 0) === Number(actor.id),
+              ),
             )
             return buildContestView(row, {
               joined,
@@ -279,7 +297,9 @@ const createDbService = (dependencies) => {
         )
 
         const filtered = rowsWithDerivedState.filter((row) => {
-          const gameOk = !gameFilter || (row?.game || '').toString().trim().toLowerCase() === gameFilter
+          const gameOk =
+            !gameFilter ||
+            (row?.game || '').toString().trim().toLowerCase() === gameFilter
           const tournamentOk =
             !tournamentIdFilter || String(row?.tournamentId || '') === tournamentIdFilter
           const joinedOk =
@@ -301,10 +321,14 @@ const createDbService = (dependencies) => {
         if (!contest) {
           return res.status(404).json({ message: 'Contest not found' })
         }
-        const participantPayload = await contestService.getContestParticipants(req.params.id)
+        const participantPayload = await contestService.getContestParticipants(
+          req.params.id,
+        )
         const joinedCount = Number(
           participantPayload?.joinedCount ||
-            (Array.isArray(participantPayload?.participants) ? participantPayload.participants.length : 0),
+            (Array.isArray(participantPayload?.participants)
+              ? participantPayload.participants.length
+              : 0),
         )
         return res.json(
           buildContestView(contest, {
@@ -322,7 +346,11 @@ const createDbService = (dependencies) => {
         const actor = req.currentUser || null
         const targetUser =
           (await resolveDbUser(
-            req.query.userId || actor?.id || actor?.userId || actor?.gameName || actor?.email,
+            req.query.userId ||
+              actor?.id ||
+              actor?.userId ||
+              actor?.gameName ||
+              actor?.email,
           )) || actor
         const rows = await contestService.getContestMatches(req.params.id, {
           status: req.query.status,
@@ -340,7 +368,11 @@ const createDbService = (dependencies) => {
         const actor = req.currentUser || null
         const targetUser =
           (await resolveDbUser(
-            req.query.userId || actor?.id || actor?.userId || actor?.gameName || actor?.email,
+            req.query.userId ||
+              actor?.id ||
+              actor?.userId ||
+              actor?.gameName ||
+              actor?.email,
           )) || actor
         const payload = await contestService.getContestParticipants(req.params.id, {
           matchId: req.query?.matchId,
@@ -356,13 +388,17 @@ const createDbService = (dependencies) => {
       try {
         const actor = await resolveCatalogActor(req)
         if (!canManageCatalog(actor)) {
-          return res.status(403).json({ message: 'Only admin/master can manage contests' })
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can manage contests' })
         }
         const tournamentId = (req.query?.tournamentId || '').toString().trim()
         const rows = tournamentId
           ? await contestService.getContestsByTournament(tournamentId)
           : await contestService.getAllContests()
-        return res.json((rows || []).map((row) => buildContestView(row, { enabled: true })))
+        return res.json(
+          (rows || []).map((row) => buildContestView(row, { enabled: true })),
+        )
       } catch (error) {
         return next(error)
       }
@@ -372,7 +408,9 @@ const createDbService = (dependencies) => {
       try {
         const actor = await resolveCatalogActor(req)
         if (!canManageCatalog(actor) && actor?.role !== 'contest_manager') {
-          return res.status(403).json({ message: 'Only score managers/admin/master can manage scores' })
+          return res
+            .status(403)
+            .json({ message: 'Only score managers/admin/master can manage scores' })
         }
         const requestedTournamentId = (req.query?.tournamentId || '').toString().trim()
         const tournaments = await tournamentService.getTournamentCatalog()
@@ -395,8 +433,10 @@ const createDbService = (dependencies) => {
           matches: (matches || []).map((row) => ({
             id: String(row.id),
             tournamentId: String(selectedTournamentId),
-            label: row.name || `${row.teamA || row.teamAKey} vs ${row.teamB || row.teamBKey}`,
-            name: row.name || `${row.teamA || row.teamAKey} vs ${row.teamB || row.teamBKey}`,
+            label:
+              row.name || `${row.teamA || row.teamAKey} vs ${row.teamB || row.teamBKey}`,
+            name:
+              row.name || `${row.teamA || row.teamAKey} vs ${row.teamB || row.teamBKey}`,
             home: row.teamA || row.teamAKey || '',
             away: row.teamB || row.teamBKey || '',
             date: row.startAt || row.startTime || row.date || '',
@@ -432,7 +472,9 @@ const createDbService = (dependencies) => {
           return res.status(404).json({ message: 'User not found' })
         }
         if (target.role === 'master_admin' && actor?.role !== 'master_admin') {
-          return res.status(403).json({ message: 'Only master can modify master admin users' })
+          return res
+            .status(403)
+            .json({ message: 'Only master can modify master admin users' })
         }
         const data = await userRepository.update(req.params.id, req.body || {})
         if (!data) {
@@ -471,7 +513,9 @@ const createDbService = (dependencies) => {
       try {
         const actor = await resolveCatalogActor(req)
         if (!canManageCatalog(actor)) {
-          return res.status(403).json({ message: 'Only admin/master can manage tournaments' })
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can manage tournaments' })
         }
         const ids = Array.isArray(req.body?.ids) ? req.body.ids : []
         const updated = []
@@ -489,7 +533,9 @@ const createDbService = (dependencies) => {
       try {
         const actor = await resolveCatalogActor(req)
         if (!canManageCatalog(actor)) {
-          return res.status(403).json({ message: 'Only admin/master can manage tournaments' })
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can manage tournaments' })
         }
         const ids = Array.isArray(req.body?.ids) ? req.body.ids : []
         const updated = []
@@ -517,14 +563,18 @@ const createDbService = (dependencies) => {
       try {
         const actor = await resolveCatalogActor(req)
         if (!canManageCatalog(actor)) {
-          return res.status(403).json({ message: 'Only admin/master can create tournaments' })
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can create tournaments' })
         }
         const result = await tournamentService.createImportedTournament(req.body || {})
         return res.status(201).json(result)
       } catch (error) {
         const statusCode = Number(error?.statusCode || 0)
         if (statusCode >= 400) {
-          return res.status(statusCode).json({ message: error.message || 'Failed to create tournament' })
+          return res
+            .status(statusCode)
+            .json({ message: error.message || 'Failed to create tournament' })
         }
         return next(error)
       }
@@ -534,14 +584,18 @@ const createDbService = (dependencies) => {
       try {
         const actor = await resolveCatalogActor(req)
         if (!canManageCatalog(actor)) {
-          return res.status(403).json({ message: 'Only admin/master can create contests' })
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can create contests' })
         }
         const result = await contestService.createContest(req.body || {})
         return res.status(201).json(result)
       } catch (error) {
         const statusCode = Number(error?.statusCode || 0)
         if (statusCode >= 400) {
-          return res.status(statusCode).json({ message: error.message || 'Failed to create contest' })
+          return res
+            .status(statusCode)
+            .json({ message: error.message || 'Failed to create contest' })
         }
         return next(error)
       }
@@ -558,7 +612,9 @@ const createDbService = (dependencies) => {
       } catch (error) {
         const statusCode = Number(error?.statusCode || 0)
         if (statusCode >= 400) {
-          return res.status(statusCode).json({ message: error.message || 'Failed to start contest' })
+          return res
+            .status(statusCode)
+            .json({ message: error.message || 'Failed to start contest' })
         }
         return next(error)
       }
@@ -568,7 +624,9 @@ const createDbService = (dependencies) => {
       try {
         const actor = await resolveCatalogActor(req)
         if (!canManageCatalog(actor)) {
-          return res.status(403).json({ message: 'Only admin/master can update match status' })
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can update match status' })
         }
         const status = (req.body?.status || '').toString().trim().toLowerCase()
         if (!['notstarted', 'inprogress', 'completed'].includes(status)) {
@@ -585,7 +643,9 @@ const createDbService = (dependencies) => {
       try {
         const actor = await resolveCatalogActor(req)
         if (!canManageCatalog(actor)) {
-          return res.status(403).json({ message: 'Only admin/master can import auction contests' })
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can import auction contests' })
         }
         const result = await auctionImportService.importAuctionContest(req.body || {})
         return res.status(201).json(result)
@@ -642,7 +702,9 @@ const createDbService = (dependencies) => {
         await playerService.deletePlayer(req.params.id)
         return res.json({ ok: true, removedId: req.params.id })
       } catch (error) {
-        return res.status(400).json({ message: error.message || 'Failed to delete player' })
+        return res
+          .status(400)
+          .json({ message: error.message || 'Failed to delete player' })
       }
     })
 
@@ -715,12 +777,15 @@ const createDbService = (dependencies) => {
         const matchId = (req.query.matchId || '').toString()
         const actor = req.currentUser || null
         const targetUser =
-          (await resolveDbUser(req.query.userId || actor?.id || actor?.userId || actor?.gameName)) ||
-          actor
+          (await resolveDbUser(
+            req.query.userId || actor?.id || actor?.userId || actor?.gameName,
+          )) || actor
         if (!actor || !targetUser) {
           return res.status(401).json({ message: 'Unauthorized' })
         }
-        const isSelfRead = Boolean(actor?.id && targetUser?.id && Number(actor.id) === Number(targetUser.id))
+        const isSelfRead = Boolean(
+          actor?.id && targetUser?.id && Number(actor.id) === Number(targetUser.id),
+        )
         const isMasterAdmin = actor?.role === 'master_admin'
         if (!isSelfRead && !isMasterAdmin) {
           return res.status(403).json({
@@ -743,8 +808,9 @@ const createDbService = (dependencies) => {
       try {
         const actor = req.currentUser || null
         const targetUser =
-          (await resolveDbUser(req.params.userId || actor?.id || actor?.userId || actor?.gameName)) ||
-          actor
+          (await resolveDbUser(
+            req.params.userId || actor?.id || actor?.userId || actor?.gameName,
+          )) || actor
         if (!actor || !targetUser) {
           return res.status(401).json({ message: 'Unauthorized' })
         }
@@ -774,12 +840,15 @@ const createDbService = (dependencies) => {
         const matchId = req.body?.matchId
         const actor = req.currentUser || null
         const targetUser =
-          (await resolveDbUser(req.body?.userId || actor?.id || actor?.userId || actor?.gameName)) ||
-          actor
+          (await resolveDbUser(
+            req.body?.userId || actor?.id || actor?.userId || actor?.gameName,
+          )) || actor
         if (!actor || !targetUser) {
           return res.status(401).json({ message: 'Unauthorized' })
         }
-        const isSelfWrite = Boolean(actor?.id && targetUser?.id && Number(actor.id) === Number(targetUser.id))
+        const isSelfWrite = Boolean(
+          actor?.id && targetUser?.id && Number(actor.id) === Number(targetUser.id),
+        )
         const isMasterAdmin = actor?.role === 'master_admin'
         if (!isSelfWrite && !isMasterAdmin) {
           return res.status(403).json({
@@ -808,12 +877,15 @@ const createDbService = (dependencies) => {
       try {
         const actor = req.currentUser || null
         const targetUser =
-          (await resolveDbUser(req.body?.userId || actor?.id || actor?.userId || actor?.gameName)) ||
-          actor
+          (await resolveDbUser(
+            req.body?.userId || actor?.id || actor?.userId || actor?.gameName,
+          )) || actor
         if (!actor || !targetUser) {
           return res.status(401).json({ message: 'Unauthorized' })
         }
-        const isSelfWrite = Boolean(actor?.id && targetUser?.id && Number(actor.id) === Number(targetUser.id))
+        const isSelfWrite = Boolean(
+          actor?.id && targetUser?.id && Number(actor.id) === Number(targetUser.id),
+        )
         const isMasterAdmin = actor?.role === 'master_admin'
         if (!isSelfWrite && !isMasterAdmin) {
           return res.status(403).json({
@@ -845,8 +917,9 @@ const createDbService = (dependencies) => {
           return res.status(401).json({ message: 'Unauthorized' })
         }
         const requestedUser =
-          (await resolveDbUser(req.body?.userId || req.currentUser?.id || req.currentUser?.userId)) ||
-          actor
+          (await resolveDbUser(
+            req.body?.userId || req.currentUser?.id || req.currentUser?.userId,
+          )) || actor
         const isSelf = Number(requestedUser?.id || 0) === Number(actor?.id || 0)
         const isMaster = actor?.role === 'master_admin'
         if (!requestedUser?.id || (!isSelf && !isMaster)) {
@@ -872,7 +945,9 @@ const createDbService = (dependencies) => {
       try {
         const actor = await resolveCatalogActor(req)
         if (!canManageCatalog(actor)) {
-          return res.status(403).json({ message: 'Only admin/master can manage match lineups' })
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can manage match lineups' })
         }
         const payload = await playerService.getTournamentMatchLineups(
           req.params.tournamentId,
@@ -889,7 +964,9 @@ const createDbService = (dependencies) => {
       try {
         const actor = await resolveCatalogActor(req)
         if (!canManageCatalog(actor)) {
-          return res.status(403).json({ message: 'Only admin/master can manage match lineups' })
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can manage match lineups' })
         }
         const payload = await playerService.upsertMatchLineups(
           req.body?.tournamentId,
@@ -897,38 +974,53 @@ const createDbService = (dependencies) => {
           req.body?.lineups || {},
           {
             source: req.body?.source || 'manual-xi',
-            updatedBy: req.body?.updatedBy || req.currentUser?.gameName || req.currentUser?.email || 'admin',
+            updatedBy:
+              req.body?.updatedBy ||
+              req.currentUser?.gameName ||
+              req.currentUser?.email ||
+              'admin',
             meta: req.body?.meta || {},
           },
         )
         return res.json(payload)
       } catch (error) {
-        return res.status(400).json({ message: error.message || 'Failed to save match lineups' })
+        return res
+          .status(400)
+          .json({ message: error.message || 'Failed to save match lineups' })
       }
     })
 
-    router.get('/contests/:contestId/users/:userId/match-scores', async (req, res, next) => {
-      try {
-        const payload = await contestService.getContestUserMatchScores(
-          req.params.contestId,
-          req.params.userId,
-          req.query.compareUserId || '',
-        )
-        return res.json(payload)
-      } catch (error) {
-        return next(error)
-      }
-    })
+    router.get(
+      '/contests/:contestId/users/:userId/match-scores',
+      async (req, res, next) => {
+        try {
+          const payload = await contestService.getContestUserMatchScores(
+            req.params.contestId,
+            req.params.userId,
+            req.query.compareUserId || '',
+          )
+          return res.json(payload)
+        } catch (error) {
+          return next(error)
+        }
+      },
+    )
 
     router.post('/admin/match-scores/upsert', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
         if (!canManageCatalog(actor)) {
-          return res.status(403).json({ message: 'Only admin/master can manage match scores' })
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can manage match scores' })
         }
         const uploadedByActor =
           (await resolveDbUser(
-            req.body?.userId || req.body?.uploadedBy || actor?.id || actor?.userId || actor?.gameName,
+            req.body?.userId ||
+              req.body?.uploadedBy ||
+              actor?.id ||
+              actor?.userId ||
+              actor?.gameName,
           )) || actor
         const payload = await matchScoreService.uploadMatchScores(
           req.body?.matchId,
@@ -938,7 +1030,73 @@ const createDbService = (dependencies) => {
         )
         return res.json(payload)
       } catch (error) {
-        return res.status(400).json({ message: error.message || 'Failed to save match scores' })
+        return res
+          .status(400)
+          .json({ message: error.message || 'Failed to save match scores' })
+      }
+    })
+
+    router.post('/match-scores/save', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can manage match scores' })
+        }
+
+        const {
+          payloadText,
+          processedPayload,
+          tournamentId,
+          matchId,
+          userId,
+          uploadedBy,
+        } = req.body || {}
+
+        if (!tournamentId || !matchId) {
+          return res
+            .status(400)
+            .json({ message: 'tournamentId and matchId are required' })
+        }
+
+        let parsedPayload = {}
+        if (typeof payloadText === 'string' && payloadText.trim()) {
+          try {
+            parsedPayload = JSON.parse(payloadText)
+          } catch {
+            return res.status(400).json({ message: 'Invalid JSON payloadText' })
+          }
+        }
+
+        const rows =
+          processedPayload?.playerStats ||
+          parsedPayload?.playerStats ||
+          req.body?.playerStats
+
+        if (!Array.isArray(rows) || !rows.length) {
+          return res
+            .status(400)
+            .json({ message: 'playerStats required for match upsert' })
+        }
+
+        const uploadedByActor =
+          (await resolveDbUser(
+            userId || uploadedBy || actor?.id || actor?.userId || actor?.gameName,
+          )) || actor
+
+        const payload = await matchScoreService.uploadMatchScores(
+          String(matchId),
+          String(tournamentId),
+          rows,
+          uploadedByActor?.id || null,
+        )
+
+        return res.json(payload)
+      } catch (error) {
+        return res
+          .status(400)
+          .json({ message: error.message || 'Failed to save match scores' })
       }
     })
   }

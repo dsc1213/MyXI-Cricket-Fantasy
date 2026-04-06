@@ -4,7 +4,11 @@ const findRuleRowValue = (rows, id, fallback = 0) => {
   return typeof row?.value === 'number' ? row.value : fallback
 }
 
-const getRuleSetForTournament = ({ tournamentId, scoringRules, dashboardRuleTemplate }) => {
+const getRuleSetForTournament = ({
+  tournamentId,
+  scoringRules,
+  dashboardRuleTemplate,
+}) => {
   const fromStore = scoringRules.find((item) => item.tournamentId === tournamentId)?.rules
   const rules = fromStore || dashboardRuleTemplate || {}
 
@@ -91,18 +95,135 @@ const calculateFantasyPoints = (stats, ruleSet) => {
   return total
 }
 
+const FIRST_NAME_ALIASES = new Map([
+  ['philip', 'phil'],
+  ['phillip', 'phil'],
+  ['mohammad', 'mohammed'],
+  ['mohd', 'mohammed'],
+  ['mohammed', 'mohammed'],
+])
+
+const normalizeNameKey = (value) =>
+  (value || '')
+    .toString()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const tokenizeName = (value) => normalizeNameKey(value).split(' ').filter(Boolean)
+
+const normalizeFirstNameToken = (token) => FIRST_NAME_ALIASES.get(token) || token
+
+const firstNamesCompatible = (left = '', right = '') => {
+  if (!left || !right) return false
+  if (left === right) return true
+  if (left.startsWith(right) || right.startsWith(left)) return true
+  return normalizeFirstNameToken(left) === normalizeFirstNameToken(right)
+}
+
+const namesLikelyMatch = (incomingName, playerName) => {
+  const incomingKey = normalizeNameKey(incomingName)
+  const playerKey = normalizeNameKey(playerName)
+  if (!incomingKey || !playerKey) return false
+  if (incomingKey === playerKey) return true
+
+  const incomingTokens = tokenizeName(incomingName)
+  const playerTokens = tokenizeName(playerName)
+  if (!incomingTokens.length || !playerTokens.length) return false
+
+  const incomingLast = incomingTokens[incomingTokens.length - 1]
+  const playerLast = playerTokens[playerTokens.length - 1]
+  if (!incomingLast || incomingLast !== playerLast) return false
+
+  return firstNamesCompatible(incomingTokens[0], playerTokens[0])
+}
+
+const buildPlayerIdentityIndex = (players = []) => {
+  const byId = new Map()
+  const byExactName = new Map()
+  const byNameKey = new Map()
+  const byLastName = new Map()
+
+  for (const player of players) {
+    if (!player) continue
+    const idKey = player.id == null ? '' : player.id.toString().trim()
+    const nameValue = (player.name || '').toString().trim()
+    const exactNameKey = nameValue.toLowerCase()
+    const nameKey = normalizeNameKey(nameValue)
+    const tokens = tokenizeName(nameValue)
+    const lastName = tokens[tokens.length - 1] || ''
+
+    if (idKey) byId.set(idKey, player)
+    if (exactNameKey) byExactName.set(exactNameKey, player)
+    if (nameKey) {
+      const current = byNameKey.get(nameKey) || []
+      current.push(player)
+      byNameKey.set(nameKey, current)
+    }
+    if (lastName) {
+      const current = byLastName.get(lastName) || []
+      current.push(player)
+      byLastName.set(lastName, current)
+    }
+  }
+
+  return { byId, byExactName, byNameKey, byLastName }
+}
+
+const resolvePlayerStatPlayer = (row, playersOrIndex) => {
+  if (!row || typeof row !== 'object') return null
+  const index =
+    playersOrIndex && playersOrIndex.byId && playersOrIndex.byExactName
+      ? playersOrIndex
+      : buildPlayerIdentityIndex(playersOrIndex || [])
+
+  const incomingId = (row.playerId || '').toString().trim()
+  if (incomingId) {
+    const byIdMatch = index.byId.get(incomingId)
+    if (byIdMatch) return byIdMatch
+  }
+
+  const incomingName = (row.playerName || row.name || '').toString().trim()
+  if (!incomingName) return null
+
+  const exactMatch = index.byExactName.get(incomingName.toLowerCase())
+  if (exactMatch) return exactMatch
+
+  const incomingNameKey = normalizeNameKey(incomingName)
+  if (incomingNameKey) {
+    const normalizedMatches = index.byNameKey.get(incomingNameKey) || []
+    if (normalizedMatches.length === 1) return normalizedMatches[0]
+    const uniqueLikely = normalizedMatches.filter((candidate) =>
+      namesLikelyMatch(incomingName, candidate.name),
+    )
+    if (uniqueLikely.length === 1) return uniqueLikely[0]
+  }
+
+  const incomingTokens = tokenizeName(incomingName)
+  const incomingLast = incomingTokens[incomingTokens.length - 1] || ''
+  const lastNameCandidates = incomingLast ? index.byLastName.get(incomingLast) || [] : []
+  if (
+    lastNameCandidates.length === 1 &&
+    namesLikelyMatch(incomingName, lastNameCandidates[0].name)
+  ) {
+    return lastNameCandidates[0]
+  }
+  const likelyCandidates = lastNameCandidates.filter((candidate) =>
+    namesLikelyMatch(incomingName, candidate.name),
+  )
+  if (likelyCandidates.length === 1) return likelyCandidates[0]
+
+  return null
+}
+
 const normalizePlayerStatRows = (rows, players) => {
-  const byId = new Map(players.map((p) => [p.id, p]))
-  const byName = new Map(players.map((p) => [p.name.toLowerCase(), p]))
+  const identityIndex = buildPlayerIdentityIndex(players)
 
   return rows
     .map((row) => {
       if (!row || typeof row !== 'object') return null
-      const incomingId = (row.playerId || '').toString()
-      const incomingName = (row.playerName || row.name || '').toString()
-      const foundById = incomingId ? byId.get(incomingId) : null
-      const foundByName = incomingName ? byName.get(incomingName.toLowerCase()) : null
-      const player = foundById || foundByName
+      const player = resolvePlayerStatPlayer(row, identityIndex)
       if (!player) return null
       return {
         playerId: player.id,
@@ -215,13 +336,19 @@ const resolveEffectiveSelection = ({
   if (!activeSet.size) {
     return {
       effectivePlayerIds: normalizedPlayingXi,
-      captainApplies: normalizedPlayingXi.map(normalizeId).includes(normalizeId(captainId)),
-      viceCaptainApplies: normalizedPlayingXi.map(normalizeId).includes(normalizeId(viceCaptainId)),
+      captainApplies: normalizedPlayingXi
+        .map(normalizeId)
+        .includes(normalizeId(captainId)),
+      viceCaptainApplies: normalizedPlayingXi
+        .map(normalizeId)
+        .includes(normalizeId(viceCaptainId)),
     }
   }
 
   const used = new Set()
-  const backupQueue = normalizedBackups.filter((playerId) => activeSet.has(normalizeId(playerId)))
+  const backupQueue = normalizedBackups.filter((playerId) =>
+    activeSet.has(normalizeId(playerId)),
+  )
   const effectivePlayerIds = []
 
   const pullReplacement = () => {
@@ -265,6 +392,8 @@ const resolveEffectiveSelection = ({
 export {
   getRuleSetForTournament,
   calculateFantasyPoints,
+  buildPlayerIdentityIndex,
+  resolvePlayerStatPlayer,
   normalizePlayerStatRows,
   buildPlayerPointsIndex,
   buildContestLeaderboardRows,

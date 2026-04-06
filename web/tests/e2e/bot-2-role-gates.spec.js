@@ -33,4 +33,17 @@ test.describe('2) Role-gated navigation', () => {
     await expect(page.getByRole('button', { name: 'Score Manager' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Audit Logs' })).toHaveCount(0)
   })
+
+  test('admin can access tournament delete action in tournament manager table', async ({
+    page,
+  }) => {
+    await loginUi(page, 'admin')
+    await page.goto('/home?panel=tournamentManager')
+
+    const tournamentRow = page
+      .locator('.catalog-table tbody tr', { hasText: 'T20 World Cup 2026' })
+      .first()
+    await expect(tournamentRow).toBeVisible()
+    await expect(tournamentRow.getByRole('button', { name: 'Delete' })).toBeVisible()
+  })
 })

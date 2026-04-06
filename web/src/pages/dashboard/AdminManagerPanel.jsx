@@ -51,6 +51,7 @@ function AdminManagerPanel({
 }) {
   const currentUser = getStoredUser()
   const isMasterUser = currentUser?.role === 'master_admin'
+  const canDeleteTournaments = ['admin', 'master_admin'].includes(currentUser?.role || '')
   const [tab, setTab] = useState(initialTab)
   const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [isLoadingTournaments, setIsLoadingTournaments] = useState(true)
@@ -119,7 +120,9 @@ function AdminManagerPanel({
         ) {
           return String(preferredTournamentId)
         }
-        return rows.some((row) => String(row.id) === String(prev)) ? prev : String(rows[0].id)
+        return rows.some((row) => String(row.id) === String(prev))
+          ? prev
+          : String(rows[0].id)
       })
       setPendingDisableIds([])
     } catch (error) {
@@ -129,39 +132,47 @@ function AdminManagerPanel({
     }
   }, [preferredTournamentId])
 
-  const loadTournamentMatches = useCallback(async (tournamentId = selectedTournamentId) => {
-    if (!tournamentId) {
-      setTournamentMatches([])
-      return
-    }
-    try {
-      setIsLoadingTournamentMatches(true)
-      const rows = await fetchTournamentMatches(tournamentId)
-      setTournamentMatches(Array.isArray(rows) ? rows : [])
-    } catch (error) {
-      setErrorText(error.message || 'Failed to load tournament matches')
-    } finally {
-      setIsLoadingTournamentMatches(false)
-    }
-  }, [selectedTournamentId])
-
-  const loadContestCatalog = useCallback(async (tournamentId = selectedContestTournamentId) => {
-    try {
-      setIsLoadingContests(true)
+  const loadTournamentMatches = useCallback(
+    async (tournamentId = selectedTournamentId) => {
       if (!tournamentId) {
-        setContestCatalog([])
-        setSelectedContestIds([])
+        setTournamentMatches([])
         return
       }
-      const rows = await fetchContestCatalog(tournamentId)
-      setContestCatalog(rows || [])
-      setSelectedContestIds((rows || []).filter((row) => row.enabled).map((row) => row.id))
-    } catch (error) {
-      setErrorText(error.message || 'Failed to load contest catalog')
-    } finally {
-      setIsLoadingContests(false)
-    }
-  }, [selectedContestTournamentId])
+      try {
+        setIsLoadingTournamentMatches(true)
+        const rows = await fetchTournamentMatches(tournamentId)
+        setTournamentMatches(Array.isArray(rows) ? rows : [])
+      } catch (error) {
+        setErrorText(error.message || 'Failed to load tournament matches')
+      } finally {
+        setIsLoadingTournamentMatches(false)
+      }
+    },
+    [selectedTournamentId],
+  )
+
+  const loadContestCatalog = useCallback(
+    async (tournamentId = selectedContestTournamentId) => {
+      try {
+        setIsLoadingContests(true)
+        if (!tournamentId) {
+          setContestCatalog([])
+          setSelectedContestIds([])
+          return
+        }
+        const rows = await fetchContestCatalog(tournamentId)
+        setContestCatalog(rows || [])
+        setSelectedContestIds(
+          (rows || []).filter((row) => row.enabled).map((row) => row.id),
+        )
+      } catch (error) {
+        setErrorText(error.message || 'Failed to load contest catalog')
+      } finally {
+        setIsLoadingContests(false)
+      }
+    },
+    [selectedContestTournamentId],
+  )
 
   useEffect(() => {
     setTab(initialTab)
@@ -350,7 +361,9 @@ function AdminManagerPanel({
       setNotice('Tournament created. Enable it from the tournaments list when ready.')
       setShowCreateTournamentModal(false)
       setCreateTournamentForm({ name: '', season: '2026', source: 'manual' })
-      setCreateTournamentMatches([{ matchNo: 1, home: '', away: '', date: '', startAt: '', venue: '' }])
+      setCreateTournamentMatches([
+        { matchNo: 1, home: '', away: '', date: '', startAt: '', venue: '' },
+      ])
       setCreateTournamentJson('')
     } catch (error) {
       setErrorText(error.message || 'Failed to create tournament')
@@ -360,6 +373,10 @@ function AdminManagerPanel({
   }
 
   const onDeleteTournament = async (tournamentId) => {
+    if (!canDeleteTournaments) {
+      setErrorText('Only admin/master can delete tournaments')
+      return
+    }
     try {
       setErrorText('')
       setNotice('')
@@ -414,7 +431,8 @@ function AdminManagerPanel({
       for (const tournamentId of removableIds) {
         await deleteAdminTournament({
           id: tournamentId,
-          actorUserId: currentUser?.gameName || currentUser?.email || currentUser?.id || '',
+          actorUserId:
+            currentUser?.gameName || currentUser?.email || currentUser?.id || '',
         })
       }
       await loadTournamentCatalog()
@@ -428,7 +446,9 @@ function AdminManagerPanel({
 
   const onToggleContest = (contestId) => {
     setSelectedContestIds((prev) =>
-      prev.includes(contestId) ? prev.filter((id) => id !== contestId) : [...prev, contestId],
+      prev.includes(contestId)
+        ? prev.filter((id) => id !== contestId)
+        : [...prev, contestId],
     )
   }
 
@@ -451,10 +471,15 @@ function AdminManagerPanel({
     }
   }
 
-  const enabledSelectedCount = useMemo(() => pendingDisableIds.length, [pendingDisableIds])
+  const enabledSelectedCount = useMemo(
+    () => pendingDisableIds.length,
+    [pendingDisableIds],
+  )
 
   const selectedTournament = useMemo(
-    () => tournamentCatalog.find((row) => String(row.id) === String(selectedTournamentId)) || null,
+    () =>
+      tournamentCatalog.find((row) => String(row.id) === String(selectedTournamentId)) ||
+      null,
     [selectedTournamentId, tournamentCatalog],
   )
 
@@ -505,8 +530,7 @@ function AdminManagerPanel({
           contestManagerContestId: row.contestManagerContestId || '',
           dirty: false,
         }
-        const canEditRole =
-          isMasterUser || !['admin', 'master_admin'].includes(row.role)
+        const canEditRole = isMasterUser || !['admin', 'master_admin'].includes(row.role)
         return (
           <select
             value={draft.role}
@@ -556,8 +580,16 @@ function AdminManagerPanel({
     },
     { key: 'name', label: 'Tournament' },
     { key: 'season', label: 'Season' },
-    { key: 'matchesCount', label: 'Matches', render: (row) => Number(row.matchesCount || 0) },
-    { key: 'contestsCount', label: 'Contests', render: (row) => Number(row.contestsCount || 0) },
+    {
+      key: 'matchesCount',
+      label: 'Matches',
+      render: (row) => Number(row.matchesCount || 0),
+    },
+    {
+      key: 'contestsCount',
+      label: 'Contests',
+      render: (row) => Number(row.contestsCount || 0),
+    },
     {
       key: 'enabled',
       label: 'Status',
@@ -566,8 +598,7 @@ function AdminManagerPanel({
     {
       key: 'updated',
       label: 'Last updated',
-      render: (row) =>
-        formatSafeDate(row.lastUpdatedAt, 'datetime'),
+      render: (row) => formatSafeDate(row.lastUpdatedAt, 'datetime'),
     },
     {
       key: 'action',
@@ -586,12 +617,35 @@ function AdminManagerPanel({
         </Button>
       ),
     },
+    {
+      key: 'delete',
+      label: 'Delete',
+      render: (row) => (
+        <Button
+          variant="danger"
+          size="small"
+          disabled={!canDeleteTournaments || isSaving}
+          onClick={(event) => {
+            event.stopPropagation()
+            setDeleteTarget({
+              type: 'tournament',
+              id: row.id,
+              name: row.name,
+              detail: `Delete tournament "${row.name}"?`,
+            })
+          }}
+        >
+          Delete
+        </Button>
+      ),
+    },
   ]
   const tournamentMatchColumns = [
     {
       key: 'name',
       label: 'Match',
-      render: (row) => row.name || `${row.home || row.teamA || ''} vs ${row.away || row.teamB || ''}`,
+      render: (row) =>
+        row.name || `${row.home || row.teamA || ''} vs ${row.away || row.teamB || ''}`,
     },
     {
       key: 'startAt',
@@ -746,7 +800,11 @@ function AdminManagerPanel({
     <section className="dashboard-section">
       <div className="admin-card dashboard-panel-card admin-manager-panel">
         {!hideTabs && (
-          <div className="upload-tab-row admin-manager-tabs compact" role="tablist" aria-label="Admin manager tabs">
+          <div
+            className="upload-tab-row admin-manager-tabs compact"
+            role="tablist"
+            aria-label="Admin manager tabs"
+          >
             <button
               type="button"
               role="tab"
@@ -822,18 +880,36 @@ function AdminManagerPanel({
                     <div className="contest-section-head">
                       <h3>Manage tournaments</h3>
                       <div className="top-actions">
-                        <Button variant="ghost" size="small" onClick={() => void loadTournamentCatalog()}>
+                        <Button
+                          variant="ghost"
+                          size="small"
+                          onClick={() => void loadTournamentCatalog()}
+                        >
                           Refresh tournaments
                         </Button>
                       </div>
                     </div>
+                    <StickyTable
+                      columns={tournamentColumns}
+                      rows={tournamentCatalog}
+                      rowKey={(row) => row.id}
+                      emptyText="No tournaments found"
+                      wrapperClassName="catalog-table-wrap"
+                      tableClassName="catalog-table"
+                      rowClassName={(row) =>
+                        String(row.id) === String(selectedTournamentId) ? 'active' : ''
+                      }
+                      onRowClick={onSelectTournament}
+                    />
                     <div className="admin-manager-tournament-selector-row">
                       <label className="admin-manager-inline-field">
                         <span>Tournament</span>
                         <select
                           className="dashboard-text-input"
                           value={selectedTournamentId}
-                          onChange={(event) => setSelectedTournamentId(event.target.value)}
+                          onChange={(event) =>
+                            setSelectedTournamentId(event.target.value)
+                          }
                         >
                           {!tournamentCatalog.length && (
                             <option value="" disabled>
@@ -868,7 +944,11 @@ function AdminManagerPanel({
                     <div className="contest-section-head">
                       <h3>Tournaments</h3>
                       <div className="top-actions">
-                        <Button variant="ghost" size="small" onClick={() => void loadTournamentCatalog()}>
+                        <Button
+                          variant="ghost"
+                          size="small"
+                          onClick={() => void loadTournamentCatalog()}
+                        >
                           Refresh tournaments
                         </Button>
                         <Button
@@ -896,33 +976,35 @@ function AdminManagerPanel({
                   </div>
                 )}
                 <div className="admin-manager-matches-pane">
-                    <div className="contest-section-head">
-                      <h3>{`Matches${selectedTournament?.name ? ` • ${selectedTournament.name}` : ''}`}</h3>
-                      <div className="top-actions">
-                        <Button
-                          variant="ghost"
-                          size="small"
-                          disabled={!selectedTournamentId}
-                          onClick={() => void loadTournamentMatches(selectedTournamentId)}
-                        >
-                          Refresh matches
-                        </Button>
-                      </div>
+                  <div className="contest-section-head">
+                    <h3>{`Matches${selectedTournament?.name ? ` • ${selectedTournament.name}` : ''}`}</h3>
+                    <div className="top-actions">
+                      <Button
+                        variant="ghost"
+                        size="small"
+                        disabled={!selectedTournamentId}
+                        onClick={() => void loadTournamentMatches(selectedTournamentId)}
+                      >
+                        Refresh matches
+                      </Button>
                     </div>
-                    {!selectedTournamentId ? (
-                      <p className="team-note">Select a tournament to manage its matches.</p>
-                    ) : isLoadingTournamentMatches ? (
-                      <p className="team-note">Loading matches...</p>
-                    ) : (
-                      <StickyTable
-                        columns={tournamentMatchColumns}
-                        rows={tournamentMatches}
-                        rowKey={(row) => row.id}
-                        emptyText="No matches found for this tournament"
-                        wrapperClassName="catalog-table-wrap"
-                        tableClassName="catalog-table"
-                      />
-                    )}
+                  </div>
+                  {!selectedTournamentId ? (
+                    <p className="team-note">
+                      Select a tournament to manage its matches.
+                    </p>
+                  ) : isLoadingTournamentMatches ? (
+                    <p className="team-note">Loading matches...</p>
+                  ) : (
+                    <StickyTable
+                      columns={tournamentMatchColumns}
+                      rows={tournamentMatches}
+                      rowKey={(row) => row.id}
+                      emptyText="No matches found for this tournament"
+                      wrapperClassName="catalog-table-wrap"
+                      tableClassName="catalog-table"
+                    />
+                  )}
                 </div>
               </>
             )}
@@ -958,9 +1040,7 @@ function AdminManagerPanel({
                 <Button
                   variant="primary"
                   size="small"
-                  disabled={
-                    !selectedContestTournamentId || !contestDirty || isSaving
-                  }
+                  disabled={!selectedContestTournamentId || !contestDirty || isSaving}
                   onClick={() => void onSaveContests()}
                 >
                   {isSaving ? 'Saving...' : 'Save'}
@@ -993,7 +1073,11 @@ function AdminManagerPanel({
         size="md"
         footer={
           <>
-            <Button variant="ghost" size="small" onClick={() => setShowCreateTournamentModal(false)}>
+            <Button
+              variant="ghost"
+              size="small"
+              onClick={() => setShowCreateTournamentModal(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -1036,7 +1120,10 @@ function AdminManagerPanel({
                   type="text"
                   value={createTournamentForm.name}
                   onChange={(event) =>
-                    setCreateTournamentForm((prev) => ({ ...prev, name: event.target.value }))
+                    setCreateTournamentForm((prev) => ({
+                      ...prev,
+                      name: event.target.value,
+                    }))
                   }
                 />
               </label>
@@ -1046,7 +1133,10 @@ function AdminManagerPanel({
                   type="text"
                   value={createTournamentForm.season}
                   onChange={(event) =>
-                    setCreateTournamentForm((prev) => ({ ...prev, season: event.target.value }))
+                    setCreateTournamentForm((prev) => ({
+                      ...prev,
+                      season: event.target.value,
+                    }))
                   }
                 />
               </label>
@@ -1082,7 +1172,9 @@ function AdminManagerPanel({
                       onChange={(event) =>
                         setCreateTournamentMatches((prev) =>
                           prev.map((item, i) =>
-                            i === index ? { ...item, matchNo: Number(event.target.value || i + 1) } : item,
+                            i === index
+                              ? { ...item, matchNo: Number(event.target.value || i + 1) }
+                              : item,
                           ),
                         )
                       }
@@ -1143,14 +1235,20 @@ function AdminManagerPanel({
       <Modal
         open={Boolean(deleteTarget)}
         onClose={() => setDeleteTarget(null)}
-        title={deleteTarget?.type === 'tournament' ? 'Delete tournament' : 'Delete contest'}
+        title={
+          deleteTarget?.type === 'tournament' ? 'Delete tournament' : 'Delete contest'
+        }
         size="sm"
         footer={
           <>
             <Button variant="ghost" size="small" onClick={() => setDeleteTarget(null)}>
               Cancel
             </Button>
-            <Button variant="danger" size="small" onClick={() => void confirmDeleteTarget()}>
+            <Button
+              variant="danger"
+              size="small"
+              onClick={() => void confirmDeleteTarget()}
+            >
               Delete
             </Button>
           </>

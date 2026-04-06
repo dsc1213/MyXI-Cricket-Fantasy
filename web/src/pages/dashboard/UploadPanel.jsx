@@ -5,6 +5,7 @@ import PlayerIdentity from '../../components/ui/PlayerIdentity.jsx'
 import SelectField from '../../components/ui/SelectField.jsx'
 import StickyTable from '../../components/ui/StickyTable.jsx'
 import { getCountryFlag } from '../../components/ui/countryFlagUtils.js'
+const SCORECARD_SAMPLE_JSON_URL = '/scorecard-upload.sample.json'
 
 function UploadPanel({
   uploadTab,
@@ -101,13 +102,16 @@ function UploadPanel({
     },
   ]
   const manualPlayersCount =
-    (manualTeamPool?.teamAPlayers?.length || 0) + (manualTeamPool?.teamBPlayers?.length || 0)
+    (manualTeamPool?.teamAPlayers?.length || 0) +
+    (manualTeamPool?.teamBPlayers?.length || 0)
   const hasManualPlayers = manualPlayersCount > 0
   const [activeManualCategory, setActiveManualCategory] = useState('batting')
   const activeColumns = categoryColumns[activeManualCategory] || categoryColumns.batting
   const getMatchOptionLabel = (item) => {
     const rawLabel = item.label || item.name || ''
-    const normalized = rawLabel.includes(':') ? rawLabel.split(':').slice(1).join(':').trim() : rawLabel
+    const normalized = rawLabel.includes(':')
+      ? rawLabel.split(':').slice(1).join(':').trim()
+      : rawLabel
     const split = normalized.split(/\s+vs\s+/i)
     if (split.length !== 2) return rawLabel
     const left = split[0].trim()
@@ -188,7 +192,9 @@ function UploadPanel({
             onFocus={(event) => {
               event.target.select()
             }}
-            onChange={(event) => onManualStatChange(row.id, column.key, event.target.value)}
+            onChange={(event) =>
+              onManualStatChange(row.id, column.key, event.target.value)
+            }
           />
         )
       },
@@ -301,7 +307,11 @@ function UploadPanel({
             <div className="upload-tab-groups">
               <div className="upload-tab-group upload-tab-group-primary">
                 <span className="upload-tab-group-label">Mode</span>
-                <div className="upload-tab-row match-ops-row" role="tablist" aria-label="Match operations">
+                <div
+                  className="upload-tab-row match-ops-row"
+                  role="tablist"
+                  aria-label="Match operations"
+                >
                   <Button
                     type="button"
                     role="tab"
@@ -324,7 +334,9 @@ function UploadPanel({
               </div>
               <div className="upload-tab-group upload-tab-group-secondary">
                 <span className="upload-tab-group-label">
-                  {activeMatchOpsTab === 'lineups' ? 'Playing XI Entry' : 'Scorecard Entry'}
+                  {activeMatchOpsTab === 'lineups'
+                    ? 'Playing XI Entry'
+                    : 'Scorecard Entry'}
                 </span>
                 <div className="upload-tab-row" role="tablist" aria-label="Upload type">
                   {activeMatchOpsTab === 'lineups' ? (
@@ -406,25 +418,10 @@ function UploadPanel({
                 </Button>
               </div>
             )}
-            {activeMatchOpsTab === 'scores' && uploadTab === 'manual' && (
-              <div className="top-actions upload-head-actions">
-                <Button
-                  type="button"
-                  className="cta small upload-action-btn primary"
-                  onClick={onSaveManualScores}
-                  disabled={
-                    isSavingScores ||
-                    !manualTournamentId ||
-                    !manualMatchId ||
-                    isLoadingManualPool
-                  }
-                >
-                  {isSavingScores ? 'Saving...' : 'Save'}
-                </Button>
-              </div>
-            )}
           </div>
-          <div className={`manual-scope-row ${activeMatchOpsTab === 'lineups' ? 'compact-two' : ''}`.trim()}>
+          <div
+            className={`manual-scope-row ${activeMatchOpsTab === 'lineups' ? 'compact-two' : ''}`.trim()}
+          >
             <label>
               Tournament
               <SelectField
@@ -456,7 +453,11 @@ function UploadPanel({
           </div>
           {activeMatchOpsTab === 'scores' && uploadTab === 'manual' && (
             <div className="manual-category-row">
-              <div className="manual-category-inline" role="tablist" aria-label="Manual score category">
+              <div
+                className="manual-category-inline"
+                role="tablist"
+                aria-label="Manual score category"
+              >
                 {manualCategoryTabs.map((item) => (
                   <a
                     key={item.key}
@@ -476,30 +477,33 @@ function UploadPanel({
             </div>
           )}
 
-          {activeMatchOpsTab === 'lineups' ? lineupUploadTab === 'manual' ? (
-            <div className={`manual-entry-layout ${hasManualPlayers ? '' : 'empty'}`.trim()}>
-              {isLoadingManualPool ? (
-                <p className="team-note">Loading playing XI...</p>
-              ) : !hasManualPlayers ? (
-                <div className="manual-empty-state">
-                  <strong>No player rows yet</strong>
-                  <span>Select tournament and match to load playing XI.</span>
-                </div>
-              ) : (
-                <div className="manual-entry-grid manual-lineup-layout">
-                  {manualLineupTeams.map((team) => renderLineupTeamCard(team))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="match-upload-grid json-mode lineup-json-mode">
-              <label className="match-upload-json">
-                Lineup JSON schema
-                <textarea
-                  rows="10"
-                  value={lineupPayloadText}
-                  onChange={(event) => setLineupPayloadText(event.target.value)}
-                  placeholder={`{
+          {activeMatchOpsTab === 'lineups' ? (
+            lineupUploadTab === 'manual' ? (
+              <div
+                className={`manual-entry-layout ${hasManualPlayers ? '' : 'empty'}`.trim()}
+              >
+                {isLoadingManualPool ? (
+                  <p className="team-note">Loading playing XI...</p>
+                ) : !hasManualPlayers ? (
+                  <div className="manual-empty-state">
+                    <strong>No player rows yet</strong>
+                    <span>Select tournament and match to load playing XI.</span>
+                  </div>
+                ) : (
+                  <div className="manual-entry-grid manual-lineup-layout">
+                    {manualLineupTeams.map((team) => renderLineupTeamCard(team))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="match-upload-grid json-mode lineup-json-mode">
+                <label className="match-upload-json">
+                  Lineup JSON schema
+                  <textarea
+                    rows="10"
+                    value={lineupPayloadText}
+                    onChange={(event) => setLineupPayloadText(event.target.value)}
+                    placeholder={`{
   "lineups": {
     "${manualTeamPool?.teamAName || 'MI'}": {
       "playingXI": ["Player 1", "Player 2"],
@@ -511,12 +515,15 @@ function UploadPanel({
     }
   }
 }`}
-                  className="dashboard-json-textarea"
-                />
-              </label>
-            </div>
+                    className="dashboard-json-textarea"
+                  />
+                </label>
+              </div>
+            )
           ) : uploadTab === 'manual' ? (
-            <div className={`manual-entry-layout ${hasManualPlayers ? '' : 'empty'}`.trim()}>
+            <div
+              className={`manual-entry-layout ${hasManualPlayers ? '' : 'empty'}`.trim()}
+            >
               {isLoadingManualPool ? (
                 <p className="team-note">Loading playing XI...</p>
               ) : !hasManualPlayers ? (
@@ -530,6 +537,28 @@ function UploadPanel({
                     {manualTeamTabs.map((team) =>
                       renderManualTeamTable(team.name, team.players),
                     )}
+                  </div>
+                  <div className="top-actions upload-actions upload-actions-full upload-actions-row">
+                    <a
+                      href={SCORECARD_SAMPLE_JSON_URL}
+                      download="scorecard-upload.sample.json"
+                      className="ghost small"
+                    >
+                      Download sample JSON
+                    </a>
+                    <Button
+                      type="button"
+                      className="cta small upload-action-btn primary"
+                      onClick={onSaveManualScores}
+                      disabled={
+                        isSavingScores ||
+                        !manualTournamentId ||
+                        !manualMatchId ||
+                        isLoadingManualPool
+                      }
+                    >
+                      {isSavingScores ? 'Saving...' : 'Save'}
+                    </Button>
                   </div>
                 </>
               )}
@@ -556,23 +585,25 @@ function UploadPanel({
 }`}
                 />
               </label>
-              <div className="top-actions upload-actions upload-actions-full">
+              <div className="top-actions upload-actions upload-actions-full upload-actions-row">
+                <a
+                  href={SCORECARD_SAMPLE_JSON_URL}
+                  download="scorecard-upload.sample.json"
+                  className="ghost small"
+                >
+                  Download sample JSON
+                </a>
                 <Button
                   type="button"
                   className="cta small upload-action-btn primary"
                   onClick={onSaveScores}
-                  disabled={
-                    isSavingScores ||
-                    !manualTournamentId ||
-                    !manualMatchId
-                  }
+                  disabled={isSavingScores || !manualTournamentId || !manualMatchId}
                 >
                   {isSavingScores ? 'Saving...' : 'Save'}
                 </Button>
               </div>
             </div>
           )}
-
         </div>
       </div>
     </section>

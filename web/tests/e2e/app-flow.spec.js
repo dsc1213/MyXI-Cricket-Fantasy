@@ -160,7 +160,9 @@ test.describe('Admin master scenarios', () => {
     await page.getByRole('button', { name: 'Admin Manager' }).click()
     await page.getByRole('tab', { name: 'Contests' }).click()
     await page.getByRole('combobox').first().selectOption('t20wc-2026')
-    await expect(page.locator('.catalog-table tbody tr', { hasText: contestName }).first()).toBeVisible()
+    await expect(
+      page.locator('.catalog-table tbody tr', { hasText: contestName }).first(),
+    ).toBeVisible()
   })
 
   test('creating a fantasy contest reloads and displays the new contest without manual refresh', async ({
@@ -179,9 +181,13 @@ test.describe('Admin master scenarios', () => {
     await page.getByLabel('Contest name').fill(contestName)
     await page.getByLabel('Max players').fill('55')
 
-    const createButton = page.locator('.ui-modal-card').getByRole('button', { name: 'Create', exact: true })
+    const createButton = page
+      .locator('.ui-modal-card')
+      .getByRole('button', { name: 'Create', exact: true })
     await createButton.click()
-    await expect(page.locator('.ui-modal-card').getByRole('button', { name: 'Creating...' })).toBeVisible()
+    await expect(
+      page.locator('.ui-modal-card').getByRole('button', { name: 'Creating...' }),
+    ).toBeVisible()
     await expect(page.getByText('Contest created')).toBeVisible()
     await expect(page.locator('.ui-modal-card')).toHaveCount(0)
     await expect(
@@ -189,7 +195,9 @@ test.describe('Admin master scenarios', () => {
     ).toBeVisible()
   })
 
-  test('fantasy contest creation enforces a minimum of two max players', async ({ page }) => {
+  test('fantasy contest creation enforces a minimum of two max players', async ({
+    page,
+  }) => {
     await ensureMasterLogin(page)
 
     await gotoWithRetry(page, '/fantasy')
@@ -223,7 +231,9 @@ test.describe('Admin master scenarios', () => {
       page.locator('.tournament-filter-tile', { hasText: 'T20 World Cup 2026' }).first(),
     ).toBeVisible()
     await expect(
-      page.locator('article.compact-contest-card', { hasText: 'Huntercherry Contest' }).first(),
+      page
+        .locator('article.compact-contest-card', { hasText: 'Huntercherry Contest' })
+        .first(),
     ).toBeVisible()
     await expect(page.getByRole('button', { name: '+ Create contest' })).toBeEnabled()
   })
@@ -257,19 +267,25 @@ test.describe('Admin master scenarios', () => {
     await page.getByRole('button', { name: 'Save' }).click()
 
     await page.goto('/fantasy')
-    await page.locator('.tournament-filter-tile', { hasText: 'T20 World Cup 2026' }).click()
+    await page
+      .locator('.tournament-filter-tile', { hasText: 'T20 World Cup 2026' })
+      .click()
     await expect(page.getByText(contestName)).toHaveCount(0)
 
     await page.goto('/home')
     await page.getByRole('button', { name: 'Admin Manager' }).click()
     await page.getByRole('tab', { name: 'Contests' }).click()
     await page.getByRole('combobox').first().selectOption('t20wc-2026')
-    const restoreRow = page.locator('.catalog-table tbody tr', { hasText: contestName }).first()
+    const restoreRow = page
+      .locator('.catalog-table tbody tr', { hasText: contestName })
+      .first()
     await restoreRow.locator('input[type="checkbox"]').check()
     await page.getByRole('button', { name: 'Save' }).click()
 
     await page.goto('/fantasy')
-    await page.locator('.tournament-filter-tile', { hasText: 'T20 World Cup 2026' }).click()
+    await page
+      .locator('.tournament-filter-tile', { hasText: 'T20 World Cup 2026' })
+      .click()
     await expect(
       page.locator('article.compact-contest-card', { hasText: contestName }).first(),
     ).toBeVisible()
@@ -279,7 +295,9 @@ test.describe('Admin master scenarios', () => {
     await loginAs(page, 'player', 'demo123')
 
     await page.goto('/tournaments/t20wc-2026/contests/huntercherry')
-    await expect(page.getByRole('heading', { name: 'Huntercherry Contest' })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'Huntercherry Contest' }),
+    ).toBeVisible()
     const editableRow = page
       .locator('.match-table tbody tr', { hasText: 'Not Started' })
       .first()
@@ -299,6 +317,29 @@ test.describe('Admin master scenarios', () => {
     await page.getByRole('link', { name: 'Open leaderboard page' }).click()
     await expect(page).toHaveURL(/\/leaderboard/)
     await expect(page.locator('.loading-note .loading-dots')).toHaveCount(0)
+  })
+
+  test('quick leaderboard preview supports db array response shape', async ({ page }) => {
+    await loginAs(page, 'player', 'demo123')
+
+    await page.route('**/contests/huntercherry/leaderboard', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          { id: 'u-db-1', userId: 'u-db-1', name: 'DB Row User', points: 99 },
+        ]),
+      })
+    })
+
+    await page.goto('/tournaments/t20wc-2026/contests/huntercherry')
+    await expect(
+      page.getByRole('heading', { name: 'Huntercherry Contest' }),
+    ).toBeVisible()
+
+    await page.getByRole('button', { name: 'Preview leaderboard' }).click()
+    await expect(page.getByText('DB Row User')).toBeVisible()
+    await expect(page.getByText('99')).toBeVisible()
   })
 
   test('match submitted count should match participants rows', async ({ page }) => {
@@ -339,17 +380,22 @@ test.describe('Admin master scenarios', () => {
     })
     const matchId = Array.isArray(matchesPayload) ? matchesPayload[0]?.id || 'm1' : 'm1'
 
-    const payload = await page.evaluate(async ({ innerMatchId }) => {
-      const api = await import('/src/lib/api.js')
-      return api.fetchContestParticipants({
-        contestId: 'stump-vision-xi',
-        matchId: innerMatchId,
-        userId: 'kiran11',
-      })
-    }, { innerMatchId: matchId })
+    const payload = await page.evaluate(
+      async ({ innerMatchId }) => {
+        const api = await import('/src/lib/api.js')
+        return api.fetchContestParticipants({
+          contestId: 'stump-vision-xi',
+          matchId: innerMatchId,
+          userId: 'kiran11',
+        })
+      },
+      { innerMatchId: matchId },
+    )
 
     expect(Array.isArray(payload?.participants)).toBeTruthy()
-    expect(Number(payload?.joinedCount || 0)).toBeGreaterThanOrEqual(payload?.participants?.length || 0)
+    expect(Number(payload?.joinedCount || 0)).toBeGreaterThanOrEqual(
+      payload?.participants?.length || 0,
+    )
     expect(Array.isArray(payload?.previewXI)).toBeTruthy()
   })
 
@@ -405,7 +451,10 @@ test.describe('Admin master scenarios', () => {
       const previewTotal = rowPointTexts.reduce((sum, text) => sum + parseNumber(text), 0)
       expect(previewTotal).toBeGreaterThanOrEqual(0)
 
-      await page.locator('.team-preview-head').getByRole('button', { name: 'Close' }).click()
+      await page
+        .locator('.team-preview-head')
+        .getByRole('button', { name: 'Close' })
+        .click()
       await expect(page.locator('.team-preview-drawer.open')).toHaveCount(0)
     }
   })

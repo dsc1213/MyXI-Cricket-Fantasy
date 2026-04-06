@@ -3,9 +3,11 @@ import { dbQuery } from '../db.js'
 import { cloneDefaultPointsRules } from '../default-points-rules.js'
 import scoringRuleService from './scoring-rule.service.js'
 import {
+  buildPlayerIdentityIndex,
   calculateFantasyPoints,
   getRuleSetForTournament,
   normalizePlayerStatRows,
+  resolvePlayerStatPlayer,
   resolveEffectiveSelection,
 } from '../scoring.js'
 
@@ -64,6 +66,7 @@ class MatchScoreService {
       throw new Error('matchId and tournamentId are required')
     }
     this.validatePlayerStatsPayload(playerStats)
+    await this.validatePlayersBelongToMatchTeams(matchId, tournamentId, playerStats)
     // Deactivate previous scores
     const repo = await factory.getMatchScoreRepository()
     await repo.deactivatePrevious(matchId)
@@ -85,6 +88,66 @@ class MatchScoreService {
       savedScore,
       impactedContests: contestSummaries.length,
       contestSummaries,
+    }
+  }
+
+  async validatePlayersBelongToMatchTeams(matchId, tournamentId, playerStats = []) {
+    const matchRepo = await factory.getMatchRepository()
+    const playerRepo = await factory.getPlayerRepository()
+
+    const match = await matchRepo.findById(matchId)
+    if (!match) {
+      throw new Error('Match not found')
+    }
+    if (String(match.tournamentId) !== String(tournamentId)) {
+      throw new Error('matchId does not belong to the provided tournamentId')
+    }
+
+    const matchTeamCodes = [match.teamAKey || match.teamA, match.teamBKey || match.teamB]
+      .map((item) => (item || '').toString().trim())
+      .filter(Boolean)
+
+    if (!matchTeamCodes.length) {
+      throw new Error('Selected match has no team mapping for score validation')
+    }
+
+    const matchPlayers = (
+      await Promise.all(
+        matchTeamCodes.map((teamCode) => playerRepo.findByTeam(teamCode, tournamentId)),
+      )
+    )
+      .flat()
+      .map((player) => ({
+        ...player,
+        name:
+          player.displayName ||
+          [player.firstName, player.lastName].filter(Boolean).join(' ').trim(),
+        team: player.teamKey || player.team,
+      }))
+
+    const identityIndex = buildPlayerIdentityIndex(matchPlayers)
+
+    const invalidEntries = []
+    for (const row of playerStats) {
+      if (!row || typeof row !== 'object') continue
+      const incomingName = (row.playerName || row.name || '').toString().trim()
+      const incomingId = (row.playerId || '').toString().trim()
+      const resolvedPlayer = resolvePlayerStatPlayer(row, identityIndex)
+      if (!resolvedPlayer) {
+        invalidEntries.push(incomingName || incomingId || 'unknown-player')
+      }
+    }
+
+    if (invalidEntries.length) {
+      const preview = invalidEntries.slice(0, 5).join(', ')
+      throw new Error(
+        `Submitted score JSON includes players not in selected match teams: ${preview}`,
+      )
+    }
+
+    const normalizedRows = normalizePlayerStatRows(playerStats || [], matchPlayers)
+    if (!normalizedRows.length) {
+      throw new Error('No valid playerStats rows found for the selected match teams')
     }
   }
 
@@ -134,7 +197,9 @@ class MatchScoreService {
 
   async rebuildAllDerivedScores({ tournamentId = null } = {}) {
     const params = []
-    const tournamentFilter = tournamentId ? `where active = true and tournament_id = $1` : `where active = true`
+    const tournamentFilter = tournamentId
+      ? `where active = true and tournament_id = $1`
+      : `where active = true`
     if (tournamentId) params.push(tournamentId)
     const scoreResult = await dbQuery(
       `select id, match_id as "matchId", tournament_id as "tournamentId", player_stats as "playerStats"
@@ -145,7 +210,9 @@ class MatchScoreService {
     )
     const activeScores = scoreResult.rows || []
     if (tournamentId) {
-      await dbQuery(`delete from player_match_scores where tournament_id = $1`, [tournamentId])
+      await dbQuery(`delete from player_match_scores where tournament_id = $1`, [
+        tournamentId,
+      ])
       await dbQuery(
         `delete from contest_scores
          where contest_id in (select id from contests where tournament_id = $1)`,
@@ -181,7 +248,10 @@ class MatchScoreService {
     const teamKeys = [
       ...new Set(
         (matches || [])
-          .flatMap((match) => [match.teamAKey || match.teamA, match.teamBKey || match.teamB])
+          .flatMap((match) => [
+            match.teamAKey || match.teamA,
+            match.teamBKey || match.teamB,
+          ])
           .filter(Boolean),
       ),
     ]
@@ -189,7 +259,9 @@ class MatchScoreService {
       typeof playerRepo.findByTournament === 'function'
         ? await playerRepo.findByTournament(tournamentId)
         : (
-            await Promise.all(teamKeys.map((teamKey) => playerRepo.findByTeam(teamKey, tournamentId)))
+            await Promise.all(
+              teamKeys.map((teamKey) => playerRepo.findByTeam(teamKey, tournamentId)),
+            )
           ).flat()
     const playerRows = playerRowsSource.map((player) => ({
       ...player,
@@ -272,17 +344,23 @@ class MatchScoreService {
     const activePlayerIdsByTeam = new Map()
     const playerIdByTeamAndName = new Map(
       playerRows.map((player) => [
-        `${String(player.team || '').trim()}::${String(player.name || '').trim().toLowerCase()}`,
+        `${String(player.team || '').trim()}::${String(player.name || '')
+          .trim()
+          .toLowerCase()}`,
         Number(player.id),
       ]),
     )
     for (const row of lineupResult.rows || []) {
       const playingXI =
-        typeof row.playingXI === 'string' ? JSON.parse(row.playingXI) : row.playingXI || []
+        typeof row.playingXI === 'string'
+          ? JSON.parse(row.playingXI)
+          : row.playingXI || []
       const ids = playingXI
         .map((name) =>
           playerIdByTeamAndName.get(
-            `${String(row.teamCode || '').trim()}::${String(name || '').trim().toLowerCase()}`,
+            `${String(row.teamCode || '').trim()}::${String(name || '')
+              .trim()
+              .toLowerCase()}`,
           ),
         )
         .filter(Boolean)
@@ -290,13 +368,15 @@ class MatchScoreService {
     }
     const contestSummaries = []
     for (const contest of contests) {
-      const scopedMatchIds = Array.isArray(contest?.matchIds) ? contest.matchIds.map(String) : []
+      const scopedMatchIds = Array.isArray(contest?.matchIds)
+        ? contest.matchIds.map(String)
+        : []
       if (scopedMatchIds.length && !scopedMatchIds.includes(String(matchId))) continue
 
-      await dbQuery(`DELETE FROM contest_scores WHERE contest_id = $1 AND match_id = $2`, [
-        contest.id,
-        matchId,
-      ])
+      await dbQuery(
+        `DELETE FROM contest_scores WHERE contest_id = $1 AND match_id = $2`,
+        [contest.id, matchId],
+      )
 
       let rows = []
       if ((contest.mode || '').toString().trim().toLowerCase() === 'fixed_roster') {
@@ -311,7 +391,8 @@ class MatchScoreService {
           points: sumTopFixedRosterPoints(row.playerIds, fantasyPointsByPlayerId),
         }))
       } else {
-        const matchRecord = (matches || []).find((item) => String(item.id) === String(matchId)) || null
+        const matchRecord =
+          (matches || []).find((item) => String(item.id) === String(matchId)) || null
         const matchTeamKeys = [
           String(matchRecord?.teamAKey || matchRecord?.teamA || '').trim(),
           String(matchRecord?.teamBKey || matchRecord?.teamB || '').trim(),
@@ -332,8 +413,11 @@ class MatchScoreService {
         )
         rows = selections.rows.map((row) => {
           const playingXi =
-            typeof row.playingXi === 'string' ? JSON.parse(row.playingXi) : row.playingXi || []
-          const backups = typeof row.backups === 'string' ? JSON.parse(row.backups) : row.backups || []
+            typeof row.playingXi === 'string'
+              ? JSON.parse(row.playingXi)
+              : row.playingXi || []
+          const backups =
+            typeof row.backups === 'string' ? JSON.parse(row.backups) : row.backups || []
           const resolved = resolveEffectiveSelection({
             playingXi,
             backups,
@@ -344,7 +428,8 @@ class MatchScoreService {
           const points = resolved.effectivePlayerIds.reduce((sum, playerId) => {
             const base = Number(fantasyPointsByPlayerId.get(Number(playerId)) || 0)
             let multiplier = 1
-            if (resolved.captainApplies && Number(row.captainId) === Number(playerId)) multiplier = 2
+            if (resolved.captainApplies && Number(row.captainId) === Number(playerId))
+              multiplier = 2
             else if (
               resolved.viceCaptainApplies &&
               Number(row.viceCaptainId) === Number(playerId)

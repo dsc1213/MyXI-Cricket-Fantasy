@@ -5,8 +5,10 @@ const E2E_API_BASE = process.env.PW_E2E_API_BASE_URL || 'http://127.0.0.1:4000'
 
 const MASTER_LOGIN =
   process.env.PW_DB_MASTER_LOGIN || process.env.PW_E2E_MASTER_LOGIN || ''
-const MASTER_PASSWORD = process.env.PW_DB_MASTER_PASSWORD || process.env.PW_E2E_MASTER_PASSWORD || ''
-const KEEP_DB_SMOKE_DATA = (process.env.PW_KEEP_DB_SMOKE_DATA || '').toString().trim().toLowerCase() === 'true'
+const MASTER_PASSWORD =
+  process.env.PW_DB_MASTER_PASSWORD || process.env.PW_E2E_MASTER_PASSWORD || ''
+const KEEP_DB_SMOKE_DATA =
+  (process.env.PW_KEEP_DB_SMOKE_DATA || '').toString().trim().toLowerCase() === 'true'
 
 const requireDbMasterCreds = () => {
   if (!MASTER_LOGIN || !MASTER_PASSWORD) {
@@ -76,7 +78,9 @@ const buildValidPlayingXi = (teamAPlayers = [], teamBPlayers = []) => {
   }
 
   if (selected.length !== 11) {
-    throw new Error(`Expected a valid XI, found only ${selected.length} selectable players`)
+    throw new Error(
+      `Expected a valid XI, found only ${selected.length} selectable players`,
+    )
   }
 
   return selected
@@ -140,7 +144,8 @@ test.describe('20) DB smoke flows', () => {
         200,
       )
       const createdUser = (adminUsers || []).find(
-        (row) => row.gameName === pendingUser.gameName || row.userId === pendingUser.gameName,
+        (row) =>
+          row.gameName === pendingUser.gameName || row.userId === pendingUser.gameName,
       )
       expect(createdUser).toBeTruthy()
       expect(createdUser.status).toBe('pending')
@@ -158,7 +163,9 @@ test.describe('20) DB smoke flows', () => {
 
       const pendingTable = page.locator('.pending-approvals-table')
       await expect(pendingTable).toBeVisible()
-      const row = pendingTable.locator('tbody tr', { hasText: pendingUser.gameName }).first()
+      const row = pendingTable
+        .locator('tbody tr', { hasText: pendingUser.gameName })
+        .first()
       await expect(row).toBeVisible()
       await expect(row).toContainText(pendingUser.email)
       await expect(row).toContainText(pendingUser.phone)
@@ -194,7 +201,9 @@ test.describe('20) DB smoke flows', () => {
     }
   })
 
-  test('db squad manager import resolves string tournament source keys', async ({ request }) => {
+  test('db squad manager import resolves string tournament source keys', async ({
+    request,
+  }) => {
     requireDbMasterCreds()
     const tag = Date.now()
     const tournamentName = `DB Squad Import ${tag}`
@@ -286,7 +295,8 @@ test.describe('20) DB smoke flows', () => {
       const squads = await apiCall(
         cleanupRequest,
         'GET',
-        '/admin/team-squads?teamCode=CSK&tournamentId=' + encodeURIComponent(tournamentId),
+        '/admin/team-squads?teamCode=CSK&tournamentId=' +
+          encodeURIComponent(tournamentId),
         undefined,
         200,
       )
@@ -295,11 +305,14 @@ test.describe('20) DB smoke flows', () => {
     } finally {
       if (!KEEP_DB_SMOKE_DATA && cleanupRequest) {
         try {
-          await cleanupRequest.fetch(`${E2E_API_BASE}/admin/tournaments/${tournamentId}`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            data: { actorUserId: MASTER_LOGIN },
-          })
+          await cleanupRequest.fetch(
+            `${E2E_API_BASE}/admin/tournaments/${tournamentId}`,
+            {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              data: { actorUserId: MASTER_LOGIN },
+            },
+          )
         } catch {
           // best effort cleanup
         }
@@ -523,14 +536,16 @@ test.describe('20) DB smoke flows', () => {
       await expect(squadModal).toBeVisible()
       await squadModal.locator('select').first().selectOption('india')
       await squadModal.getByPlaceholder('Search player catalog').fill(playerName)
-      const pickerRow = squadModal.locator('.squad-player-picker-row', { hasText: playerName }).first()
+      const pickerRow = squadModal
+        .locator('.squad-player-picker-row', { hasText: playerName })
+        .first()
       await expect(pickerRow).toBeVisible()
       await pickerRow.locator('input[type="checkbox"]').check()
       await squadModal.getByRole('button', { name: 'Add selected players' }).click()
 
-      await expect(page.locator('.catalog-table tbody input[type="text"]').first()).toHaveValue(
-        playerName,
-      )
+      await expect(
+        page.locator('.catalog-table tbody input[type="text"]').first(),
+      ).toHaveValue(playerName)
 
       await page.getByRole('button', { name: 'Save squad' }).click()
       await expect(page.getByText('Squad saved')).toBeVisible()
@@ -545,20 +560,27 @@ test.describe('20) DB smoke flows', () => {
       expect(Array.isArray(savedRows)).toBe(true)
       expect(savedRows[0]?.teamCode).toBe(teamCode)
       expect(String(savedRows[0]?.tournamentId)).toBe(String(createdTournamentRowId))
-      expect((savedRows[0]?.squad || []).some((row) => String(row.id) === String(createdPlayerId))).toBe(
-        true,
-      )
+      expect(
+        (savedRows[0]?.squad || []).some(
+          (row) => String(row.id) === String(createdPlayerId),
+        ),
+      ).toBe(true)
 
       await page.reload()
       await expect(page).toHaveURL(/panel=squads/)
-      const reloadedScopeSelects = page.locator('.manual-scope-row').first().locator('select')
+      const reloadedScopeSelects = page
+        .locator('.manual-scope-row')
+        .first()
+        .locator('select')
       await reloadedScopeSelects.nth(0).selectOption('tournament')
       await reloadedScopeSelects.nth(1).selectOption(String(createdTournamentRowId))
-      await expect(reloadedScopeSelects.nth(2).locator(`option[value="${teamCode}"]`)).toHaveCount(1)
+      await expect(
+        reloadedScopeSelects.nth(2).locator(`option[value="${teamCode}"]`),
+      ).toHaveCount(1)
       await reloadedScopeSelects.nth(2).selectOption(teamCode)
-      await expect(page.locator('.catalog-table tbody input[type="text"]').first()).toHaveValue(
-        playerName,
-      )
+      await expect(
+        page.locator('.catalog-table tbody input[type="text"]').first(),
+      ).toHaveValue(playerName)
 
       const linkedRows = await apiCall(
         authedRequest,
@@ -570,9 +592,11 @@ test.describe('20) DB smoke flows', () => {
       expect(Array.isArray(linkedRows)).toBe(true)
       expect(linkedRows[0]?.teamCode).toBe(teamCode)
       expect(String(linkedRows[0]?.tournamentId)).toBe(String(createdTournamentRowId))
-      expect((linkedRows[0]?.squad || []).some((row) => String(row.id) === String(createdPlayerId))).toBe(
-        true,
-      )
+      expect(
+        (linkedRows[0]?.squad || []).some(
+          (row) => String(row.id) === String(createdPlayerId),
+        ),
+      ).toBe(true)
     } finally {
       if (KEEP_DB_SMOKE_DATA) {
         await authedRequest?.dispose()
@@ -774,7 +798,8 @@ test.describe('20) DB smoke flows', () => {
         },
         201,
       )
-      fantasyContestId = createdFantasyContest?.id || createdFantasyContest?.contest?.id || null
+      fantasyContestId =
+        createdFantasyContest?.id || createdFantasyContest?.contest?.id || null
       expect(fantasyContestId).toBeTruthy()
       const tournamentCatalog = await apiCall(
         authedRequest,
@@ -858,7 +883,8 @@ test.describe('20) DB smoke flows', () => {
       const teamAPlayers = teamPool?.teams?.teamA?.players || []
       const teamBPlayers = teamPool?.teams?.teamB?.players || []
       const selectedXi = buildValidPlayingXi(teamAPlayers, teamBPlayers)
-      const captain = selectedXi.find((player) => player.name === teamASquad[1].name) || selectedXi[0]
+      const captain =
+        selectedXi.find((player) => player.name === teamASquad[1].name) || selectedXi[0]
       const viceCaptain =
         selectedXi.find((player) => player.name === teamBSquad[7].name) ||
         selectedXi.find((player) => player.id !== captain.id) ||
@@ -960,11 +986,18 @@ test.describe('20) DB smoke flows', () => {
       const auctionRow = (auctionLeaderboard || []).find(
         (row) =>
           String(row.userId) === importedAuctionUserId ||
-          String(row.gameName || '').toLowerCase() === importedAuctionUserId.toLowerCase(),
+          String(row.gameName || '').toLowerCase() ===
+            importedAuctionUserId.toLowerCase(),
       )
       expect(Number(auctionRow?.points || 0)).toBeGreaterThan(0)
 
-      const pageLoad = await apiCall(authedRequest, 'GET', '/page-load-data', undefined, 200)
+      const pageLoad = await apiCall(
+        authedRequest,
+        'GET',
+        '/page-load-data',
+        undefined,
+        200,
+      )
       const updatedRules = JSON.parse(JSON.stringify(pageLoad?.pointsRuleTemplate || {}))
       const runRule = (updatedRules?.batting || []).find((row) => row.id === 'run')
       expect(runRule).toBeTruthy()
@@ -980,8 +1013,12 @@ test.describe('20) DB smoke flows', () => {
         },
         200,
       )
-      expect(Number(scoringSave?.rebuildSummary?.rebuiltMatches || 0)).toBeGreaterThanOrEqual(1)
-      expect(Number(scoringSave?.rebuildSummary?.rebuiltContests || 0)).toBeGreaterThanOrEqual(2)
+      expect(
+        Number(scoringSave?.rebuildSummary?.rebuiltMatches || 0),
+      ).toBeGreaterThanOrEqual(1)
+      expect(
+        Number(scoringSave?.rebuildSummary?.rebuiltContests || 0),
+      ).toBeGreaterThanOrEqual(2)
 
       const playerStatsAfterRuleChange = await apiCall(
         authedRequest,
@@ -1023,7 +1060,8 @@ test.describe('20) DB smoke flows', () => {
       const auctionRowAfterRuleChange = (auctionLeaderboardAfterRuleChange || []).find(
         (row) =>
           String(row.userId) === importedAuctionUserId ||
-          String(row.gameName || '').toLowerCase() === importedAuctionUserId.toLowerCase(),
+          String(row.gameName || '').toLowerCase() ===
+            importedAuctionUserId.toLowerCase(),
       )
       expect(Number(auctionRowAfterRuleChange?.points || 0)).toBeGreaterThan(
         Number(auctionRow?.points || 0),
@@ -1035,20 +1073,26 @@ test.describe('20) DB smoke flows', () => {
       }
       if (fantasyContestId) {
         try {
-          await authedRequest?.fetch(`${E2E_API_BASE}/admin/contests/${fantasyContestId}`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            data: { actorUserId },
-          })
+          await authedRequest?.fetch(
+            `${E2E_API_BASE}/admin/contests/${fantasyContestId}`,
+            {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              data: { actorUserId },
+            },
+          )
         } catch {}
       }
       if (auctionContestId) {
         try {
-          await authedRequest?.fetch(`${E2E_API_BASE}/admin/contests/${auctionContestId}`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            data: { actorUserId },
-          })
+          await authedRequest?.fetch(
+            `${E2E_API_BASE}/admin/contests/${auctionContestId}`,
+            {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              data: { actorUserId },
+            },
+          )
         } catch {}
       }
       for (const playerId of createdPlayerIds) {
@@ -1076,20 +1120,26 @@ test.describe('20) DB smoke flows', () => {
     }
   })
 
-  test('db public tournament and contest feeds return created fantasy data', async ({ page }) => {
+  test('db public tournament and contest feeds return created fantasy data', async ({
+    page,
+  }) => {
     requireDbMasterCreds()
     const tag = Date.now()
     const tournamentName = `DB Fantasy Feed ${tag}`
     const tournamentId = normalizeTournamentId(`${tournamentName}-2026`)
     const contestName = `DB Fantasy Contest ${tag}`
-    const teamASquad = buildTournamentSquad('AAA', `Alpha ${tag}`, 'India').map((player) => ({
-      ...player,
-      sourceKey: `${player.sourceKey}-${tag}`,
-    }))
-    const teamBSquad = buildTournamentSquad('BBB', `Bravo ${tag}`, 'India').map((player) => ({
-      ...player,
-      sourceKey: `${player.sourceKey}-${tag}`,
-    }))
+    const teamASquad = buildTournamentSquad('AAA', `Alpha ${tag}`, 'India').map(
+      (player) => ({
+        ...player,
+        sourceKey: `${player.sourceKey}-${tag}`,
+      }),
+    )
+    const teamBSquad = buildTournamentSquad('BBB', `Bravo ${tag}`, 'India').map(
+      (player) => ({
+        ...player,
+        sourceKey: `${player.sourceKey}-${tag}`,
+      }),
+    )
     let authState = null
     let authedRequest = null
 
@@ -1146,8 +1196,16 @@ test.describe('20) DB smoke flows', () => {
         201,
       )
 
-      const adminCatalog = await apiCall(authedRequest, 'GET', '/admin/tournaments/catalog', undefined, 200)
-      const createdTournament = (adminCatalog || []).find((row) => row.sourceKey === tournamentId)
+      const adminCatalog = await apiCall(
+        authedRequest,
+        'GET',
+        '/admin/tournaments/catalog',
+        undefined,
+        200,
+      )
+      const createdTournament = (adminCatalog || []).find(
+        (row) => row.sourceKey === tournamentId,
+      )
       expect(createdTournament).toBeTruthy()
       await apiCall(
         authedRequest,
@@ -1219,8 +1277,16 @@ test.describe('20) DB smoke flows', () => {
         201,
       )
 
-      const publicTournaments = await apiCall(authedRequest, 'GET', '/tournaments', undefined, 200)
-      expect((publicTournaments || []).some((row) => row.sourceKey === tournamentId)).toBe(true)
+      const publicTournaments = await apiCall(
+        authedRequest,
+        'GET',
+        '/tournaments',
+        undefined,
+        200,
+      )
+      expect(
+        (publicTournaments || []).some((row) => row.sourceKey === tournamentId),
+      ).toBe(true)
 
       const publicContests = await apiCall(
         authedRequest,
@@ -1229,7 +1295,9 @@ test.describe('20) DB smoke flows', () => {
         undefined,
         200,
       )
-      const createdContest = (publicContests || []).find((row) => row.name === contestName)
+      const createdContest = (publicContests || []).find(
+        (row) => row.name === contestName,
+      )
       expect(createdContest).toBeTruthy()
       await apiCall(
         authedRequest,
@@ -1245,7 +1313,9 @@ test.describe('20) DB smoke flows', () => {
         undefined,
         200,
       )
-      const joinedContest = (contestsAfterJoin || []).find((row) => row.name === contestName)
+      const joinedContest = (contestsAfterJoin || []).find(
+        (row) => row.name === contestName,
+      )
       expect(joinedContest?.joined).toBe(true)
       expect(Number(joinedContest?.joinedCount || 0)).toBeGreaterThan(0)
       const teamPool = await apiCall(
@@ -1292,32 +1362,709 @@ test.describe('20) DB smoke flows', () => {
         }
       }, authState)
       await page.goto('/fantasy')
-      await expect(page.locator('.tournament-filter-tile', { hasText: tournamentName }).first()).toBeVisible()
-      await page.locator('.tournament-filter-tile', { hasText: tournamentName }).first().click()
-      await expect(page.locator('article.compact-contest-card', { hasText: contestName }).first()).toBeVisible()
-      await page.goto(`/tournaments/${createdTournament.id}/contests/${createdContest.id}`)
+      await expect(
+        page.locator('.tournament-filter-tile', { hasText: tournamentName }).first(),
+      ).toBeVisible()
+      await page
+        .locator('.tournament-filter-tile', { hasText: tournamentName })
+        .first()
+        .click()
+      await expect(
+        page.locator('article.compact-contest-card', { hasText: contestName }).first(),
+      ).toBeVisible()
+      await page.goto(
+        `/tournaments/${createdTournament.id}/contests/${createdContest.id}`,
+      )
       await expect(page.getByText('No matches found')).toHaveCount(0)
       await expect(page.locator('.match-table tbody tr')).toHaveCount(1)
       await expect(page.locator('.match-table tbody')).toContainText('AAA')
       await expect(page.locator('.match-table tbody')).toContainText('BBB')
-      await expect(page.locator('.match-table tbody tr').first().getByLabel(/Edit team|Add team/)).toBeVisible()
+      await expect(
+        page
+          .locator('.match-table tbody tr')
+          .first()
+          .getByLabel(/Edit team|Add team/),
+      ).toBeVisible()
       const matchRow = page.locator('.match-table tbody tr').first()
       await expect(matchRow.getByLabel('View team')).toContainText('(1)')
       await matchRow.click()
       await expect(page.locator('.participants-table tbody tr')).toHaveCount(1)
-      await page.locator('.participants-table tbody tr').first().getByLabel(/View .* team/).click()
+      await page
+        .locator('.participants-table tbody tr')
+        .first()
+        .getByLabel(/View .* team/)
+        .click()
       await expect(page.locator('.team-preview-drawer.open')).toBeVisible()
     } finally {
       if (authedRequest) {
         try {
-          const catalog = await apiCall(authedRequest, 'GET', '/admin/tournaments/catalog', undefined, 200)
+          const catalog = await apiCall(
+            authedRequest,
+            'GET',
+            '/admin/tournaments/catalog',
+            undefined,
+            200,
+          )
           const tournament = (catalog || []).find((row) => row.sourceKey === tournamentId)
           if (tournament?.id && !KEEP_DB_SMOKE_DATA) {
-            await authedRequest.fetch(`${E2E_API_BASE}/admin/tournaments/${tournament.id}`, {
-              method: 'DELETE',
-              headers: { 'Content-Type': 'application/json' },
-              data: { actorUserId: MASTER_LOGIN },
-            })
+            await authedRequest.fetch(
+              `${E2E_API_BASE}/admin/tournaments/${tournament.id}`,
+              {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                data: { actorUserId: MASTER_LOGIN },
+              },
+            )
+          }
+        } catch {
+          // best effort cleanup
+        }
+        await authedRequest.dispose()
+      }
+    }
+  })
+
+  test('db /match-scores/save JSON payload updates contest_scores-derived leaderboard', async () => {
+    requireDbMasterCreds()
+    const tag = Date.now()
+    const tournamentName = `DB Save Endpoint ${tag}`
+    const tournamentId = normalizeTournamentId(`${tournamentName}-2026`)
+    const contestName = `DB Save Contest ${tag}`
+    const teamASquad = buildTournamentSquad('AAA', `Alpha ${tag}`, 'India').map(
+      (player, index) => ({
+        ...player,
+        playerId: `db-save-${tag}-a-${index + 1}`,
+        sourceKey: `${player.sourceKey}-${tag}-a`,
+      }),
+    )
+    const teamBSquad = buildTournamentSquad('BBB', `Bravo ${tag}`, 'India').map(
+      (player, index) => ({
+        ...player,
+        playerId: `db-save-${tag}-b-${index + 1}`,
+        sourceKey: `${player.sourceKey}-${tag}-b`,
+      }),
+    )
+    let authedRequest = null
+
+    try {
+      const anonymousRequest = await playwrightRequest.newContext({
+        baseURL: E2E_API_BASE,
+        extraHTTPHeaders: {
+          'Content-Type': 'application/json',
+        },
+      })
+      const authState = await apiCall(
+        anonymousRequest,
+        'POST',
+        '/auth/login',
+        { userId: MASTER_LOGIN, password: MASTER_PASSWORD },
+        200,
+      )
+      await anonymousRequest.dispose()
+
+      const actorUserId =
+        authState?.user?.userId ||
+        authState?.user?.gameName ||
+        authState?.user?.email ||
+        MASTER_LOGIN
+      const actorNumericUserId = Number(authState?.user?.id || 0) || null
+
+      authedRequest = await playwrightRequest.newContext({
+        baseURL: E2E_API_BASE,
+        extraHTTPHeaders: {
+          Authorization: `Bearer ${authState.token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const tournamentCreate = await apiCall(
+        authedRequest,
+        'POST',
+        '/admin/tournaments',
+        {
+          actorUserId,
+          tournamentId,
+          name: tournamentName,
+          season: '2026',
+          source: 'json',
+          tournamentType: 'league',
+          country: 'india',
+          league: 'IPL',
+          selectedTeams: ['AAA', 'BBB'],
+          matches: [
+            {
+              id: 'm1',
+              matchNo: 1,
+              home: 'AAA',
+              away: 'BBB',
+              startAt: '2099-03-10T14:00:00.000Z',
+              timezone: 'Asia/Kolkata',
+              venue: 'Chennai',
+            },
+          ],
+        },
+        201,
+      )
+      const createdTournamentId = tournamentCreate?.tournament?.id
+      expect(createdTournamentId).toBeTruthy()
+
+      await apiCall(
+        authedRequest,
+        'POST',
+        '/admin/team-squads',
+        {
+          actorUserId,
+          teamCode: 'AAA',
+          teamName: 'Alpha',
+          tournamentType: 'tournament',
+          tournamentId: createdTournamentId,
+          tournament: tournamentName,
+          country: 'india',
+          league: 'IPL',
+          squad: teamASquad,
+          source: 'manual',
+        },
+        201,
+      )
+      await apiCall(
+        authedRequest,
+        'POST',
+        '/admin/team-squads',
+        {
+          actorUserId,
+          teamCode: 'BBB',
+          teamName: 'Bravo',
+          tournamentType: 'tournament',
+          tournamentId: createdTournamentId,
+          tournament: tournamentName,
+          country: 'india',
+          league: 'IPL',
+          squad: teamBSquad,
+          source: 'manual',
+        },
+        201,
+      )
+
+      await apiCall(
+        authedRequest,
+        'POST',
+        '/admin/tournaments/enable',
+        { ids: [createdTournamentId], actorUserId },
+        200,
+      )
+
+      const contestMatchOptions = await apiCall(
+        authedRequest,
+        'GET',
+        `/admin/contest-match-options?tournamentId=${createdTournamentId}`,
+        undefined,
+        200,
+      )
+      const matchId = String((contestMatchOptions || [])[0]?.id || '')
+      expect(matchId).toBeTruthy()
+
+      const contest = await apiCall(
+        authedRequest,
+        'POST',
+        '/admin/contests',
+        {
+          name: contestName,
+          tournamentId: String(createdTournamentId),
+          game: 'Fantasy',
+          teams: 10,
+          maxParticipants: 10,
+          status: 'Open',
+          createdBy: actorUserId,
+          matchIds: [matchId],
+        },
+        201,
+      )
+      const contestId = contest?.id || contest?.contest?.id
+      expect(contestId).toBeTruthy()
+
+      await apiCall(
+        authedRequest,
+        'POST',
+        `/contests/${contestId}/join`,
+        { userId: actorUserId },
+        200,
+      )
+
+      const teamPool = await apiCall(
+        authedRequest,
+        'GET',
+        `/team-pool?contestId=${encodeURIComponent(contestId)}&matchId=${encodeURIComponent(matchId)}&userId=${encodeURIComponent(actorUserId)}`,
+        undefined,
+        200,
+      )
+      const playingXi = buildValidPlayingXi(
+        teamPool?.teams?.teamA?.players || [],
+        teamPool?.teams?.teamB?.players || [],
+      )
+
+      await apiCall(
+        authedRequest,
+        'POST',
+        '/team-selection/save',
+        {
+          contestId,
+          matchId,
+          userId: actorUserId,
+          playingXi: playingXi.map((player) => player.id),
+          backups: [],
+          captainId: playingXi[0]?.id,
+          viceCaptainId: playingXi[1]?.id,
+        },
+        200,
+      )
+
+      const payloadText = JSON.stringify({
+        playerStats: [
+          {
+            playerId: playingXi[0]?.id,
+            playerName: playingXi[0]?.name,
+            runs: 52,
+            ballsFaced: 30,
+            fours: 6,
+            sixes: 2,
+            dismissed: true,
+          },
+          {
+            playerId: playingXi[1]?.id,
+            playerName: playingXi[1]?.name,
+            wickets: 2,
+            oversBowled: 4,
+            runsConceded: 24,
+            maidens: 1,
+            wides: 1,
+          },
+        ],
+      })
+
+      const saveResponse = await apiCall(
+        authedRequest,
+        'POST',
+        '/match-scores/save',
+        {
+          payloadText,
+          source: 'json',
+          tournamentId: String(createdTournamentId),
+          matchId: String(matchId),
+          contestId: String(contestId),
+          userId: actorUserId,
+        },
+        200,
+      )
+      expect(saveResponse?.ok).toBe(true)
+      expect(Number(saveResponse?.impactedContests || 0)).toBeGreaterThan(0)
+
+      const leaderboard = await apiCall(
+        authedRequest,
+        'GET',
+        `/contests/${contestId}/leaderboard`,
+        undefined,
+        200,
+      )
+      expect(Array.isArray(leaderboard)).toBe(true)
+      const hasPositivePoints = (leaderboard || []).some(
+        (row) => Number(row?.points || 0) > 0,
+      )
+      expect(hasPositivePoints).toBe(true)
+    } finally {
+      if (authedRequest) {
+        try {
+          const catalog = await apiCall(
+            authedRequest,
+            'GET',
+            '/admin/tournaments/catalog',
+            undefined,
+            200,
+          )
+          const tournament = (catalog || []).find((row) => row.sourceKey === tournamentId)
+          if (tournament?.id && !KEEP_DB_SMOKE_DATA) {
+            await authedRequest.fetch(
+              `${E2E_API_BASE}/admin/tournaments/${tournament.id}`,
+              {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                data: { actorUserId: MASTER_LOGIN },
+              },
+            )
+          }
+        } catch {
+          // best effort cleanup
+        }
+        await authedRequest.dispose()
+      }
+    }
+  })
+
+  test('db /match-scores/save rejects player stats from different match teams', async () => {
+    requireDbMasterCreds()
+    const tag = Date.now()
+    const tournamentName = `DB Wrong Match Guard ${tag}`
+    const tournamentId = normalizeTournamentId(`${tournamentName}-2026`)
+    let authedRequest = null
+
+    try {
+      const anonymousRequest = await playwrightRequest.newContext({
+        baseURL: E2E_API_BASE,
+        extraHTTPHeaders: {
+          'Content-Type': 'application/json',
+        },
+      })
+      const authState = await apiCall(
+        anonymousRequest,
+        'POST',
+        '/auth/login',
+        { userId: MASTER_LOGIN, password: MASTER_PASSWORD },
+        200,
+      )
+      await anonymousRequest.dispose()
+
+      const actorUserId =
+        authState?.user?.userId ||
+        authState?.user?.gameName ||
+        authState?.user?.email ||
+        MASTER_LOGIN
+
+      authedRequest = await playwrightRequest.newContext({
+        baseURL: E2E_API_BASE,
+        extraHTTPHeaders: {
+          Authorization: `Bearer ${authState.token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const tournamentCreate = await apiCall(
+        authedRequest,
+        'POST',
+        '/admin/tournaments',
+        {
+          actorUserId,
+          tournamentId,
+          name: tournamentName,
+          season: '2026',
+          source: 'json',
+          tournamentType: 'league',
+          country: 'india',
+          league: 'IPL',
+          selectedTeams: ['KKR', 'CSK', 'RCB', 'SRH'],
+          matches: [
+            {
+              id: 'm-kkr-csk',
+              matchNo: 1,
+              home: 'KKR',
+              away: 'CSK',
+              startAt: '2099-03-10T14:00:00.000Z',
+            },
+            {
+              id: 'm-rcb-srh',
+              matchNo: 2,
+              home: 'RCB',
+              away: 'SRH',
+              startAt: '2099-03-11T14:00:00.000Z',
+            },
+          ],
+        },
+        201,
+      )
+      const createdTournamentId = tournamentCreate?.tournament?.id
+      expect(createdTournamentId).toBeTruthy()
+
+      const buildSquad = (prefix) =>
+        Array.from({ length: 11 }).map((_, index) => ({
+          name: `${prefix} Player ${index + 1} ${tag}`,
+          country: 'india',
+          role: index === 0 ? 'WK' : index < 6 ? 'BAT' : 'BOWL',
+          playerId: `db-wrong-${prefix}-${tag}-${index + 1}`,
+          sourceKey: `db-wrong-${prefix}-${tag}-${index + 1}`,
+          active: true,
+        }))
+
+      for (const teamCode of ['KKR', 'CSK', 'RCB', 'SRH']) {
+        await apiCall(
+          authedRequest,
+          'POST',
+          '/admin/team-squads',
+          {
+            actorUserId,
+            teamCode,
+            teamName: teamCode,
+            tournamentType: 'tournament',
+            tournamentId: createdTournamentId,
+            tournament: tournamentName,
+            country: 'india',
+            league: 'IPL',
+            squad: buildSquad(teamCode),
+            source: 'manual',
+          },
+          201,
+        )
+      }
+
+      const tournamentMatches = await apiCall(
+        authedRequest,
+        'GET',
+        `/tournaments/${createdTournamentId}/matches`,
+        undefined,
+        200,
+      )
+      const selectedMatch = (tournamentMatches || []).find((row) => {
+        const home = String(row?.teamAKey || row?.teamA || '').toUpperCase()
+        const away = String(row?.teamBKey || row?.teamB || '').toUpperCase()
+        return home === 'KKR' && away === 'CSK'
+      })
+      expect(selectedMatch?.id).toBeTruthy()
+
+      const saveResponse = await authedRequest.fetch(
+        `${E2E_API_BASE}/match-scores/save`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          data: {
+            source: 'json',
+            tournamentId: String(createdTournamentId),
+            matchId: String(selectedMatch.id),
+            userId: actorUserId,
+            payloadText: JSON.stringify({
+              playerStats: [
+                {
+                  playerName: `RCB Player 1 ${tag}`,
+                  runs: 55,
+                  ballsFaced: 30,
+                  fours: 6,
+                  sixes: 2,
+                  dismissed: true,
+                },
+              ],
+            }),
+          },
+        },
+      )
+
+      expect(saveResponse.status()).toBe(400)
+      const body = await saveResponse.json()
+      expect(body?.message || '').toContain('not in selected match teams')
+    } finally {
+      if (authedRequest) {
+        try {
+          const catalog = await apiCall(
+            authedRequest,
+            'GET',
+            '/admin/tournaments/catalog',
+            undefined,
+            200,
+          )
+          const tournament = (catalog || []).find((row) => row.sourceKey === tournamentId)
+          if (tournament?.id && !KEEP_DB_SMOKE_DATA) {
+            await authedRequest.fetch(
+              `${E2E_API_BASE}/admin/tournaments/${tournament.id}`,
+              {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                data: { actorUserId: MASTER_LOGIN },
+              },
+            )
+          }
+        } catch {
+          // best effort cleanup
+        }
+        await authedRequest.dispose()
+      }
+    }
+  })
+
+  test('db /match-scores/save accepts common name aliases without playerId', async () => {
+    requireDbMasterCreds()
+    const tag = Date.now()
+    const tournamentName = `DB Name Alias Guard ${tag}`
+    const tournamentId = normalizeTournamentId(`${tournamentName}-2026`)
+    let authedRequest = null
+
+    try {
+      const anonymousRequest = await playwrightRequest.newContext({
+        baseURL: E2E_API_BASE,
+        extraHTTPHeaders: {
+          'Content-Type': 'application/json',
+        },
+      })
+      const authState = await apiCall(
+        anonymousRequest,
+        'POST',
+        '/auth/login',
+        { userId: MASTER_LOGIN, password: MASTER_PASSWORD },
+        200,
+      )
+      await anonymousRequest.dispose()
+
+      const actorUserId =
+        authState?.user?.userId ||
+        authState?.user?.gameName ||
+        authState?.user?.email ||
+        MASTER_LOGIN
+
+      authedRequest = await playwrightRequest.newContext({
+        baseURL: E2E_API_BASE,
+        extraHTTPHeaders: {
+          Authorization: `Bearer ${authState.token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const tournamentCreate = await apiCall(
+        authedRequest,
+        'POST',
+        '/admin/tournaments',
+        {
+          actorUserId,
+          tournamentId,
+          name: tournamentName,
+          season: '2026',
+          source: 'json',
+          tournamentType: 'league',
+          country: 'india',
+          league: 'IPL',
+          selectedTeams: ['RCB', 'SRH'],
+          matches: [
+            {
+              id: 'm-rcb-srh',
+              matchNo: 1,
+              home: 'RCB',
+              away: 'SRH',
+              startAt: '2099-03-11T14:00:00.000Z',
+            },
+          ],
+        },
+        201,
+      )
+      const createdTournamentId = tournamentCreate?.tournament?.id
+      expect(createdTournamentId).toBeTruthy()
+
+      const buildSquad = (prefix, withAlias = false) =>
+        Array.from({ length: 11 }).map((_, index) => {
+          if (withAlias && index === 0) {
+            return {
+              name: 'Phil Salt',
+              country: 'england',
+              role: 'WK',
+              playerId: `db-alias-phil-salt-${tag}`,
+              sourceKey: `db-alias-phil-salt-${tag}`,
+              active: true,
+            }
+          }
+          return {
+            name: `${prefix} Player ${index + 1} ${tag}`,
+            country: 'india',
+            role: index === 0 ? 'WK' : index < 6 ? 'BAT' : 'BOWL',
+            playerId: `db-alias-${prefix}-${tag}-${index + 1}`,
+            sourceKey: `db-alias-${prefix}-${tag}-${index + 1}`,
+            active: true,
+          }
+        })
+
+      await apiCall(
+        authedRequest,
+        'POST',
+        '/admin/team-squads',
+        {
+          actorUserId,
+          teamCode: 'RCB',
+          teamName: 'RCB',
+          tournamentType: 'tournament',
+          tournamentId: createdTournamentId,
+          tournament: tournamentName,
+          country: 'india',
+          league: 'IPL',
+          squad: buildSquad('RCB', true),
+          source: 'manual',
+        },
+        201,
+      )
+
+      await apiCall(
+        authedRequest,
+        'POST',
+        '/admin/team-squads',
+        {
+          actorUserId,
+          teamCode: 'SRH',
+          teamName: 'SRH',
+          tournamentType: 'tournament',
+          tournamentId: createdTournamentId,
+          tournament: tournamentName,
+          country: 'india',
+          league: 'IPL',
+          squad: buildSquad('SRH', false),
+          source: 'manual',
+        },
+        201,
+      )
+
+      const tournamentMatches = await apiCall(
+        authedRequest,
+        'GET',
+        `/tournaments/${createdTournamentId}/matches`,
+        undefined,
+        200,
+      )
+      const selectedMatch = (tournamentMatches || []).find((row) => {
+        const home = String(row?.teamAKey || row?.teamA || '').toUpperCase()
+        const away = String(row?.teamBKey || row?.teamB || '').toUpperCase()
+        return home === 'RCB' && away === 'SRH'
+      })
+      expect(selectedMatch?.id).toBeTruthy()
+
+      const saveResponse = await authedRequest.fetch(
+        `${E2E_API_BASE}/match-scores/save`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          data: {
+            source: 'json',
+            tournamentId: String(createdTournamentId),
+            matchId: String(selectedMatch.id),
+            userId: actorUserId,
+            payloadText: JSON.stringify({
+              playerStats: [
+                {
+                  playerName: 'Philip Salt',
+                  runs: 35,
+                  ballsFaced: 21,
+                  fours: 4,
+                  sixes: 1,
+                  dismissed: true,
+                },
+              ],
+            }),
+          },
+        },
+      )
+
+      expect(saveResponse.status()).toBe(200)
+      const body = await saveResponse.json()
+      expect(body?.ok).toBe(true)
+      expect(body?.savedScore?.matchId).toBe(String(selectedMatch.id))
+    } finally {
+      if (authedRequest) {
+        try {
+          const catalog = await apiCall(
+            authedRequest,
+            'GET',
+            '/admin/tournaments/catalog',
+            undefined,
+            200,
+          )
+          const tournament = (catalog || []).find((row) => row.sourceKey === tournamentId)
+          if (tournament?.id && !KEEP_DB_SMOKE_DATA) {
+            await authedRequest.fetch(
+              `${E2E_API_BASE}/admin/tournaments/${tournament.id}`,
+              {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                data: { actorUserId: MASTER_LOGIN },
+              },
+            )
           }
         } catch {
           // best effort cleanup

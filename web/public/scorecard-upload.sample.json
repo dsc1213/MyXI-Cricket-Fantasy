@@ -1,0 +1,230 @@
+{
+    "playerStats": [
+        {
+            "playerName": "Travis Head",
+            "runs": 11,
+            "ballsFaced": 9,
+            "fours": 2,
+            "sixes": 0,
+            "dismissed": true
+        },
+        {
+            "playerName": "Abhishek Sharma",
+            "runs": 7,
+            "ballsFaced": 8,
+            "fours": 0,
+            "sixes": 1,
+            "dismissed": true
+        },
+        {
+            "playerName": "Ishan Kishan",
+            "runs": 80,
+            "ballsFaced": 38,
+            "fours": 8,
+            "sixes": 5,
+            "dismissed": true,
+            "catches": 0
+        },
+        {
+            "playerName": "Nitish Kumar Reddy",
+            "runs": 1,
+            "ballsFaced": 6,
+            "fours": 0,
+            "sixes": 0,
+            "dismissed": true,
+            "oversBowled": 2,
+            "maidens": 0,
+            "runsConceded": 19,
+            "wickets": 0,
+            "wides": 0
+        },
+        {
+            "playerName": "Heinrich Klaasen",
+            "runs": 31,
+            "ballsFaced": 22,
+            "fours": 2,
+            "sixes": 1,
+            "dismissed": true,
+            "catches": 2
+        },
+        {
+            "playerName": "Salil Arora",
+            "runs": 9,
+            "ballsFaced": 6,
+            "fours": 0,
+            "sixes": 1,
+            "dismissed": true
+        },
+        {
+            "playerName": "Aniket Verma",
+            "runs": 43,
+            "ballsFaced": 18,
+            "fours": 3,
+            "sixes": 4,
+            "dismissed": true
+        },
+        {
+            "playerName": "Harsh Dubey",
+            "runs": 3,
+            "ballsFaced": 3,
+            "fours": 0,
+            "sixes": 0,
+            "dismissed": true,
+            "oversBowled": 3,
+            "maidens": 0,
+            "runsConceded": 35,
+            "wickets": 1,
+            "wides": 0,
+            "catches": 1
+        },
+        {
+            "playerName": "Harshal Patel",
+            "runs": 0,
+            "ballsFaced": 2,
+            "fours": 0,
+            "sixes": 0,
+            "dismissed": true,
+            "oversBowled": 2.4,
+            "maidens": 0,
+            "runsConceded": 39,
+            "wickets": 0,
+            "wides": 1
+        },
+        {
+            "playerName": "David Payne",
+            "runs": 6,
+            "ballsFaced": 5,
+            "fours": 0,
+            "sixes": 0,
+            "dismissed": false,
+            "oversBowled": 3,
+            "maidens": 0,
+            "runsConceded": 35,
+            "wickets": 2,
+            "wides": 1
+        },
+        {
+            "playerName": "Jaydev Unadkat",
+            "runs": 4,
+            "ballsFaced": 3,
+            "fours": 0,
+            "sixes": 0,
+            "dismissed": false,
+            "oversBowled": 3,
+            "maidens": 0,
+            "runsConceded": 29,
+            "wickets": 1,
+            "wides": 1,
+            "catches": 1
+        },
+        {
+            "playerName": "Virat Kohli",
+            "runs": 69,
+            "ballsFaced": 38,
+            "fours": 5,
+            "sixes": 5,
+            "dismissed": false,
+            "catches": 1
+        },
+        {
+            "playerName": "Philip Salt",
+            "runs": 8,
+            "ballsFaced": 7,
+            "fours": 2,
+            "sixes": 0,
+            "dismissed": true,
+            "catches": 3
+        },
+        {
+            "playerName": "Devdutt Padikkal",
+            "runs": 61,
+            "ballsFaced": 26,
+            "fours": 7,
+            "sixes": 4,
+            "dismissed": true,
+            "catches": 3
+        },
+        {
+            "playerName": "Rajat Patidar",
+            "runs": 31,
+            "ballsFaced": 12,
+            "fours": 2,
+            "sixes": 3,
+            "dismissed": true
+        },
+        {
+            "playerName": "Jitesh Sharma",
+            "runs": 0,
+            "ballsFaced": 1,
+            "fours": 0,
+            "sixes": 0,
+            "dismissed": true,
+            "catches": 1
+        },
+        {
+            "playerName": "Tim David",
+            "runs": 16,
+            "ballsFaced": 10,
+            "fours": 1,
+            "sixes": 1,
+            "dismissed": false
+        },
+        {
+            "playerName": "Jacob Duffy",
+            "oversBowled": 4,
+            "maidens": 0,
+            "runsConceded": 22,
+            "wickets": 3,
+            "wides": 1
+        },
+        {
+            "playerName": "Bhuvneshwar Kumar",
+            "oversBowled": 4,
+            "maidens": 0,
+            "runsConceded": 31,
+            "wickets": 1,
+            "wides": 2
+        },
+        {
+            "playerName": "Abhinandan Singh",
+            "oversBowled": 3,
+            "maidens": 0,
+            "runsConceded": 38,
+            "wickets": 1,
+            "wides": 0,
+            "catches": 1
+        },
+        {
+            "playerName": "Romario Shepherd",
+            "oversBowled": 4,
+            "maidens": 0,
+            "runsConceded": 54,
+            "wickets": 3,
+            "wides": 1
+        },
+        {
+            "playerName": "Suyash Sharma",
+            "oversBowled": 3,
+            "maidens": 0,
+            "runsConceded": 28,
+            "wickets": 1,
+            "wides": 0
+        },
+        {
+            "playerName": "Krunal Pandya",
+            "oversBowled": 2,
+            "maidens": 0,
+            "runsConceded": 26,
+            "wickets": 0,
+            "wides": 0
+        },
+        {
+            "playerName": "Eshan Malinga",
+            "oversBowled": 2,
+            "maidens": 0,
+            "runsConceded": 35,
+            "wickets": 0,
+            "wides": 4
+        }
+    ]
+}

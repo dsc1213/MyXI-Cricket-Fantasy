@@ -270,9 +270,7 @@ async function request(path, options = {}) {
 const login = ({ userId, password }) => {
   // If userId looks like an email, send as email; else as userId
   const isEmail = typeof userId === 'string' && userId.includes('@')
-  const payload = isEmail
-    ? { email: userId, password }
-    : { userId, password }
+  const payload = isEmail ? { email: userId, password } : { userId, password }
   return request('/auth/login', {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -428,8 +426,16 @@ const fetchContestParticipants = ({ contestId, matchId, userId } = {}) => {
   return request(`/contests/${contestId}/participants${query ? `?${query}` : ''}`)
 }
 
-const fetchContestLeaderboard = (contestId) =>
-  request(`/contests/${contestId}/leaderboard`)
+const fetchContestLeaderboard = async (contestId) => {
+  const data = await request(`/contests/${contestId}/leaderboard`)
+  if (Array.isArray(data)) {
+    return { rows: data }
+  }
+  if (data && Array.isArray(data.rows)) {
+    return data
+  }
+  return { rows: [] }
+}
 
 const fetchContestUserMatchScores = ({ contestId, userId, compareUserId } = {}) => {
   const params = new URLSearchParams()
@@ -531,7 +537,14 @@ const savePlayerOverride = ({
 }) =>
   request('/admin/player-overrides/save', {
     method: 'POST',
-    body: JSON.stringify({ userId, outPlayer, inPlayer, contestId, matchId, actorUserId }),
+    body: JSON.stringify({
+      userId,
+      outPlayer,
+      inPlayer,
+      contestId,
+      matchId,
+      actorUserId,
+    }),
   })
 const fetchManualScoreContext = ({ tournamentId } = {}) => {
   const params = new URLSearchParams()
@@ -639,9 +652,7 @@ const fetchAdminTeamSquads = (args = '') => {
   const teamCode =
     typeof args === 'string' ? args : (args?.teamCode || '').toString().trim()
   const tournamentId =
-    typeof args === 'object' && args
-      ? (args.tournamentId || '').toString().trim()
-      : ''
+    typeof args === 'object' && args ? (args.tournamentId || '').toString().trim() : ''
   const params = new URLSearchParams()
   if (teamCode) params.set('teamCode', teamCode)
   if (tournamentId) params.set('tournamentId', tournamentId)
