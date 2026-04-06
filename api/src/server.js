@@ -12,8 +12,14 @@ import {
 } from './store.js'
 import { initDataState, isAutoSeedTeamsRequested } from './services/stateStore.service.js'
 import { createRouter } from './routes/index.js'
-import { resetMockState } from '../mocks/mockStateStore.js'
-import { resetMockProviderContexts } from './services/mockProviderContext.service.js'
+let resetMockState = () => {}
+let resetMockProviderContexts = () => {}
+if (process.env.MOCK_API === 'true' || process.env.NODE_ENV !== 'production') {
+  try {
+    ({ resetMockState } = await import('../mocks/mockStateStore.js'))
+    ;({ resetMockProviderContexts } = await import('./services/mockProviderContext.service.js'))
+  } catch {}
+}
 
 dotenv.config()
 
