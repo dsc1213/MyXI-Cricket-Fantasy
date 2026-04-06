@@ -16,8 +16,9 @@ let resetMockState = () => {}
 let resetMockProviderContexts = () => {}
 if (process.env.MOCK_API === 'true' || process.env.NODE_ENV !== 'production') {
   try {
-    ({ resetMockState } = await import('../mocks/mockStateStore.js'))
-    ;({ resetMockProviderContexts } = await import('./services/mockProviderContext.service.js'))
+    ;({ resetMockState } = await import('../mocks/mockStateStore.js'))
+    ;({ resetMockProviderContexts } =
+      await import('./services/mockProviderContext.service.js'))
   } catch {}
 }
 
