@@ -9,6 +9,8 @@ import {
   fetchDashboardPageLoadData,
   saveMatchScores,
   saveScoringRules,
+  resetManualMatchScores,
+  replaceAdminMatchBackups,
   upsertMatchLineups,
   upsertManualMatchScores,
 } from '../lib/api.js'
@@ -696,6 +698,65 @@ function Dashboard({ defaultPanel = 'joined' }) {
     }
   }
 
+  const onResetManualScores = async () => {
+    try {
+      if (!manualTournamentId || !manualMatchId) return
+      const shouldReset = window.confirm(
+        'Reset scores for this match? This will void saved score versions and clear derived points for the selected match.',
+      )
+      if (!shouldReset) return
+
+      setSaveNotice('')
+      setErrorText('')
+      setIsSavingScores(true)
+
+      const response = await resetManualMatchScores({
+        tournamentId: manualTournamentId,
+        matchId: manualMatchId,
+        userId: currentUser?.gameName || currentUser?.email || currentUser?.id || '',
+      })
+
+      const impacted = Number(response?.impactedContests || 0)
+      setSaveNotice(`Match scores reset • ${impacted} contests updated`)
+
+      await refreshManualStatsState({
+        tournamentId: manualTournamentId,
+        matchId: manualMatchId,
+        teamAPlayers: manualTeamPool.teamAPlayers,
+        teamBPlayers: manualTeamPool.teamBPlayers,
+      })
+    } catch (error) {
+      setErrorText(error.message || 'Failed to reset match scores')
+    } finally {
+      setIsSavingScores(false)
+    }
+  }
+
+  const onReplaceManualBackups = async () => {
+    try {
+      if (!manualMatchId) return
+      const shouldReplace = window.confirm(
+        'Replace backups for this match using the latest Playing XI and saved selections?',
+      )
+      if (!shouldReplace) return
+
+      setSaveNotice('')
+      setErrorText('')
+      setIsSavingScores(true)
+
+      const result = await replaceAdminMatchBackups({ id: manualMatchId })
+      const updatedSelections = Number(result?.autoReplacement?.updatedSelections || 0)
+      const skippedSelections = Number(result?.autoReplacement?.skippedSelections || 0)
+      setSaveNotice(
+        `Backups replaced (${updatedSelections} updated, ${skippedSelections} skipped)`,
+      )
+    } catch (error) {
+      setErrorText(error.message || 'Failed to replace backups')
+    } finally {
+      setIsSavingScores(false)
+    }
+  }
+
   const panelMap = {
     joined: (
       <JoinedPanel
@@ -756,8 +817,10 @@ function Dashboard({ defaultPanel = 'joined' }) {
         onToggleManualPlayingXi={onToggleManualPlayingXi}
         onSaveManualLineups={onSaveManualLineups}
         onSaveLineupsFromJson={onSaveLineupsFromJson}
+        onReplaceManualBackups={onReplaceManualBackups}
         onManualStatChange={onManualStatChange}
         onSaveManualScores={onSaveManualScores}
+        onResetManualScores={onResetManualScores}
         isLoadingManualPool={isLoadingManualPool}
         onSaveScores={onSaveScores}
         isSavingScores={isSavingScores}
@@ -774,8 +837,12 @@ function Dashboard({ defaultPanel = 'joined' }) {
     ),
   }
 
+  // Special case: render upload panel as full-width, no nav, no grid
+  // REVERT: Remove special upload panel layout, restore original dashboard grid/nav structure
+
   return (
     <section className={`dashboard-shell panel-${activePanel}`.trim()}>
+      {/* Always show left nav for all panels, including upload */}
       <aside className="dashboard-left-nav">
         {regularMenuItems.map((item) => (
           <button

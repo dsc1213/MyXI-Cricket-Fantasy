@@ -14,6 +14,7 @@ import {
   fetchAdminUsers,
   fetchTournamentCatalog,
   fetchTournamentMatches,
+  replaceAdminMatchBackups,
   startAdminContest,
   syncContestSelections,
   updateAdminMatchStatus,
@@ -721,6 +722,38 @@ function AdminManagerPanel({
       key: 'statusPreview',
       label: 'Display',
       render: (row) => formatMatchStatusLabel(row.status),
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (row) => (
+        <Button
+          variant="ghost"
+          size="small"
+          disabled={isSaving}
+          onClick={async (event) => {
+            event.stopPropagation()
+            try {
+              setIsSaving(true)
+              setErrorText('')
+              setNotice('')
+              const result = await replaceAdminMatchBackups({ id: row.id })
+              await loadTournamentMatches(selectedTournamentId)
+              const updatedSelections = Number(result?.autoReplacement?.updatedSelections || 0)
+              const skippedSelections = Number(result?.autoReplacement?.skippedSelections || 0)
+              setNotice(
+                `Backups replaced (${updatedSelections} updated, ${skippedSelections} skipped)`,
+              )
+            } catch (error) {
+              setErrorText(error.message || 'Failed to replace backups')
+            } finally {
+              setIsSaving(false)
+            }
+          }}
+        >
+          Replace Backups
+        </Button>
+      ),
     },
   ]
   const dirtyRoleCount = useMemo(

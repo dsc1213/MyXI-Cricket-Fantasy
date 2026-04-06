@@ -56,15 +56,40 @@ const getMatchStartTime = (match) => {
   return Number.isNaN(time) ? Number.POSITIVE_INFINITY : time
 }
 
+const getLocalDayStart = (timestamp) => {
+  const day = new Date(timestamp)
+  day.setHours(0, 0, 0, 0)
+  return day.getTime()
+}
+
+const getMatchDateBucket = (matchStartTime, todayStart) => {
+  if (!Number.isFinite(matchStartTime)) return 3
+  const matchDayStart = getLocalDayStart(matchStartTime)
+  if (matchDayStart === todayStart) return 0
+  if (matchDayStart > todayStart) return 1
+  return 2
+}
+
 const sortContestMatches = (rows = []) =>
   [...rows].sort((left, right) => {
-    const leftCompleted = normalizeMatchStatus(left?.status) === 'completed'
-    const rightCompleted = normalizeMatchStatus(right?.status) === 'completed'
-    if (leftCompleted !== rightCompleted) {
-      return leftCompleted ? 1 : -1
+    const todayStart = getLocalDayStart(Date.now())
+    const leftStart = getMatchStartTime(left)
+    const rightStart = getMatchStartTime(right)
+    const leftBucket = getMatchDateBucket(leftStart, todayStart)
+    const rightBucket = getMatchDateBucket(rightStart, todayStart)
+
+    if (leftBucket !== rightBucket) {
+      return leftBucket - rightBucket
     }
-    const timeDiff = getMatchStartTime(left) - getMatchStartTime(right)
-    if (timeDiff !== 0) return timeDiff
+
+    if (leftBucket === 2) {
+      const timeDiff = rightStart - leftStart
+      if (timeDiff !== 0) return timeDiff
+    } else {
+      const timeDiff = leftStart - rightStart
+      if (timeDiff !== 0) return timeDiff
+    }
+
     return String(left?.matchNo || left?.id || '').localeCompare(String(right?.matchNo || right?.id || ''))
   })
 
@@ -87,6 +112,7 @@ function ContestDetail() {
   const [contestMode, setContestMode] = useState('')
   const [tournamentName, setTournamentName] = useState(tournamentId)
   const [lastScoreUpdatedAt, setLastScoreUpdatedAt] = useState('')
+  const [lastScoreUpdatedBy, setLastScoreUpdatedBy] = useState('')
   const [matches, setMatches] = useState([])
   const [selectedMatchId, setSelectedMatchId] = useState('')
   const [matchFilter, setMatchFilter] = useState('all')
@@ -119,6 +145,7 @@ function ContestDetail() {
         setContestTitle(contest.name)
         setContestMode(contest.mode || '')
         setLastScoreUpdatedAt(contest.lastScoreUpdatedAt || '')
+        setLastScoreUpdatedBy(contest.lastScoreUpdatedBy || '')
         const tournament = tournaments.find((item) => item.id === tournamentId)
         setTournamentName(tournament?.name || tournamentId)
       } catch (error) {
@@ -320,6 +347,7 @@ function ContestDetail() {
         contestTitle={contestTitle}
         tournamentName={tournamentName}
         lastScoreUpdatedAt={lastScoreUpdatedAt}
+        lastScoreUpdatedBy={lastScoreUpdatedBy}
         isLoading={isLoading}
         errorText={errorText}
         tournamentId={tournamentId}
@@ -344,6 +372,7 @@ function ContestDetail() {
         <MatchesCard
           contestMode={contestMode}
           matches={sortedMatches}
+          isLoadingMatches={isLoading}
           selectedMatchId={selectedMatchId}
           onSelectMatch={setSelectedMatchId}
           matchFilter={matchFilter}

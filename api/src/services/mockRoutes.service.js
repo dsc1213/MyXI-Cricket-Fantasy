@@ -5,6 +5,7 @@ import {
   normalizeTournamentId,
 } from './tournamentImport.service.js'
 import playerService from './player.service.js'
+import { resolveEffectiveSelection } from '../scoring.js'
 
 const registerMockProviderRoutes = (router, ctx) => {
   const normalizeIdentity = (value) => (value || '').toString().trim().toLowerCase()
@@ -223,6 +224,111 @@ const registerMockProviderRoutes = (router, ctx) => {
     }
   }
   const normalizeActorId = (value = '') => value.toString().trim().toLowerCase()
+  const applyMockBackupReplacementsOnMatchStart = ({ tournamentId, matchId }) => {
+    const savedLineups =
+      mockMatchLineups.get(
+        lineupKey({
+          tournamentId,
+          matchId,
+        }),
+      ) || null
+    if (!savedLineups?.lineups) {
+      return { updatedSelections: 0, skippedSelections: 0 }
+    }
+
+    const activeNameSet = new Set(
+      Object.values(savedLineups.lineups)
+        .flatMap((row) => (Array.isArray(row?.playingXI) ? row.playingXI : []))
+        .map((name) => normalizeUserKey(name))
+        .filter(Boolean),
+    )
+
+    if (!activeNameSet.size) return { updatedSelections: 0, skippedSelections: 0 }
+
+    let updatedSelections = 0
+    let skippedSelections = 0
+
+    for (const [key, selection] of mockTeamSelections.entries()) {
+      if (String(selection?.matchId || '') !== String(matchId)) continue
+
+      const currentPlayingXi = Array.isArray(selection?.playingXi)
+        ? selection.playingXi
+            .map((value) => value?.toString?.() ?? '')
+            .filter((value) => value !== '')
+        : []
+      const currentBackups = Array.isArray(selection?.backups)
+        ? selection.backups
+            .map((value) => value?.toString?.() ?? '')
+            .filter((value) => value !== '')
+        : []
+
+      if (!currentPlayingXi.length) {
+        skippedSelections += 1
+        continue
+      }
+
+      const activePlayerIds = Array.from(
+        new Set(
+          [...currentPlayingXi, ...currentBackups].filter((playerId) =>
+            activeNameSet.has(
+              normalizeUserKey(
+                idToPlayerName.get(playerId) || idToPlayerName.get(Number(playerId)) || '',
+              ),
+            ),
+          ),
+        ),
+      )
+      if (!activePlayerIds.length) {
+        skippedSelections += 1
+        continue
+      }
+
+      const resolved = resolveEffectiveSelection({
+        playingXi: currentPlayingXi,
+        backups: currentBackups,
+        activePlayerIds,
+        captainId: selection?.captainId || null,
+        viceCaptainId: selection?.viceCaptainId || null,
+      })
+
+      const nextPlayingXi = (resolved.effectivePlayerIds || [])
+        .map((value) => value?.toString?.() ?? '')
+        .filter((value) => value !== '')
+      const nextSet = new Set(nextPlayingXi)
+      const nextBackups = currentBackups.filter((value) => !nextSet.has(value))
+
+      const samePlayingXi =
+        nextPlayingXi.length === currentPlayingXi.length &&
+        nextPlayingXi.every((value, index) => currentPlayingXi[index] === value)
+      const sameBackups =
+        nextBackups.length === currentBackups.length &&
+        nextBackups.every((value, index) => currentBackups[index] === value)
+
+      if (samePlayingXi && sameBackups) {
+        skippedSelections += 1
+        continue
+      }
+
+      const updatedSelection = {
+        ...selection,
+        playingXi: nextPlayingXi,
+        backups: nextBackups,
+        updatedAt: new Date().toISOString(),
+      }
+      mockTeamSelections.delete(key)
+      mockTeamSelections.set(selectionKey(updatedSelection), updatedSelection)
+
+      if (updatedSelection?.userId) {
+        sampleUserPicks[updatedSelection.userId] = nextPlayingXi
+          .map((playerId) => idToPlayerName.get(playerId) || idToPlayerName.get(Number(playerId)))
+          .filter(Boolean)
+      }
+
+      updatedSelections += 1
+    }
+
+    return { updatedSelections, skippedSelections }
+  }
   const getJoinedSetForUser = (userId = '') => {
     const normalized = normalizeActorId(userId)
     if (!normalized) return new Set()
@@ -1255,12 +1361,38 @@ const registerMockProviderRoutes = (router, ctx) => {
       if (!Array.isArray(matches)) continue
       const target = matches.find((match) => String(match.id) === matchId)
       if (!target) continue
+      const previousStatus = normalizeMatchStatus(target.status)
       target.status = status
       target.locked = status !== 'notstarted'
+      const movedToInProgress = previousStatus === 'notstarted' && status === 'inprogress'
+      const autoReplacement = movedToInProgress
+        ? applyMockBackupReplacementsOnMatchStart({ tournamentId, matchId })
+        : { updatedSelections: 0, skippedSelections: 0 }
       persistState()
       return res.json({
         ...target,
         tournamentId,
+        autoReplacement,
+      })
+    }
+    return res.status(404).json({ message: 'Match not found' })
+  })
+
+  router.post('/admin/matches/:id/replace-backups', (req, res) => {
+    const matchId = (req.params.id || '').toString()
+    for (const [tournamentId, matches] of Object.entries(customTournamentMatches)) {
+      if (!Array.isArray(matches)) continue
+      const target = matches.find((match) => String(match.id) === matchId)
+      if (!target) continue
+      const autoReplacement = applyMockBackupReplacementsOnMatchStart({
+        tournamentId,
+        matchId,
+      })
+      persistState()
+      return res.json({
+        matchId,
+        tournamentId,
+        autoReplacement,
       })
     }
     return res.status(404).json({ message: 'Match not found' })
@@ -2190,6 +2322,49 @@ const registerMockProviderRoutes = (router, ctx) => {
       contestSummaries: result.contestSummaries,
       lastScoreUpdatedAt: result.lastScoreUpdatedAt,
       impactedContests: result.impactedContests,
+    })
+  })
+
+  router.post('/admin/match-scores/reset', (req, res) => {
+    const { tournamentId, matchId, userId } = req.body || {}
+    if (!tournamentId || !matchId) {
+      return res.status(400).json({ message: 'tournamentId and matchId are required' })
+    }
+    const actor = resolveActorUser(userId)
+    if (!actor || !['admin', 'master_admin'].includes(actor.role)) {
+      return res.status(403).json({ message: 'Only admin/master can reset match scores' })
+    }
+
+    let deactivatedScores = 0
+    for (const row of matchScores) {
+      if (
+        String(row?.tournamentId || '') === String(tournamentId) &&
+        String(row?.matchId || '') === String(matchId) &&
+        row?.active !== false
+      ) {
+        row.active = false
+        row.updatedAt = new Date().toISOString()
+        deactivatedScores += 1
+      }
+    }
+
+    appendAuditLog({
+      actor: actor.name || actor.gameName || 'Admin',
+      action: 'Reset match scores',
+      target: `${tournamentId} • ${matchId}`,
+      detail: 'Scores were voided for the selected match',
+      tournamentId: tournamentId.toString(),
+      module: 'scoring',
+    })
+    persistState()
+
+    return res.json({
+      ok: true,
+      matchId: String(matchId),
+      tournamentId: String(tournamentId),
+      deactivatedScores,
+      impactedContests: 0,
+      resetAt: new Date().toISOString(),
     })
   })
 

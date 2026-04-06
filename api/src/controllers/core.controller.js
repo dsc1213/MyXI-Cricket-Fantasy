@@ -49,6 +49,16 @@ const createCoreController = ({
       res.status(500).json({ error: error.message })
     }
   }
+  const replaceMatchBackups = async (req, res) => {
+    try {
+      const { id } = req.params
+      const data = await matchService.forceApplyBackupReplacement(id)
+      res.json(data)
+    } catch (error) {
+      const statusCode = Number(error?.statusCode || 500)
+      res.status(statusCode).json({ error: error.message })
+    }
+  }
   const uploadMatchScore = async (req, res) => {
     try {
       const { id } = req.params
@@ -228,6 +238,7 @@ const createCoreController = ({
     getTournamentMatches,
     getTournamentLeaderboard,
     updateMatchStatus,
+    replaceMatchBackups,
     uploadMatchScore,
     getMatchScoreHistory,
     rollbackMatchScore,

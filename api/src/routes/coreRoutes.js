@@ -22,6 +22,12 @@ const registerCoreRoutes = (router, { authenticate, requireRole, coreController 
   )
 
   router.post(
+    '/admin/matches/:id/replace-backups',
+    requireRole(['admin', 'master_admin']),
+    coreController.replaceMatchBackups,
+  )
+
+  router.post(
     '/admin/matches/:id/score-upload',
     requireRole(['admin', 'master_admin']),
     coreController.uploadMatchScore,

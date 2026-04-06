@@ -39,15 +39,24 @@ const normalizeImportedStartAt = (startAt = '', timezone = 'UTC') => {
 
 const deriveMatchStatus = ({ startAt = '', date = '', explicitStatus = '' } = {}) => {
   const normalizedExplicit = normalizeMatchStatus(explicitStatus)
-  if ((explicitStatus || '').toString().trim()) return normalizedExplicit
+  const hasExplicitStatus = Boolean((explicitStatus || '').toString().trim())
 
   const normalizedStart = normalizeImportedStartAt(startAt)
   if (normalizedStart) {
     const parsed = new Date(normalizedStart)
     if (!Number.isNaN(parsed.getTime())) {
-      return parsed.getTime() > Date.now() ? 'notstarted' : 'inprogress'
+      const hasStarted = parsed.getTime() <= Date.now()
+      if (hasExplicitStatus) {
+        if (normalizedExplicit === 'completed') return 'completed'
+        if (normalizedExplicit === 'notstarted' && hasStarted) return 'inprogress'
+        if (normalizedExplicit === 'inprogress' && !hasStarted) return 'notstarted'
+        return normalizedExplicit
+      }
+      return hasStarted ? 'inprogress' : 'notstarted'
     }
   }
+
+  if (hasExplicitStatus) return normalizedExplicit
 
   const fallbackDate = (date || '').toString().trim()
   if (!fallbackDate) return 'notstarted'

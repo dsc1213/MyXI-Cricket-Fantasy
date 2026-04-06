@@ -25,8 +25,10 @@ function UploadPanel({
   onToggleManualPlayingXi,
   onSaveManualLineups,
   onSaveLineupsFromJson,
+  onReplaceManualBackups,
   onManualStatChange,
   onSaveManualScores,
+  onResetManualScores,
   isLoadingManualPool,
   onSaveScores,
   isSavingScores,
@@ -105,6 +107,15 @@ function UploadPanel({
     (manualTeamPool?.teamAPlayers?.length || 0) +
     (manualTeamPool?.teamBPlayers?.length || 0)
   const hasManualPlayers = manualPlayersCount > 0
+  const isScorecardsTab = activeMatchOpsTab === 'scores'
+  const isManualScorecards = isScorecardsTab && uploadTab === 'manual'
+  const isScoreActionDisabled =
+    isSavingScores ||
+    !manualTournamentId ||
+    !manualMatchId ||
+    (isManualScorecards && isLoadingManualPool)
+  const isLineupActionDisabled =
+    isSavingScores || !manualTournamentId || !manualMatchId || isLoadingManualPool
   const [activeManualCategory, setActiveManualCategory] = useState('batting')
   const activeColumns = categoryColumns[activeManualCategory] || categoryColumns.batting
   const getMatchOptionLabel = (item) => {
@@ -234,6 +245,7 @@ function UploadPanel({
       {
         key: 'player',
         label: 'Player',
+        width: '190px',
         headerClassName: 'manual-col-player',
         cellClassName: 'manual-col-player',
         sortValue: (row) => row.name || '',
@@ -241,7 +253,7 @@ function UploadPanel({
           <PlayerIdentity
             name={row.name}
             imageUrl={row.imageUrl || ''}
-            className="manual-player-identity dense"
+            className="manual-player-identity manual-lineup-player-identity dense"
             size="sm"
           />
         ),
@@ -249,6 +261,7 @@ function UploadPanel({
       {
         key: 'role',
         label: 'Role',
+        width: '150px',
         headerClassName: 'manual-col-role',
         cellClassName: 'manual-col-role manual-player-role',
         sortValue: (row) => row.role || '',
@@ -257,6 +270,7 @@ function UploadPanel({
       {
         key: 'playing',
         label: 'Playing',
+        width: '150px',
         headerClassName: 'manual-col-metric',
         cellClassName: 'manual-col-metric',
         sortValue: (row) => selectedNames.has(row.name),
@@ -386,10 +400,21 @@ function UploadPanel({
               </div>
             </div>
             {activeMatchOpsTab === 'lineups' && lineupUploadTab === 'manual' && (
-              <div className="top-actions upload-head-actions">
+              <div className="top-actions upload-head-actions upload-actions-row">
                 <Button
                   type="button"
-                  className="cta small upload-action-btn"
+                  variant="secondary"
+                  size="small"
+                  onClick={onReplaceManualBackups}
+                  disabled={isLineupActionDisabled}
+                >
+                  Force Backups
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="small"
+                  className="upload-action-btn"
                   onClick={onSaveManualLineups}
                   disabled={
                     isSavingScores ||
@@ -407,14 +432,57 @@ function UploadPanel({
               </div>
             )}
             {activeMatchOpsTab === 'lineups' && lineupUploadTab === 'json' && (
-              <div className="top-actions upload-head-actions">
+              <div className="top-actions upload-head-actions upload-actions-row">
                 <Button
                   type="button"
-                  className="cta small upload-action-btn primary"
+                  variant="secondary"
+                  size="small"
+                  onClick={onReplaceManualBackups}
+                  disabled={isLineupActionDisabled}
+                >
+                  Force Backups
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="small"
+                  className="upload-action-btn"
                   onClick={onSaveLineupsFromJson}
                   disabled={isSavingScores || !manualTournamentId || !manualMatchId}
                 >
                   {isSavingScores ? 'Saving...' : 'Save Playing XI JSON'}
+                </Button>
+              </div>
+            )}
+            {isScorecardsTab && (
+              <div className="top-actions upload-head-actions upload-actions-row">
+                <Button
+                  href={SCORECARD_SAMPLE_JSON_URL}
+                  download="scorecard-upload.sample.json"
+                  variant="ghost"
+                  size="small"
+                  className="upload-action-btn"
+                >
+                  Download sample JSON
+                </Button>
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="small"
+                  onClick={onResetManualScores}
+                  disabled={isScoreActionDisabled}
+                >
+                  Reset Scores
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="small"
+                  className="upload-action-btn"
+                  onClick={isManualScorecards ? onSaveManualScores : onSaveScores}
+                  disabled={isScoreActionDisabled}
+                >
+                  {isSavingScores ? 'Saving...' : 'Save'}
                 </Button>
               </div>
             )}
@@ -538,28 +606,6 @@ function UploadPanel({
                       renderManualTeamTable(team.name, team.players),
                     )}
                   </div>
-                  <div className="top-actions upload-actions upload-actions-full upload-actions-row">
-                    <a
-                      href={SCORECARD_SAMPLE_JSON_URL}
-                      download="scorecard-upload.sample.json"
-                      className="ghost small"
-                    >
-                      Download sample JSON
-                    </a>
-                    <Button
-                      type="button"
-                      className="cta small upload-action-btn primary"
-                      onClick={onSaveManualScores}
-                      disabled={
-                        isSavingScores ||
-                        !manualTournamentId ||
-                        !manualMatchId ||
-                        isLoadingManualPool
-                      }
-                    >
-                      {isSavingScores ? 'Saving...' : 'Save'}
-                    </Button>
-                  </div>
                 </>
               )}
             </div>
@@ -585,23 +631,6 @@ function UploadPanel({
 }`}
                 />
               </label>
-              <div className="top-actions upload-actions upload-actions-full upload-actions-row">
-                <a
-                  href={SCORECARD_SAMPLE_JSON_URL}
-                  download="scorecard-upload.sample.json"
-                  className="ghost small"
-                >
-                  Download sample JSON
-                </a>
-                <Button
-                  type="button"
-                  className="cta small upload-action-btn primary"
-                  onClick={onSaveScores}
-                  disabled={isSavingScores || !manualTournamentId || !manualMatchId}
-                >
-                  {isSavingScores ? 'Saving...' : 'Save'}
-                </Button>
-              </div>
             </div>
           )}
         </div>

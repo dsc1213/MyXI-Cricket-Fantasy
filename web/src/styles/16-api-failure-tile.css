@@ -1,5 +1,13 @@
 .app-api-failure-wrap {
   padding: 16px 16px 0;
+  width: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.match-table tbody td .loading-note {
+  width: 100%;
+  justify-content: center;
 }
 
 .api-failure-tile {

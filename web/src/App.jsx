@@ -158,8 +158,7 @@ function App() {
     false
   const isAuctionNavActive = location.pathname === '/auction' || isAuctionView
   const showCricketRouteLoader = isApiLoading && isHomeFantasyRoute
-  const showMobileApiOnlyError =
-    showApiError && isMobileHeader && !isAuthPage && !isLanding
+  const showApiOnlyError = showApiError && !isAuthPage && !isLanding
 
   useEffect(() => {
     window.localStorage.setItem('myxi-theme', theme)
@@ -560,7 +559,7 @@ function App() {
             />
           </div>
         )}
-        {!showMobileApiOnlyError && (
+        {!showApiOnlyError && (
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/home" element={requireAuth(<Dashboard />)} />

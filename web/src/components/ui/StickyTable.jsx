@@ -88,8 +88,12 @@ function StickyTable({
                   ? '▲'
                   : '▼'
                 : '▲▼'
+              const columnStyle =
+                column.width != null
+                  ? { width: column.width, minWidth: column.width, maxWidth: column.width }
+                  : undefined
               return (
-                <th key={column.key} className={column.headerClassName || ''}>
+                <th key={column.key} className={column.headerClassName || ''} style={columnStyle}>
                   {sortable ? (
                     <button
                       type="button"
@@ -116,7 +120,19 @@ function StickyTable({
                 onClick={onRowClick ? () => onRowClick(row, index) : undefined}
               >
                 {columns.map((column) => (
-                  <td key={`${rowKey(row, index)}-${column.key}`} className={column.cellClassName || ''}>
+                  <td
+                    key={`${rowKey(row, index)}-${column.key}`}
+                    className={column.cellClassName || ''}
+                    style={
+                      column.width != null
+                        ? {
+                            width: column.width,
+                            minWidth: column.width,
+                            maxWidth: column.width,
+                          }
+                        : undefined
+                    }
+                  >
                     {typeof column.render === 'function'
                       ? column.render(row, index)
                       : row[column.key]}

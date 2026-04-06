@@ -146,6 +146,40 @@ const buildFixedRosterScoredEntries = ({
 }
 
 class ContestService {
+  async getContestLastScoreMeta(contest = {}) {
+    const tournamentId = contest?.tournamentId
+    const contestMatchIds = Array.isArray(contest?.matchIds)
+      ? contest.matchIds.map((value) => String(value || '').trim()).filter(Boolean)
+      : []
+    if (!tournamentId || !contestMatchIds.length) {
+      return { lastScoreUpdatedAt: null, lastScoreUpdatedBy: null }
+    }
+
+    const result = await dbQuery(
+      `SELECT ms.created_at as "lastScoreUpdatedAt",
+              COALESCE(
+                NULLIF(u.game_name, ''),
+                NULLIF(u.name, ''),
+                NULLIF(u.user_id, ''),
+                CASE WHEN ms.uploaded_by IS NULL THEN NULL ELSE ms.uploaded_by::text END
+              ) as "lastScoreUpdatedBy"
+       FROM match_scores ms
+       LEFT JOIN users u ON u.id = ms.uploaded_by
+       WHERE ms.active = true
+         AND ms.tournament_id = $1
+         AND ms.match_id::text = ANY($2::text[])
+       ORDER BY ms.created_at DESC
+       LIMIT 1`,
+      [tournamentId, contestMatchIds],
+    )
+
+    const latest = result.rows?.[0] || null
+    return {
+      lastScoreUpdatedAt: latest?.lastScoreUpdatedAt || null,
+      lastScoreUpdatedBy: latest?.lastScoreUpdatedBy || null,
+    }
+  }
+
   async getAllContests() {
     const repo = await factory.getContestRepository()
     return await repo.findAll()

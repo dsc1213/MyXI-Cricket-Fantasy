@@ -22,6 +22,59 @@ const sumTopFixedRosterPoints = (playerIds = [], fantasyPointsByPlayerId = new M
 }
 
 class MatchScoreService {
+  async resetMatchScores(matchId, tournamentId, resetBy) {
+    if (!matchId || !tournamentId) {
+      throw new Error('matchId and tournamentId are required')
+    }
+
+    const matchRepo = await factory.getMatchRepository()
+    const match = await matchRepo.findById(matchId)
+    if (!match) throw new Error('Match not found')
+    if (String(match.tournamentId) !== String(tournamentId)) {
+      throw new Error('matchId does not belong to the provided tournamentId')
+    }
+
+    const deactivatedResult = await dbQuery(
+      `UPDATE match_scores
+       SET active = false,
+           updated_at = now(),
+           uploaded_by = COALESCE($3::bigint, uploaded_by)
+       WHERE match_id = $1
+         AND tournament_id = $2
+         AND active = true
+       RETURNING id`,
+      [matchId, tournamentId, resetBy || null],
+    )
+
+    await dbQuery(
+      `DELETE FROM player_match_scores
+       WHERE match_id = $1
+         AND tournament_id = $2`,
+      [matchId, tournamentId],
+    )
+
+    const deletedContestScores = await dbQuery(
+      `DELETE FROM contest_scores cs
+       USING contests c
+       WHERE cs.contest_id = c.id
+         AND c.tournament_id = $1
+         AND cs.match_id = $2
+       RETURNING cs.contest_id`,
+      [tournamentId, matchId],
+    )
+
+    return {
+      ok: true,
+      matchId: String(matchId),
+      tournamentId: String(tournamentId),
+      deactivatedScores: deactivatedResult.rows.length,
+      impactedContests: new Set(
+        (deletedContestScores.rows || []).map((row) => String(row.contest_id || '')),
+      ).size,
+      resetAt: new Date().toISOString(),
+    }
+  }
+
   validatePlayerStatsPayload(playerStats = []) {
     if (!Array.isArray(playerStats) || !playerStats.length) {
       throw new Error('playerStats array required')

@@ -61,6 +61,13 @@ const formatContestCountdown = (startAt, nowTs) => {
   return `${segments.join(':')} remaining`
 }
 
+const shouldShowContestStart = (startAt, nowTs) => {
+  if (!startAt) return true
+  const parsed = new Date(startAt)
+  if (Number.isNaN(parsed.getTime())) return true
+  return parsed.getTime() > nowTs
+}
+
 function FantasyHub() {
   const [selectedTournament, setSelectedTournament] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
@@ -177,6 +184,13 @@ function FantasyHub() {
   const tournamentNameMap = useMemo(() => {
     return tournaments.reduce((acc, item) => {
       acc[item.id] = item.name
+      return acc
+    }, {})
+  }, [tournaments])
+
+  const tournamentColorMap = useMemo(() => {
+    return tournaments.reduce((acc, item, index) => {
+      acc[item.id] = tournamentPalette[index % tournamentPalette.length]
       return acc
     }, {})
   }, [tournaments])
@@ -412,27 +426,39 @@ function FantasyHub() {
                         const joinedCount = Number(contest.joinedCount ?? contest.participants ?? 0)
                         const maxPlayers = Number(contest.maxPlayers ?? contest.teams ?? 0)
                         const countdownLabel = formatContestCountdown(contest.startAt, countdownNow)
+                        const showContestStart = shouldShowContestStart(contest.startAt, countdownNow)
                         return (
                           <article
                             className={`compact-contest-card fantasy ${getStatusClassName(contest.status)}`.trim()}
                             key={contest.id}
+                            style={{
+                              '--contest-tournament-color':
+                                tournamentColorMap[contest.tournamentId] || '#2f66e9',
+                            }}
                           >
                             <div className="contest-card-top">
-                              <strong>{contest.name}</strong>
+                              <span className="contest-title-combo">
+                                <small className="contest-tournament-pill">
+                                  {tournamentNameMap[contest.tournamentId]}
+                                </small>
+                                <strong>{contest.name}</strong>
+                              </span>
                               <span className={`contest-status-text ${getStatusClassName(contest.status)}`.trim()}>
                                 {contest.status}
                               </span>
                             </div>
-                            <p className="team-note">{tournamentNameMap[contest.tournamentId]}</p>
-                            <p className="team-note">{contest.teams} teams</p>
                             <p className="team-note">
                               Participants {joinedCount}
                               {maxPlayers > 0 ? ` / ${maxPlayers}` : ''}
                             </p>
-                            <p className="team-note">
-                              Starts:{' '}
-                              {contest.startAt ? new Date(contest.startAt).toLocaleString() : 'Manual start'}
-                            </p>
+                            {showContestStart ? (
+                              <p className="team-note">
+                                Starts:{' '}
+                                {contest.startAt
+                                  ? new Date(contest.startAt).toLocaleString()
+                                  : 'Manual start'}
+                              </p>
+                            ) : null}
                             {countdownLabel ? (
                               <p className="team-note contest-countdown">{countdownLabel}</p>
                             ) : null}
@@ -441,6 +467,7 @@ function FantasyHub() {
                               {contest.lastScoreUpdatedAt
                                 ? new Date(contest.lastScoreUpdatedAt).toLocaleString()
                                 : '-'}
+                              {contest.lastScoreUpdatedBy ? ` by ${contest.lastScoreUpdatedBy}` : ''}
                             </p>
                             <div className="contest-card-bottom">
                               <Button
@@ -494,15 +521,22 @@ function FantasyHub() {
                           <article
                             className={`compact-contest-card fantasy ${getStatusClassName(contest.status)}`.trim()}
                             key={contest.id}
+                            style={{
+                              '--contest-tournament-color':
+                                tournamentColorMap[contest.tournamentId] || '#2f66e9',
+                            }}
                           >
                             <div className="contest-card-top">
-                              <strong>{contest.name}</strong>
+                              <span className="contest-title-combo">
+                                <small className="contest-tournament-pill">
+                                  {tournamentNameMap[contest.tournamentId]}
+                                </small>
+                                <strong>{contest.name}</strong>
+                              </span>
                               <span className={`contest-status-text ${getStatusClassName(contest.status)}`.trim()}>
                                 {contest.status}
                               </span>
                             </div>
-                            <p className="team-note">{tournamentNameMap[contest.tournamentId]}</p>
-                            <p className="team-note">{contest.teams} teams</p>
                             <p className="team-note">
                               Participants {joinedCount}
                               {maxPlayers > 0 ? ` / ${maxPlayers}` : ''}
@@ -512,6 +546,7 @@ function FantasyHub() {
                               {contest.lastScoreUpdatedAt
                                 ? new Date(contest.lastScoreUpdatedAt).toLocaleString()
                                 : '-'}
+                              {contest.lastScoreUpdatedBy ? ` by ${contest.lastScoreUpdatedBy}` : ''}
                             </p>
                             <div className="contest-card-bottom">
                               <Link

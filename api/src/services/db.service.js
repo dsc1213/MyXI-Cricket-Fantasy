@@ -47,6 +47,7 @@ const dbHandlers = {
   '/admin/matches/import-fixtures': (data) =>
     matchService.importFixtures(data.tournamentId, data.fixtures),
   '/admin/matches/:id/status': (id, status) => matchService.updateMatchStatus(id, status),
+  '/admin/matches/:id/replace-backups': (id) => matchService.forceApplyBackupReplacement(id),
   '/admin/matches/:id/score-upload': (id, data) =>
     matchService.uploadScore(id, data.tournamentId, data.playerStats, data.uploadedBy),
   '/admin/matches/:id/score-history': (id) => matchService.getScoreHistory(id),
@@ -91,6 +92,12 @@ const dbHandlers = {
       data.tournamentId,
       data.playerStats,
       data.uploadedBy,
+    ),
+  '/admin/match-scores/reset': (data) =>
+    matchScoreService.resetMatchScores(
+      data.matchId,
+      data.tournamentId,
+      data.resetBy,
     ),
   '/match-scores/process-excel': (data) => matchScoreService.processExcelScores(data),
   '/match-scores/save': (data) =>
@@ -276,6 +283,7 @@ const createDbService = (dependencies) => {
         const rowsWithDerivedState = await Promise.all(
           (allRows || []).map(async (row) => {
             const participantPayload = await contestService.getContestParticipants(row.id)
+            const scoreMeta = await contestService.getContestLastScoreMeta(row)
             const participantRows = Array.isArray(participantPayload?.participants)
               ? participantPayload.participants
               : []
@@ -292,6 +300,7 @@ const createDbService = (dependencies) => {
               joined,
               joinedCount,
               participants: joinedCount,
+              ...scoreMeta,
             })
           }),
         )
@@ -330,10 +339,12 @@ const createDbService = (dependencies) => {
               ? participantPayload.participants.length
               : 0),
         )
+        const scoreMeta = await contestService.getContestLastScoreMeta(contest)
         return res.json(
           buildContestView(contest, {
             joinedCount,
             participants: joinedCount,
+            ...scoreMeta,
           }),
         )
       } catch (error) {
@@ -396,8 +407,16 @@ const createDbService = (dependencies) => {
         const rows = tournamentId
           ? await contestService.getContestsByTournament(tournamentId)
           : await contestService.getAllContests()
+        const rowsWithScoreMeta = await Promise.all(
+          (rows || []).map(async (row) => ({
+            row,
+            scoreMeta: await contestService.getContestLastScoreMeta(row),
+          })),
+        )
         return res.json(
-          (rows || []).map((row) => buildContestView(row, { enabled: true })),
+          rowsWithScoreMeta.map(({ row, scoreMeta }) =>
+            buildContestView(row, { enabled: true, ...scoreMeta }),
+          ),
         )
       } catch (error) {
         return next(error)
@@ -635,6 +654,27 @@ const createDbService = (dependencies) => {
         const result = await matchService.updateMatchStatus(req.params.id, status)
         return res.json(result)
       } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.post('/admin/matches/:id/replace-backups', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can replace backups' })
+        }
+        const result = await matchService.forceApplyBackupReplacement(req.params.id)
+        return res.json(result)
+      } catch (error) {
+        const statusCode = Number(error?.statusCode || 0)
+        if (statusCode >= 400) {
+          return res
+            .status(statusCode)
+            .json({ message: error.message || 'Failed to replace backups' })
+        }
         return next(error)
       }
     })
@@ -1033,6 +1073,34 @@ const createDbService = (dependencies) => {
         return res
           .status(400)
           .json({ message: error.message || 'Failed to save match scores' })
+      }
+    })
+
+    router.post('/admin/match-scores/reset', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can reset match scores' })
+        }
+
+        const { tournamentId, matchId } = req.body || {}
+        if (!tournamentId || !matchId) {
+          return res.status(400).json({ message: 'tournamentId and matchId are required' })
+        }
+
+        const payload = await matchScoreService.resetMatchScores(
+          String(matchId),
+          String(tournamentId),
+          actor?.id || null,
+        )
+
+        return res.json(payload)
+      } catch (error) {
+        return res
+          .status(400)
+          .json({ message: error.message || 'Failed to reset match scores' })
       }
     })
 

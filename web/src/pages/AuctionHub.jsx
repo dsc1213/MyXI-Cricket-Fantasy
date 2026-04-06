@@ -257,6 +257,7 @@ function AuctionHub() {
                             {contest.lastScoreUpdatedAt
                               ? new Date(contest.lastScoreUpdatedAt).toLocaleString()
                               : '-'}
+                            {contest.lastScoreUpdatedBy ? ` by ${contest.lastScoreUpdatedBy}` : ''}
                           </p>
                           <div className="contest-card-bottom">
                             <Link

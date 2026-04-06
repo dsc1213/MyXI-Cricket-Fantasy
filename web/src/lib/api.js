@@ -607,6 +607,11 @@ const upsertManualMatchScores = ({
       playerStats,
     }),
   })
+const resetManualMatchScores = ({ tournamentId, matchId, userId }) =>
+  request('/admin/match-scores/reset', {
+    method: 'POST',
+    body: JSON.stringify({ tournamentId, matchId, userId }),
+  })
 const fetchAdminUsers = () => request('/admin/users')
 const updateAdminUser = ({ id, payload }) =>
   request(`/admin/users/${id}`, {
@@ -650,6 +655,10 @@ const updateAdminMatchStatus = ({ id, status }) =>
   request(`/admin/matches/${id}/status`, {
     method: 'POST',
     body: JSON.stringify({ status }),
+  })
+const replaceAdminMatchBackups = ({ id }) =>
+  request(`/admin/matches/${id}/replace-backups`, {
+    method: 'POST',
   })
 const fetchAdminTeamSquads = (args = '') => {
   const teamCode =
@@ -773,6 +782,7 @@ export {
   fetchMatchLineups,
   upsertMatchLineups,
   upsertManualMatchScores,
+  resetManualMatchScores,
   fetchAdminUsers,
   updateAdminUser,
   deleteAdminUser,
@@ -784,6 +794,7 @@ export {
   createAdminAuctionImport,
   deleteAdminTournament,
   updateAdminMatchStatus,
+  replaceAdminMatchBackups,
   fetchAdminTeamSquads,
   upsertAdminTeamSquad,
   deleteAdminTeamSquad,

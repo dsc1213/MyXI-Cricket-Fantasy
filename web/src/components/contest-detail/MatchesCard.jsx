@@ -1,6 +1,7 @@
 import Button from '../ui/Button.jsx'
 import { MatchLabel } from '../ui/CountryFlag.jsx'
 import { getCountryFlag } from '../ui/countryFlagUtils.js'
+import LoadingNote from '../ui/LoadingNote.jsx'
 import SelectField from '../ui/SelectField.jsx'
 import StickyTable from '../ui/StickyTable.jsx'
 
@@ -71,6 +72,7 @@ function formatMatchDateTime(match) {
 function MatchesCard({
   contestMode = '',
   matches,
+  isLoadingMatches = false,
   selectedMatchId,
   onSelectMatch,
   matchFilter,
@@ -244,43 +246,46 @@ function MatchesCard({
       },
     },
   ]
+  const loadingEmptyState = <LoadingNote loading loadingText="Loading matches..." />
 
   return (
     <article className="admin-card matches-card">
       <div className="contest-card-top">
         <h3>Matches</h3>
-        <div className="module-filters compact three">
-          <SelectField
-            value={matchFilter}
-            onChange={(event) => onChangeMatchFilter(event.target.value)}
-            options={[
-              { value: 'all', label: `All (${matches.length})` },
-              { value: 'completed', label: 'Completed' },
-              { value: 'inprogress', label: 'inprogress' },
-              { value: 'notstarted', label: 'notstarted' },
-            ]}
-          />
-          <SelectField
-            value={teamFilter}
-            onChange={(event) => onChangeTeamFilter(event.target.value)}
-            options={[
-              { value: 'all', label: 'All teams' },
-              ...teamOptions.map((team) => {
-                const flag = getCountryFlag(team)
-                return { value: team, label: flag ? `${team} ${flag}` : team }
-              }),
-            ]}
-          />
-          <Button
-            variant="secondary"
-            size="small"
-            onClick={(event) => {
-              event.stopPropagation()
-              onPreviewLeaderboard?.()
-            }}
-          >
-            Preview leaderboard
-          </Button>
+        <div className="match-filters-scroll">
+          <div className="module-filters compact three">
+            <SelectField
+              value={matchFilter}
+              onChange={(event) => onChangeMatchFilter(event.target.value)}
+              options={[
+                { value: 'all', label: `All (${matches.length})` },
+                { value: 'completed', label: 'Completed' },
+                { value: 'inprogress', label: 'inprogress' },
+                { value: 'notstarted', label: 'notstarted' },
+              ]}
+            />
+            <SelectField
+              value={teamFilter}
+              onChange={(event) => onChangeTeamFilter(event.target.value)}
+              options={[
+                { value: 'all', label: 'All teams' },
+                ...teamOptions.map((team) => {
+                  const flag = getCountryFlag(team)
+                  return { value: team, label: flag ? `${team} ${flag}` : team }
+                }),
+              ]}
+            />
+            <Button
+              variant="secondary"
+              size="small"
+              onClick={(event) => {
+                event.stopPropagation()
+                onPreviewLeaderboard?.()
+              }}
+            >
+              Preview leaderboard
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -290,7 +295,7 @@ function MatchesCard({
         rowKey={(row) => row.id}
         rowClassName={(row) => (selectedMatchId === row.id ? 'active' : '')}
         onRowClick={(row) => onSelectMatch(row.id)}
-        emptyText="No matches found"
+        emptyText={isLoadingMatches ? loadingEmptyState : 'No matches found'}
         wrapperClassName="match-table-wrap"
         tableClassName="match-table"
       />

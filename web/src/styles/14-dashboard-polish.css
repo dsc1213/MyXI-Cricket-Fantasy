@@ -284,7 +284,7 @@ select.dashboard-text-input {
 
 .catalog-table th,
 .catalog-table td {
-  padding: 0.4rem 0.52rem;
+  padding: 0.4rem 0.35rem; /* Further reduced column width */
   text-align: left;
   border-bottom: 1px solid var(--input-border);
   vertical-align: middle;
@@ -431,7 +431,7 @@ select.dashboard-text-input {
   flex: 0 1 auto;
   min-height: 0;
   height: auto;
-  max-height: min(56vh, 620px);
+  max-height: min(65vh, 700px); /* Further increased height */
 }
 
 .admin-manager-panel {
@@ -1369,6 +1369,46 @@ body.dark-theme .squad-manager-success {
   transform: scale(1.08);
 }
 
+.manual-team-table.manual-lineup-table {
+  min-width: 560px;
+  table-layout: fixed;
+}
+
+.manual-team-table.manual-lineup-table th.manual-col-player,
+.manual-team-table.manual-lineup-table td.manual-col-player {
+  width: 190px !important;
+  max-width: 190px;
+}
+
+.manual-team-table.manual-lineup-table th.manual-col-role,
+.manual-team-table.manual-lineup-table td.manual-col-role {
+  width: 150px !important;
+  max-width: 150px;
+}
+
+.manual-team-table.manual-lineup-table th.manual-col-metric,
+.manual-team-table.manual-lineup-table td.manual-col-metric {
+  width: 150px !important;
+  max-width: 150px;
+}
+
+.manual-team-table.manual-lineup-table .manual-col-player .player-identity-name {
+  max-width: min(22vw, 210px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manual-lineup-player-identity {
+  max-width: 170px;
+  overflow: hidden;
+}
+
+.manual-lineup-player-identity .player-identity-copy {
+  min-width: 0;
+  overflow: hidden;
+}
+
 .manual-empty-state {
   border: 1px dashed var(--input-border);
   border-radius: 12px;
@@ -1438,8 +1478,8 @@ body.dark-theme .squad-manager-success {
 }
 
 .manual-entry-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  display: flex;
+  flex-direction: row;
   gap: 0.6rem;
   min-height: 0;
   height: auto;
@@ -1447,8 +1487,8 @@ body.dark-theme .squad-manager-success {
   overflow: visible;
   width: 100%;
   min-width: 0;
-  justify-items: stretch;
-  align-items: start;
+  justify-content: stretch;
+  align-items: stretch;
 }
 
 .manual-entry-grid.single-team {
@@ -1479,8 +1519,8 @@ body.dark-theme .squad-manager-success {
   overflow-y: auto;
   overflow-x: auto;
   min-height: 0;
-  height: min(50vh, 560px);
-  max-height: min(58vh, 560px);
+  height: min(28vh, 320px);
+  max-height: min(40vh, 340px);
   width: 100%;
   padding-bottom: 0.9rem;
   box-sizing: border-box;
@@ -1957,6 +1997,43 @@ body.dark-theme .fantasy-hub-main {
 .contest-section-head small {
   font-size: 0.78rem;
   color: var(--text-muted);
+}
+
+.contest-title-combo {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.contest-title-combo small {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.contest-tournament-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.2rem;
+  padding: 0.08rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(
+    in srgb,
+    var(--contest-tournament-color, #2f66e9) 16%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(in srgb, var(--contest-tournament-color, #2f66e9) 45%, transparent);
+  color: color-mix(in srgb, var(--contest-tournament-color, #2f66e9) 78%, white 22%);
+  letter-spacing: 0.02em;
+}
+
+.contest-title-combo strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .stats-team-cell {
@@ -2521,7 +2598,7 @@ body.dark-theme .fantasy-hub-main {
 .btn-ghost {
   background: var(--btn-outline-bg);
   color: var(--btn-outline-text);
-  border-color: var(--btn-outline-border);
+  border: 1px solid var(--btn-outline-border);
 }
 
 .btn-ghost:hover {

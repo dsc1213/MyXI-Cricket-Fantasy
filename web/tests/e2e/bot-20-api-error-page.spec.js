@@ -39,7 +39,11 @@ test('shows reusable API error tile on authenticated body pages when health chec
   await page.goto('/home', { waitUntil: 'domcontentloaded' })
 
   await expect(page.getByRole('heading', { name: 'API unavailable' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'API unavailable' })).toHaveCount(1)
   await expect(page.getByRole('button', { name: 'Retry' }).first()).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Dashboard feed unavailable' }),
+  ).toHaveCount(0)
 })
 
 test('mobile API-down state shows only global API error and hides dashboard dropdown/content', async ({
