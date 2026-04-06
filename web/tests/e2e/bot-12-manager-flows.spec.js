@@ -55,10 +55,12 @@ const addPlayersFromSquadModal = async (page, entries) => {
 }
 
 const enablePlayerManagerEditMode = async (page) => {
-  const editButton = page.getByRole('button', { name: 'Edit' })
+  const panel = page.locator('.player-manager-panel')
+  await expect(panel).toBeVisible()
+  const editButton = panel.getByRole('button', { name: 'Edit' })
   if (await editButton.count()) {
     await editButton.click()
-    await expect(page.getByRole('button', { name: 'Done' })).toBeVisible()
+    await expect(panel.getByRole('button', { name: 'Done' })).toBeVisible()
   }
 }
 
@@ -399,7 +401,10 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await expect(page.getByRole('tab', { name: 'Auction' })).toBeVisible()
   })
 
-  test('player manager adds and deletes a global player', async ({ page, request }) => {
+  test('player manager adds and deletes a global player via multi-select modal', async ({
+    page,
+    request,
+  }) => {
     const tag = Date.now()
     const playerName = `Player Manager ${tag}`
     let createdPlayerId = null
@@ -438,9 +443,13 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     createdPlayerId = createdPlayer?.id
 
     const row = page.locator('.catalog-table tbody tr', { hasText: playerName }).first()
-    page.once('dialog', (dialog) => dialog.accept())
-    await row.getByRole('button', { name: 'Delete' }).click()
-    await expect(page.getByText('Player deleted')).toBeVisible()
+    await row.getByRole('checkbox', { name: `Select player ${playerName}` }).click()
+    await page.getByRole('button', { name: 'Delete selected (1)' }).click()
+
+    const deleteModal = page.locator('.player-manager-delete-modal')
+    await expect(deleteModal).toBeVisible()
+    await expect(deleteModal.getByText(playerName)).toBeVisible()
+    await deleteModal.getByRole('button', { name: 'Delete players' }).click()
 
     const playersAfterDelete = await apiCall(request, 'GET', '/players', undefined, 200)
     expect(

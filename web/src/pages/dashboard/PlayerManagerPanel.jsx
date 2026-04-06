@@ -4,7 +4,12 @@ import Modal from '../../components/ui/Modal.jsx'
 import PlayerIdentity from '../../components/ui/PlayerIdentity.jsx'
 import SelectField from '../../components/ui/SelectField.jsx'
 import StickyTable from '../../components/ui/StickyTable.jsx'
-import { createAdminPlayer, deleteAdminPlayer, fetchPlayers, importAdminPlayers } from '../../lib/api.js'
+import {
+  createAdminPlayer,
+  deleteAdminPlayersBulk,
+  fetchPlayers,
+  importAdminPlayers,
+} from '../../lib/api.js'
 import { getStoredUser } from '../../lib/auth.js'
 
 const PLAYER_ROLE_OPTIONS = ['', 'BAT', 'BOWL', 'AR', 'WK']
@@ -47,6 +52,9 @@ const formatCountryLabel = (value = '') => {
     .join(' ')
 }
 
+const resolvePlayerCountry = (row = {}) =>
+  (row.country || row.nationality || row.playerCountry || '').toString().trim()
+
 function PlayerManagerPanel() {
   const currentUser = getStoredUser()
   const canManagePlayers = ['admin', 'master_admin'].includes(currentUser?.role || '')
@@ -61,7 +69,9 @@ function PlayerManagerPanel() {
   const [formErrorText, setFormErrorText] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [importJson, setImportJson] = useState('')
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState([])
   const [form, setForm] = useState({
     name: '',
     country: '',
@@ -86,13 +96,24 @@ function PlayerManagerPanel() {
     void loadPlayers()
   }, [])
 
+  useEffect(() => {
+    const availableIds = new Set((players || []).map((row) => String(row.id)))
+    setSelectedPlayerIds((prev) => prev.filter((id) => availableIds.has(String(id))))
+  }, [players])
+
+  useEffect(() => {
+    if (isEditMode) return
+    setSelectedPlayerIds([])
+    setShowDeleteModal(false)
+  }, [isEditMode])
+
   const filteredPlayers = useMemo(() => {
     const q = filterText.toString().trim().toLowerCase()
     if (!q) return players
     return players.filter((row) => {
       const searchText = [
         row.displayName || row.name || '',
-        row.country || '',
+        resolvePlayerCountry(row),
         row.role || '',
       ]
         .join(' ')
@@ -104,13 +125,18 @@ function PlayerManagerPanel() {
   const countryOptions = useMemo(() => {
     const known = new Set(PLAYER_COUNTRY_OPTIONS.filter(Boolean))
     ;(players || []).forEach((row) => {
-      const country = (row.country || '').toString().trim().toLowerCase()
+      const country = resolvePlayerCountry(row).toLowerCase()
       if (country) known.add(country)
     })
-    return [{ value: '', label: 'Select country' }, ...[...known].sort((a, b) => a.localeCompare(b)).map((item) => ({
-      value: item,
-      label: formatCountryLabel(item),
-    }))]
+    return [
+      { value: '', label: 'Select country' },
+      ...[...known]
+        .sort((a, b) => a.localeCompare(b))
+        .map((item) => ({
+          value: item,
+          label: formatCountryLabel(item),
+        })),
+    ]
   }, [players])
 
   const onCreatePlayer = async () => {
@@ -182,22 +208,94 @@ function PlayerManagerPanel() {
     }
   }
 
-  const onDeletePlayer = async (id) => {
-    const confirmed = window.confirm('Delete this player from the global catalog?')
-    if (!confirmed) return
+  const selectedPlayers = useMemo(() => {
+    const selectedSet = new Set(selectedPlayerIds.map((id) => String(id)))
+    return (players || []).filter((row) => selectedSet.has(String(row.id)))
+  }, [players, selectedPlayerIds])
+
+  const selectedPlayerCount = selectedPlayerIds.length
+  const allFilteredSelected =
+    filteredPlayers.length > 0 &&
+    filteredPlayers.every((row) => selectedPlayerIds.includes(String(row.id)))
+
+  const togglePlayerSelected = (id) => {
+    const key = String(id)
+    setSelectedPlayerIds((prev) =>
+      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key],
+    )
+  }
+
+  const toggleAllFilteredSelected = () => {
+    const filteredKeys = filteredPlayers.map((row) => String(row.id))
+    if (!filteredKeys.length) return
+    if (allFilteredSelected) {
+      setSelectedPlayerIds((prev) => prev.filter((id) => !filteredKeys.includes(id)))
+      return
+    }
+    setSelectedPlayerIds((prev) => Array.from(new Set([...prev, ...filteredKeys])))
+  }
+
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false)
+  }
+
+  const onDeleteSelectedPlayers = async () => {
     try {
+      setIsSaving(true)
       setErrorText('')
       setNotice('')
       setFormErrorText('')
-      await deleteAdminPlayer({ id, actorUserId })
-      setNotice('Player deleted')
+      const result = await deleteAdminPlayersBulk({
+        ids: selectedPlayerIds,
+        actorUserId,
+      })
+      const removedCount = Number(result?.removedCount || selectedPlayerIds.length || 0)
+      const missingCount = Number((result?.missingIds || []).length || 0)
+      setNotice(
+        missingCount > 0
+          ? `Deleted ${removedCount} players (${missingCount} already missing).`
+          : `Deleted ${removedCount} players.`,
+      )
+      setSelectedPlayerIds([])
+      closeDeleteModal()
       await loadPlayers()
     } catch (error) {
       setErrorText(error.message || 'Failed to delete player')
+    } finally {
+      setIsSaving(false)
     }
   }
 
   const columns = [
+    ...(isEditMode
+      ? [
+          {
+            key: 'select',
+            label: (
+              <input
+                type="checkbox"
+                aria-label="Select all filtered players"
+                checked={allFilteredSelected}
+                onChange={toggleAllFilteredSelected}
+              />
+            ),
+            sortable: false,
+            width: '48px',
+            render: (row) => {
+              const checked = selectedPlayerIds.includes(String(row.id))
+              const label = row.displayName || row.name || 'player'
+              return (
+                <input
+                  type="checkbox"
+                  aria-label={`Select player ${label}`}
+                  checked={checked}
+                  onChange={() => togglePlayerSelected(row.id)}
+                />
+              )
+            },
+          },
+        ]
+      : []),
     {
       key: 'player',
       label: 'Player',
@@ -214,30 +312,16 @@ function PlayerManagerPanel() {
     {
       key: 'country',
       label: 'Country',
+      sortValue: (row) => resolvePlayerCountry(row),
+      render: (row) => {
+        const country = resolvePlayerCountry(row)
+        return country ? formatCountryLabel(country) : '—'
+      },
     },
     {
       key: 'role',
       label: 'Role',
     },
-    ...(isEditMode
-      ? [
-          {
-            key: 'actions',
-            label: 'Delete',
-            sortable: false,
-            render: (row) => (
-              <Button
-                type="button"
-                variant="danger"
-                size="small"
-                onClick={() => onDeletePlayer(row.id)}
-              >
-                Delete
-              </Button>
-            ),
-          },
-        ]
-      : []),
   ]
 
   return (
@@ -269,6 +353,17 @@ function PlayerManagerPanel() {
             )}
             {canManagePlayers && isEditMode && (
               <>
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="small"
+                  onClick={() => setShowDeleteModal(true)}
+                  disabled={!selectedPlayerCount || isSaving}
+                >
+                  {selectedPlayerCount > 0
+                    ? `Delete selected (${selectedPlayerCount})`
+                    : 'Delete selected'}
+                </Button>
                 <Button
                   type="button"
                   variant="ghost"
@@ -350,7 +445,9 @@ function PlayerManagerPanel() {
               className="dashboard-text-input"
               type="text"
               value={form.name}
-              onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, name: event.target.value }))
+              }
               placeholder="Dewald Brevis"
             />
           </label>
@@ -359,7 +456,9 @@ function PlayerManagerPanel() {
             <SelectField
               className="dashboard-text-input"
               value={form.country}
-              onChange={(event) => setForm((prev) => ({ ...prev, country: event.target.value }))}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, country: event.target.value }))
+              }
               options={countryOptions}
             />
           </label>
@@ -368,7 +467,9 @@ function PlayerManagerPanel() {
             <SelectField
               className="dashboard-text-input"
               value={form.role}
-              onChange={(event) => setForm((prev) => ({ ...prev, role: event.target.value }))}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, role: event.target.value }))
+              }
               options={PLAYER_ROLE_OPTIONS.map((item) => ({
                 value: item,
                 label: item || 'Select role',
@@ -381,7 +482,9 @@ function PlayerManagerPanel() {
               className="dashboard-text-input"
               type="url"
               value={form.imageUrl}
-              onChange={(event) => setForm((prev) => ({ ...prev, imageUrl: event.target.value }))}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, imageUrl: event.target.value }))
+              }
               placeholder="https://..."
             />
           </label>
@@ -398,7 +501,13 @@ function PlayerManagerPanel() {
             <Button type="button" variant="ghost" size="small" onClick={closeImportModal}>
               Cancel
             </Button>
-            <Button type="button" variant="primary" size="small" onClick={onImportPlayers} disabled={isSaving}>
+            <Button
+              type="button"
+              variant="primary"
+              size="small"
+              onClick={onImportPlayers}
+              disabled={isSaving}
+            >
               Import players
             </Button>
           </>
@@ -415,6 +524,41 @@ function PlayerManagerPanel() {
               placeholder={`{\n  "players": [\n    {\n      "id": "02e239d1-c27b-48f4-af45-9c6f45f4fdb3",\n      "name": "Shubham Dubey",\n      "nationality": "india",\n      "role": "BAT",\n      "player_img": "https://h.cricapi.com/img/icon512.png",\n      "base_price": 25\n    }\n  ]\n}`}
             />
           </label>
+        </div>
+      </Modal>
+      <Modal
+        open={showDeleteModal}
+        onClose={closeDeleteModal}
+        title="Delete selected players"
+        size="md"
+        className="player-manager-delete-modal"
+        footer={
+          <>
+            <Button type="button" variant="ghost" size="small" onClick={closeDeleteModal}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              size="small"
+              onClick={onDeleteSelectedPlayers}
+              disabled={!selectedPlayerCount || isSaving}
+            >
+              Delete players
+            </Button>
+          </>
+        }
+      >
+        <div className="player-manager-delete-layout">
+          <p className="team-note">
+            You are deleting {selectedPlayerCount} player
+            {selectedPlayerCount === 1 ? '' : 's'}.
+          </p>
+          <ul className="player-manager-delete-list">
+            {selectedPlayers.map((row) => (
+              <li key={row.id}>{row.displayName || row.name || `Player ${row.id}`}</li>
+            ))}
+          </ul>
         </div>
       </Modal>
     </section>

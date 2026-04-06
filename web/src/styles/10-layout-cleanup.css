@@ -10,6 +10,18 @@
   align-items: flex-start;
 }
 
+.app.is-dashboard-page {
+  height: 100svh;
+  overflow: hidden;
+}
+
+.app.is-dashboard-page .main.main-lower-content {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  align-items: stretch;
+}
+
 .app.is-contest-detail {
   gap: 0.55rem;
   padding-top: 0.55rem;

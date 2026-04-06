@@ -100,6 +100,12 @@ function App() {
     location.pathname === '/cricketer-stats' ||
     /^\/tournaments\/[^/]+\/cricketer-stats$/.test(location.pathname)
   const isCatalogPage = ['/all-pages', '/all-apis'].includes(location.pathname)
+  const isDashboardPage = [
+    '/home',
+    '/dashboard',
+    '/admin/dashboard',
+    '/master/dashboard',
+  ].includes(location.pathname)
   const isLowerContentPage =
     [
       '/login',
@@ -316,7 +322,7 @@ function App() {
 
   return (
     <div
-      className={`app ${isLanding ? 'landing' : ''} ${isAuthPage ? 'app-auth' : ''} ${userMenuOpen ? 'menu-open' : ''} ${isTeamPage ? 'app-team' : ''} ${isFantasyHubPage || isAuctionHubPage ? 'is-fantasy-hub' : ''} ${isContestDetailPage ? 'is-contest-detail' : ''} ${isLeaderboardPage ? 'is-leaderboard-page' : ''} ${isCricketerStatsPage ? 'is-cricketer-stats-page' : ''} ${isCatalogPage ? 'is-catalog' : ''} ${isLowerContentPage ? 'app-lower-content' : ''} ${theme === 'dark' ? 'theme-dark' : 'theme-light'}`.trim()}
+      className={`app ${isLanding ? 'landing' : ''} ${isAuthPage ? 'app-auth' : ''} ${userMenuOpen ? 'menu-open' : ''} ${isTeamPage ? 'app-team' : ''} ${isFantasyHubPage || isAuctionHubPage ? 'is-fantasy-hub' : ''} ${isContestDetailPage ? 'is-contest-detail' : ''} ${isLeaderboardPage ? 'is-leaderboard-page' : ''} ${isCricketerStatsPage ? 'is-cricketer-stats-page' : ''} ${isCatalogPage ? 'is-catalog' : ''} ${isDashboardPage ? 'is-dashboard-page' : ''} ${isLowerContentPage ? 'app-lower-content' : ''} ${theme === 'dark' ? 'theme-dark' : 'theme-light'}`.trim()}
     >
       <div className="page-header-shell">
         <header className={`topbar compact ${isLanding ? 'landing' : ''}`.trim()}>

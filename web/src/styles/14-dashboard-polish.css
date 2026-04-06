@@ -3,6 +3,9 @@
   gap: 0.75rem;
   min-height: 0;
   height: 100%;
+  width: 100%;
+  flex: 1 1 auto;
+  align-self: stretch;
 }
 
 .dashboard-left-nav {
@@ -60,11 +63,15 @@
 }
 
 .dashboard-content {
+  display: flex;
+  flex-direction: column;
   gap: 0.65rem;
   min-height: 0;
+  height: 100%;
 }
 
 .dashboard-panel-view {
+  flex: 1 1 auto;
   min-height: 0;
   height: 100%;
   overflow: auto;
@@ -90,6 +97,24 @@
 .dashboard-panel-view .dashboard-section,
 .dashboard-panel-view .admin-card.dashboard-panel-card {
   min-height: 300px;
+}
+
+.dashboard-shell.panel-joined .dashboard-panel-view {
+  padding-bottom: 0.35rem;
+  padding-top: 0.18rem;
+}
+
+.dashboard-shell.panel-joined .dashboard-panel-view .dashboard-section {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 0.62rem;
+  height: auto;
+  min-height: 0;
+}
+
+.dashboard-shell.panel-joined .dashboard-panel-view .dashboard-section h3 {
+  margin: 0.5rem;
 }
 
 .dashboard-mobile-panel-select {
@@ -999,6 +1024,22 @@ select.dashboard-text-input {
 .player-manager-import-layout {
   display: grid;
   min-height: 0;
+}
+
+.player-manager-delete-layout {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.player-manager-delete-list {
+  margin: 0;
+  padding-left: 1rem;
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.player-manager-delete-list li {
+  margin: 0.15rem 0;
 }
 
 .player-manager-import-field {
@@ -2001,13 +2042,14 @@ body.dark-theme .fantasy-hub-main {
 
 .contest-title-combo {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.35rem;
   min-width: 0;
+  flex-wrap: nowrap;
 }
 
 .contest-title-combo small {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -2015,8 +2057,8 @@ body.dark-theme .fantasy-hub-main {
 .contest-tournament-pill {
   display: inline-flex;
   align-items: center;
-  min-height: 1.2rem;
-  padding: 0.08rem 0.45rem;
+  min-height: 1.05rem;
+  padding: 0.05rem 0.38rem;
   border-radius: 999px;
   background: color-mix(
     in srgb,
@@ -2031,6 +2073,33 @@ body.dark-theme .fantasy-hub-main {
 
 .contest-title-combo strong {
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.87rem;
+}
+
+.contest-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.contest-meta-row .contest-tournament-pill {
+  flex: 0 1 auto;
+  max-width: 68%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contest-name-row {
+  display: block;
+  min-width: 0;
+  margin: 0.03rem 0 0.05rem;
+  font-size: 0.96rem;
+  line-height: 1.15;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3457,8 +3526,9 @@ body.dark-theme .app.app-lower-content select {
 
 @media (min-width: 981px) {
   .dashboard-shell {
-    height: calc(100svh - 205px);
-    max-height: calc(100svh - 150px);
+    min-height: 0;
+    height: 100%;
+    max-height: none;
     overflow: hidden;
   }
 
@@ -3471,7 +3541,6 @@ body.dark-theme .app.app-lower-content select {
   .dashboard-shell .dashboard-content {
     height: 100%;
     min-height: 0;
-    grid-template-rows: auto auto minmax(0, 1fr);
     align-content: stretch;
     overflow: hidden;
   }
@@ -3491,8 +3560,8 @@ body.dark-theme .app.app-lower-content select {
   .dashboard-shell {
     grid-template-columns: 1fr;
     gap: 0.6rem;
-    min-height: calc(100svh - 150px);
-    height: calc(100svh - 150px);
+    min-height: 0;
+    height: 100%;
     overflow: hidden;
   }
 
@@ -3503,13 +3572,13 @@ body.dark-theme .app.app-lower-content select {
   .dashboard-shell .dashboard-content {
     min-height: 0;
     height: 100%;
-    display: grid;
-    grid-template-rows: auto auto minmax(0, 1fr);
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
   }
 
   .dashboard-panel-view {
-    min-height: max(50svh, 360px);
+    min-height: 0;
     height: 100%;
     overflow: auto;
     -webkit-overflow-scrolling: touch;
@@ -3761,8 +3830,8 @@ body.dark-theme .app.app-lower-content select {
   .dashboard-shell .dashboard-content {
     min-height: 0;
     height: 100%;
-    display: grid;
-    grid-template-rows: auto auto minmax(0, 1fr);
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
   }
 

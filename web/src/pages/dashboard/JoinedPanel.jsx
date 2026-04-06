@@ -1,12 +1,7 @@
 import { Link } from 'react-router-dom'
+import ContestTileCard from '../../components/contest/ContestTileCard.jsx'
 import SelectField from '../../components/ui/SelectField.jsx'
-import { getStatusClassName } from '../../components/ui/status.js'
 import { gameClassMap } from './constants.js'
-
-const formatContestMetric = (value, { prefix = '', empty = '' } = {}) => {
-  if (value === null || value === undefined || value === '') return `${prefix}${empty}`
-  return `${prefix}${value}`
-}
 
 function JoinedPanel({
   selectedTournament,
@@ -50,30 +45,26 @@ function JoinedPanel({
             <div className="compact-card-grid joined-contest-grid">
               {contestList.map((contest) => {
                 const tournamentName = tournamentNameMap[contest.tournamentId] || '-'
+                const joinedCount = Number(
+                  contest.joinedCount ?? contest.participants ?? 0,
+                )
+                const maxPlayers = Number(contest.maxPlayers ?? contest.teams ?? 0)
+                const points =
+                  contest?.points == null || contest?.points === '' ? '-' : contest.points
+                const rank =
+                  contest?.rank == null || contest?.rank === '' ? '-' : contest.rank
                 return (
-                  <article
-                    className={`compact-contest-card ${gameClassMap[contest.game] || ''} ${getStatusClassName(contest.status)}`.trim()}
+                  <ContestTileCard
                     key={`${game}-${contest.id}`}
-                  >
-                    <div className="contest-card-top">
-                      <strong>{contest.name}</strong>
-                      <span className={`contest-status-text ${getStatusClassName(contest.status)}`.trim()}>
-                        {contest.status}
-                      </span>
-                    </div>
-                    <p className="team-note">{tournamentName}</p>
-                    <p className="team-note">{contest.game}</p>
-                    <div className="contest-card-bottom">
-                      <span>{formatContestMetric(contest.points, { prefix: 'Pts ' })}</span>
-                      <span>{formatContestMetric(contest.rank, { prefix: 'Rank #' })}</span>
-                      <Link
-                        className="ghost small"
-                        to={`/tournaments/${contest.tournamentId}/contests/${contest.id}`}
-                      >
-                        Open
-                      </Link>
-                    </div>
-                  </article>
+                    contest={contest}
+                    className={gameClassMap[contest.game] || ''}
+                    tournamentName={tournamentName}
+                    participantsText={`Participants ${joinedCount}${maxPlayers > 0 ? ` / ${maxPlayers}` : ''}`}
+                    statsLeftText={`Points ${points}`}
+                    statsRightText={`Rank #${rank}`}
+                    openTo={`/tournaments/${contest.tournamentId}/contests/${contest.id}`}
+                    leaderboardTo={`/tournaments/${contest.tournamentId}/contests/${contest.id}/leaderboard`}
+                  />
                 )
               })}
             </div>

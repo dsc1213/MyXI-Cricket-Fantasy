@@ -5,7 +5,7 @@ import Button from '../components/ui/Button.jsx'
 import LoadingNote from '../components/ui/LoadingNote.jsx'
 import Modal from '../components/ui/Modal.jsx'
 import SelectField from '../components/ui/SelectField.jsx'
-import { getStatusClassName } from '../components/ui/status.js'
+import ContestTileCard from '../components/contest/ContestTileCard.jsx'
 import {
   createAdminContest,
   fetchContestMatchOptions,
@@ -42,7 +42,10 @@ const normalizeContestRow = (row = {}) => ({
     row?.maxPlayers != null
       ? Number(row.maxPlayers || 0)
       : Number(row?.maxParticipants || row?.teams || 0),
+  hasTeam: Boolean(row?.hasTeam),
 })
+
+const isContestJoined = (contest = {}) => Boolean(contest?.joined || contest?.hasTeam)
 
 const formatContestCountdown = (startAt, nowTs) => {
   if (!startAt) return ''
@@ -217,11 +220,11 @@ function FantasyHub() {
   }, [contests, selectedTournament, selectedStatus])
 
   const availableContests = useMemo(
-    () => tournamentContests.filter((contest) => !contest.joined),
+    () => tournamentContests.filter((contest) => !isContestJoined(contest)),
     [tournamentContests],
   )
   const joinedContests = useMemo(
-    () => tournamentContests.filter((contest) => contest.joined),
+    () => tournamentContests.filter((contest) => isContestJoined(contest)),
     [tournamentContests],
   )
 
@@ -457,54 +460,21 @@ function FantasyHub() {
                           countdownNow,
                         )
                         return (
-                          <article
-                            className={`compact-contest-card fantasy ${getStatusClassName(contest.status)}`.trim()}
-                            key={contest.id}
-                            style={{
-                              '--contest-tournament-color':
-                                tournamentColorMap[contest.tournamentId] || '#2f66e9',
-                            }}
-                          >
-                            <div className="contest-card-top">
-                              <span className="contest-title-combo">
-                                <small className="contest-tournament-pill">
-                                  {tournamentNameMap[contest.tournamentId]}
-                                </small>
-                                <strong>{contest.name}</strong>
-                              </span>
-                              <span
-                                className={`contest-status-text ${getStatusClassName(contest.status)}`.trim()}
-                              >
-                                {contest.status}
-                              </span>
-                            </div>
-                            <p className="team-note">
-                              Participants {joinedCount}
-                              {maxPlayers > 0 ? ` / ${maxPlayers}` : ''}
-                            </p>
-                            {showContestStart ? (
-                              <p className="team-note">
-                                Starts:{' '}
-                                {contest.startAt
-                                  ? new Date(contest.startAt).toLocaleString()
-                                  : 'Manual start'}
-                              </p>
-                            ) : null}
-                            {countdownLabel ? (
-                              <p className="team-note contest-countdown">
-                                {countdownLabel}
-                              </p>
-                            ) : null}
-                            <p className="team-note">
-                              Last score update:{' '}
-                              {contest.lastScoreUpdatedAt
-                                ? new Date(contest.lastScoreUpdatedAt).toLocaleString()
-                                : '-'}
-                              {contest.lastScoreUpdatedBy
-                                ? ` by ${contest.lastScoreUpdatedBy}`
-                                : ''}
-                            </p>
-                            <div className="contest-card-bottom">
+                          <ContestTileCard
+                            contest={contest}
+                            className="fantasy"
+                            tournamentName={tournamentNameMap[contest.tournamentId]}
+                            tournamentColor={
+                              tournamentColorMap[contest.tournamentId] || '#2f66e9'
+                            }
+                            participantsText={`Participants ${joinedCount}${maxPlayers > 0 ? ` / ${maxPlayers}` : ''}`}
+                            startText={
+                              showContestStart
+                                ? `Starts: ${contest.startAt ? new Date(contest.startAt).toLocaleString() : 'Manual start'}`
+                                : ''
+                            }
+                            countdownText={countdownLabel}
+                            primaryAction={
                               <Button
                                 variant="primary"
                                 size="small"
@@ -533,14 +503,10 @@ function FantasyHub() {
                                     ? 'Started'
                                     : 'Join'}
                               </Button>
-                              <Link
-                                className="ghost small"
-                                to={`/tournaments/${contest.tournamentId}/contests/${contest.id}`}
-                              >
-                                Open contest
-                              </Link>
-                            </div>
-                          </article>
+                            }
+                            openTo={`/tournaments/${contest.tournamentId}/contests/${contest.id}`}
+                            leaderboardTo={`/tournaments/${contest.tournamentId}/contests/${contest.id}/leaderboard`}
+                          />
                         )
                       })}
                     </div>
@@ -559,49 +525,17 @@ function FantasyHub() {
                           contest.maxPlayers ?? contest.teams ?? 0,
                         )
                         return (
-                          <article
-                            className={`compact-contest-card fantasy ${getStatusClassName(contest.status)}`.trim()}
-                            key={contest.id}
-                            style={{
-                              '--contest-tournament-color':
-                                tournamentColorMap[contest.tournamentId] || '#2f66e9',
-                            }}
-                          >
-                            <div className="contest-card-top">
-                              <span className="contest-title-combo">
-                                <small className="contest-tournament-pill">
-                                  {tournamentNameMap[contest.tournamentId]}
-                                </small>
-                                <strong>{contest.name}</strong>
-                              </span>
-                              <span
-                                className={`contest-status-text ${getStatusClassName(contest.status)}`.trim()}
-                              >
-                                {contest.status}
-                              </span>
-                            </div>
-                            <p className="team-note">
-                              Participants {joinedCount}
-                              {maxPlayers > 0 ? ` / ${maxPlayers}` : ''}
-                            </p>
-                            <p className="team-note">
-                              Last score update:{' '}
-                              {contest.lastScoreUpdatedAt
-                                ? new Date(contest.lastScoreUpdatedAt).toLocaleString()
-                                : '-'}
-                              {contest.lastScoreUpdatedBy
-                                ? ` by ${contest.lastScoreUpdatedBy}`
-                                : ''}
-                            </p>
-                            <div className="contest-card-bottom">
-                              <Link
-                                className="ghost small"
-                                to={`/tournaments/${contest.tournamentId}/contests/${contest.id}`}
-                              >
-                                Open contest
-                              </Link>
-                            </div>
-                          </article>
+                          <ContestTileCard
+                            contest={contest}
+                            className="fantasy"
+                            tournamentName={tournamentNameMap[contest.tournamentId]}
+                            tournamentColor={
+                              tournamentColorMap[contest.tournamentId] || '#2f66e9'
+                            }
+                            participantsText={`Participants ${joinedCount}${maxPlayers > 0 ? ` / ${maxPlayers}` : ''}`}
+                            openTo={`/tournaments/${contest.tournamentId}/contests/${contest.id}`}
+                            leaderboardTo={`/tournaments/${contest.tournamentId}/contests/${contest.id}/leaderboard`}
+                          />
                         )
                       })}
                     </div>

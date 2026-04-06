@@ -21,6 +21,8 @@
 .compact-card-grid {
   grid-template-columns: repeat(auto-fit, minmax(198px, 1fr));
   gap: 0.5rem;
+  align-items: stretch;
+  grid-auto-rows: 1fr;
 }
 
 .joined-contest-grid {
@@ -32,6 +34,19 @@
   padding: 0.55rem 0.6rem;
   border-radius: 12px;
   gap: 0.2rem;
+  height: 100%;
+  min-height: 166px;
+  max-height: 166px;
+  align-content: start;
+  justify-items: stretch;
+  overflow: hidden;
+  grid-template-rows: auto auto auto auto 1fr auto;
+}
+
+.compact-contest-card.fantasy.status-progress {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .contest-card-top strong {
@@ -49,11 +64,54 @@
 
 .compact-contest-card .team-note {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 0.76rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .contest-card-bottom {
-  font-size: 0.76rem;
+  margin-top: 0.05rem;
+  font-size: 0.74rem;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.contest-card-links {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: auto;
+}
+
+.contest-leaderboard-link {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.contest-leaderboard-link:hover {
+  color: var(--text-primary);
+}
+
+.contest-card-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.04rem;
+  font-size: 0.73rem;
+  color: var(--text-muted);
+}
+
+.contest-card-stats span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .contest-card-bottom .ghost.small {

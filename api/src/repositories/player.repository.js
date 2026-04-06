@@ -269,7 +269,9 @@ class PlayerRepository {
       )
       if (byKey.rows[0]) return byKey.rows[0]
     }
-    const name = (data.displayName || [data.firstName, data.lastName].filter(Boolean).join(' '))
+    const name = (
+      data.displayName || [data.firstName, data.lastName].filter(Boolean).join(' ')
+    )
       .toString()
       .trim()
     const country = (data.country || '').toString().trim()
@@ -540,7 +542,8 @@ class PlayerRepository {
           id: row.playerRowId,
           canonicalPlayerId: row.canonicalPlayerId,
           name:
-            row.displayName || [row.firstName, row.lastName].filter(Boolean).join(' ').trim(),
+            row.displayName ||
+            [row.firstName, row.lastName].filter(Boolean).join(' ').trim(),
           country: row.playerCountry || '',
           role: row.role,
           playerId: row.playerId,
@@ -581,7 +584,16 @@ class PlayerRepository {
          source = excluded.source,
          updated_at = now()
        RETURNING id`,
-      [tournamentId, teamCode, teamName, tournamentType, country, league, tournament, source],
+      [
+        tournamentId,
+        teamCode,
+        teamName,
+        tournamentType,
+        country,
+        league,
+        tournament,
+        source,
+      ],
     )
     return result.rows[0]
   }
@@ -619,6 +631,24 @@ class PlayerRepository {
       [id],
     )
     return result.rows.length > 0
+  }
+
+  async deleteMany(ids = []) {
+    const normalizedIds = Array.from(
+      new Set(
+        (Array.isArray(ids) ? ids : [])
+          .map((value) => Number(value))
+          .filter((value) => Number.isFinite(value) && value > 0),
+      ),
+    )
+    if (!normalizedIds.length) return []
+    const result = await dbQuery(
+      `DELETE FROM players
+       WHERE id = ANY($1::bigint[])
+       RETURNING id`,
+      [normalizedIds],
+    )
+    return (result.rows || []).map((row) => Number(row.id))
   }
 }
 

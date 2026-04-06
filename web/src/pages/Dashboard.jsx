@@ -206,21 +206,46 @@ function Dashboard({ defaultPanel = 'joined' }) {
       try {
         setIsLoading(true)
         setErrorText('')
-        const [data, contestsRes] = await Promise.all([
+        const [data, allContestsRes, joinedContestsRes] = await Promise.all([
           fetchDashboardPageLoadData(),
           fetchContests({ userId: currentUserId }),
+          fetchContests({ userId: currentUserId, joined: true }),
         ])
         if (!active) return
+        const joinedFromEndpoint = Array.isArray(joinedContestsRes)
+          ? joinedContestsRes
+          : []
+        const joinedFromPageLoad = Array.isArray(data?.joinedContests)
+          ? data.joinedContests
+          : []
+        const joinedPageLoadById = new Map(
+          joinedFromPageLoad.map((contest) => [String(contest.id), contest]),
+        )
+        const mergedJoinedFromEndpoint = joinedFromEndpoint.map((contest) => ({
+          ...joinedPageLoadById.get(String(contest.id)),
+          ...contest,
+        }))
+        const toJoinedDashboardContests = (rows = []) =>
+          (rows || []).filter(
+            (contest) =>
+              (contest?.mode || '').toString().toLowerCase() !== 'fixed_roster',
+          )
+        const joinedFromAll = (allContestsRes || []).filter(
+          (contest) => contest?.joined || contest?.hasTeam,
+        )
         setPageLoadData({
           tournaments: data?.tournaments || [],
-          joinedContests: (contestsRes || []).filter((contest) => contest.joined),
+          joinedContests:
+            mergedJoinedFromEndpoint.length > 0
+              ? toJoinedDashboardContests(mergedJoinedFromEndpoint)
+              : toJoinedDashboardContests(joinedFromAll),
           pointsRuleTemplate: normalizePointsRuleTemplate(data?.pointsRuleTemplate),
           adminManager: data?.adminManager || [],
           masterConsole: data?.masterConsole || [],
           auditLogs: data?.auditLogs || [],
         })
         setPointsRules(normalizePointsRuleTemplate(data?.pointsRuleTemplate))
-        setAllContests(contestsRes || [])
+        setAllContests(allContestsRes || [])
       } catch (error) {
         if (!active) return
         setErrorText(error.message || 'Failed to load dashboard data')

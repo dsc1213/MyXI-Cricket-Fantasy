@@ -9,6 +9,7 @@ import playerService from './player.service.js'
 import pageLoadService from './pageload.service.js'
 import auctionImportService from './auctionImport.service.js'
 import userRepository from '../repositories/user.repository.js'
+import { dbQuery } from '../db.js'
 
 const resolveDbUser = async (rawIdentifier) => {
   const value = (rawIdentifier ?? '').toString().trim()
@@ -112,6 +113,7 @@ const dbHandlers = {
   // Players & teams
   '/players': () => playerService.getAllPlayers(),
   '/admin/players': (data) => playerService.createPlayer(data),
+  '/admin/players/bulk-delete': (data) => playerService.deletePlayers(data.ids || []),
   '/admin/players/:id/delete': (id) => playerService.deletePlayer(id),
   '/player-stats': () => ({}),
   '/team-pool': () => ({
@@ -276,6 +278,26 @@ const createDbService = (dependencies) => {
           )) ||
           req.currentUser ||
           null
+        let actorContestIds = new Set()
+        if (actor?.id) {
+          const actorContestRows = await dbQuery(
+            `SELECT DISTINCT contest_id as "contestId"
+             FROM contest_joins
+             WHERE user_id = $1
+             UNION
+             SELECT DISTINCT contest_id as "contestId"
+             FROM contest_fixed_rosters
+             WHERE user_id = $1
+             UNION
+             SELECT DISTINCT contest_id as "contestId"
+             FROM team_selections
+             WHERE user_id = $1`,
+            [actor.id],
+          )
+          actorContestIds = new Set(
+            (actorContestRows.rows || []).map((row) => String(row.contestId)),
+          )
+        }
 
         const rowsWithDerivedState = await Promise.all(
           (allRows || []).map(async (row) => {
@@ -287,14 +309,17 @@ const createDbService = (dependencies) => {
             const joinedCount = Number(
               participantPayload?.joinedCount || participantRows.length || 0,
             )
-            const joined = Boolean(
+            const hasTeam = Boolean(actor?.id && actorContestIds.has(String(row.id)))
+            const joinedFromParticipants = Boolean(
               actor?.id &&
               participantRows.some(
                 (participant) => Number(participant.id || 0) === Number(actor.id),
               ),
             )
+            const joined = hasTeam || joinedFromParticipants
             return buildContestView(row, {
               joined,
+              hasTeam,
               joinedCount,
               participants: joinedCount,
               ...scoreMeta,
@@ -727,6 +752,22 @@ const createDbService = (dependencies) => {
         return res.status(201).json({ ok: true, player })
       } catch (error) {
         return res.status(400).json({ message: error.message || 'Failed to save player' })
+      }
+    })
+
+    router.post('/admin/players/bulk-delete', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res.status(403).json({ message: 'Only admin/master can manage players' })
+        }
+        const ids = Array.isArray(req.body?.ids) ? req.body.ids : []
+        const result = await playerService.deletePlayers(ids)
+        return res.json(result)
+      } catch (error) {
+        return res
+          .status(400)
+          .json({ message: error.message || 'Failed to delete players' })
       }
     })
 

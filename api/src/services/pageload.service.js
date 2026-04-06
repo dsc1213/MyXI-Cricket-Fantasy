@@ -1,6 +1,9 @@
 import { createRepositoryFactory } from '../repositories/repository.factory.js'
+import { dbQuery } from '../db.js'
 import scoringRuleService from './scoring-rule.service.js'
+import contestService, { buildContestView } from './contest.service.js'
 import { cloneDefaultPointsRules } from '../default-points-rules.js'
+import userRepository from '../repositories/user.repository.js'
 
 const factory = createRepositoryFactory()
 const emptyPointsRuleTemplate = cloneDefaultPointsRules()
@@ -10,7 +13,72 @@ const loadPointsRuleTemplate = async () => {
   return globalRules?.rules || cloneDefaultPointsRules()
 }
 
+const resolveUserId = async (rawIdentifier) => {
+  const value = (rawIdentifier ?? '').toString().trim()
+  if (!value) return null
+  const asNumber = Number(value)
+  if (Number.isFinite(asNumber) && asNumber > 0) {
+    return asNumber
+  }
+  const user = await userRepository.findByIdentifier(value)
+  return Number(user?.id || 0) || null
+}
+
 class PageLoadService {
+  async getJoinedContestsForUser(userIdentifier) {
+    const userId = await resolveUserId(userIdentifier)
+    if (!userId) return []
+
+    const joinedContestIdsResult = await dbQuery(
+      `SELECT DISTINCT contest_id as "contestId"
+       FROM contest_joins
+       WHERE user_id = $1
+       UNION
+       SELECT DISTINCT contest_id as "contestId"
+       FROM contest_fixed_rosters
+       WHERE user_id = $1
+       UNION
+       SELECT DISTINCT contest_id as "contestId"
+       FROM team_selections
+       WHERE user_id = $1`,
+      [userId],
+    )
+
+    const joinedContestIds = new Set(
+      (joinedContestIdsResult.rows || []).map((row) => String(row.contestId)),
+    )
+    if (!joinedContestIds.size) return []
+
+    const contestRepo = await factory.getContestRepository()
+    const allContests = await contestRepo.findAll()
+    const joinedRows = (allContests || []).filter((contest) =>
+      joinedContestIds.has(String(contest.id)),
+    )
+
+    const joinedContests = await Promise.all(
+      joinedRows.map(async (contest) => {
+        const [participantPayload, scoreMeta] = await Promise.all([
+          contestService.getContestParticipants(contest.id),
+          contestService.getContestLastScoreMeta(contest),
+        ])
+        const participantRows = Array.isArray(participantPayload?.participants)
+          ? participantPayload.participants
+          : []
+        const joinedCount = Number(
+          participantPayload?.joinedCount || participantRows.length || 0,
+        )
+        return buildContestView(contest, {
+          joined: true,
+          joinedCount,
+          participants: joinedCount,
+          ...scoreMeta,
+        })
+      }),
+    )
+
+    return joinedContests
+  }
+
   async getPageLoadData(userId) {
     try {
       // Get all tournaments
@@ -18,13 +86,7 @@ class PageLoadService {
       const tournaments = await tournamentRepo.findAll()
 
       // Get contests user has joined
-      let joinedContests = []
-      if (userId) {
-        const contestRepo = await factory.getContestRepository()
-        const allContests = await contestRepo.findAll()
-        // Filter contests joined by user (future: implement contest_joins repo)
-        joinedContests = allContests.slice(0, 5) // TODO: filter by user
-      }
+      const joinedContests = userId ? await this.getJoinedContestsForUser(userId) : []
 
       // Get points rule template (from first scoring rule or default)
       const pointsRuleTemplate = await loadPointsRuleTemplate()

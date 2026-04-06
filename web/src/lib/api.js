@@ -515,6 +515,11 @@ const deleteAdminPlayer = ({ id, actorUserId }) =>
     method: 'DELETE',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
+const deleteAdminPlayersBulk = ({ ids, actorUserId }) =>
+  request('/admin/players/bulk-delete', {
+    method: 'POST',
+    body: JSON.stringify({ ids: Array.isArray(ids) ? ids : [], actorUserId }),
+  })
 const fetchPlayerStats = ({ tournamentId } = {}) => {
   const params = new URLSearchParams()
   if (tournamentId) params.set('tournamentId', tournamentId)
@@ -772,6 +777,7 @@ export {
   createAdminPlayer,
   importAdminPlayers,
   deleteAdminPlayer,
+  deleteAdminPlayersBulk,
   fetchPlayerStats,
   fetchMatchOptions,
   fetchPrettyTournaments,

@@ -687,6 +687,10 @@
   user-select: none;
 }
 
+body.dark-theme .player-avatar-fallback {
+  color: rgba(235, 241, 255, 0.94);
+}
+
 .icon-button {
   width: 28px;
   height: 28px;

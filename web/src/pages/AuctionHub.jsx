@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ApiFailureTile from '../components/ui/ApiFailureTile.jsx'
+import ContestTileCard from '../components/contest/ContestTileCard.jsx'
 import LoadingNote from '../components/ui/LoadingNote.jsx'
 import SelectField from '../components/ui/SelectField.jsx'
-import { getStatusClassName } from '../components/ui/status.js'
 import { fetchContests, fetchTournaments } from '../lib/api.js'
 import { getStoredUser } from '../lib/auth.js'
 
@@ -96,6 +96,13 @@ function AuctionHub() {
   const tournamentNameMap = useMemo(() => {
     return tournaments.reduce((acc, item) => {
       acc[item.id] = item.name
+      return acc
+    }, {})
+  }, [tournaments])
+
+  const tournamentColorMap = useMemo(() => {
+    return tournaments.reduce((acc, item, index) => {
+      acc[item.id] = tournamentPalette[index % tournamentPalette.length]
       return acc
     }, {})
   }, [tournaments])
@@ -255,46 +262,20 @@ function AuctionHub() {
                       )
                       const rosterSize = Number(contest.teamSize ?? 15)
                       return (
-                        <article
-                          className={`compact-contest-card fantasy auction-contest-card ${getStatusClassName(contest.status)}`.trim()}
+                        <ContestTileCard
                           key={contest.id}
-                        >
-                          <div className="contest-card-top">
-                            <strong>{contest.name}</strong>
-                            <span
-                              className={`contest-status-text ${getStatusClassName(contest.status)}`.trim()}
-                            >
-                              {contest.status}
-                            </span>
-                          </div>
-                          <p className="team-note">
-                            {tournamentNameMap[contest.tournamentId]}
-                          </p>
-                          <p className="team-note">{participantCount} participants</p>
-                          <p className="team-note">
-                            Fixed {rosterSize}-player tournament rosters
-                          </p>
-                          <p className="team-note">
-                            Leaderboard counts top 11 scoring players
-                          </p>
-                          <p className="team-note">
-                            Last score update:{' '}
-                            {contest.lastScoreUpdatedAt
-                              ? new Date(contest.lastScoreUpdatedAt).toLocaleString()
-                              : '-'}
-                            {contest.lastScoreUpdatedBy
-                              ? ` by ${contest.lastScoreUpdatedBy}`
-                              : ''}
-                          </p>
-                          <div className="contest-card-bottom">
-                            <Link
-                              className="ghost small"
-                              to={`/tournaments/${contest.tournamentId}/contests/${contest.id}?view=auction`}
-                            >
-                              Open contest
-                            </Link>
-                          </div>
-                        </article>
+                          contest={contest}
+                          className="fantasy auction-contest-card"
+                          tournamentName={tournamentNameMap[contest.tournamentId]}
+                          tournamentColor={tournamentColorMap[contest.tournamentId]}
+                          participantsText={`Participants ${participantCount}`}
+                          extraNotes={[
+                            `Fixed ${rosterSize}-player tournament rosters`,
+                            'Leaderboard counts top 11 scoring players',
+                          ]}
+                          openTo={`/tournaments/${contest.tournamentId}/contests/${contest.id}?view=auction`}
+                          leaderboardTo={`/tournaments/${contest.tournamentId}/contests/${contest.id}/leaderboard?view=auction`}
+                        />
                       )
                     })}
                   </div>

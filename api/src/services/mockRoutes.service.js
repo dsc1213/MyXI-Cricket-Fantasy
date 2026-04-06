@@ -715,6 +715,31 @@ const registerMockProviderRoutes = (router, ctx) => {
     }
   })
 
+  router.post('/admin/players/bulk-delete', async (req, res) => {
+    const actor = resolveAdminActor(req)
+    if (!canManageTournaments(actor)) {
+      return res.status(403).json({ message: 'Only admin/master can manage players' })
+    }
+    try {
+      const ids = Array.isArray(req.body?.ids) ? req.body.ids : []
+      const result = await playerService.deletePlayers(ids)
+      appendAuditLog({
+        actor: actor?.gameName || actor?.name || 'Admin',
+        action: 'Deleted players',
+        target: `${result.removedCount} players`,
+        detail: `Missing ${Number((result.missingIds || []).length || 0)}`,
+        tournamentId: 'global',
+        module: 'players',
+      })
+      persistState()
+      return res.json(result)
+    } catch (error) {
+      return res
+        .status(400)
+        .json({ message: error.message || 'Failed to delete players' })
+    }
+  })
+
   router.post('/admin/team-squads', async (req, res) => {
     const actor = resolveAdminActor(req)
     if (!canManageTournaments(actor)) {
@@ -930,11 +955,9 @@ const registerMockProviderRoutes = (router, ctx) => {
       (entry) => !Array.isArray(entry?.roster) || !entry.roster.length,
     )
     if (emptyRosterIndex >= 0) {
-      return res
-        .status(400)
-        .json({
-          message: `participants[${emptyRosterIndex}].roster must contain at least one player`,
-        })
+      return res.status(400).json({
+        message: `participants[${emptyRosterIndex}].roster must contain at least one player`,
+      })
     }
     const tournament = getTournamentCatalogEntry(tournamentId)
     if (!tournament) {

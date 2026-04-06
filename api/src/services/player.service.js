@@ -48,15 +48,14 @@ class PlayerService {
     ]
       .map((value) => (value == null ? '' : `${value}`.trim()))
       .filter(Boolean)
-    const duplicateKeys = [
-      duplicate.id,
-      duplicate.playerId,
-      duplicate.sourceKey,
-    ]
+    const duplicateKeys = [duplicate.id, duplicate.playerId, duplicate.sourceKey]
       .map((value) => (value == null ? '' : `${value}`.trim()))
       .filter(Boolean)
 
-    if (!incomingKeys.length || !incomingKeys.some((key) => duplicateKeys.includes(key))) {
+    if (
+      !incomingKeys.length ||
+      !incomingKeys.some((key) => duplicateKeys.includes(key))
+    ) {
       throw new Error(`Player already exists: ${fullName} (${country})`)
     }
   }
@@ -79,7 +78,8 @@ class PlayerService {
     if (typeof tournamentRepo?.findAll === 'function') {
       const tournaments = await tournamentRepo.findAll()
       const byName = (tournaments || []).find(
-        (item) => `${item?.name || ''}`.trim().toLowerCase() === tournamentName.toLowerCase(),
+        (item) =>
+          `${item?.name || ''}`.trim().toLowerCase() === tournamentName.toLowerCase(),
       )
       if (byName?.id != null) return Number(byName.id)
     }
@@ -124,13 +124,17 @@ class PlayerService {
       throw new Error(`lineups.${teamCode}.squad must contain at least 11 unique players`)
     }
     if (playingXI.length < 11 || playingXI.length > 12) {
-      throw new Error(`lineups.${teamCode}.playingXI must contain 11 or 12 unique players`)
+      throw new Error(
+        `lineups.${teamCode}.playingXI must contain 11 or 12 unique players`,
+      )
     }
 
     const squadSet = new Set(normalizedSquad)
     const xiOutside = playingXI.find((name) => !squadSet.has(name))
     if (xiOutside) {
-      throw new Error(`lineups.${teamCode}.playingXI player "${xiOutside}" is not in squad`)
+      throw new Error(
+        `lineups.${teamCode}.playingXI player "${xiOutside}" is not in squad`,
+      )
     }
 
     const captain = this.normalizeLineupName(payload.captain || '')
@@ -178,7 +182,9 @@ class PlayerService {
           teamCode: row.teamCode,
           squad: typeof row.squad === 'string' ? JSON.parse(row.squad) : row.squad || [],
           playingXI:
-            typeof row.playingXI === 'string' ? JSON.parse(row.playingXI) : row.playingXI || [],
+            typeof row.playingXI === 'string'
+              ? JSON.parse(row.playingXI)
+              : row.playingXI || [],
           bench: typeof row.bench === 'string' ? JSON.parse(row.bench) : row.bench || [],
           captain: row.captain || null,
           viceCaptain: row.viceCaptain || null,
@@ -242,8 +248,11 @@ class PlayerService {
     if (!entries.length) throw new Error('players array is required')
     const seenPairs = new Set()
     entries.forEach((entry, index) => {
-      const { fullName, country } = this.validatePlayerPayload(entry, { label: `players[${index}]` })
-      const key = `${fullName}`.trim().toLowerCase() + '::' + `${country}`.trim().toLowerCase()
+      const { fullName, country } = this.validatePlayerPayload(entry, {
+        label: `players[${index}]`,
+      })
+      const key =
+        `${fullName}`.trim().toLowerCase() + '::' + `${country}`.trim().toLowerCase()
       if (seenPairs.has(key)) {
         throw new Error(`Duplicate player in import payload: ${fullName} (${country})`)
       }
@@ -264,7 +273,11 @@ class PlayerService {
             entry.player_id ||
             null,
           canonicalPlayerId:
-            entry.canonicalPlayerId || entry.id || entry.playerId || entry.player_id || null,
+            entry.canonicalPlayerId ||
+            entry.id ||
+            entry.playerId ||
+            entry.player_id ||
+            null,
           imageUrl: entry.imageUrl || entry.player_img || '',
         }),
       )
@@ -284,6 +297,34 @@ class PlayerService {
     return { deleted: true }
   }
 
+  async deletePlayers(ids = []) {
+    const repo = await factory.getPlayerRepository()
+    const normalizedIds = Array.from(
+      new Set(
+        (Array.isArray(ids) ? ids : [])
+          .map((value) => (value == null ? '' : String(value).trim()))
+          .filter(Boolean),
+      ),
+    )
+    if (!normalizedIds.length) throw new Error('At least one player id is required')
+    const removedIds = []
+    const missingIds = []
+    for (const id of normalizedIds) {
+      const deleted = await repo.delete(id)
+      if (deleted) {
+        removedIds.push(id)
+      } else {
+        missingIds.push(id)
+      }
+    }
+    return {
+      ok: true,
+      removedIds,
+      removedCount: removedIds.length,
+      missingIds,
+    }
+  }
+
   async getPlayersByTeam(teamKey) {
     const repo = await factory.getPlayerRepository()
     return await repo.findByTeam(teamKey)
@@ -300,11 +341,16 @@ class PlayerService {
     const matchRepo = await factory.getMatchRepository()
     const playerRepo = await factory.getPlayerRepository()
     const matches = await matchRepo.findByTournament(tournamentId)
-    const teamKeys = [...new Set(
-      (matches || [])
-        .flatMap((match) => [match.teamAKey || match.teamA, match.teamBKey || match.teamB])
-        .filter(Boolean),
-    )]
+    const teamKeys = [
+      ...new Set(
+        (matches || [])
+          .flatMap((match) => [
+            match.teamAKey || match.teamA,
+            match.teamBKey || match.teamB,
+          ])
+          .filter(Boolean),
+      ),
+    ]
     if (!teamKeys.length) return []
 
     const playerGroups = await Promise.all(
@@ -447,7 +493,11 @@ class PlayerService {
 
     const selection =
       userId && activeMatch?.id
-        ? await teamSelectionRepo.findByMatchAndUser(activeMatch.id, userId, contest?.id || null)
+        ? await teamSelectionRepo.findByMatchAndUser(
+            activeMatch.id,
+            userId,
+            contest?.id || null,
+          )
         : null
 
     return {
@@ -536,7 +586,8 @@ class PlayerService {
       })
     }
 
-    const isFixedRoster = (contest?.mode || '').toString().trim().toLowerCase() === 'fixed_roster'
+    const isFixedRoster =
+      (contest?.mode || '').toString().trim().toLowerCase() === 'fixed_roster'
     if (isFixedRoster) {
       const fixedRosterResult = await dbQuery(
         `SELECT player_ids as "playerIds"
@@ -548,12 +599,17 @@ class PlayerService {
       const playerIds = Array.isArray(fixedRosterResult.rows[0]?.playerIds)
         ? fixedRosterResult.rows[0].playerIds
         : []
-      const matchRecord = matchId && matchRepo.findById ? await matchRepo.findById(matchId) : null
+      const matchRecord =
+        matchId && matchRepo.findById ? await matchRepo.findById(matchId) : null
       const activeTeamKeys = [
         matchRecord?.teamAKey || matchRecord?.teamA,
         matchRecord?.teamBKey || matchRecord?.teamB,
       ]
-        .map((value) => String(value || '').trim().toUpperCase())
+        .map((value) =>
+          String(value || '')
+            .trim()
+            .toUpperCase(),
+        )
         .filter(Boolean)
       const activeTeamSet = new Set(activeTeamKeys)
       const rosterDetailed = playerIds
@@ -565,12 +621,21 @@ class PlayerService {
         }))
       const picksDetailed = activeTeamSet.size
         ? rosterDetailed.filter((entry) =>
-            activeTeamSet.has(String(entry.team || '').trim().toUpperCase()),
+            activeTeamSet.has(
+              String(entry.team || '')
+                .trim()
+                .toUpperCase(),
+            ),
           )
         : rosterDetailed.slice(0, 11)
       const backupsDetailed = activeTeamSet.size
         ? rosterDetailed.filter(
-            (entry) => !activeTeamSet.has(String(entry.team || '').trim().toUpperCase()),
+            (entry) =>
+              !activeTeamSet.has(
+                String(entry.team || '')
+                  .trim()
+                  .toUpperCase(),
+              ),
           )
         : rosterDetailed.slice(11)
       return {
@@ -620,7 +685,9 @@ class PlayerService {
     const resolvedTournamentId =
       tournamentId == null
         ? null
-        : await this.resolveTournamentIdFromPayload({ tournamentId: `${tournamentId}`.trim() })
+        : await this.resolveTournamentIdFromPayload({
+            tournamentId: `${tournamentId}`.trim(),
+          })
     if (typeof repo.findAllTeamSquads === 'function') {
       const rows = await repo.findAllTeamSquads(resolvedTournamentId || null)
       if (Array.isArray(rows)) return rows
@@ -665,7 +732,7 @@ class PlayerService {
         ? payload.players
         : Array.isArray(payload?.squad)
           ? payload.squad
-        : []
+          : []
     const teamMeta = Array.isArray(payload) ? {} : payload || {}
     const resolvedTournamentId = await this.resolveTournamentIdFromPayload(teamMeta)
 
@@ -697,30 +764,34 @@ class PlayerService {
       const resolvedName =
         fullName ||
         existingCanonical?.displayName ||
-        [existingCanonical?.firstName, existingCanonical?.lastName].filter(Boolean).join(' ').trim()
+        [existingCanonical?.firstName, existingCanonical?.lastName]
+          .filter(Boolean)
+          .join(' ')
+          .trim()
       const firstName =
         p.firstName ||
         p.first_name ||
         resolvedName.split(/\s+/).slice(0, -1).join(' ') ||
         resolvedName
       const lastName =
-        p.lastName ||
-        p.last_name ||
-        resolvedName.split(/\s+/).slice(-1).join(' ') ||
-        ''
+        p.lastName || p.last_name || resolvedName.split(/\s+/).slice(-1).join(' ') || ''
       data.push({
         canonicalPlayerId: canonicalRef,
         firstName,
         lastName,
-        displayName: resolvedName || [firstName, lastName].filter(Boolean).join(' ').trim(),
+        displayName:
+          resolvedName || [firstName, lastName].filter(Boolean).join(' ').trim(),
         role: p.role || existingCanonical?.role || '',
         teamKey,
         teamName: teamMeta.teamName || p.teamName || teamKey,
-        playerId: p.playerId || p.player_id || existingCanonical?.playerId || canonicalRef,
+        playerId:
+          p.playerId || p.player_id || existingCanonical?.playerId || canonicalRef,
         country: p.country || existingCanonical?.country || teamMeta.country || '',
         imageUrl: p.imageUrl || p.player_img || existingCanonical?.imageUrl || '',
-        battingStyle: p.battingStyle || p.batting_style || existingCanonical?.battingStyle || '',
-        bowlingStyle: p.bowlingStyle || p.bowling_style || existingCanonical?.bowlingStyle || '',
+        battingStyle:
+          p.battingStyle || p.batting_style || existingCanonical?.battingStyle || '',
+        bowlingStyle:
+          p.bowlingStyle || p.bowling_style || existingCanonical?.bowlingStyle || '',
         active: p.active !== false,
         basePrice: p.basePrice ?? p.base_price ?? null,
         sourceKey:
@@ -762,8 +833,7 @@ class PlayerService {
         (await this.resolveTournamentIdFromPayload({
           tournamentId: row.tournamentId || payload.tournamentId || '',
           tournament: row.tournament || payload.tournament || '',
-        })) ||
-        baseTournamentId
+        })) || baseTournamentId
       if (!resolvedTournamentId) {
         throw new Error(`teamSquads[${index}].tournamentId or tournament is required`)
       }
@@ -812,7 +882,9 @@ class PlayerService {
     const resolvedTournamentId =
       tournamentId == null
         ? null
-        : await this.resolveTournamentIdFromPayload({ tournamentId: `${tournamentId}`.trim() })
+        : await this.resolveTournamentIdFromPayload({
+            tournamentId: `${tournamentId}`.trim(),
+          })
     if (typeof repo.deleteByTeam === 'function') {
       await repo.deleteByTeam(teamKey, resolvedTournamentId || null)
     } else {
@@ -838,13 +910,14 @@ class PlayerService {
       tournamentId,
       matchId,
       match,
-      saved: saved && Object.keys(saved).length
-        ? {
-            tournamentId,
-            matchId,
-            lineups: saved,
-          }
-        : null,
+      saved:
+        saved && Object.keys(saved).length
+          ? {
+              tournamentId,
+              matchId,
+              lineups: saved,
+            }
+          : null,
     }
   }
 
@@ -854,8 +927,13 @@ class PlayerService {
     if (!match || String(match.tournamentId) !== String(tournamentId)) {
       throw new Error('Match not found')
     }
-    const teamCodes = [match.teamAKey || match.teamA, match.teamBKey || match.teamB].filter(Boolean)
-    const extraTeams = Object.keys(lineups || {}).filter((teamCode) => !teamCodes.includes(teamCode))
+    const teamCodes = [
+      match.teamAKey || match.teamA,
+      match.teamBKey || match.teamB,
+    ].filter(Boolean)
+    const extraTeams = Object.keys(lineups || {}).filter(
+      (teamCode) => !teamCodes.includes(teamCode),
+    )
     if (extraTeams.length) {
       throw new Error(`lineups contains invalid team keys: ${extraTeams.join(', ')}`)
     }
@@ -871,10 +949,18 @@ class PlayerService {
     ])
     const fallbackByTeam = {
       [match.teamAKey || match.teamA]: (teamAPlayers || [])
-        .map((player) => player.displayName || [player.firstName, player.lastName].filter(Boolean).join(' ').trim())
+        .map(
+          (player) =>
+            player.displayName ||
+            [player.firstName, player.lastName].filter(Boolean).join(' ').trim(),
+        )
         .filter(Boolean),
       [match.teamBKey || match.teamB]: (teamBPlayers || [])
-        .map((player) => player.displayName || [player.firstName, player.lastName].filter(Boolean).join(' ').trim())
+        .map(
+          (player) =>
+            player.displayName ||
+            [player.firstName, player.lastName].filter(Boolean).join(' ').trim(),
+        )
         .filter(Boolean),
     }
 
