@@ -41,11 +41,17 @@ const configuredCorsOrigins = (process.env.CORS_ORIGIN || process.env.FRONTEND_U
   .split(',')
   .map((value) => value.trim())
   .filter(Boolean)
+const isLocalOrigin = (origin = '') =>
+  /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)
 
 const corsOrigin = (() => {
   if (configuredCorsOrigins.length > 0) {
     return (origin, callback) => {
-      if (!origin || configuredCorsOrigins.includes(origin)) {
+      if (
+        !origin ||
+        configuredCorsOrigins.includes(origin) ||
+        (runtimeEnv !== 'production' && isLocalOrigin(origin))
+      ) {
         callback(null, true)
         return
       }
@@ -71,7 +77,7 @@ app.use(
 )
 app.use(express.json())
 
-const dataState = initDataState()
+const dataState = await initDataState()
 console.log(`[config] DATA_PROVIDER=${dataState.enabled ? 'seed' : 'db'}`)
 if (runtimeEnv === 'production' && dataState.enabled) {
   console.warn(
