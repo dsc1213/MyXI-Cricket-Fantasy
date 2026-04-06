@@ -494,6 +494,15 @@ select.dashboard-text-input {
   height: 100%;
 }
 
+.user-manager-layout:has(
+  .pending-approvals-panel.compact
+    .catalog-table.pending-approvals-table
+    tbody
+    td[colspan]
+) {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
 .user-manager-primary,
 .user-manager-secondary {
   display: flex;
@@ -525,13 +534,21 @@ select.dashboard-text-input {
 }
 
 .pending-approvals-panel.compact {
-  gap: 0.6rem;
+  gap: 0.35rem;
+  min-height: 0;
+  height: auto;
+}
+
+.dashboard-panel-view .admin-card.dashboard-panel-card.pending-approvals-panel.compact {
+  min-height: 0;
 }
 
 .pending-approvals-panel.compact .contest-section-head {
-  margin-bottom: 0.12rem;
+  margin: 0;
+  padding: 0;
+  min-height: 0;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.25rem;
 }
 
 .pending-approvals-panel.compact .contest-section-head .top-actions {
@@ -577,7 +594,7 @@ select.dashboard-text-input {
 }
 
 .pending-approvals-panel.compact .catalog-table-wrap {
-  max-height: min(28vh, 260px);
+  max-height: min(22vh, 190px);
 }
 
 @media (max-width: 900px) {
@@ -1928,7 +1945,7 @@ body.dark-theme .fantasy-hub-main {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.45rem;
+  margin: 0;
   gap: 0.5rem;
   flex-wrap: wrap;
 }
@@ -3495,6 +3512,20 @@ body.dark-theme .app.app-lower-content select {
     width: 100%;
     justify-content: flex-start;
     flex-wrap: wrap;
+  }
+
+  .pending-approvals-panel.compact .contest-section-head {
+    align-items: center;
+    gap: 0.25rem;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+  }
+
+  .pending-approvals-panel.compact .contest-section-head .top-actions {
+    width: auto;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
   }
 
   .manual-scope-row {

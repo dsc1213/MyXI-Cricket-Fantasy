@@ -61,13 +61,17 @@ test('user manager primary and secondary panels use full equal width', async ({
   const sizes = await page.evaluate(() => {
     const p = document.querySelector('.user-manager-primary')
     const s = document.querySelector('.user-manager-secondary')
+    const pp = document.querySelector('.pending-approvals-panel.compact')
     if (!p || !s) return null
     const pb = p.getBoundingClientRect()
     const sb = s.getBoundingClientRect()
+    const ppb = pp ? pp.getBoundingClientRect() : null
     return {
       primaryWidth: pb.width,
       secondaryWidth: sb.width,
       widthDelta: Math.abs(pb.width - sb.width),
+      primaryHeight: pb.height,
+      pendingPanelHeight: ppb?.height || 0,
     }
   })
 
@@ -75,6 +79,8 @@ test('user manager primary and secondary panels use full equal width', async ({
   expect(sizes.primaryWidth).toBeGreaterThan(400)
   expect(sizes.secondaryWidth).toBeGreaterThan(400)
   expect(sizes.widthDelta).toBeLessThanOrEqual(2)
+  expect(sizes.pendingPanelHeight).toBeGreaterThan(120)
+  expect(sizes.pendingPanelHeight).toBeLessThan(sizes.primaryHeight)
 
   const pendingHeader = page
     .locator('.pending-approvals-panel.compact .contest-section-head')
