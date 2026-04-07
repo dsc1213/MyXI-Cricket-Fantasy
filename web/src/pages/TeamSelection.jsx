@@ -309,11 +309,13 @@ function TeamSelection() {
       : ''
   const validationMessage =
     selectionError || liveSelectionRuleMessage || roleRequirementMessage
-  const mobilePreviewHelpMessage =
-    selected.length === limits.maxXI &&
+  const previewSaveCountLabel = `${Math.min(selected.length, limits.maxXI)}/${limits.maxXI}`
+  const mobileActionValidationMessage =
+    validationMessage ||
+    (selected.length === limits.maxXI &&
     (!captainIdRef.current || !viceCaptainIdRef.current)
       ? 'Open Preview, choose C and VC, then tap Save Team.'
-      : ''
+      : '')
 
   const backToHref = contestMeta?.tournamentId
     ? `/tournaments/${contestMeta.tournamentId}/contests/${contest}`
@@ -531,9 +533,9 @@ function TeamSelection() {
               {isMatchLocked ? 'Locked' : isSaving ? 'Saving...' : 'Save'}
             </Button>
           )}
-          {!!mobilePreviewHelpMessage && (
-            <span className="team-bar-rules show-mobile mobile-preview-hint">
-              {mobilePreviewHelpMessage}
+          {!!mobileActionValidationMessage && (
+            <span className="team-bar-rules show-mobile mobile-preview-hint mobile-save-validation">
+              {mobileActionValidationMessage}
             </span>
           )}
           <Button
@@ -550,7 +552,7 @@ function TeamSelection() {
               setShowSidebar(true)
             }}
           >
-            ☰ Preview & Save
+            {`☰ Preview & Save (${previewSaveCountLabel})`}
           </Button>
         </div>
       </header>

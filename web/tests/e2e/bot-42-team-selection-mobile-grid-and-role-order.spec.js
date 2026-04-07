@@ -75,7 +75,20 @@ test('team selection keeps role ordering and uses single-column player tiles on 
   await page.goto(selectUrl)
   await expect(page.locator('.team-column .tile-grid.two-col').first()).toBeVisible()
   await expect(page.locator('.team-bar-actions .desktop-save')).toBeHidden()
-  await page.getByRole('button', { name: /preview/i }).click()
+  const previewButton = page.getByRole('button', {
+    name: /Preview\s*&\s*Save\s*\(\d+\/11\)/i,
+  })
+  await expect(previewButton).toBeVisible()
+
+  const paneMetrics = await page.locator('.team-grid-2.compact-fit').evaluate((node) => ({
+    overflowY: window.getComputedStyle(node).overflowY,
+    clientHeight: node.clientHeight,
+    scrollHeight: node.scrollHeight,
+  }))
+  expect(['auto', 'scroll']).toContain(paneMetrics.overflowY)
+  expect(paneMetrics.scrollHeight).toBeGreaterThan(paneMetrics.clientHeight)
+
+  await previewButton.click()
   await expect(page.getByRole('button', { name: /save team/i })).toBeVisible()
   await expect(page.locator('.ui-modal-card .myxi-role-lane-title')).toHaveCount(0)
   await expect(page.locator('.ui-modal-card .myxi-role-lane')).toHaveCount(4)
@@ -106,4 +119,32 @@ test('team selection keeps role ordering and uses single-column player tiles on 
     })
 
   expect(mobileColumnCount).toBe(1)
+
+  await page.goto('/fantasy/select?contest=huntercherry&match=m1&mode=add')
+  await expect(page.locator('.team-column .player-tile').first()).toBeVisible()
+
+  for (let picked = 0; picked < 11; picked += 1) {
+    const addButton = page
+      .locator('.team-column .player-tile .tile-actions .tile-btn:not(.backup)')
+      .filter({ hasText: '+' })
+      .first()
+    await expect(addButton).toBeVisible()
+    await addButton.click()
+  }
+
+  const countedPreviewButton = page.getByRole('button', {
+    name: /Preview\s*&\s*Save\s*\(11\/11\)/i,
+  })
+  await expect(countedPreviewButton).toBeVisible()
+  await countedPreviewButton.click()
+
+  const modalCard = page.locator('.ui-modal-card')
+  await expect(modalCard).toBeVisible()
+  await modalCard.locator('select').nth(0).selectOption('')
+  await modalCard.locator('select').nth(1).selectOption('')
+  await modalCard.getByRole('button', { name: 'Close' }).click()
+
+  await expect(page.locator('.team-bar-actions .mobile-save-validation')).toContainText(
+    'Captain and vice captain are required before saving.',
+  )
 })

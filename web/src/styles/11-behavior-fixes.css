@@ -367,6 +367,37 @@ body.dark-theme .team-preview-panel.solid {
 }
 
 @media (max-width: 900px) {
+  .app.app-team {
+    height: 100svh;
+    overflow: hidden;
+  }
+
+  .app.app-team .main.main-team {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    align-items: stretch;
+  }
+
+  .app.app-team .team-shell.premium-fit {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: 0.45rem;
+  }
+
+  .app.app-team .team-grid-2.compact-fit {
+    min-height: 0;
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    align-content: start;
+    padding-bottom: 0.45rem;
+  }
+
   .team-grid-2.compact-fit {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.42rem;
@@ -379,6 +410,9 @@ body.dark-theme .team-preview-panel.solid {
   .app.app-team .tile-grid.two-col {
     grid-template-columns: 1fr;
     gap: 0.35rem;
+    height: auto;
+    overflow: visible;
+    padding-bottom: 0;
   }
 
   .app.app-team .player-tile {

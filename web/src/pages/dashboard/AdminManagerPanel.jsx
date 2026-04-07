@@ -413,6 +413,10 @@ function AdminManagerPanel({
     if (!deleteTarget) return
     const current = deleteTarget
     setDeleteTarget(null)
+    if (current.type === 'user') {
+      await onDeleteUser(current.id)
+      return
+    }
     if (current.type === 'tournament') {
       await onDeleteTournament(current.id)
       return
@@ -592,7 +596,11 @@ function AdminManagerPanel({
           disabled={!isMasterUser || row.role === 'master_admin'}
           onClick={(event) => {
             event.stopPropagation()
-            onDeleteUser(row.id)
+            setDeleteTarget({
+              type: 'user',
+              id: row.id,
+              detail: `Delete user "${row.name || row.gameName || row.userId || row.email}"?`,
+            })
           }}
         >
           Delete
@@ -1301,7 +1309,11 @@ function AdminManagerPanel({
         open={Boolean(deleteTarget)}
         onClose={() => setDeleteTarget(null)}
         title={
-          deleteTarget?.type === 'tournament' ? 'Delete tournament' : 'Delete contest'
+          deleteTarget?.type === 'user'
+            ? 'Delete user'
+            : deleteTarget?.type === 'tournament'
+              ? 'Delete tournament'
+              : 'Delete contest'
         }
         size="sm"
         footer={

@@ -629,6 +629,13 @@ body.dark-theme
   text-align: right;
 }
 
+.mobile-save-validation {
+  color: #fca5a5;
+  font-weight: 700;
+  white-space: normal;
+  line-height: 1.25;
+}
+
 body.dark-theme .team-bar .show-mobile {
   background: rgba(33, 49, 79, 0.92);
   border-color: var(--panel-border);

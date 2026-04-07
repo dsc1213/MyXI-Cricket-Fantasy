@@ -1280,6 +1280,40 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await expect(page.getByText('Invalid Date')).toHaveCount(0)
   })
 
+  test('user manager asks confirmation before deleting a user', async ({ page }) => {
+    await loginUi(page, 'master')
+    await page.goto('/home')
+    await page.getByRole('button', { name: 'User Manager' }).click()
+
+    await expect(page.getByRole('heading', { name: 'User Manager' })).toBeVisible()
+
+    const userTableRows = page.locator('.admin-manager-panel .catalog-table tbody tr')
+    const deletableRow = userTableRows
+      .filter({
+        has: page.locator('button:has-text("Delete"):not([disabled])'),
+      })
+      .first()
+
+    await expect(deletableRow).toBeVisible()
+    const userLabel = (
+      (await deletableRow.locator('td').first().textContent()) || ''
+    ).trim()
+
+    await deletableRow.getByRole('button', { name: 'Delete' }).click()
+    await expect(page.getByRole('heading', { name: 'Delete user' })).toBeVisible()
+    await expect(page.getByText('Delete user')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Cancel' }).click()
+    await expect(page.getByRole('heading', { name: 'Delete user' })).toHaveCount(0)
+    if (userLabel) {
+      await expect(
+        page.locator('.admin-manager-panel .catalog-table tbody tr', {
+          hasText: userLabel,
+        }),
+      ).toHaveCount(1)
+    }
+  })
+
   test('tournament manager lets admins update match status for a selected tournament', async ({
     page,
   }) => {
