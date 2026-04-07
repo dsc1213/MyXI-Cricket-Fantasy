@@ -661,6 +661,68 @@ class PlayerService {
 
     const isFixedRoster =
       (contest?.mode || '').toString().trim().toLowerCase() === 'fixed_roster'
+    const normalizeTeamCode = (value = '') =>
+      String(value || '')
+        .trim()
+        .toUpperCase()
+    const lineupStatusResolver = (() => {
+      if (!matchId) {
+        return () => ''
+      }
+
+      let matchRecord = null
+      let lineupMap = null
+      let hasAnyAnnouncedLineup = false
+      const teamLineupSetByCode = new Map()
+
+      return async (entry = {}) => {
+        if (!lineupMap) {
+          matchRecord = matchRepo.findById ? await matchRepo.findById(matchId) : null
+          lineupMap = await this.getMatchLineupMap(resolvedTournamentId, matchId)
+          const homeCode = normalizeTeamCode(
+            matchRecord?.teamAKey || matchRecord?.teamA || '',
+          )
+          const awayCode = normalizeTeamCode(
+            matchRecord?.teamBKey || matchRecord?.teamB || '',
+          )
+          const homeLineup = lineupMap.get(homeCode)?.playingXI || []
+          const awayLineup = lineupMap.get(awayCode)?.playingXI || []
+
+          const homeSet = new Set(
+            homeLineup.map((name) => this.normalizeLineupNameKey(name)),
+          )
+          const awaySet = new Set(
+            awayLineup.map((name) => this.normalizeLineupNameKey(name)),
+          )
+          if (homeCode) teamLineupSetByCode.set(homeCode, homeSet)
+          if (awayCode) teamLineupSetByCode.set(awayCode, awaySet)
+          hasAnyAnnouncedLineup = homeSet.size > 0 || awaySet.size > 0
+        }
+
+        if (!hasAnyAnnouncedLineup) return ''
+        const playerNameKey = this.normalizeLineupNameKey(entry?.name || '')
+        if (!playerNameKey) return ''
+
+        const playerTeamCode = normalizeTeamCode(entry?.team || '')
+        if (playerTeamCode && teamLineupSetByCode.has(playerTeamCode)) {
+          const teamSet = teamLineupSetByCode.get(playerTeamCode)
+          return teamSet?.has(playerNameKey) ? 'playing' : 'bench'
+        }
+        return ''
+      }
+    })()
+
+    const decorateWithLineupStatus = async (rows = []) => {
+      const next = []
+      for (const row of rows) {
+        next.push({
+          ...row,
+          lineupStatus: await lineupStatusResolver(row),
+        })
+      }
+      return next
+    }
+
     if (isFixedRoster) {
       const fixedRosterResult = await dbQuery(
         `SELECT player_ids as "playerIds"
@@ -711,15 +773,17 @@ class PlayerService {
               ),
           )
         : rosterDetailed.slice(11)
+      const picksWithStatus = await decorateWithLineupStatus(picksDetailed)
+      const backupsWithStatus = await decorateWithLineupStatus(backupsDetailed)
       return {
         userId,
         tournamentId: resolvedTournamentId,
         contestId,
         matchId,
-        picks: picksDetailed.map((row) => row.name),
-        backups: backupsDetailed.map((row) => row.name),
-        picksDetailed,
-        backupsDetailed,
+        picks: picksWithStatus.map((row) => row.name),
+        backups: backupsWithStatus.map((row) => row.name),
+        picksDetailed: picksWithStatus,
+        backupsDetailed: backupsWithStatus,
       }
     }
 
@@ -727,20 +791,22 @@ class PlayerService {
       matchId && userId
         ? await teamSelectionRepo.findByMatchAndUser(matchId, userId, contest?.id || null)
         : null
-    const picksDetailed = (selection?.playingXi || [])
+    const picksDetailedRaw = (selection?.playingXi || [])
       .map((id) => playerById.get(String(id)))
       .filter(Boolean)
       .map((entry) => ({
         ...entry,
         points: Number(pointsByPlayerId.get(Number(entry.id)) || 0),
       }))
-    const backupsDetailed = (selection?.backups || [])
+    const backupsDetailedRaw = (selection?.backups || [])
       .map((id) => playerById.get(String(id)))
       .filter(Boolean)
       .map((entry) => ({
         ...entry,
         points: Number(pointsByPlayerId.get(Number(entry.id)) || 0),
       }))
+    const picksDetailed = await decorateWithLineupStatus(picksDetailedRaw)
+    const backupsDetailed = await decorateWithLineupStatus(backupsDetailedRaw)
     return {
       userId,
       tournamentId: resolvedTournamentId,

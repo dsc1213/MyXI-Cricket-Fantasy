@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import Button from './Button.jsx'
 
 function JsonAssistantModal({
@@ -17,11 +18,31 @@ function JsonAssistantModal({
   copyPromptLabel = 'Copy AI Prompt',
   disableCopyPrompt = false,
   footerActions = [],
+  onClose = null,
 }) {
+  useEffect(() => {
+    if (!open) return undefined
+    document.body.classList.add('app-modal-open')
+    const onEsc = (event) => {
+      if (event.key === 'Escape') onClose?.()
+    }
+    document.addEventListener('keydown', onEsc)
+    return () => {
+      document.body.classList.remove('app-modal-open')
+      document.removeEventListener('keydown', onEsc)
+    }
+  }, [open, onClose])
+
   if (!open) return null
 
   return (
-    <div className="score-preview-modal-backdrop" role="presentation">
+    <div
+      className="score-preview-modal-backdrop"
+      role="presentation"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose?.()
+      }}
+    >
       <div
         className="score-preview-modal"
         role="dialog"

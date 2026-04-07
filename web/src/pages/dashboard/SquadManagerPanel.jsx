@@ -15,6 +15,7 @@ import {
   getPlayerDisplayRoleRank,
   sortPlayersByDisplayRole,
 } from '../../lib/playerRoleSort.js'
+import { parseNormalizedJsonInput } from '../../lib/jsonInput.js'
 
 const LEAGUE_MAP = {
   india: ['IPL', 'WPL'],
@@ -582,7 +583,10 @@ function SquadManagerPanel() {
       setErrorText('')
       setNotice('')
       if (mode === 'json') {
-        const parsed = JSON.parse(jsonPayload || '{}')
+        const { parsed, normalizedText } = parseNormalizedJsonInput(jsonPayload || '{}')
+        if (normalizedText !== jsonPayload) {
+          setJsonPayload(JSON.stringify(parsed, null, 2))
+        }
         await upsertAdminTeamSquad({ ...parsed, actorUserId })
         setJsonPayload('')
       } else {

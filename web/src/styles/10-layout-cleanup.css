@@ -663,6 +663,23 @@ body.dark-theme .team-preview-panel.solid {
   color: var(--text-primary);
 }
 
+.team-preview-row .player-row-main {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.team-preview-lineup-dot.lineup-status-light {
+  position: static;
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
+  box-shadow: 0 0 0 1px rgba(10, 18, 30, 0.35);
+  margin-left: -0.05rem;
+  margin-right: 0.15rem;
+}
+
 .leaderboard-head-compact {
   display: flex;
   justify-content: space-between;

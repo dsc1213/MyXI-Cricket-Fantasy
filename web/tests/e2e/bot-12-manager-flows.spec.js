@@ -1255,6 +1255,73 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await expect(payloadTextarea).toHaveValue('')
   })
 
+  test('score manager normalizes AI-formatted json payload before save', async ({
+    page,
+  }) => {
+    await loginUi(page, 'master')
+    await page.goto('/home')
+    await page.getByRole('button', { name: 'Score Manager' }).click()
+
+    await expect(page.locator('.match-scores-section')).toBeVisible()
+    await page.getByRole('tab', { name: 'Scorecards' }).click()
+
+    const tournamentSelect = page.locator('.manual-scope-row select').nth(0)
+    const matchSelect = page.locator('.manual-scope-row select').nth(1)
+    await tournamentSelect.selectOption({ index: 1 })
+    await expect
+      .poll(async () => matchSelect.locator('option').count(), { timeout: 15000 })
+      .toBeGreaterThan(1)
+    await matchSelect.selectOption({ index: 1 })
+
+    await page.getByRole('tab', { name: 'Manual Entry' }).click()
+    const firstPlayerName = (
+      (await page
+        .locator('.manual-entry-grid .manual-team-card .player-identity-name')
+        .first()
+        .textContent()) || ''
+    ).trim()
+    expect(firstPlayerName.length).toBeGreaterThan(0)
+
+    await page.getByRole('tab', { name: 'JSON Upload' }).click()
+
+    const payloadTextarea = page
+      .locator('.match-upload-grid.json-mode .match-upload-json textarea')
+      .first()
+    const payload = {
+      playerStats: [
+        {
+          playerName: firstPlayerName,
+          runs: 0,
+          ballsFaced: 0,
+          fours: 0,
+          sixes: 0,
+          wickets: 0,
+          overs: 0,
+          maidens: 0,
+          runsConceded: 0,
+          noBalls: 0,
+          wides: 0,
+          catches: 0,
+          stumpings: 0,
+          runoutDirect: 0,
+          runoutIndirect: 0,
+          dismissed: false,
+        },
+      ],
+    }
+    const aiFormattedPayload = [
+      '\u200BHere is your payload:',
+      '```json',
+      JSON.stringify(payload, null, 2).replace(/"/g, '“'),
+      '```',
+    ].join('\n')
+    await payloadTextarea.fill(aiFormattedPayload)
+
+    await page.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByText('Match scores payload saved')).toBeVisible()
+    await expect(payloadTextarea).toHaveValue('')
+  })
+
   test('admin manager users table shows safe joined dates instead of invalid date text', async ({
     page,
   }) => {

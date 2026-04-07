@@ -21,6 +21,7 @@ import {
   updateAdminUser,
 } from '../../lib/api.js'
 import { getStoredUser } from '../../lib/auth.js'
+import { parseNormalizedJsonInput } from '../../lib/jsonInput.js'
 
 const normalizeUsersPayload = (value) => {
   if (Array.isArray(value)) return value
@@ -332,7 +333,12 @@ function AdminManagerPanel({
       setIsCreatingTournament(true)
       let payload
       if (tournamentCreateMode === 'json') {
-        const parsed = JSON.parse(createTournamentJson || '{}')
+        const { parsed, normalizedText } = parseNormalizedJsonInput(
+          createTournamentJson || '{}',
+        )
+        if (normalizedText !== createTournamentJson) {
+          setCreateTournamentJson(JSON.stringify(parsed, null, 2))
+        }
         payload = {
           ...parsed,
           source: 'json',

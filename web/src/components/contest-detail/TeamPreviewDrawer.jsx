@@ -3,6 +3,24 @@ import { MatchLabel } from '../ui/CountryFlag.jsx'
 import PlayerAvatar from '../ui/PlayerAvatar.jsx'
 import { sortPlayersByDisplayRole } from '../../lib/playerRoleSort.js'
 
+const normalizeLineupName = (value = '') =>
+  String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+
+const normalizeTeamCode = (value = '') =>
+  String(value || '')
+    .trim()
+    .toUpperCase()
+
+const toNameSet = (values = []) =>
+  new Set(
+    (Array.isArray(values) ? values : [])
+      .map((item) => normalizeLineupName(item))
+      .filter(Boolean),
+  )
+
 function TeamPreviewDrawer({
   contestMode = '',
   previewPlayer,
@@ -33,6 +51,55 @@ function TeamPreviewDrawer({
     if (objectEntries.length !== previewBackups.length) return previewBackups
     return sortPlayersByDisplayRole(objectEntries)
   }, [previewBackups])
+
+  const announcedLineup = useMemo(() => {
+    const teamASet = toNameSet(
+      activeMatch?.playingXiA ||
+        activeMatch?.playingXIA ||
+        activeMatch?.lineupA?.playingXI ||
+        activeMatch?.teamALineup?.playingXI ||
+        [],
+    )
+    const teamBSet = toNameSet(
+      activeMatch?.playingXiB ||
+        activeMatch?.playingXIB ||
+        activeMatch?.lineupB?.playingXI ||
+        activeMatch?.teamBLineup?.playingXI ||
+        [],
+    )
+    return {
+      teamASet,
+      teamBSet,
+      homeCode: normalizeTeamCode(activeMatch?.home || activeMatch?.teamA || ''),
+      awayCode: normalizeTeamCode(activeMatch?.away || activeMatch?.teamB || ''),
+      hasAny: teamASet.size > 0 || teamBSet.size > 0,
+    }
+  }, [activeMatch])
+
+  const resolveLineupStatus = (entry) => {
+    const explicit =
+      typeof entry?.lineupStatus === 'string'
+        ? entry.lineupStatus.trim().toLowerCase()
+        : ''
+    if (explicit === 'playing' || explicit === 'bench') {
+      return explicit
+    }
+    if (!announcedLineup.hasAny) return ''
+
+    const nameKey = normalizeLineupName(entry?.name || '')
+    if (!nameKey) return ''
+
+    const teamCode = normalizeTeamCode(entry?.team || entry?.teamCode || '')
+    const isTeamA = teamCode && teamCode === announcedLineup.homeCode
+    const isTeamB = teamCode && teamCode === announcedLineup.awayCode
+    if (isTeamA && announcedLineup.teamASet.size) {
+      return announcedLineup.teamASet.has(nameKey) ? 'playing' : 'bench'
+    }
+    if (isTeamB && announcedLineup.teamBSet.size) {
+      return announcedLineup.teamBSet.has(nameKey) ? 'playing' : 'bench'
+    }
+    return ''
+  }
 
   return (
     <div
@@ -85,6 +152,8 @@ function TeamPreviewDrawer({
                       : entry?.name || `Player ${index + 1}`
                   const points =
                     typeof entry === 'object' ? Number(entry?.points || 0) : 0
+                  const lineupStatus =
+                    typeof entry === 'object' ? resolveLineupStatus(entry) : ''
                   return (
                     <div className="player-row team-preview-row" key={`${name}-${index}`}>
                       <div className="player-row-main">
@@ -94,6 +163,21 @@ function TeamPreviewDrawer({
                             typeof entry === 'object' ? entry?.imageUrl || '' : ''
                           }
                         />
+                        {!!lineupStatus && (
+                          <span
+                            className={`team-preview-lineup-dot lineup-status-light ${lineupStatus}`.trim()}
+                            title={
+                              lineupStatus === 'playing'
+                                ? 'In announced playing XI'
+                                : 'Not in announced playing XI'
+                            }
+                            aria-label={
+                              lineupStatus === 'playing'
+                                ? 'In announced playing XI'
+                                : 'Not in announced playing XI'
+                            }
+                          />
+                        )}
                         <strong>{name}</strong>
                       </div>
                       <span>{points}</span>
@@ -113,6 +197,8 @@ function TeamPreviewDrawer({
                       : entry?.name || `Backup ${index + 1}`
                   const points =
                     typeof entry === 'object' ? Number(entry?.points || 0) : 0
+                  const lineupStatus =
+                    typeof entry === 'object' ? resolveLineupStatus(entry) : ''
                   return (
                     <div
                       className="player-row team-preview-row"
@@ -125,6 +211,21 @@ function TeamPreviewDrawer({
                             typeof entry === 'object' ? entry?.imageUrl || '' : ''
                           }
                         />
+                        {!!lineupStatus && (
+                          <span
+                            className={`team-preview-lineup-dot lineup-status-light ${lineupStatus}`.trim()}
+                            title={
+                              lineupStatus === 'playing'
+                                ? 'In announced playing XI'
+                                : 'Not in announced playing XI'
+                            }
+                            aria-label={
+                              lineupStatus === 'playing'
+                                ? 'In announced playing XI'
+                                : 'Not in announced playing XI'
+                            }
+                          />
+                        )}
                         <strong>{name}</strong>
                       </div>
                       <span>{points}</span>

@@ -11,6 +11,7 @@ import {
   importAdminPlayers,
 } from '../../lib/api.js'
 import { getStoredUser } from '../../lib/auth.js'
+import { parseNormalizedJsonInput } from '../../lib/jsonInput.js'
 
 const PLAYER_ROLE_OPTIONS = ['', 'BAT', 'BOWL', 'AR', 'WK']
 const PLAYER_COUNTRY_OPTIONS = [
@@ -231,7 +232,10 @@ function PlayerManagerPanel() {
       setErrorText('')
       setNotice('')
       setFormErrorText('')
-      const parsed = JSON.parse(importJson || '{}')
+      const { parsed, normalizedText } = parseNormalizedJsonInput(importJson || '{}')
+      if (normalizedText !== importJson) {
+        setImportJson(JSON.stringify(parsed, null, 2))
+      }
       const result = await importAdminPlayers({
         ...(parsed || {}),
         actorUserId,

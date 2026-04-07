@@ -61,12 +61,18 @@
 .player-chip.slot-chip.compact .lineup-status-light {
   position: absolute;
   left: 0.38rem;
-  top: 0.38rem;
+  top: 50%;
+  transform: translateY(-50%);
   width: 9px;
   height: 9px;
   border-radius: 999px;
   box-shadow: 0 0 0 2px rgba(10, 18, 30, 0.25);
   z-index: 2;
+}
+
+.myxi-card .player-chip.slot-chip.compact,
+.backups-card .player-chip.slot-chip.compact {
+  padding-left: 0.9rem;
 }
 
 .player-chip.slot-chip.compact.clickable {

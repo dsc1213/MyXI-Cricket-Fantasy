@@ -852,6 +852,7 @@ function UploadPanel({
 
       <JsonAssistantModal
         open={isGeneratedScoreJsonOpen}
+        onClose={onCloseGeneratedScoreJson}
         ariaLabel="Generated score JSON"
         title="Generated Score JSON"
         description="Built from saved Playing XI/XII for this match. Copy it, update with AI, then paste into JSON Upload."
@@ -878,6 +879,7 @@ function UploadPanel({
 
       <JsonAssistantModal
         open={isGeneratedLineupJsonOpen}
+        onClose={onCloseGeneratedLineupJson}
         ariaLabel="Generated Playing XI JSON"
         title="Generated Playing XI JSON"
         description="Built from current squads and selected Playing XI/XII. Copy it, update with AI if needed, then paste into JSON Upload."
@@ -904,6 +906,7 @@ function UploadPanel({
 
       <JsonAssistantModal
         open={isLineupPreviewOpen}
+        onClose={onCloseLineupPreview}
         ariaLabel="Processed lineup JSON preview"
         title="Processed Playing XI JSON"
         description="Review this normalized lineup payload. Confirm save to write it to the database."

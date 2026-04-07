@@ -1,0 +1,45 @@
+const SMART_DOUBLE_QUOTES_REGEX = /[\u201C\u201D\u201E\u201F\u2033\u2036]/g
+const SMART_SINGLE_QUOTES_REGEX = /[\u2018\u2019\u201A\u201B\u2032\u2035]/g
+const ZERO_WIDTH_REGEX = /[\u200B-\u200D\u2060\uFEFF]/g
+const FENCED_JSON_REGEX = /```(?:json)?\s*([\s\S]*?)\s*```/i
+
+const trimToLikelyJson = (value = '') => {
+  const text = String(value || '').trim()
+  if (!text) return '{}'
+
+  const firstObjectIndex = text.indexOf('{')
+  const firstArrayIndex = text.indexOf('[')
+  const starts = [firstObjectIndex, firstArrayIndex].filter((index) => index >= 0)
+  if (!starts.length) return text
+
+  const start = Math.min(...starts)
+  const startsWithObject = text[start] === '{'
+  const end = startsWithObject ? text.lastIndexOf('}') : text.lastIndexOf(']')
+  if (end <= start) return text
+  return text.slice(start, end + 1).trim()
+}
+
+export const normalizeJsonInputText = (value = '') => {
+  let normalized = String(value || '')
+    .replace(ZERO_WIDTH_REGEX, '')
+    .replace(SMART_DOUBLE_QUOTES_REGEX, '"')
+    .replace(SMART_SINGLE_QUOTES_REGEX, "'")
+    .trim()
+
+  const fencedMatch = normalized.match(FENCED_JSON_REGEX)
+  if (fencedMatch?.[1]) {
+    normalized = fencedMatch[1].trim()
+  } else {
+    normalized = trimToLikelyJson(normalized)
+  }
+
+  return normalized || '{}'
+}
+
+export const parseNormalizedJsonInput = (value = '') => {
+  const normalizedText = normalizeJsonInputText(value)
+  return {
+    normalizedText,
+    parsed: JSON.parse(normalizedText || '{}'),
+  }
+}

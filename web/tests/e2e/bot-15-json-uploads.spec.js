@@ -1407,8 +1407,29 @@ test.describe('15) JSON uploads and UI validation', () => {
       await matchRow.click()
       await expect(page.locator('.participants-table tbody tr')).toHaveCount(1)
       await page.route('**/users/player/picks**', async (route) => {
+        const response = await route.fetch()
+        const payload = await response.json()
+        const nextPicksDetailed = Array.isArray(payload?.picksDetailed)
+          ? payload.picksDetailed.map((row, index) => ({
+              ...row,
+              lineupStatus: index === 0 ? 'bench' : 'playing',
+            }))
+          : []
+        const nextBackupsDetailed = Array.isArray(payload?.backupsDetailed)
+          ? payload.backupsDetailed.map((row) => ({
+              ...row,
+              lineupStatus: 'bench',
+            }))
+          : []
         await page.waitForTimeout(300)
-        await route.continue()
+        await route.fulfill({
+          response,
+          body: JSON.stringify({
+            ...payload,
+            picksDetailed: nextPicksDetailed,
+            backupsDetailed: nextBackupsDetailed,
+          }),
+        })
       })
       await page
         .locator('.participants-table tbody tr')
@@ -1420,6 +1441,12 @@ test.describe('15) JSON uploads and UI validation', () => {
       await expect(
         page.locator('.team-preview-list').first().locator('.team-preview-row'),
       ).toHaveCount(11)
+      await expect(
+        page.locator('.team-preview-lineup-dot.lineup-status-light.playing').first(),
+      ).toBeVisible()
+      await expect(
+        page.locator('.team-preview-lineup-dot.lineup-status-light.bench').first(),
+      ).toBeVisible()
     } finally {
       await deleteContestIfPresent(request, contestId)
       try {

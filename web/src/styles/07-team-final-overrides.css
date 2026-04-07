@@ -137,10 +137,11 @@ body.dark-theme .app.app-team .team-column-header .country-text > span {
 
 .lineup-status-light {
   position: absolute;
-  left: 2.7rem;
-  top: 0.5rem;
-  width: 10px;
-  height: 10px;
+  left: 0.32rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 9px;
+  height: 9px;
   border-radius: 999px;
   box-shadow: 0 0 0 2px rgba(10, 18, 30, 0.35);
   z-index: 2;
@@ -156,7 +157,7 @@ body.dark-theme .app.app-team .team-column-header .country-text > span {
 
 .player-tile.lineup-playing .player-meta,
 .player-tile.lineup-bench .player-meta {
-  padding-left: 0.35rem;
+  padding-left: 0.65rem;
 }
 
 .player-chip.slot-chip.compact {

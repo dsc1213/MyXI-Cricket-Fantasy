@@ -36,6 +36,7 @@ import {
   cloneDefaultPointsRules,
   normalizePointsRuleTemplate,
 } from '../lib/defaultPointsRules.js'
+import { parseNormalizedJsonInput } from '../lib/jsonInput.js'
 import { useScoreManagerCache } from '../contexts/ScoreManagerCacheContext.jsx'
 
 const defaultPointsRules = cloneDefaultPointsRules()
@@ -715,7 +716,13 @@ function Dashboard({ defaultPanel = 'joined' }) {
       setErrorText('')
       setScoreJsonUnmatchedDetails([])
 
-      const parsed = JSON.parse(uploadPayloadText || '{}')
+      const { parsed, normalizedText } = parseNormalizedJsonInput(
+        uploadPayloadText || '{}',
+      )
+      const formattedPayloadText = JSON.stringify(parsed, null, 2)
+      if (normalizedText !== uploadPayloadText) {
+        setUploadPayloadText(formattedPayloadText)
+      }
       const playerStats = Array.isArray(parsed?.playerStats) ? parsed.playerStats : []
       const knownPlayers = [
         ...(manualTeamPool?.teamAPlayers || []),
@@ -774,7 +781,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
           ?.id ||
         ''
       const response = await saveMatchScores({
-        payloadText: uploadPayloadText,
+        payloadText: formattedPayloadText,
         fileName: '',
         processedPayload: null,
         dryRun: false,
@@ -1033,7 +1040,12 @@ function Dashboard({ defaultPanel = 'joined' }) {
       setSaveNotice('')
       setErrorText('')
       setIsSavingScores(true)
-      const parsed = JSON.parse(lineupPayloadText || '{}')
+      const { parsed, normalizedText } = parseNormalizedJsonInput(
+        lineupPayloadText || '{}',
+      )
+      if (normalizedText !== lineupPayloadText) {
+        setLineupPayloadText(JSON.stringify(parsed, null, 2))
+      }
       const lineups =
         parsed?.lineups && typeof parsed.lineups === 'object' ? parsed.lineups : parsed
       const response = await upsertMatchLineups({

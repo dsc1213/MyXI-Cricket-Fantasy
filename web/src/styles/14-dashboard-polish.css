@@ -2475,11 +2475,12 @@ body.dark-theme .fantasy-hub-main {
 .score-preview-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1500;
+  z-index: 2600;
   background: rgba(10, 15, 26, 0.58);
   display: grid;
   place-items: center;
   padding: 1rem;
+  pointer-events: auto;
 }
 
 .score-preview-modal {
@@ -2493,6 +2494,7 @@ body.dark-theme .fantasy-hub-main {
   background: var(--panel-bg);
   box-shadow: 0 24px 60px rgba(2, 6, 23, 0.34);
   padding: 0.85rem;
+  pointer-events: auto;
 }
 
 .score-preview-modal-head h4 {

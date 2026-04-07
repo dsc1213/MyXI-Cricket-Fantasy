@@ -2196,6 +2196,53 @@ const registerMockProviderRoutes = (router, ctx) => {
       ? matchPointsByName
       : fallbackMatchPointsByName
     const pointsByPlayerId = getTournamentPlayerStatsIndex(tournamentId)
+    const activeMatch = matchId
+      ? buildMatches(100, tournamentId || 't20wc-2026').find(
+          (item) => item.id === matchId,
+        ) || null
+      : null
+    const savedLineup =
+      activeMatch && tournamentId
+        ? mockMatchLineups.get(
+            lineupKey({
+              tournamentId,
+              matchId: activeMatch.id,
+            }),
+          )
+        : null
+    const lineupASet = new Set(
+      (savedLineup?.lineups?.[activeMatch?.home]?.playingXI || []).map((name) =>
+        normalizeLineupNameKey(name),
+      ),
+    )
+    const lineupBSet = new Set(
+      (savedLineup?.lineups?.[activeMatch?.away]?.playingXI || []).map((name) =>
+        normalizeLineupNameKey(name),
+      ),
+    )
+    const hasAnyAnnouncedLineup = lineupASet.size > 0 || lineupBSet.size > 0
+    const resolveLineupStatus = ({ name, team }) => {
+      if (!hasAnyAnnouncedLineup) return ''
+      const playerNameKey = normalizeLineupNameKey(name)
+      const teamCode = String(team || '')
+        .trim()
+        .toUpperCase()
+      if (
+        teamCode &&
+        activeMatch?.home &&
+        teamCode === String(activeMatch.home).toUpperCase()
+      ) {
+        return lineupASet.has(playerNameKey) ? 'playing' : 'bench'
+      }
+      if (
+        teamCode &&
+        activeMatch?.away &&
+        teamCode === String(activeMatch.away).toUpperCase()
+      ) {
+        return lineupBSet.has(playerNameKey) ? 'playing' : 'bench'
+      }
+      return ''
+    }
     const fixedRoster =
       contest && isFixedRosterContest(contest)
         ? getFixedRosterNames({ contest, userId, matchId })
@@ -2218,6 +2265,7 @@ const registerMockProviderRoutes = (router, ctx) => {
         team: found?.team || '-',
         imageUrl: found?.imageUrl || '',
         points: matchId ? matchPoints : livePoints,
+        lineupStatus: resolveLineupStatus({ name, team: found?.team || '-' }),
       }
     })
     const backupsDetailed = backups.map((name) => {
@@ -2232,6 +2280,7 @@ const registerMockProviderRoutes = (router, ctx) => {
         team: found?.team || '-',
         imageUrl: found?.imageUrl || '',
         points: matchId ? matchPoints : livePoints,
+        lineupStatus: resolveLineupStatus({ name, team: found?.team || '-' }),
       }
     })
     return res.json({

@@ -11,6 +11,7 @@ import {
   fetchTournamentCatalog,
 } from '../../lib/api.js'
 import { getStoredUser } from '../../lib/auth.js'
+import { parseNormalizedJsonInput } from '../../lib/jsonInput.js'
 
 const LEAGUE_MAP = {
   india: ['IPL', 'WPL'],
@@ -372,14 +373,24 @@ function CreateTournamentPanel({ onCreated }) {
         ),
       )
       let response
+      let jsonMatchesCount = 0
       if (inputType === 'auction') {
-        const parsed = JSON.parse(auctionPayload || '{}')
+        const { parsed, normalizedText } = parseNormalizedJsonInput(
+          auctionPayload || '{}',
+        )
+        if (normalizedText !== auctionPayload) {
+          setAuctionPayload(JSON.stringify(parsed, null, 2))
+        }
         response = await createAdminAuctionImport({
           ...parsed,
           actorUserId,
         })
       } else if (inputType === 'json') {
-        const parsed = JSON.parse(jsonPayload || '{}')
+        const { parsed, normalizedText } = parseNormalizedJsonInput(jsonPayload || '{}')
+        if (normalizedText !== jsonPayload) {
+          setJsonPayload(JSON.stringify(parsed, null, 2))
+        }
+        jsonMatchesCount = Array.isArray(parsed?.matches) ? parsed.matches.length : 0
         const requestedId = (
           parsed?.tournamentId || `${parsed?.name || ''}-${parsed?.season || ''}`
         )
@@ -455,9 +466,7 @@ function CreateTournamentPanel({ onCreated }) {
           : inputType === 'json'
             ? Array.isArray(response?.tournament?.matches)
               ? response.tournament.matches.length
-              : Array.isArray(JSON.parse(jsonPayload || '{}')?.matches)
-                ? JSON.parse(jsonPayload || '{}').matches.length
-                : 0
+              : jsonMatchesCount
             : rows.filter((row) => row.home && row.away && row.startAt).length)
       setCreatedTournament(
         createdId
@@ -880,6 +889,7 @@ function CreateTournamentPanel({ onCreated }) {
 
       <JsonAssistantModal
         open={isGeneratedJsonModalOpen}
+        onClose={onCloseGeneratedJsonModal}
         ariaLabel={
           generatedJsonKind === 'auction'
             ? 'Generated Auction JSON'
