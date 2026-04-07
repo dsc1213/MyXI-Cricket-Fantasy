@@ -163,6 +163,7 @@ const buildFixedRosterScoredEntries = ({
 }
 
 class ContestService {
+  // Returns latest score upload metadata for matches tied to a contest.
   async getContestLastScoreMeta(contest = {}) {
     const tournamentId = contest?.tournamentId
     const contestMatchIds = Array.isArray(contest?.matchIds)
@@ -197,21 +198,25 @@ class ContestService {
     }
   }
 
+  // Returns all contests.
   async getAllContests() {
     const repo = await factory.getContestRepository()
     return await repo.findAll()
   }
 
+  // Returns one contest by id.
   async getContestById(id) {
     const repo = await factory.getContestRepository()
     return await repo.findById(id)
   }
 
+  // Returns contests for a specific tournament.
   async getContestsByTournament(tournamentId) {
     const repo = await factory.getContestRepository()
     return await repo.findByTournament(tournamentId)
   }
 
+  // Creates a contest after validating tournament, participants, and match mapping.
   async createContest(data) {
     const repo = await factory.getContestRepository()
     const tournamentId = data?.tournamentId
@@ -260,6 +265,7 @@ class ContestService {
     })
   }
 
+  // Returns selectable match options for contest creation in a tournament.
   async getContestMatchOptions(tournamentId) {
     if (!tournamentId) return []
     const matchRepo = await factory.getMatchRepository()
@@ -280,6 +286,7 @@ class ContestService {
       }))
   }
 
+  // Updates contest fields by id.
   async updateContest(id, data) {
     const repo = await factory.getContestRepository()
     const payload = { ...data }
@@ -299,6 +306,7 @@ class ContestService {
     return await repo.update(id, payload)
   }
 
+  // Deletes a contest and cleans dependent participation rows.
   async deleteContest(id) {
     const repo = await factory.getContestRepository()
     const contest = await repo.findById(id)
@@ -321,6 +329,7 @@ class ContestService {
     }
   }
 
+  // Joins a user to a contest if capacity and lifecycle checks pass.
   async joinContest(contestId, userId) {
     const contestRepo = await factory.getContestRepository()
     const contest = await contestRepo.findById(contestId)
@@ -365,6 +374,7 @@ class ContestService {
     return { joined: true }
   }
 
+  // Removes a user from a contest participation list.
   async leaveContest(contestId, userId) {
     const contestRepo = await factory.getContestRepository()
     const result = await dbQuery(
@@ -390,6 +400,7 @@ class ContestService {
     return { left: false, message: 'Not joined' }
   }
 
+  // Returns contest participants with preview picks and optional compare context.
   async getContestParticipants(contestId, options = {}) {
     const contest = await this.getContestById(contestId)
     if (!contest) {
@@ -590,6 +601,7 @@ class ContestService {
     }
   }
 
+  // Returns contest match list enriched with viewer-specific team state.
   async getContestMatches(contestId, options = {}) {
     const contest = await this.getContestById(contestId)
     if (!contest) return []
@@ -708,6 +720,7 @@ class ContestService {
     }))
   }
 
+  // Returns ranked leaderboard rows for a contest.
   async getContestLeaderboard(contestId) {
     const contest = await this.getContestById(contestId)
     const isFixedRoster =
@@ -740,6 +753,7 @@ class ContestService {
     }))
   }
 
+  // Returns per-match score comparison for a user within a contest.
   async getContestUserMatchScores(contestId, userId, compareUserId = '') {
     const contest = await this.getContestById(contestId)
     if (!contest)
@@ -800,14 +814,17 @@ class ContestService {
     }
   }
 
+  // Sets contest status to open.
   async enableContest(contestId) {
     return await this.updateContest(contestId, { status: 'Open' })
   }
 
+  // Sets contest status to locked.
   async disableContest(contestId) {
     return await this.updateContest(contestId, { status: 'Locked' })
   }
 
+  // Starts a contest and updates lifecycle fields.
   async startContest(contestId) {
     const contest = await this.getContestById(contestId)
     if (!contest) {
@@ -826,6 +843,7 @@ class ContestService {
     return buildContestView(updated)
   }
 
+  // Placeholder sync hook for external contest recalculation flows.
   async syncContest(contestId) {
     // Sync contest data from external source or recalculate scores
     return { synced: true, contestId }

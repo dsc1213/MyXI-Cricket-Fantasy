@@ -8,6 +8,7 @@ import CricketRouteLoader from '../components/ui/CricketRouteLoader.jsx'
 import { CountryText } from '../components/ui/CountryFlag.jsx'
 import { roleCounts } from '../components/team-selection/playerPool.js'
 import { fetchTeamPool, saveTeamSelection } from '../lib/api.js'
+import { sortPlayersByDisplayRole } from '../lib/playerRoleSort.js'
 
 const normalizeLineupName = (value = '') => value.toString().trim().toLowerCase()
 
@@ -59,14 +60,21 @@ function TeamSelection() {
     currentUser?.userId || currentUser?.gameName || currentUser?.email || 'kiran11'
   const isMasterAdmin = currentUser?.role === 'master_admin'
   const isEditingOtherUser = Boolean(targetUserId) && targetUserId !== actorUserId
-  const effectiveUserId =
-    isEditingOtherUser && isMasterAdmin ? targetUserId : actorUserId
+  const effectiveUserId = isEditingOtherUser && isMasterAdmin ? targetUserId : actorUserId
   const teamAPlayerIds = useMemo(
     () => new Set((playerPool.teamAPlayers || []).map((player) => player.id)),
     [playerPool.teamAPlayers],
   )
   const teamBPlayerIds = useMemo(
     () => new Set((playerPool.teamBPlayers || []).map((player) => player.id)),
+    [playerPool.teamBPlayers],
+  )
+  const sortedTeamAPlayers = useMemo(
+    () => sortPlayersByDisplayRole(playerPool.teamAPlayers || []),
+    [playerPool.teamAPlayers],
+  )
+  const sortedTeamBPlayers = useMemo(
+    () => sortPlayersByDisplayRole(playerPool.teamBPlayers || []),
     [playerPool.teamBPlayers],
   )
 
@@ -183,19 +191,23 @@ function TeamSelection() {
   const teamACount = selected.filter((p) => teamAPlayerIds.has(p.id)).length
   const teamBCount = selected.filter((p) => teamBPlayerIds.has(p.id)).length
   const isMatchLocked =
-    ((activeMatch?.status || '').toString().trim().toLowerCase().replace(/\s+/g, '') || 'notstarted') !==
-    'notstarted'
+    ((activeMatch?.status || '').toString().trim().toLowerCase().replace(/\s+/g, '') ||
+      'notstarted') !== 'notstarted'
   const teamALineupPlaying = useMemo(
     () =>
       new Set(
-        (playerPool?.teamALineup?.playingXI || []).map((name) => normalizeLineupName(name)),
+        (playerPool?.teamALineup?.playingXI || []).map((name) =>
+          normalizeLineupName(name),
+        ),
       ),
     [playerPool?.teamALineup],
   )
   const teamBLineupPlaying = useMemo(
     () =>
       new Set(
-        (playerPool?.teamBLineup?.playingXI || []).map((name) => normalizeLineupName(name)),
+        (playerPool?.teamBLineup?.playingXI || []).map((name) =>
+          normalizeLineupName(name),
+        ),
       ),
     [playerPool?.teamBLineup],
   )
@@ -216,8 +228,35 @@ function TeamSelection() {
     const isTeamA = teamAPlayerIds.has(player.id)
     const isTeamB = teamBPlayerIds.has(player.id)
     if (!isTeamA && !isTeamB) return
-    if (isTeamA && teamACount >= limits.maxPerTeam) return
-    if (isTeamB && teamBCount >= limits.maxPerTeam) return
+    if (isTeamA && teamACount >= limits.maxPerTeam) {
+      setSelectionError(`Select no more than ${limits.maxPerTeam} players from one team.`)
+      return
+    }
+    if (isTeamB && teamBCount >= limits.maxPerTeam) {
+      setSelectionError(`Select no more than ${limits.maxPerTeam} players from one team.`)
+      return
+    }
+
+    // Enforce minimum role composition at the final pick itself.
+    if (selected.length === limits.maxXI - 1) {
+      const nextCounts = roleCounts([...selected, player])
+      if (
+        nextCounts.BAT < limits.minBAT ||
+        nextCounts.BOWL < limits.minBOWL ||
+        nextCounts.WK < limits.minWK
+      ) {
+        setSelectionError(
+          buildSelectionRequirementMessage({
+            counts: nextCounts,
+            teamACount: isTeamA ? teamACount + 1 : teamACount,
+            teamBCount: isTeamB ? teamBCount + 1 : teamBCount,
+            limits,
+          }),
+        )
+        return
+      }
+    }
+
     setSelectionError('')
     setBackups((prev) => prev.filter((p) => p.id !== player.id))
     setSelected((prev) => [...prev, player])
@@ -259,7 +298,22 @@ function TeamSelection() {
     (!captainIdRef.current || !viceCaptainIdRef.current)
       ? 'Captain and vice captain are required before saving.'
       : ''
-  const validationMessage = selectionError || roleRequirementMessage
+  const liveSelectionRuleMessage =
+    selected.length === limits.maxXI && !isComplete
+      ? buildSelectionRequirementMessage({
+          counts,
+          teamACount,
+          teamBCount,
+          limits,
+        })
+      : ''
+  const validationMessage =
+    selectionError || liveSelectionRuleMessage || roleRequirementMessage
+  const mobilePreviewHelpMessage =
+    selected.length === limits.maxXI &&
+    (!captainIdRef.current || !viceCaptainIdRef.current)
+      ? 'Open Preview, choose C and VC, then tap Save Team.'
+      : ''
 
   const backToHref = contestMeta?.tournamentId
     ? `/tournaments/${contestMeta.tournamentId}/contests/${contest}`
@@ -283,24 +337,42 @@ function TeamSelection() {
         }).format(parsed)
       }
     }
-    return [home && away ? `${home} vs ${away}` : '', venue, formattedTime ? `Starts at: ${formattedTime}` : '']
+    return [
+      home && away ? `${home} vs ${away}` : '',
+      venue,
+      formattedTime ? `Starts at: ${formattedTime}` : '',
+    ]
       .filter(Boolean)
       .join(' • ')
   }, [activeMatch, playerPool.teamAName, playerPool.teamBName])
 
   const resolveLineupStatus = (player) => {
     const playerNameKey = normalizeLineupName(player?.name || player?.playerName || '')
-    const playingSet = teamAPlayerIds.has(player.id) ? teamALineupPlaying : teamBLineupPlaying
+    const playingSet = teamAPlayerIds.has(player.id)
+      ? teamALineupPlaying
+      : teamBLineupPlaying
     if (!playingSet.size) return ''
     return playingSet.has(playerNameKey) ? 'playing' : 'bench'
   }
 
   const selectedWithLineupStatus = useMemo(
-    () => selected.map((player) => ({ ...player, lineupStatus: resolveLineupStatus(player) })),
+    () =>
+      sortPlayersByDisplayRole(
+        selected.map((player) => ({
+          ...player,
+          lineupStatus: resolveLineupStatus(player),
+        })),
+      ),
     [selected, teamAPlayerIds, teamALineupPlaying, teamBLineupPlaying],
   )
   const backupsWithLineupStatus = useMemo(
-    () => backups.map((player) => ({ ...player, lineupStatus: resolveLineupStatus(player) })),
+    () =>
+      sortPlayersByDisplayRole(
+        backups.map((player) => ({
+          ...player,
+          lineupStatus: resolveLineupStatus(player),
+        })),
+      ),
     [backups, teamAPlayerIds, teamALineupPlaying, teamBLineupPlaying],
   )
 
@@ -378,10 +450,10 @@ function TeamSelection() {
   return (
     <section className="team-shell premium-fit">
       <CricketRouteLoader
-        loading={isSaving}
-        mode="hit"
-        title="Saving team..."
-        subtitle="Finalizing your XI"
+        loading={isSaving || isLoadingPool}
+        mode={isSaving ? 'hit' : 'bowl'}
+        title={isSaving ? 'Saving team...' : 'Loading player pool...'}
+        subtitle={isSaving ? 'Finalizing your XI' : 'Fetching squads and saved picks'}
       />
       <div className="team-shell-head">
         <div className="flow-breadcrumb">
@@ -413,7 +485,9 @@ function TeamSelection() {
             </>
           )}
           <span className="team-bar-divider">•</span>
-          <span className="team-bar-rules">Min 1 Bat, 1 Bowl, 1 Wk • Max 8 per team • C 2x • VC 1.5x</span>
+          <span className="team-bar-rules">
+            Min 1 Bat, 1 Bowl, 1 Wk • Max 8 per team • C 2x • VC 1.5x
+          </span>
           {!!matchSummary && (
             <>
               <span className="team-bar-divider">•</span>
@@ -448,52 +522,58 @@ function TeamSelection() {
         <div className="team-bar-actions">
           {!isViewMode && (
             <Button
+              className="desktop-save"
               variant="primary"
               size="small"
-              disabled={
-                selected.length !== limits.maxXI ||
-                isSaving ||
-                isMatchLocked
-              }
+              disabled={selected.length !== limits.maxXI || isSaving || isMatchLocked}
               onClick={onSave}
             >
               {isMatchLocked ? 'Locked' : isSaving ? 'Saving...' : 'Save'}
             </Button>
           )}
+          {!!mobilePreviewHelpMessage && (
+            <span className="team-bar-rules show-mobile mobile-preview-hint">
+              {mobilePreviewHelpMessage}
+            </span>
+          )}
           <Button
             variant="ghost"
             size="small"
             className="show-mobile"
-            onClick={() => setShowSidebar(true)}
+            onClick={() => {
+              if (
+                selected.length === limits.maxXI &&
+                (!captainIdRef.current || !viceCaptainIdRef.current)
+              ) {
+                setSelectionError('Open Preview, choose C and VC, then tap Save Team.')
+              }
+              setShowSidebar(true)
+            }}
           >
-            ☰ Preview
+            ☰ Preview & Save
           </Button>
         </div>
       </header>
 
       <div className="team-grid-2 compact-fit">
-        <div className="team-column">
+        <div className="team-column team-column-a">
           <div className="team-column-header">
             <h3>
               <CountryText value={playerPool.teamAName} />
             </h3>
-            <span className="badge light">{playerPool.teamAPlayers.length} players</span>
+            <span className="badge light">{sortedTeamAPlayers.length} players</span>
           </div>
-          <div className="tile-grid two-col">
-            {playerPool.teamAPlayers.map(renderRow)}
-          </div>
+          <div className="tile-grid two-col">{sortedTeamAPlayers.map(renderRow)}</div>
         </div>
 
-        <div className="team-column">
+        <div className="team-column team-column-b">
           <div className="team-column-header">
             <h3>
               <CountryText value={playerPool.teamBName} />
             </h3>
-            <span className="badge light">{playerPool.teamBPlayers.length} players</span>
+            <span className="badge light">{sortedTeamBPlayers.length} players</span>
           </div>
-          <div className="tile-grid two-col">
-            {playerPool.teamBPlayers.map(renderRow)}
-          </div>
+          <div className="tile-grid two-col">{sortedTeamBPlayers.map(renderRow)}</div>
         </div>
 
         <aside className="right-column desktop-only">
@@ -523,6 +603,24 @@ function TeamSelection() {
         onClose={() => setShowSidebar(false)}
         size="md"
         className="team-preview-modal"
+        footer={
+          <>
+            {!isViewMode && (
+              <Button
+                variant="primary"
+                size="small"
+                className="mobile-preview-save"
+                disabled={selected.length !== limits.maxXI || isSaving || isMatchLocked}
+                onClick={onSave}
+              >
+                {isMatchLocked ? 'Locked' : isSaving ? 'Saving...' : 'Save Team'}
+              </Button>
+            )}
+            <Button variant="ghost" size="small" onClick={() => setShowSidebar(false)}>
+              Close
+            </Button>
+          </>
+        }
       >
         <div className="team-preview-column">
           <RightColumnContent

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import Button from '../components/ui/Button.jsx'
 import LoadingNote from '../components/ui/LoadingNote.jsx'
 import Modal from '../components/ui/Modal.jsx'
@@ -14,8 +14,23 @@ import {
   fetchTournaments,
 } from '../lib/api.js'
 
+const formatBreakdownDate = (value) => {
+  const raw = (value || '').toString().trim()
+  if (!raw) return '-'
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) return '-'
+  const month = parsed.toLocaleString('en-US', { month: 'short' }).toUpperCase()
+  const day = parsed.getDate()
+  const hours = parsed.getHours()
+  const minutes = String(parsed.getMinutes()).padStart(2, '0')
+  return `${month} ${day}, ${hours}:${minutes}`
+}
+
 function Leaderboard() {
+  const location = useLocation()
   const { tournamentId, contestId } = useParams()
+  const queryContestId = new URLSearchParams(location.search).get('contestId') || ''
+  const routeContestId = contestId || queryContestId
   const currentUser = (() => {
     const raw = localStorage.getItem('myxi-user')
     if (!raw) return null
@@ -25,14 +40,15 @@ function Leaderboard() {
       return null
     }
   })()
-  const currentUserId = currentUser?.userId || currentUser?.gameName || currentUser?.email || ''
+  const currentUserId =
+    currentUser?.userId || currentUser?.gameName || currentUser?.email || ''
   const [isLoading, setIsLoading] = useState(true)
   const [errorText, setErrorText] = useState('')
   const [allJoinedContests, setAllJoinedContests] = useState([])
   const [routeContest, setRouteContest] = useState(null)
   const [selectedTournamentId, setSelectedTournamentId] = useState(tournamentId || '')
   const [tournamentNameMap, setTournamentNameMap] = useState({})
-  const [selectedContestId, setSelectedContestId] = useState(contestId || '')
+  const [selectedContestId, setSelectedContestId] = useState(routeContestId || '')
   const [rows, setRows] = useState([])
   const [selectedRow, setSelectedRow] = useState(null)
   const [userBreakdownRows, setUserBreakdownRows] = useState([])
@@ -52,7 +68,9 @@ function Leaderboard() {
         const [data, tournaments, routeContestData] = await Promise.all([
           fetchContests({ joined: true, userId: currentUserId }),
           fetchTournaments(),
-          contestId ? fetchContest(contestId).catch(() => null) : Promise.resolve(null),
+          routeContestId
+            ? fetchContest(routeContestId).catch(() => null)
+            : Promise.resolve(null),
         ])
         if (!active) return
         const nameMap = (tournaments || []).reduce((acc, item) => {
@@ -72,7 +90,7 @@ function Leaderboard() {
     return () => {
       active = false
     }
-  }, [currentUserId, contestId])
+  }, [currentUserId, routeContestId])
 
   useEffect(() => {
     if (tournamentId) {
@@ -95,13 +113,13 @@ function Leaderboard() {
   }, [allJoinedContests, selectedTournamentId, routeContest])
 
   useEffect(() => {
-    if (contestId) setSelectedContestId(contestId)
-  }, [contestId])
+    if (routeContestId) setSelectedContestId(routeContestId)
+  }, [routeContestId])
 
   useEffect(() => {
     if (!joinedContestOptions.length) {
-      if (contestId) {
-        setSelectedContestId(contestId)
+      if (routeContestId) {
+        setSelectedContestId(routeContestId)
       } else {
         setSelectedContestId('')
         setRows([])
@@ -112,7 +130,7 @@ function Leaderboard() {
     if (!joinedContestOptions.some((item) => item.id === selectedContestId)) {
       setSelectedContestId(joinedContestOptions[0].id)
     }
-  }, [contestId, joinedContestOptions, selectedContestId])
+  }, [routeContestId, joinedContestOptions, selectedContestId])
 
   useEffect(() => {
     if (!selectedContestId) {
@@ -195,11 +213,23 @@ function Leaderboard() {
 
   const userBreakdownColumns = useMemo(
     () => [
-      { key: 'matchNo', label: 'Match', render: (row) => `M${row.matchNo}` },
+      {
+        key: 'date',
+        label: 'Date',
+        render: (row) => formatBreakdownDate(row?.date),
+      },
       { key: 'matchName', label: 'Fixture' },
       { key: 'status', label: 'Status' },
-      { key: 'userPoints', label: 'User Pts', render: (row) => Number(row.userPoints || 0) },
-      { key: 'comparePoints', label: 'My Pts', render: (row) => Number(row.comparePoints || 0) },
+      {
+        key: 'userPoints',
+        label: 'User Pts',
+        render: (row) => Number(row.userPoints || 0),
+      },
+      {
+        key: 'comparePoints',
+        label: 'My Pts',
+        render: (row) => Number(row.comparePoints || 0),
+      },
       { key: 'delta', label: 'Diff', render: (row) => Number(row.delta || 0) },
     ],
     [],
@@ -285,7 +315,9 @@ function Leaderboard() {
       <Modal
         open={!!selectedRow}
         onClose={() => setSelectedRow(null)}
-        title={selectedRow ? `${selectedRow.name} match-by-match` : 'User score breakdown'}
+        title={
+          selectedRow ? `${selectedRow.name} match-by-match` : 'User score breakdown'
+        }
         size="md"
         footer={
           <Button variant="ghost" size="small" onClick={() => setSelectedRow(null)}>
@@ -293,7 +325,9 @@ function Leaderboard() {
           </Button>
         }
       >
-        {isLoadingUserBreakdown && <p className="team-note">Loading score breakdown...</p>}
+        {isLoadingUserBreakdown && (
+          <p className="team-note">Loading score breakdown...</p>
+        )}
         {!!userBreakdownError && <p className="error-text">{userBreakdownError}</p>}
         {!isLoadingUserBreakdown && !userBreakdownError && (
           <>

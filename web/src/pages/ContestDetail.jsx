@@ -116,6 +116,7 @@ function ContestDetail() {
   const [matchFilter, setMatchFilter] = useState('all')
   const [teamFilter, setTeamFilter] = useState('all')
   const [participants, setParticipants] = useState([])
+  const [isLoadingParticipants, setIsLoadingParticipants] = useState(false)
   const [joinedParticipantsCount, setJoinedParticipantsCount] = useState(0)
   const [previewXI, setPreviewXI] = useState([])
   const [previewBackups, setPreviewBackups] = useState([])
@@ -162,6 +163,17 @@ function ContestDetail() {
 
   useEffect(() => {
     setHasLoadedMatchesOnce(false)
+    setMatches([])
+    setSelectedMatchId('')
+    setParticipants([])
+    setIsLoadingParticipants(false)
+    setJoinedParticipantsCount(0)
+    setPreviewXI([])
+    setPreviewBackups([])
+    setPreviewPlayer(null)
+    setIsLoadingPreview(false)
+    setLeaderboardRows([])
+    setLeaderboardPreviewError('')
   }, [contestId])
 
   useEffect(() => {
@@ -206,6 +218,12 @@ function ContestDetail() {
     if (!selectedMatchId) return
     let active = true
 
+    setParticipants([])
+    setIsLoadingParticipants(true)
+    setJoinedParticipantsCount(0)
+    setPreviewXI([])
+    setPreviewBackups([])
+
     const loadParticipants = async () => {
       try {
         const payload = normalizeContestParticipants(
@@ -222,7 +240,14 @@ function ContestDetail() {
         setPreviewBackups(payload.previewBackups)
       } catch (error) {
         if (!active) return
+        setParticipants([])
+        setJoinedParticipantsCount(0)
+        setPreviewXI([])
+        setPreviewBackups([])
         setErrorText(error.message || 'Failed to load participants')
+      } finally {
+        if (!active) return
+        setIsLoadingParticipants(false)
       }
     }
 
@@ -389,10 +414,13 @@ function ContestDetail() {
           contestId={contestId}
           activeMatch={activeSortedMatch}
           participants={participants}
+          isLoading={isLoadingParticipants}
           joinedCount={joinedParticipantsCount}
           onPreviewPlayer={onPreviewPlayer}
           canEditFullTeams={canEditFullTeams}
           isLoggedIn={isLoggedIn}
+          viewerUserId={currentUserGameName}
+          viewerJoined={Boolean(activeSortedMatch?.viewerJoined)}
         />
       </div>
 

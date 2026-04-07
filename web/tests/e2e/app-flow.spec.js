@@ -211,6 +211,12 @@ test.describe('Admin master scenarios', () => {
     await expect(
       page.locator('.ui-modal-card').getByRole('button', { name: 'Create', exact: true }),
     ).toBeDisabled()
+
+    const firstMatchMeta = page.locator('.create-contest-match-row small').first()
+    await expect(firstMatchMeta).toBeVisible()
+    const firstMatchMetaText = (await firstMatchMeta.textContent()) || ''
+    // Match timestamp should be localized, not raw ISO UTC like 2026-04-05T14:00:00.000Z.
+    expect(firstMatchMetaText).not.toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/)
   })
 
   test('master fantasy view uses enabled admin tournaments even when public tournament feed is empty', async ({

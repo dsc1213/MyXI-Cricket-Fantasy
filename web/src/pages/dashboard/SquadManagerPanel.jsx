@@ -11,6 +11,10 @@ import {
   upsertAdminTeamSquad,
 } from '../../lib/api.js'
 import { getStoredUser } from '../../lib/auth.js'
+import {
+  getPlayerDisplayRoleRank,
+  sortPlayersByDisplayRole,
+} from '../../lib/playerRoleSort.js'
 
 const LEAGUE_MAP = {
   india: ['IPL', 'WPL'],
@@ -193,26 +197,34 @@ function SquadManagerPanel() {
     () => tournamentRows.find((item) => item.id === tournamentId) || null,
     [tournamentRows, tournamentId],
   )
-  const selectedTournamentName = (selectedTournament?.name || '').toString().trim().toLowerCase()
+  const selectedTournamentName = (selectedTournament?.name || '')
+    .toString()
+    .trim()
+    .toLowerCase()
 
   const matchesCurrentScope = (row) => {
     const rowTournamentId = (row.tournamentId || '').toString().trim()
     const rowTournamentName = (row.tournament || '').toString().trim().toLowerCase()
-    if (tournamentId && rowTournamentId) return String(rowTournamentId) === String(tournamentId)
-    if (tournamentId && selectedTournamentName) return rowTournamentName === selectedTournamentName
+    if (tournamentId && rowTournamentId)
+      return String(rowTournamentId) === String(tournamentId)
+    if (tournamentId && selectedTournamentName)
+      return rowTournamentName === selectedTournamentName
     return !tournamentId
   }
 
   const teamOptions = useMemo(() => {
     const filtered = rows.filter((row) => matchesCurrentScope(row))
-    const savedTeams = Array.from(new Map(filtered.map((row) => [row.teamCode, row])).values())
+    const savedTeams = Array.from(
+      new Map(filtered.map((row) => [row.teamCode, row])).values(),
+    )
       .sort((a, b) => a.teamCode.localeCompare(b.teamCode))
       .map((row) => ({
         value: row.teamCode,
         label: row.teamName ? `${row.teamCode} · ${row.teamName}` : row.teamCode,
       }))
     const tournamentTeamCodes =
-      Array.isArray(selectedTournament?.selectedTeams) && selectedTournament.selectedTeams.length
+      Array.isArray(selectedTournament?.selectedTeams) &&
+      selectedTournament.selectedTeams.length
         ? selectedTournament.selectedTeams
         : Array.isArray(selectedTournament?.teamCodes)
           ? selectedTournament.teamCodes
@@ -255,7 +267,8 @@ function SquadManagerPanel() {
     const mapped = squad.map((player, index) =>
       buildPlayerRow(index, {
         name: player?.name || '',
-        canonicalPlayerId: player?.canonicalPlayerId || player?.id || player?.playerRowId || '',
+        canonicalPlayerId:
+          player?.canonicalPlayerId || player?.id || player?.playerRowId || '',
         sourceKey: player?.sourceKey || '',
         playerId: player?.playerId || '',
         country: player?.country || '',
@@ -277,25 +290,31 @@ function SquadManagerPanel() {
 
   const filteredPlayers = useMemo(() => {
     const q = (playerSearch || '').toString().trim().toLowerCase()
-    if (!q) return players
-    return players.filter((item) => {
-      const searchText = [
-        item.name || '',
-        item.country || '',
-        item.role || '',
-        item.battingStyle || '',
-        item.bowlingStyle || '',
-      ]
-        .join(' ')
-        .toLowerCase()
-      return searchText.includes(q)
-    })
+    const filtered = !q
+      ? players
+      : players.filter((item) => {
+          const searchText = [
+            item.name || '',
+            item.country || '',
+            item.role || '',
+            item.battingStyle || '',
+            item.bowlingStyle || '',
+          ]
+            .join(' ')
+            .toLowerCase()
+          return searchText.includes(q)
+        })
+    return sortPlayersByDisplayRole(filtered)
   }, [players, playerSearch])
 
   const existingPlayerOptions = useMemo(() => {
     const selectedIds = new Set(
       players
-        .map((item) => String(item.canonicalPlayerId || item.sourceKey || item.playerId || item.name || ''))
+        .map((item) =>
+          String(
+            item.canonicalPlayerId || item.sourceKey || item.playerId || item.name || '',
+          ),
+        )
         .filter(Boolean),
     )
     const selectedCountry = existingPlayerCountryFilter.toString().trim().toLowerCase()
@@ -313,10 +332,11 @@ function SquadManagerPanel() {
         )
           .toString()
           .trim()
-        const haystack = [name, item.country || '', item.role || ''].join(' ').toLowerCase()
+        const haystack = [name, item.country || '', item.role || '']
+          .join(' ')
+          .toLowerCase()
         return !query || haystack.includes(query)
       })
-      .slice(0, 100)
       .map((item) => {
         const name = (
           item.displayName ||
@@ -331,12 +351,24 @@ function SquadManagerPanel() {
           player: item,
         }
       })
+      .sort((left, right) => {
+        const roleDelta =
+          getPlayerDisplayRoleRank(left.player?.role) -
+          getPlayerDisplayRoleRank(right.player?.role)
+        if (roleDelta !== 0) return roleDelta
+        return left.label.localeCompare(right.label)
+      })
+      .slice(0, 100)
   }, [existingPlayerCountryFilter, existingPlayerQuery, playerCatalog, players])
 
   const existingPlayerCountryOptions = useMemo(() => {
     const selectedIds = new Set(
       players
-        .map((item) => String(item.canonicalPlayerId || item.sourceKey || item.playerId || item.name || ''))
+        .map((item) =>
+          String(
+            item.canonicalPlayerId || item.sourceKey || item.playerId || item.name || '',
+          ),
+        )
         .filter(Boolean),
     )
     const countries = new Set(PLAYER_COUNTRY_OPTIONS)
@@ -376,6 +408,27 @@ function SquadManagerPanel() {
         ),
         player,
       }))
+      .sort((left, right) => {
+        const roleDelta =
+          getPlayerDisplayRoleRank(left.player?.role) -
+          getPlayerDisplayRoleRank(right.player?.role)
+        if (roleDelta !== 0) return roleDelta
+        const leftName = (
+          left.player?.displayName ||
+          left.player?.name ||
+          [left.player?.firstName, left.player?.lastName].filter(Boolean).join(' ')
+        )
+          .toString()
+          .trim()
+        const rightName = (
+          right.player?.displayName ||
+          right.player?.name ||
+          [right.player?.firstName, right.player?.lastName].filter(Boolean).join(' ')
+        )
+          .toString()
+          .trim()
+        return leftName.localeCompare(rightName)
+      })
   }, [playerCatalog, selectedExistingPlayerIds])
 
   const linkExistingPlayers = () => {
@@ -390,7 +443,10 @@ function SquadManagerPanel() {
           name:
             item.player.displayName ||
             item.player.name ||
-            [item.player.firstName, item.player.lastName].filter(Boolean).join(' ').trim(),
+            [item.player.firstName, item.player.lastName]
+              .filter(Boolean)
+              .join(' ')
+              .trim(),
           country: item.player.country || '',
           role: item.player.role || '',
           imageUrl: item.player.imageUrl || '',
@@ -424,7 +480,11 @@ function SquadManagerPanel() {
       label: '#',
       headerClassName: 'match-no-col',
       cellClassName: 'match-no-col',
-      render: (row) => <span className="match-no-readonly">{players.findIndex((p) => p.id === row.id) + 1}</span>,
+      render: (row) => (
+        <span className="match-no-readonly">
+          {players.findIndex((p) => p.id === row.id) + 1}
+        </span>
+      ),
     },
     {
       key: 'name',
@@ -434,10 +494,7 @@ function SquadManagerPanel() {
         <PlayerIdentity
           name={row.name || ''}
           imageUrl={row.imageUrl || ''}
-          subtitle={[
-            row.country ? formatCountryLabel(row.country) : '',
-            row.role || '',
-          ]
+          subtitle={[row.country ? formatCountryLabel(row.country) : '', row.role || '']
             .filter(Boolean)
             .join(' · ')}
           size="xs"
@@ -455,6 +512,8 @@ function SquadManagerPanel() {
       key: 'role',
       label: 'Role',
       cellClassName: 'squad-manager-meta-cell',
+      sortValue: (row) =>
+        `${String(getPlayerDisplayRoleRank(row.role)).padStart(2, '0')}:${row.role || ''}`,
       render: (row) => row.role || 'NA',
     },
     {
@@ -575,7 +634,11 @@ function SquadManagerPanel() {
         {!!notice && <p className="success-text squad-manager-success">{notice}</p>}
 
         {canManageSquads && isEditMode && (
-          <div className="upload-tab-row" role="tablist" aria-label="Squad input type tabs">
+          <div
+            className="upload-tab-row"
+            role="tablist"
+            aria-label="Squad input type tabs"
+          >
             <Button
               type="button"
               role="tab"
@@ -620,7 +683,10 @@ function SquadManagerPanel() {
                     setTeam('')
                     setPlayers([])
                   }}
-                  options={[{ value: '', label: 'Select tournament' }, ...tournamentOptions]}
+                  options={[
+                    { value: '', label: 'Select tournament' },
+                    ...tournamentOptions,
+                  ]}
                 />
               </label>
               {tournamentId && (
@@ -676,7 +742,12 @@ function SquadManagerPanel() {
         className="squad-player-picker-modal"
         footer={
           <>
-            <Button type="button" variant="ghost" size="small" onClick={closeAddPlayerModal}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="small"
+              onClick={closeAddPlayerModal}
+            >
               Cancel
             </Button>
             <Button
@@ -699,7 +770,10 @@ function SquadManagerPanel() {
                 <SelectField
                   value={existingPlayerCountryFilter}
                   onChange={(event) => setExistingPlayerCountryFilter(event.target.value)}
-                  options={[{ value: '', label: 'All countries' }, ...existingPlayerCountryOptions]}
+                  options={[
+                    { value: '', label: 'All countries' },
+                    ...existingPlayerCountryOptions,
+                  ]}
                 />
               </label>
               <label>
@@ -714,7 +788,20 @@ function SquadManagerPanel() {
               </label>
             </div>
             <small>
-              Selected: {selectedExistingPlayers.length ? selectedExistingPlayers.map((item) => item.player.displayName || item.player.name || [item.player.firstName, item.player.lastName].filter(Boolean).join(' ').trim()).join(', ') : 'None'}
+              Selected:{' '}
+              {selectedExistingPlayers.length
+                ? selectedExistingPlayers
+                    .map(
+                      (item) =>
+                        item.player.displayName ||
+                        item.player.name ||
+                        [item.player.firstName, item.player.lastName]
+                          .filter(Boolean)
+                          .join(' ')
+                          .trim(),
+                    )
+                    .join(', ')
+                : 'None'}
             </small>
           </div>
           <div className="squad-player-picker-list" role="list">
@@ -724,9 +811,15 @@ function SquadManagerPanel() {
                 const playerName =
                   item.player.displayName ||
                   item.player.name ||
-                  [item.player.firstName, item.player.lastName].filter(Boolean).join(' ').trim()
+                  [item.player.firstName, item.player.lastName]
+                    .filter(Boolean)
+                    .join(' ')
+                    .trim()
                 return (
-                  <label key={item.value} className={`squad-player-picker-row ${checked ? 'is-selected' : ''}`.trim()}>
+                  <label
+                    key={item.value}
+                    className={`squad-player-picker-row ${checked ? 'is-selected' : ''}`.trim()}
+                  >
                     <input
                       type="checkbox"
                       checked={checked}

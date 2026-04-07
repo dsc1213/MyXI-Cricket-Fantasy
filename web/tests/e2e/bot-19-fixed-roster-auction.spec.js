@@ -19,10 +19,14 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
     await expect(page).toHaveURL(/\/auction/)
     await expect(page.getByText('Scores update every minute')).toHaveCount(0)
     await expect(
-      page.getByText('Browse imported contests and follow squads, matches, and leaderboard in one place.'),
+      page.getByText(
+        'Browse imported contests and follow squads, matches, and leaderboard in one place.',
+      ),
     ).toBeVisible()
     await expect(
-      page.getByText('Track external auctions without mixing them into normal fantasy joins.'),
+      page.getByText(
+        'Track external auctions without mixing them into normal fantasy joins.',
+      ),
     ).toHaveCount(0)
     await page.locator('.tournament-card', { hasText: 'IPL 2026' }).click()
 
@@ -35,18 +39,20 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
     await expect(contestCard).toContainText('Leaderboard counts top 11 scoring players')
 
     await contestCard.getByRole('link', { name: 'Open contest' }).click()
-    await expect(page).toHaveURL(/\/tournaments\/ipl-2026\/contests\/nwmsu-ipl-auction\?view=auction/)
-    await expect(page.getByRole('navigation').getByRole('link', { name: 'Auction' })).toHaveClass(
-      /active/,
+    await expect(page).toHaveURL(
+      /\/tournaments\/ipl-2026\/contests\/nwmsu-ipl-auction\?view=auction/,
     )
+    await expect(
+      page.getByRole('navigation').getByRole('link', { name: 'Auction' }),
+    ).toHaveClass(/active/)
     await expect(page.locator('.flow-breadcrumb').first()).toContainText('Auction')
     const firstMatchRow = page.locator('.match-table tbody tr').first()
     await expect(firstMatchRow).toBeVisible()
     await expect(firstMatchRow).toContainText(/\d{1,2}:\d{2}/)
     await expect(firstMatchRow).toContainText(/Not Started|In Progress|Completed/)
-    const participantCardHeight = await page.locator('.participants-card').evaluate((node) =>
-      Math.round(node.getBoundingClientRect().height),
-    )
+    const participantCardHeight = await page
+      .locator('.participants-card')
+      .evaluate((node) => Math.round(node.getBoundingClientRect().height))
     expect(participantCardHeight).toBeLessThan(520)
     await expect(
       page.locator('.participants-table tbody tr', { hasText: 'HunterCherryXI' }),
@@ -77,42 +83,117 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
       .locator('.participants-table tbody tr', { hasText: 'HunterCherryXI' })
       .first()
     await expect(participantRow).toBeVisible()
-    await expect(participantRow.getByRole('link', { name: /Edit .* team/i })).toHaveCount(0)
+    await expect(participantRow.getByRole('link', { name: /Edit .* team/i })).toHaveCount(
+      0,
+    )
     await participantRow.getByRole('button', { name: 'View HunterCherryXI team' }).click()
 
-    await expect(page.locator('.team-preview-panel')).toContainText('HunterCherryXI roster')
+    await expect(page.locator('.team-preview-panel')).toContainText(
+      'HunterCherryXI roster',
+    )
     await expect(page.locator('.team-preview-panel')).toContainText(
       'Leaderboard counts the top 11 scoring roster players.',
     )
-    await expect(page.locator('.team-preview-list').first()).toContainText('Krunal Pandya')
-    await expect(page.locator('.team-preview-list').first()).toContainText('Ajinkya Rahane')
+    await expect(page.locator('.team-preview-list').first()).toContainText(
+      'Krunal Pandya',
+    )
+    await expect(page.locator('.team-preview-list').first()).toContainText(
+      'Ajinkya Rahane',
+    )
     await expect(page.locator('.team-preview-list').first()).toContainText('Philip Salt')
     await expect(
-      page.locator('.team-preview-list').first().locator('img[src*="cricapi.com"]').first(),
+      page
+        .locator('.team-preview-list')
+        .first()
+        .locator('img[src*="cricapi.com"]')
+        .first(),
     ).toBeVisible()
     await expect(
       page.locator('.team-preview-list').first().locator('.team-preview-row'),
     ).toHaveCount(3)
     await expect(page.locator('.team-preview-panel')).toContainText('Other owned players')
-    const previewSectionHeights = await page.locator('.team-preview-section').evaluateAll((nodes) =>
-      nodes.map((node) => node.getBoundingClientRect().height),
-    )
+    const previewSectionHeights = await page
+      .locator('.team-preview-section')
+      .evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height))
     expect(previewSectionHeights).toHaveLength(2)
     expect(previewSectionHeights[0]).toBeGreaterThan(previewSectionHeights[1])
     expect(previewSectionHeights[0] / previewSectionHeights[1]).toBeGreaterThan(1.8)
 
-    await page.locator('.team-preview-panel').getByRole('button', { name: 'Close' }).click()
+    await page
+      .locator('.team-preview-panel')
+      .getByRole('button', { name: 'Close' })
+      .click()
 
     await page.getByRole('button', { name: 'Preview leaderboard' }).click()
-    await expect(page.locator('.leaderboard-table tbody tr', { hasText: 'HunterCherryXI' })).toBeVisible()
-    await expect(page.locator('.leaderboard-table tbody tr', { hasText: 'Draker' })).toBeVisible()
+    await expect(
+      page.locator('.leaderboard-table tbody tr', { hasText: 'HunterCherryXI' }),
+    ).toBeVisible()
+    await expect(
+      page.locator('.leaderboard-table tbody tr', { hasText: 'Draker' }),
+    ).toBeVisible()
     await page.getByRole('link', { name: 'Open leaderboard page' }).click()
-    await expect(page).toHaveURL(/\/tournaments\/ipl-2026\/contests\/nwmsu-ipl-auction\/leaderboard/)
-    await expect(page.locator('.module-filters select').nth(1)).toHaveValue('nwmsu-ipl-auction')
+    await expect(page).toHaveURL(
+      /\/tournaments\/ipl-2026\/contests\/nwmsu-ipl-auction\/leaderboard/,
+    )
+    await expect(page.locator('.module-filters select').nth(1)).toHaveValue(
+      'nwmsu-ipl-auction',
+    )
     await expect(page.locator('.leaderboard-table tbody tr')).toHaveCount(2)
+
+    await page
+      .locator('.tournament-page-tabs')
+      .getByRole('link', { name: 'Stats' })
+      .click()
+    await expect(page).toHaveURL(
+      /\/tournaments\/ipl-2026\/cricketer-stats\?view=auction&contestId=nwmsu-ipl-auction/,
+    )
+
+    await page
+      .locator('.tournament-page-tabs')
+      .getByRole('link', { name: 'Leaderboard' })
+      .click()
+    await expect(page).toHaveURL(
+      /\/tournaments\/ipl-2026\/contests\/nwmsu-ipl-auction\/leaderboard\?view=auction&contestId=nwmsu-ipl-auction/,
+    )
+    await expect(page.locator('.module-filters select').nth(1)).toHaveValue(
+      'nwmsu-ipl-auction',
+    )
   })
 
-  test('ipl stats stay scoped to ipl squads and show franchise teams', async ({ page }) => {
+  test('auction allows any logged-in user to view another participant roster', async ({
+    page,
+  }) => {
+    await loginUi(page, 'draker')
+    await page.goto('/auction')
+    await page.locator('.tournament-card', { hasText: 'IPL 2026' }).click()
+    await page
+      .locator('.compact-contest-card', { hasText: 'NWMSU-IPL-AUCTION' })
+      .getByRole('link', { name: 'Open contest' })
+      .click()
+
+    const participantRow = page
+      .locator('.participants-table tbody tr', { hasText: 'HunterCherryXI' })
+      .first()
+    await expect(participantRow).toBeVisible()
+    await participantRow.getByRole('button', { name: 'View HunterCherryXI team' }).click()
+
+    await expect(page.locator('.team-preview-panel')).toContainText(
+      'HunterCherryXI roster',
+    )
+    const previewCount = await page
+      .locator('.team-preview-list')
+      .first()
+      .locator('.team-preview-row')
+      .count()
+    expect(previewCount).toBeGreaterThan(0)
+    await expect(
+      page.getByText('Only master admin can access another user full team.'),
+    ).toHaveCount(0)
+  })
+
+  test('ipl stats stay scoped to ipl squads and show franchise teams', async ({
+    page,
+  }) => {
     await loginUi(page, 'master')
     await page.goto('/auction')
     const tournamentCard = page.locator('.tournament-card', { hasText: 'IPL 2026' })
@@ -128,7 +209,9 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
     await expect(page.locator('.cricketer-stats-table')).not.toContainText('Afghanistan')
     await expect(page.locator('.cricketer-stats-table')).not.toContainText('Rashid Khan')
 
-    const fallbackAvatar = page.locator('.player-avatar:has(.player-avatar-fallback)').first()
+    const fallbackAvatar = page
+      .locator('.player-avatar:has(.player-avatar-fallback)')
+      .first()
     await expect(fallbackAvatar).toBeVisible()
     const fallbackCentered = await fallbackAvatar.evaluate((node) => {
       const avatarRect = node.getBoundingClientRect()
@@ -136,17 +219,23 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
       if (!fallback) return false
       const fallbackRect = fallback.getBoundingClientRect()
       const centerDiffX = Math.abs(
-        avatarRect.left + avatarRect.width / 2 - (fallbackRect.left + fallbackRect.width / 2),
+        avatarRect.left +
+          avatarRect.width / 2 -
+          (fallbackRect.left + fallbackRect.width / 2),
       )
       const centerDiffY = Math.abs(
-        avatarRect.top + avatarRect.height / 2 - (fallbackRect.top + fallbackRect.height / 2),
+        avatarRect.top +
+          avatarRect.height / 2 -
+          (fallbackRect.top + fallbackRect.height / 2),
       )
       return centerDiffX <= 1 && centerDiffY <= 1
     })
     expect(fallbackCentered).toBeTruthy()
   })
 
-  test('admin managing shows the auction contest in the IPL catalog', async ({ page }) => {
+  test('admin managing shows the auction contest in the IPL catalog', async ({
+    page,
+  }) => {
     await loginUi(page, 'master')
     await page.goto('/admin/dashboard')
 
@@ -236,22 +325,16 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
     const ruturajPoints = await ruturajRow.locator('td').last().textContent()
     expect(Number(ruturajPoints || 0)).toBeGreaterThan(0)
 
-    await page.goto('/tournaments/ipl-2026/contests/nwmsu-ipl-auction/leaderboard?view=auction')
+    await page.goto(
+      '/tournaments/ipl-2026/contests/nwmsu-ipl-auction/leaderboard?view=auction',
+    )
     const leaderboardRows = page.locator('.leaderboard-table tbody tr')
     await expect(leaderboardRows).toHaveCount(2)
     await expect(leaderboardRows.nth(0)).toContainText('HunterCherryXI')
     await expect(leaderboardRows.nth(1)).toContainText('Draker')
 
-    const firstPoints = await leaderboardRows
-      .nth(0)
-      .locator('td')
-      .last()
-      .textContent()
-    const secondPoints = await leaderboardRows
-      .nth(1)
-      .locator('td')
-      .last()
-      .textContent()
+    const firstPoints = await leaderboardRows.nth(0).locator('td').last().textContent()
+    const secondPoints = await leaderboardRows.nth(1).locator('td').last().textContent()
     expect(Number(firstPoints || 0)).toBeGreaterThan(Number(secondPoints || 0))
   })
 
@@ -260,44 +343,143 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
     request,
   }) => {
     await loginUi(page, 'master')
-    const scoreResponse = await page.evaluate(async (payload) => {
-      const raw = window.localStorage.getItem('myxi-user')
-      const token = raw ? JSON.parse(raw)?.token || '' : ''
-      const response = await fetch('http://127.0.0.1:4000/admin/match-scores/upsert', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(payload),
-      })
-      return {
-        status: response.status,
-        body: await response.text(),
-      }
-    }, {
+    const scoreResponse = await page.evaluate(
+      async (payload) => {
+        const raw = window.localStorage.getItem('myxi-user')
+        const token = raw ? JSON.parse(raw)?.token || '' : ''
+        const response = await fetch('http://127.0.0.1:4000/admin/match-scores/upsert', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(payload),
+        })
+        return {
+          status: response.status,
+          body: await response.text(),
+        }
+      },
+      {
         tournamentId: 'ipl-2026',
         contestId: 'nwmsu-ipl-auction',
         matchId: 'ipl-m1',
         userId: 'master',
         playerStats: [
-          { playerId: 'csk-p9', playerName: 'Ruturaj Gaikwad', runs: 30, fours: 2, sixes: 1, wickets: 0, catches: 0 },
-          { playerId: 'csk-p4', playerName: 'Shivam Dube', runs: 25, fours: 2, sixes: 1, wickets: 0, catches: 0 },
-          { playerId: 'csk-p2', playerName: 'Ravindra Jadeja', runs: 20, fours: 1, sixes: 0, wickets: 1, catches: 0 },
-          { playerId: 'mi-p7', playerName: 'Trent Boult', runs: 0, wickets: 2, maidens: 1, catches: 0 },
-          { playerId: 'mi-p8', playerName: 'Jasprit Bumrah', runs: 0, wickets: 2, maidens: 0, catches: 0 },
-          { playerId: 'mi-p4', playerName: 'Tilak Varma', runs: 18, fours: 1, sixes: 1, wickets: 0, catches: 0 },
-          { playerId: 'mi-p2', playerName: 'Rohit Sharma', runs: 15, fours: 1, sixes: 0, wickets: 0, catches: 0 },
-          { playerId: 'mi-p10', playerName: 'Hardik Pandya', runs: 10, wickets: 1, catches: 0 },
-          { playerId: 'mi-p1', playerName: 'Suryakumar Yadav', runs: 12, fours: 1, sixes: 0, wickets: 0, catches: 0 },
-          { playerId: 'csk-p1', playerName: 'Rachin Ravindra', runs: 11, fours: 1, sixes: 0, wickets: 0, catches: 0 },
-          { playerId: 'mi-p3', playerName: 'Ryan Rickelton', runs: 9, fours: 1, sixes: 0, wickets: 0, catches: 0 },
-          { playerId: 'csk-p8', playerName: 'Noor Ahmad', runs: 0, wickets: 1, catches: 0 },
+          {
+            playerId: 'csk-p9',
+            playerName: 'Ruturaj Gaikwad',
+            runs: 30,
+            fours: 2,
+            sixes: 1,
+            wickets: 0,
+            catches: 0,
+          },
+          {
+            playerId: 'csk-p4',
+            playerName: 'Shivam Dube',
+            runs: 25,
+            fours: 2,
+            sixes: 1,
+            wickets: 0,
+            catches: 0,
+          },
+          {
+            playerId: 'csk-p2',
+            playerName: 'Ravindra Jadeja',
+            runs: 20,
+            fours: 1,
+            sixes: 0,
+            wickets: 1,
+            catches: 0,
+          },
+          {
+            playerId: 'mi-p7',
+            playerName: 'Trent Boult',
+            runs: 0,
+            wickets: 2,
+            maidens: 1,
+            catches: 0,
+          },
+          {
+            playerId: 'mi-p8',
+            playerName: 'Jasprit Bumrah',
+            runs: 0,
+            wickets: 2,
+            maidens: 0,
+            catches: 0,
+          },
+          {
+            playerId: 'mi-p4',
+            playerName: 'Tilak Varma',
+            runs: 18,
+            fours: 1,
+            sixes: 1,
+            wickets: 0,
+            catches: 0,
+          },
+          {
+            playerId: 'mi-p2',
+            playerName: 'Rohit Sharma',
+            runs: 15,
+            fours: 1,
+            sixes: 0,
+            wickets: 0,
+            catches: 0,
+          },
+          {
+            playerId: 'mi-p10',
+            playerName: 'Hardik Pandya',
+            runs: 10,
+            wickets: 1,
+            catches: 0,
+          },
+          {
+            playerId: 'mi-p1',
+            playerName: 'Suryakumar Yadav',
+            runs: 12,
+            fours: 1,
+            sixes: 0,
+            wickets: 0,
+            catches: 0,
+          },
+          {
+            playerId: 'csk-p1',
+            playerName: 'Rachin Ravindra',
+            runs: 11,
+            fours: 1,
+            sixes: 0,
+            wickets: 0,
+            catches: 0,
+          },
+          {
+            playerId: 'mi-p3',
+            playerName: 'Ryan Rickelton',
+            runs: 9,
+            fours: 1,
+            sixes: 0,
+            wickets: 0,
+            catches: 0,
+          },
+          {
+            playerId: 'csk-p8',
+            playerName: 'Noor Ahmad',
+            runs: 0,
+            wickets: 1,
+            catches: 0,
+          },
         ],
-      })
+      },
+    )
     expect(scoreResponse.status).toBe(200)
 
-    const leaderboard = await apiCall(request, 'GET', '/contests/nwmsu-ipl-auction/leaderboard', undefined, 200)
+    const leaderboard = await apiCall(
+      request,
+      'GET',
+      '/contests/nwmsu-ipl-auction/leaderboard',
+      undefined,
+      200,
+    )
     const hunterRow = (leaderboard || []).find((row) => row.gameName === 'HunterCherryXI')
     expect(hunterRow).toBeTruthy()
     expect(Number(hunterRow.points || 0)).toBeGreaterThan(0)
@@ -335,8 +517,20 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
         201,
       )
 
-      await apiCall(request, 'POST', `/contests/${contestId}/join`, { userId: 'huntercherryxi' }, 200)
-      await apiCall(request, 'POST', `/contests/${contestId}/join`, { userId: 'draker' }, 200)
+      await apiCall(
+        request,
+        'POST',
+        `/contests/${contestId}/join`,
+        { userId: 'huntercherryxi' },
+        200,
+      )
+      await apiCall(
+        request,
+        'POST',
+        `/contests/${contestId}/join`,
+        { userId: 'draker' },
+        200,
+      )
 
       const pool = await apiCall(
         request,
@@ -355,7 +549,10 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
         .map((player) => player.id)
         .filter((id) => !scoringIds.includes(id))
       const hunterXi = [...scoringIds, ...fillerIds.slice(0, 11 - scoringIds.length)]
-      const hunterBackups = fillerIds.slice(11 - scoringIds.length, 14 - scoringIds.length)
+      const hunterBackups = fillerIds.slice(
+        11 - scoringIds.length,
+        14 - scoringIds.length,
+      )
       const drakerXi = fillerIds.slice(0, 11)
       const drakerBackups = fillerIds.slice(11, 14)
 

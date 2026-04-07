@@ -1,0 +1,16 @@
+{
+    "name": "MyXI Fantasy Cricket",
+    "short_name": "MyXI",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#f4efe3",
+    "theme_color": "#10223a",
+    "icons": [
+        {
+            "src": "/myxi-logo.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ]
+}

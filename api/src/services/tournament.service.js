@@ -8,11 +8,13 @@ import {
 const factory = createRepositoryFactory()
 
 class TournamentService {
+  // Returns all tournaments regardless of visibility status.
   async getAllTournaments() {
     const repo = await factory.getTournamentRepository()
     return await repo.findAll()
   }
 
+  // Returns tournaments marked active for end-user views.
   async getVisibleTournaments() {
     const rows = await this.getAllTournaments()
     return rows.filter((tournament) => {
@@ -21,16 +23,19 @@ class TournamentService {
     })
   }
 
+  // Returns one tournament by id.
   async getTournamentById(id) {
     const repo = await factory.getTournamentRepository()
     return await repo.findById(id)
   }
 
+  // Creates a tournament from direct payload data.
   async createTournament(data) {
     const repo = await factory.getTournamentRepository()
     return await repo.create(data)
   }
 
+  // Creates a tournament and seeded matches from imported payload format.
   async createImportedTournament(payload) {
     const repo = await factory.getTournamentRepository()
     const matchRepo = await factory.getMatchRepository()
@@ -81,7 +86,10 @@ class TournamentService {
       })),
     )
 
-    if (typeof playerRepo.upsertTeamSquadMeta === 'function' && tournament.selectedTeams.length) {
+    if (
+      typeof playerRepo.upsertTeamSquadMeta === 'function' &&
+      tournament.selectedTeams.length
+    ) {
       await Promise.all(
         tournament.selectedTeams.map((teamCode) =>
           playerRepo.upsertTeamSquadMeta({
@@ -108,11 +116,13 @@ class TournamentService {
     }
   }
 
+  // Updates tournament metadata fields by id.
   async updateTournament(id, data) {
     const repo = await factory.getTournamentRepository()
     return await repo.update(id, data)
   }
 
+  // Deletes a tournament and reports impacted contest count.
   async deleteTournament(id) {
     const repo = await factory.getTournamentRepository()
     const asNumber = Number(id)
@@ -138,12 +148,14 @@ class TournamentService {
     }
   }
 
+  // Returns tournament matches with derived status normalization.
   async getTournamentMatches(tournamentId) {
     const matchRepo = await factory.getMatchRepository()
     const matches = await matchRepo.findByTournament(tournamentId)
     return matches.map((match) => mapMatchWithDerivedStatus(match))
   }
 
+  // Returns admin-ready tournament catalog with contest and team summaries.
   async getTournamentCatalog() {
     const tournaments = await this.getAllTournaments()
     const matchRepo = await factory.getMatchRepository()
@@ -165,7 +177,10 @@ class TournamentService {
         const teamCodes = [
           ...new Set(
             (matches || [])
-              .flatMap((match) => [match.teamAKey || match.teamA, match.teamBKey || match.teamB])
+              .flatMap((match) => [
+                match.teamAKey || match.teamA,
+                match.teamBKey || match.teamB,
+              ])
               .filter(Boolean),
           ),
         ]
@@ -187,6 +202,7 @@ class TournamentService {
     return rows
   }
 
+  // Computes leaderboard totals across all matches in a tournament.
   async getTournamentLeaderboard(tournamentId) {
     // Get all matches for tournament
     const matchRepo = await factory.getMatchRepository()
@@ -255,6 +271,7 @@ class TournamentService {
       .sort((a, b) => b.points - a.points)
   }
 
+  // Resolves and returns a selected tournament with existence validation.
   async selectTournament(tournamentId) {
     const tournament = await this.getTournamentById(tournamentId)
     if (!tournament) throw new Error('Tournament not found')

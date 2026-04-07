@@ -5,7 +5,12 @@ import {
   normalizeTournamentId,
 } from './tournamentImport.service.js'
 import playerService from './player.service.js'
-import { resolveEffectiveSelection } from '../scoring.js'
+import {
+  buildPlayerIdentityIndex,
+  normalizePlayerStatRows,
+  resolveEffectiveSelection,
+  resolvePlayerStatPlayer,
+} from '../scoring.js'
 
 const registerMockProviderRoutes = (router, ctx) => {
   const normalizeIdentity = (value) => (value || '').toString().trim().toLowerCase()
@@ -1840,16 +1845,6 @@ const registerMockProviderRoutes = (router, ctx) => {
     if (!actor) {
       return res.status(401).json({ message: 'Valid actorUserId required for team pool' })
     }
-    const actorKey = normalizeActorId(
-      actor?.userId || actor?.gameName || actor?.email || '',
-    )
-    const targetKey = normalizeActorId(userId)
-    const isSelfRead = actorKey && targetKey && actorKey === targetKey
-    if (!isSelfRead && actor.role !== 'master_admin') {
-      return res.status(403).json({
-        message: 'Only master admin can access another user full team.',
-      })
-    }
     const contest = mockContests.find((item) => item.id === contestId)
     const resolvedTournamentId = contest?.tournamentId || tournamentId || 't20wc-2026'
     const tournamentMatches = buildMatches(100, resolvedTournamentId)
@@ -2466,6 +2461,7 @@ const registerMockProviderRoutes = (router, ctx) => {
       payloadText,
       fileName,
       processedPayload,
+      dryRun,
       source,
       tournamentId,
       contestId,
@@ -2526,6 +2522,48 @@ const registerMockProviderRoutes = (router, ctx) => {
         req.body?.playerStats
       if (!Array.isArray(rows)) {
         return res.status(400).json({ message: 'playerStats required for match upsert' })
+      }
+      if (dryRun === true) {
+        const identityIndex = buildPlayerIdentityIndex(allKnownPlayers)
+        const unmatchedDetails = rows
+          .filter((row) => row && typeof row === 'object')
+          .map((row) => {
+            const resolved = resolvePlayerStatPlayer(row, identityIndex)
+            if (resolved) return null
+            const input = (row.playerName || row.name || row.playerId || 'unknown-player')
+              .toString()
+              .trim()
+            return {
+              input,
+              normalizedInput: input
+                .toLowerCase()
+                .replace(/[^a-z0-9\s]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim(),
+              suggestions: [],
+            }
+          })
+          .filter(Boolean)
+        if (unmatchedDetails.length) {
+          return res.status(400).json({
+            message: 'Submitted score JSON includes players not in selected match teams',
+            unmatchedPlayers: unmatchedDetails.map((item) => item.input),
+            unmatchedDetails,
+          })
+        }
+        const normalizedRows = normalizePlayerStatRows(rows, allKnownPlayers)
+        if (!normalizedRows.length) {
+          return res.status(400).json({ message: 'Valid playerStats required' })
+        }
+        return res.json({
+          ok: true,
+          dryRun: true,
+          matchId: matchId.toString(),
+          tournamentId: tournamentId.toString(),
+          processedPayload: {
+            playerStats: normalizedRows,
+          },
+        })
       }
       manualResult = upsertManualMatchScore({
         tournamentId: tournamentId.toString(),

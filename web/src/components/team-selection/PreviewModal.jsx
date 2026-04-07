@@ -1,6 +1,20 @@
 import Modal from '../ui/Modal.jsx'
 
-function PreviewModal({ open, title, onClose, children, size = 'md', className = '' }) {
+function PreviewModal({
+  open,
+  title,
+  onClose,
+  children,
+  size = 'md',
+  className = '',
+  footer,
+}) {
+  const fallbackFooter = (
+    <button type="button" className="ghost small" onClick={onClose}>
+      Close
+    </button>
+  )
+
   return (
     <Modal
       open={open}
@@ -8,11 +22,7 @@ function PreviewModal({ open, title, onClose, children, size = 'md', className =
       onClose={onClose}
       size={size}
       className={className}
-      footer={
-        <button type="button" className="ghost small" onClick={onClose}>
-          Close
-        </button>
-      }
+      footer={footer || fallbackFooter}
     >
       {children}
     </Modal>

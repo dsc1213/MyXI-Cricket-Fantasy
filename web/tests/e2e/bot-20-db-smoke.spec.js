@@ -1846,6 +1846,11 @@ test.describe('20) DB smoke flows', () => {
       expect(saveResponse.status()).toBe(400)
       const body = await saveResponse.json()
       expect(body?.message || '').toContain('not in selected match teams')
+      expect(Array.isArray(body?.unmatchedPlayers)).toBe(true)
+      expect(body?.unmatchedPlayers || []).toContain(`RCB Player 1 ${tag}`)
+      expect(Array.isArray(body?.unmatchedDetails)).toBe(true)
+      expect(body?.unmatchedDetails?.[0]?.input).toBe(`RCB Player 1 ${tag}`)
+      expect(Array.isArray(body?.unmatchedDetails?.[0]?.suggestions)).toBe(true)
     } finally {
       if (authedRequest) {
         try {
@@ -2045,6 +2050,8 @@ test.describe('20) DB smoke flows', () => {
       const body = await saveResponse.json()
       expect(body?.ok).toBe(true)
       expect(body?.savedScore?.matchId).toBe(String(selectedMatch.id))
+      expect(Array.isArray(body?.savedScore?.playerStats)).toBe(true)
+      expect(body?.savedScore?.playerStats?.[0]?.playerName).toBe('Phil Salt')
     } finally {
       if (authedRequest) {
         try {

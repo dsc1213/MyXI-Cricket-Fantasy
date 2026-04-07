@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Button from '../../components/ui/Button.jsx'
 import DateTimeTimezoneField from '../../components/ui/DateTimeTimezoneField.jsx'
+import Modal from '../../components/ui/Modal.jsx'
 import SelectField from '../../components/ui/SelectField.jsx'
 import StickyTable from '../../components/ui/StickyTable.jsx'
 import {
@@ -101,6 +102,10 @@ function CreateTournamentPanel({ onCreated }) {
   const [selectedTeams, setSelectedTeams] = useState([])
   const [createdTournament, setCreatedTournament] = useState(null)
   const [tournamentCatalog, setTournamentCatalog] = useState([])
+  const [isGeneratedJsonModalOpen, setIsGeneratedJsonModalOpen] = useState(false)
+  const [generatedJsonText, setGeneratedJsonText] = useState('')
+  const [generatedJsonKind, setGeneratedJsonKind] = useState('tournament')
+  const [copyButtonLabel, setCopyButtonLabel] = useState('Copy JSON')
 
   useEffect(() => {
     let active = true
@@ -138,12 +143,6 @@ function CreateTournamentPanel({ onCreated }) {
     return nonSeedRows.at(-1)?.id || catalogRows.at(-1)?.id || 'ipl-2026-custom'
   }, [createdTournament, tournamentCatalog])
 
-  useEffect(() => {
-    if (inputType !== 'auction') return
-    if ((auctionPayload || '').trim()) return
-    setAuctionPayload(buildAuctionJsonExample(preferredAuctionTournamentId))
-  }, [inputType, auctionPayload, preferredAuctionTournamentId])
-
   const leagueOptions = useMemo(
     () => (LEAGUE_MAP[country] || []).map((value) => ({ value, label: value })),
     [country],
@@ -172,7 +171,8 @@ function CreateTournamentPanel({ onCreated }) {
 
   const selectedTeamSet = useMemo(() => new Set(selectedTeams), [selectedTeams])
   const allVisibleTeamsSelected =
-    availableTeams.length > 0 && availableTeams.every((row) => selectedTeamSet.has(row.teamCode))
+    availableTeams.length > 0 &&
+    availableTeams.every((row) => selectedTeamSet.has(row.teamCode))
   const teamOptions = useMemo(
     () =>
       availableTeams
@@ -250,7 +250,9 @@ function CreateTournamentPanel({ onCreated }) {
         .map((item) => item?.name)
         .filter(Boolean) || []
     setRows((prev) =>
-      prev.map((row, i) => (i === index ? { ...row, [key]: normalized, [squadKey]: squad } : row)),
+      prev.map((row, i) =>
+        i === index ? { ...row, [key]: normalized, [squadKey]: squad } : row,
+      ),
     )
   }
 
@@ -303,7 +305,9 @@ function CreateTournamentPanel({ onCreated }) {
           timezone={row.timezone || 'UTC'}
           onChange={({ value, timezone }) =>
             setRows((prev) =>
-              prev.map((item, i) => (i === index ? { ...item, startAt: value, timezone } : item)),
+              prev.map((item, i) =>
+                i === index ? { ...item, startAt: value, timezone } : item,
+              ),
             )
           }
         />
@@ -320,7 +324,9 @@ function CreateTournamentPanel({ onCreated }) {
           value={row.location}
           onChange={(event) =>
             setRows((prev) =>
-              prev.map((item, i) => (i === index ? { ...item, location: event.target.value } : item)),
+              prev.map((item, i) =>
+                i === index ? { ...item, location: event.target.value } : item,
+              ),
             )
           }
         />
@@ -337,7 +343,9 @@ function CreateTournamentPanel({ onCreated }) {
           value={row.venue}
           onChange={(event) =>
             setRows((prev) =>
-              prev.map((item, i) => (i === index ? { ...item, venue: event.target.value } : item)),
+              prev.map((item, i) =>
+                i === index ? { ...item, venue: event.target.value } : item,
+              ),
             )
           }
         />
@@ -355,9 +363,12 @@ function CreateTournamentPanel({ onCreated }) {
         setErrorText('Tournament name is required')
         return
       }
-      const actorUserId = currentUser?.gameName || currentUser?.email || currentUser?.id || ''
+      const actorUserId =
+        currentUser?.gameName || currentUser?.email || currentUser?.id || ''
       const knownTournamentIds = new Set(
-        (tournamentCatalog || []).map((item) => (item.id || '').toString().trim().toLowerCase()),
+        (tournamentCatalog || []).map((item) =>
+          (item.id || '').toString().trim().toLowerCase(),
+        ),
       )
       let response
       if (inputType === 'auction') {
@@ -368,7 +379,9 @@ function CreateTournamentPanel({ onCreated }) {
         })
       } else if (inputType === 'json') {
         const parsed = JSON.parse(jsonPayload || '{}')
-        const requestedId = (parsed?.tournamentId || `${parsed?.name || ''}-${parsed?.season || ''}`)
+        const requestedId = (
+          parsed?.tournamentId || `${parsed?.name || ''}-${parsed?.season || ''}`
+        )
           .toString()
           .trim()
           .toLowerCase()
@@ -428,22 +441,31 @@ function CreateTournamentPanel({ onCreated }) {
         response?.id ||
         ''
       const createdName =
-        response?.contest?.name || response?.tournament?.name || response?.name || name || 'Tournament'
+        response?.contest?.name ||
+        response?.tournament?.name ||
+        response?.name ||
+        name ||
+        'Tournament'
       const createdMatchesCount =
         Number(response?.tournament?.matchesCount) ||
         Number(response?.matchesCount) ||
         (inputType === 'auction'
           ? Number(response?.participantsImported || 0)
           : inputType === 'json'
-          ? Array.isArray(response?.tournament?.matches)
-            ? response.tournament.matches.length
-            : Array.isArray(JSON.parse(jsonPayload || '{}')?.matches)
-              ? JSON.parse(jsonPayload || '{}').matches.length
-              : 0
-          : rows.filter((row) => row.home && row.away && row.startAt).length)
+            ? Array.isArray(response?.tournament?.matches)
+              ? response.tournament.matches.length
+              : Array.isArray(JSON.parse(jsonPayload || '{}')?.matches)
+                ? JSON.parse(jsonPayload || '{}').matches.length
+                : 0
+            : rows.filter((row) => row.home && row.away && row.startAt).length)
       setCreatedTournament(
         createdId
-          ? { id: createdId, name: createdName, matchesCount: createdMatchesCount, kind: inputType }
+          ? {
+              id: createdId,
+              name: createdName,
+              matchesCount: createdMatchesCount,
+              kind: inputType,
+            }
           : null,
       )
       setNotice(
@@ -473,93 +495,170 @@ function CreateTournamentPanel({ onCreated }) {
     }
   }
 
-  return (
-    <section className="dashboard-section">
-      <div className="admin-card dashboard-panel-card">
-        <div className="contest-section-head">
-          <h3>Create tournament</h3>
-          <div className="top-actions">
-            {inputType === 'manual' && manualStep === 'matches' && (
-              <Button variant="ghost" size="small" onClick={() => setRows((prev) => [...prev, emptyMatchRow(prev.length + 1)])}>
-                + Add match
-              </Button>
-            )}
-            {(inputType === 'json' || inputType === 'auction' || manualStep === 'matches') && (
-              <Button variant="primary" size="small" onClick={onSave} disabled={isSaving}>
-                {isSaving
-                  ? 'Saving...'
-                  : inputType === 'auction'
-                    ? 'Import auction'
-                    : 'Save tournament'}
-              </Button>
-            )}
-          </div>
-        </div>
+  const onGenerateTournamentJson = () => {
+    setGeneratedJsonKind('tournament')
+    setGeneratedJsonText(TOURNAMENT_JSON_EXAMPLE)
+    setIsGeneratedJsonModalOpen(true)
+    setCopyButtonLabel('Copy JSON')
+    setErrorText('')
+    setNotice('Tournament JSON template generated. Copy and paste into JSON payload.')
+  }
 
-        {!!errorText && (
-          <div className="error-text create-tournament-inline-error" role="alert">
-            {errorText}
-          </div>
-        )}
-        {!!notice && <p className="success-text">{notice}</p>}
-        {isSaving && inputType === 'auction' && (
-          <div className="create-tournament-loading" role="status" aria-live="polite">
-            <strong>Importing auction data...</strong>
-            <span>Validating tournament, players, and participant rosters.</span>
-          </div>
-        )}
-        {createdTournament && (
-          <div className="create-tournament-success" role="status" aria-live="polite">
-            <div className="create-tournament-success-copy">
-              <strong>{createdTournament.kind === 'auction' ? 'Auction saved successfully.' : 'Tournament saved successfully.'}</strong>
-              <span>
-                {createdTournament.name}
-                {createdTournament.kind === 'auction'
-                  ? ` • ${createdTournament.matchesCount} participants imported`
-                  : createdTournament.matchesCount
-                  ? ` • ${createdTournament.matchesCount} matches imported`
-                  : ''}
-              </span>
+  const onGenerateAuctionJson = () => {
+    setGeneratedJsonKind('auction')
+    setGeneratedJsonText(buildAuctionJsonExample(preferredAuctionTournamentId))
+    setIsGeneratedJsonModalOpen(true)
+    setCopyButtonLabel('Copy JSON')
+    setErrorText('')
+    setNotice(
+      'Auction JSON template generated. Copy and paste into Auction JSON payload.',
+    )
+  }
+
+  const onCloseGeneratedJsonModal = () => {
+    setIsGeneratedJsonModalOpen(false)
+    setCopyButtonLabel('Copy JSON')
+  }
+
+  const onCopyGeneratedJson = async () => {
+    if (!generatedJsonText) return
+    try {
+      await navigator.clipboard.writeText(generatedJsonText)
+      setCopyButtonLabel('Copied')
+      window.setTimeout(() => setCopyButtonLabel('Copy JSON'), 1200)
+    } catch {
+      setCopyButtonLabel('Copy failed')
+      window.setTimeout(() => setCopyButtonLabel('Copy JSON'), 1600)
+    }
+  }
+
+  return (
+    <section className="dashboard-section create-tournament-section">
+      <div className="admin-card dashboard-panel-card create-tournament-card">
+        <div className="create-tournament-top">
+          <div className="contest-section-head">
+            <h3>Create tournament</h3>
+            <div className="top-actions">
+              {(inputType === 'json' || inputType === 'auction') && (
+                <Button
+                  variant="secondary"
+                  size="small"
+                  onClick={
+                    inputType === 'auction'
+                      ? onGenerateAuctionJson
+                      : onGenerateTournamentJson
+                  }
+                  disabled={isSaving}
+                >
+                  Generate JSON
+                </Button>
+              )}
+              {inputType === 'manual' && manualStep === 'matches' && (
+                <Button
+                  variant="ghost"
+                  size="small"
+                  onClick={() =>
+                    setRows((prev) => [...prev, emptyMatchRow(prev.length + 1)])
+                  }
+                >
+                  + Add match
+                </Button>
+              )}
+              {(inputType === 'json' ||
+                inputType === 'auction' ||
+                manualStep === 'matches') && (
+                <Button
+                  variant="primary"
+                  size="small"
+                  onClick={onSave}
+                  disabled={isSaving}
+                >
+                  {isSaving
+                    ? 'Saving...'
+                    : inputType === 'auction'
+                      ? 'Import auction'
+                      : 'Save tournament'}
+                </Button>
+              )}
             </div>
+          </div>
+
+          {!!errorText && (
+            <div className="error-text create-tournament-inline-error" role="alert">
+              {errorText}
+            </div>
+          )}
+          {!!notice && <p className="success-text">{notice}</p>}
+          {isSaving && inputType === 'auction' && (
+            <div className="create-tournament-loading" role="status" aria-live="polite">
+              <strong>Importing auction data...</strong>
+              <span>Validating tournament, players, and participant rosters.</span>
+            </div>
+          )}
+          {createdTournament && (
+            <div className="create-tournament-success" role="status" aria-live="polite">
+              <div className="create-tournament-success-copy">
+                <strong>
+                  {createdTournament.kind === 'auction'
+                    ? 'Auction saved successfully.'
+                    : 'Tournament saved successfully.'}
+                </strong>
+                <span>
+                  {createdTournament.name}
+                  {createdTournament.kind === 'auction'
+                    ? ` • ${createdTournament.matchesCount} participants imported`
+                    : createdTournament.matchesCount
+                      ? ` • ${createdTournament.matchesCount} matches imported`
+                      : ''}
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="small"
+                onClick={() => onCreated?.({ ...createdTournament, openAdmin: true })}
+              >
+                Open Tournament Manager
+              </Button>
+            </div>
+          )}
+
+          <div
+            className="create-tournament-input-tabs"
+            role="tablist"
+            aria-label="Tournament input type"
+          >
             <Button
               type="button"
               variant="ghost"
-              size="small"
-              onClick={() => onCreated?.({ ...createdTournament, openAdmin: true })}
+              role="tab"
+              aria-selected={inputType === 'manual'}
+              className={`create-tournament-input-tab ${inputType === 'manual' ? 'active' : ''}`.trim()}
+              onClick={() => setInputType('manual')}
             >
-              Open Tournament Manager
+              Manual
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              role="tab"
+              aria-selected={inputType === 'json'}
+              className={`create-tournament-input-tab ${inputType === 'json' ? 'active' : ''}`.trim()}
+              onClick={() => setInputType('json')}
+            >
+              JSON
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              role="tab"
+              aria-selected={inputType === 'auction'}
+              className={`create-tournament-input-tab ${inputType === 'auction' ? 'active' : ''}`.trim()}
+              onClick={() => setInputType('auction')}
+            >
+              Auction
             </Button>
           </div>
-        )}
-
-        <div className="upload-tab-row" role="tablist" aria-label="Tournament input type">
-          <Button
-            type="button"
-            role="tab"
-            aria-selected={inputType === 'manual'}
-            className={`upload-tab-btn ${inputType === 'manual' ? 'active' : ''}`.trim()}
-            onClick={() => setInputType('manual')}
-          >
-            Manual
-          </Button>
-          <Button
-            type="button"
-            role="tab"
-            aria-selected={inputType === 'json'}
-            className={`upload-tab-btn ${inputType === 'json' ? 'active' : ''}`.trim()}
-            onClick={() => setInputType('json')}
-          >
-            JSON
-          </Button>
-          <Button
-            type="button"
-            role="tab"
-            aria-selected={inputType === 'auction'}
-            className={`upload-tab-btn ${inputType === 'auction' ? 'active' : ''}`.trim()}
-            onClick={() => setInputType('auction')}
-          >
-            Auction
-          </Button>
         </div>
 
         {inputType === 'auction' ? (
@@ -650,7 +749,13 @@ function CreateTournamentPanel({ onCreated }) {
                           setLeague('')
                           setSelectedTeams([])
                         }}
-                        options={[{ value: '', label: 'Select country' }, ...Object.keys(LEAGUE_MAP).map((value) => ({ value, label: value }))]}
+                        options={[
+                          { value: '', label: 'Select country' },
+                          ...Object.keys(LEAGUE_MAP).map((value) => ({
+                            value,
+                            label: value,
+                          })),
+                        ]}
                       />
                     </label>
                     <label>
@@ -662,7 +767,10 @@ function CreateTournamentPanel({ onCreated }) {
                           setLeague(event.target.value)
                           setSelectedTeams([])
                         }}
-                        options={[{ value: '', label: 'Select league' }, ...leagueOptions]}
+                        options={[
+                          { value: '', label: 'Select league' },
+                          ...leagueOptions,
+                        ]}
                       />
                     </label>
                   </div>
@@ -680,7 +788,12 @@ function CreateTournamentPanel({ onCreated }) {
                   />
                 </div>
                 <div className="top-actions">
-                  <Button variant="secondary" size="small" disabled={selectedTeams.length < 2} onClick={() => setManualStep('matches')}>
+                  <Button
+                    variant="secondary"
+                    size="small"
+                    disabled={selectedTeams.length < 2}
+                    onClick={() => setManualStep('matches')}
+                  >
                     Next
                   </Button>
                 </div>
@@ -688,7 +801,11 @@ function CreateTournamentPanel({ onCreated }) {
             ) : (
               <>
                 <div className="top-actions">
-                  <Button variant="ghost" size="small" onClick={() => setManualStep('teams')}>
+                  <Button
+                    variant="ghost"
+                    size="small"
+                    onClick={() => setManualStep('teams')}
+                  >
                     Back
                   </Button>
                 </div>
@@ -708,6 +825,43 @@ function CreateTournamentPanel({ onCreated }) {
           </>
         )}
       </div>
+
+      <Modal
+        open={isGeneratedJsonModalOpen}
+        onClose={onCloseGeneratedJsonModal}
+        title={
+          generatedJsonKind === 'auction'
+            ? 'Generated Auction JSON'
+            : 'Generated Tournament JSON'
+        }
+        size="lg"
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="small"
+              onClick={onCopyGeneratedJson}
+              disabled={!generatedJsonText}
+            >
+              {copyButtonLabel}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="small"
+              onClick={onCloseGeneratedJsonModal}
+            >
+              Close
+            </Button>
+          </>
+        }
+      >
+        <p className="team-note">
+          Copy this template, then paste it into the corresponding JSON textarea.
+        </p>
+        <textarea className="score-preview-textarea" value={generatedJsonText} readOnly />
+      </Modal>
     </section>
   )
 }

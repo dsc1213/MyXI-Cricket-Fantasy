@@ -18,16 +18,19 @@ const toNameArray = (value) => {
 }
 
 class MatchService {
+  // Returns a single match by id.
   async getMatch(id) {
     const repo = await factory.getMatchRepository()
     return await repo.findById(id)
   }
 
+  // Returns all matches for a tournament.
   async getMatchesByTournament(tournamentId) {
     const repo = await factory.getMatchRepository()
     return await repo.findByTournament(tournamentId)
   }
 
+  // Imports fixture definitions and stores them for a tournament.
   async importFixtures(tournamentId, fixtures) {
     // fixtures: array of { name, teamA, teamB, teamAKey, teamBKey, startTime, status }
     const repo = await factory.getMatchRepository()
@@ -38,6 +41,7 @@ class MatchService {
     return await repo.bulkCreate(matchData)
   }
 
+  // Updates match status and auto-applies backup replacements when a match starts.
   async updateMatchStatus(id, status) {
     const repo = await factory.getMatchRepository()
     const previous = await repo.findById(id)
@@ -59,6 +63,7 @@ class MatchService {
     }
   }
 
+  // Manually triggers backup replacement for all team selections in a match.
   async forceApplyBackupReplacement(matchId) {
     const match = await this.getMatch(matchId)
     if (!match) {
@@ -74,6 +79,7 @@ class MatchService {
     }
   }
 
+  // Rebuilds playing XI/backups based on announced active players for a started match.
   async applyBackupReplacementOnMatchStart(match) {
     const tournamentId = match?.tournamentId
     const matchId = match?.id
@@ -236,6 +242,7 @@ class MatchService {
     }
   }
 
+  // Creates a new score upload after deactivating prior active score entries.
   async uploadScore(matchId, tournamentId, playerStats, uploadedBy) {
     const scoreRepo = await factory.getMatchScoreRepository()
     // Deactivate previous score
@@ -249,11 +256,13 @@ class MatchService {
     })
   }
 
+  // Returns score upload history for a match.
   async getScoreHistory(matchId) {
     const repo = await factory.getMatchScoreRepository()
     return await repo.findByMatch(matchId)
   }
 
+  // Rolls back score state by reactivating the previous score version.
   async rollbackScore(matchId, scoreId) {
     const scoreRepo = await factory.getMatchScoreRepository()
     // Find previous score or mark latest as inactive
@@ -267,6 +276,7 @@ class MatchService {
     return await scoreRepo.findLatestActive(matchId)
   }
 
+  // Placeholder hook for manual player auto-swap workflows.
   async autoSwapPlayers(matchId, userId, swaps) {
     // swaps format: { out: playerId, in: playerId }
     // This would update team selection if match is still open

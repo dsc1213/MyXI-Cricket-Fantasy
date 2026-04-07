@@ -656,7 +656,123 @@ select.dashboard-text-input {
 }
 
 .tournament-manager-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.32rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  width: max-content;
+  justify-self: start;
   align-self: start;
+}
+
+.tournament-manager-tab-btn,
+.create-tournament-input-tab {
+  border: 1px solid rgba(100, 116, 139, 0.24);
+  border-radius: 999px;
+  min-height: 42px;
+  height: 42px;
+  min-width: 108px;
+  padding: 0 0.92rem;
+  background: rgba(17, 24, 39, 0.14);
+  color: color-mix(in srgb, var(--text-muted) 82%, #dbeafe 18%);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.tournament-manager-tab-btn:hover:not(:disabled),
+.create-tournament-input-tab:hover:not(:disabled) {
+  border-color: rgba(96, 165, 250, 0.42);
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--text-primary);
+}
+
+.tournament-manager-tab-btn.active,
+.create-tournament-input-tab.active {
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.34), rgba(37, 99, 235, 0.24));
+  border-color: rgba(147, 197, 253, 0.74);
+  color: #f8fbff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 6px 14px rgba(15, 23, 42, 0.16);
+}
+
+.create-tournament-input-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.32rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  width: max-content;
+  max-width: none;
+  justify-self: start;
+  align-self: start;
+  margin-bottom: 0.6rem;
+}
+
+.create-tournament-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
+}
+
+.create-tournament-top {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.create-tournament-card .contest-section-head {
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.create-tournament-card .contest-section-head .top-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.create-tournament-card .create-tournament-input-tabs {
+  margin-bottom: 0.15rem;
+}
+
+.create-tournament-card > label {
+  display: grid;
+  gap: 0.42rem;
+  margin: 0;
+}
+
+.dashboard-shell.panel-tournamentManager .dashboard-panel-view .dashboard-section,
+.dashboard-shell.panel-tournamentManager
+  .dashboard-panel-view
+  .admin-card.dashboard-panel-card {
+  min-height: 0;
 }
 
 .admin-manager-panel .admin-manager-tournament-selector-shell {
@@ -2197,6 +2313,105 @@ body.dark-theme .fantasy-hub-main {
   resize: vertical;
 }
 
+.json-upload-diagnostics {
+  width: min(700px, 100%);
+  margin-top: 0.45rem;
+  border: 1px solid rgba(220, 38, 38, 0.28);
+  background: rgba(254, 226, 226, 0.42);
+  border-radius: 10px;
+  padding: 0.6rem 0.68rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.json-upload-diagnostics h5 {
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+.json-upload-diagnostics p {
+  margin: 0;
+  font-size: 0.77rem;
+  color: var(--text-muted);
+}
+
+.json-upload-diagnostics ul {
+  margin: 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.json-upload-diagnostics li {
+  display: grid;
+  gap: 0.05rem;
+  font-size: 0.77rem;
+}
+
+.json-upload-diagnostics li strong {
+  color: #7f1d1d;
+}
+
+.score-preview-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  background: rgba(10, 15, 26, 0.58);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.score-preview-modal {
+  width: min(880px, 95vw);
+  max-height: 90vh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 0.7rem;
+  border-radius: 14px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  box-shadow: 0 24px 60px rgba(2, 6, 23, 0.34);
+  padding: 0.85rem;
+}
+
+.score-preview-modal-head h4 {
+  margin: 0;
+}
+
+.score-preview-modal-head p {
+  margin: 0.22rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+
+.score-preview-textarea {
+  width: 100%;
+  min-height: 220px;
+  max-height: 60vh;
+  border-radius: 10px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--input-text);
+  font:
+    500 0.79rem/1.4 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    Liberation Mono,
+    Courier New,
+    monospace;
+  resize: none;
+  padding: 0.62rem;
+}
+
+.score-preview-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 .match-upload-excel {
   width: 100%;
   max-width: 480px;
@@ -3170,6 +3385,24 @@ body.dark-theme .upload-dropzone.dragover {
   border-color: rgba(157, 197, 250, 0.5);
 }
 
+body.dark-theme .score-preview-modal-backdrop {
+  background: rgba(2, 6, 23, 0.72);
+}
+
+body.dark-theme .score-preview-modal {
+  border-color: rgba(126, 162, 212, 0.42);
+  box-shadow: 0 24px 60px rgba(2, 6, 23, 0.58);
+}
+
+body.dark-theme .json-upload-diagnostics {
+  border-color: rgba(248, 113, 113, 0.38);
+  background: rgba(127, 29, 29, 0.28);
+}
+
+body.dark-theme .json-upload-diagnostics li strong {
+  color: #fecaca;
+}
+
 body.dark-theme .upload-tab-row {
   border-color: rgba(106, 132, 171, 0.28);
   background: linear-gradient(180deg, rgba(30, 45, 70, 0.84), rgba(23, 36, 58, 0.76));
@@ -3660,6 +3893,23 @@ body.dark-theme .app.app-lower-content select {
     flex-wrap: wrap;
   }
 
+  .create-tournament-card .contest-section-head {
+    align-items: stretch;
+  }
+
+  .create-tournament-card .contest-section-head .top-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .create-tournament-card .create-tournament-input-tabs {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
   .pending-approvals-panel.compact .contest-section-head {
     align-items: center;
     gap: 0.25rem;
@@ -3688,6 +3938,75 @@ body.dark-theme .app.app-lower-content select {
   .manual-category-inline {
     justify-content: flex-start;
     flex-wrap: wrap;
+  }
+
+  .app.is-contest-detail .match-table-wrap,
+  .app.is-contest-detail .participants-table-wrap {
+    overflow-x: auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .app.is-contest-detail .match-table {
+    min-width: 640px;
+  }
+
+  .app.is-contest-detail .participants-table {
+    min-width: 500px;
+  }
+
+  .app.is-contest-detail .match-table thead th,
+  .app.is-contest-detail .match-table tbody td,
+  .app.is-contest-detail .participants-table thead th,
+  .app.is-contest-detail .participants-table tbody td {
+    white-space: nowrap;
+  }
+
+  .app.is-contest-detail .match-table thead th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 12;
+    background: #f8fafc;
+    box-shadow:
+      1px 0 0 var(--panel-border),
+      8px 0 12px rgba(15, 23, 42, 0.1);
+  }
+
+  .app.is-contest-detail .match-table tbody td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 9;
+    background: rgba(248, 250, 252, 0.98);
+    box-shadow:
+      1px 0 0 var(--panel-border),
+      8px 0 12px rgba(15, 23, 42, 0.08);
+  }
+
+  .app.is-contest-detail .match-table tbody tr.active td:first-child {
+    background: rgba(226, 238, 255, 0.98);
+  }
+
+  .app.is-contest-detail .match-table tbody tr:hover td:first-child {
+    background: rgba(233, 240, 248, 0.98);
+  }
+
+  body.dark-theme .app.is-contest-detail .match-table thead th:first-child {
+    background: rgba(28, 42, 68, 0.98);
+  }
+
+  body.dark-theme .app.is-contest-detail .match-table tbody td:first-child {
+    background: rgba(35, 52, 82, 0.96);
+    box-shadow:
+      1px 0 0 var(--panel-border),
+      8px 0 14px rgba(6, 10, 18, 0.34);
+  }
+
+  body.dark-theme .app.is-contest-detail .match-table tbody tr.active td:first-child {
+    background: rgba(50, 72, 110, 0.96);
+  }
+
+  body.dark-theme .app.is-contest-detail .match-table tbody tr:hover td:first-child {
+    background: rgba(58, 79, 116, 0.96);
   }
 
   .manual-category-row {

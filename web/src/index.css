@@ -29,6 +29,10 @@
   --ghost-text: #0f172a;
   --theme-toggle-bg: rgba(255, 255, 255, 0.65);
   --panel-bg: rgba(255, 255, 255, 0.84);
+  --team-a-panel-bg: rgba(231, 246, 252, 0.94);
+  --team-b-panel-bg: rgba(246, 243, 236, 0.94);
+  --matches-panel-bg: rgba(250, 253, 255, 0.9);
+  --participants-panel-bg: rgba(244, 251, 247, 0.9);
   --myxi-bg: #e9f7e8;
   --myxi-chip-bg: rgba(15, 23, 42, 0.08);
   --myxi-chip-border: rgba(15, 23, 42, 0.18);
@@ -104,6 +108,10 @@ body.dark-theme {
   --ghost-text: #e7effa;
   --theme-toggle-bg: rgba(33, 48, 76, 0.7);
   --panel-bg: rgba(31, 47, 77, 0.78);
+  --team-a-panel-bg: rgba(31, 70, 95, 0.88);
+  --team-b-panel-bg: rgba(58, 65, 74, 0.88);
+  --matches-panel-bg: rgba(38, 56, 89, 0.82);
+  --participants-panel-bg: rgba(34, 61, 74, 0.82);
   --myxi-bg: linear-gradient(160deg, rgba(49, 89, 86, 0.86), rgba(41, 74, 74, 0.84));
   --myxi-chip-bg: rgba(26, 47, 50, 0.62);
   --myxi-chip-border: rgba(187, 225, 212, 0.46);

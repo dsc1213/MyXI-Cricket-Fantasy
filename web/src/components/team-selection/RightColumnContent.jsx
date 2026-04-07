@@ -1,12 +1,19 @@
 import PlayerLabel from './PlayerLabel.jsx'
 import SelectField from '../ui/SelectField.jsx'
 
+const ROLE_LANES = ['WK', 'BAT', 'AR', 'BOWL']
+
+function normalizePlayerRole(role = '') {
+  const value = role.toString().trim().toUpperCase()
+  if (value.includes('WICKET') || value === 'WK') return 'WK'
+  if (value.includes('BOWL')) return 'BOWL'
+  if (value.includes('ALL') || value === 'AR') return 'AR'
+  if (value.includes('BAT')) return 'BAT'
+  return 'BAT'
+}
+
 function formatRolePickLabel(name = '') {
-  const parts = name
-    .toString()
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
+  const parts = name.toString().trim().split(/\s+/).filter(Boolean)
   if (!parts.length) return ''
   if (parts.length === 1) return parts[0]
   const last = parts[parts.length - 1]
@@ -32,6 +39,19 @@ function RightColumnContent({
     value: String(player.id),
     label: formatRolePickLabel(player.name),
   }))
+  const groupedSelected = selected.reduce(
+    (acc, player) => {
+      const lane = normalizePlayerRole(player?.role)
+      acc[lane].push(player)
+      return acc
+    },
+    {
+      WK: [],
+      BAT: [],
+      AR: [],
+      BOWL: [],
+    },
+  )
 
   return (
     <>
@@ -62,7 +82,8 @@ function RightColumnContent({
                     key={`captain-${option.value}`}
                     value={option.value}
                     disabled={
-                      viceCaptainId != null && String(viceCaptainId) === String(option.value)
+                      viceCaptainId != null &&
+                      String(viceCaptainId) === String(option.value)
                     }
                   >
                     {option.label}
@@ -83,7 +104,9 @@ function RightColumnContent({
                   <option
                     key={`vice-${option.value}`}
                     value={option.value}
-                    disabled={captainId != null && String(captainId) === String(option.value)}
+                    disabled={
+                      captainId != null && String(captainId) === String(option.value)
+                    }
                   >
                     {option.label}
                   </option>
@@ -93,15 +116,30 @@ function RightColumnContent({
           </div>
           {!!validationMessage && <p className="myxi-validation">{validationMessage}</p>}
         </div>
-        <div className="myxi-slots">
+        <div className="myxi-role-lanes">
           {selected.length === 0 && <p className="empty">No players selected</p>}
-          {selected.map((player) => (
-            <PlayerLabel
-              key={player.id}
-              player={player}
-              lineupStatus={player.lineupStatus || ''}
-            />
-          ))}
+          {ROLE_LANES.map((lane) => {
+            const lanePlayers = groupedSelected[lane]
+            return (
+              <section
+                key={lane}
+                className={`myxi-role-lane${lanePlayers.length ? '' : ' is-empty'}`}
+                aria-label={`${lane} picks`}
+                data-role-lane={lane}
+              >
+                <div className="myxi-role-lane-chips">
+                  {lanePlayers.map((player) => (
+                    <PlayerLabel
+                      key={player.id}
+                      player={player}
+                      lineupStatus={player.lineupStatus || ''}
+                      className="myxi-role-chip"
+                    />
+                  ))}
+                </div>
+              </section>
+            )
+          })}
         </div>
       </aside>
 

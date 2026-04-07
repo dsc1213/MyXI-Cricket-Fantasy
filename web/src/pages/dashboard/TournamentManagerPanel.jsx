@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import AdminManagerPanel from './AdminManagerPanel.jsx'
 import CreateTournamentPanel from './CreateTournamentPanel.jsx'
+import Button from '../../components/ui/Button.jsx'
 
 function TournamentManagerPanel() {
   const [activeTab, setActiveTab] = useState('manage')
@@ -8,25 +9,31 @@ function TournamentManagerPanel() {
 
   return (
     <section className="dashboard-section tournament-manager-shell">
-      <div className="upload-tab-row tournament-manager-tabs" role="tablist" aria-label="Tournament manager modes">
-        <button
+      <div
+        className="tournament-manager-tabs"
+        role="tablist"
+        aria-label="Tournament manager modes"
+      >
+        <Button
           type="button"
+          variant="ghost"
           role="tab"
           aria-selected={activeTab === 'manage'}
-          className={`upload-tab-btn ${activeTab === 'manage' ? 'active' : ''}`.trim()}
+          className={`tournament-manager-tab-btn ${activeTab === 'manage' ? 'active' : ''}`.trim()}
           onClick={() => setActiveTab('manage')}
         >
           Manage
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="ghost"
           role="tab"
           aria-selected={activeTab === 'create'}
-          className={`upload-tab-btn ${activeTab === 'create' ? 'active' : ''}`.trim()}
+          className={`tournament-manager-tab-btn ${activeTab === 'create' ? 'active' : ''}`.trim()}
           onClick={() => setActiveTab('create')}
         >
           Create
-        </button>
+        </Button>
       </div>
 
       {activeTab === 'manage' ? (

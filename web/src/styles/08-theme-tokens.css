@@ -216,8 +216,8 @@ body.dark-theme .leaderboard-card .leaderboard-row:not(.header):nth-child(even) 
     grid-template-columns: 1fr;
   }
 
-  .tile-grid.two-col {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .app.app-team .tile-grid.two-col {
+    grid-template-columns: 1fr;
     gap: 0.35rem;
   }
 

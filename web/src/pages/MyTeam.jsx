@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import PlayerIdentity from '../components/ui/PlayerIdentity.jsx'
 import { fetchTeamPool, fetchUserPicks } from '../lib/api.js'
+import { sortPlayersByDisplayRole } from '../lib/playerRoleSort.js'
 
 function MyTeam() {
   const [players, setPlayers] = useState([])
@@ -8,6 +9,7 @@ function MyTeam() {
   const [tournamentName, setTournamentName] = useState('T20 World Cup 2026')
   const [errorText, setErrorText] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const sortedPlayers = useMemo(() => sortPlayersByDisplayRole(players), [players])
 
   useEffect(() => {
     let active = true
@@ -71,7 +73,7 @@ function MyTeam() {
         <article className="team-card">
           <h3>Saved XI</h3>
           <div className="player-list">
-            {players.map((player) => (
+            {sortedPlayers.map((player) => (
               <div className="player-row" key={player.name}>
                 <div className="player-row-main">
                   <PlayerIdentity

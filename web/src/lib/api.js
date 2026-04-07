@@ -141,7 +141,10 @@ const rawApiRequest = async (path, options = {}) => {
       }
       if (!response.ok) {
         const message = data?.message || `Request failed: ${response.status}`
-        throw new Error(message)
+        const requestError = new Error(message)
+        requestError.status = response.status
+        requestError.data = data
+        throw requestError
       }
       return data
     } catch (error) {
@@ -364,6 +367,7 @@ const saveMatchScores = ({
   payloadText,
   fileName,
   processedPayload,
+  dryRun,
   source,
   tournamentId,
   contestId,
@@ -377,6 +381,7 @@ const saveMatchScores = ({
       payloadText,
       fileName,
       processedPayload,
+      dryRun,
       source,
       tournamentId,
       contestId,
@@ -576,6 +581,7 @@ const upsertMatchLineups = ({
   contestId,
   updatedBy,
   source,
+  dryRun,
   strictSquad,
   lineups,
   meta,
@@ -588,6 +594,7 @@ const upsertMatchLineups = ({
       contestId,
       updatedBy,
       source,
+      dryRun,
       strictSquad,
       lineups,
       meta,

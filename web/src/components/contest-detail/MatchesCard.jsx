@@ -52,6 +52,22 @@ function ViewActionIcon() {
   )
 }
 
+function AddActionIcon() {
+  return (
+    <svg
+      className="action-icon"
+      viewBox="0 0 24 24"
+      role="presentation"
+      aria-hidden="true"
+    >
+      <path
+        fill="currentColor"
+        d="M19 11H13V5a1 1 0 1 0-2 0v6H5a1 1 0 1 0 0 2h6v6a1 1 0 1 0 2 0v-6h6a1 1 0 1 0 0-2Z"
+      />
+    </svg>
+  )
+}
+
 function normalizeMatchStatus(value) {
   return (value || '').toString().trim().toLowerCase().replace(/\s+/g, '')
 }
@@ -129,12 +145,6 @@ function MatchesCard({
       render: (match) => formatMatchStatus(match.status),
     },
     {
-      key: 'myTeam',
-      label: isFixedRosterContest ? 'My Roster' : 'My Team',
-      render: (match) =>
-        match.hasTeam ? (isFixedRosterContest ? 'Owned players' : 'Added') : 'Not added',
-    },
-    {
       key: 'action',
       label: 'Action',
       render: (match) => {
@@ -179,52 +189,74 @@ function MatchesCard({
             {canEdit ? (
               <>
                 {canManageOwnTeam &&
-                  (loginRequired ? (
+                  (match.hasTeam ? (
+                    loginRequired ? (
+                      <Button
+                        variant="ghost"
+                        size="small"
+                        className="icon-edit-btn match-action-icon-btn"
+                        disabled
+                        aria-label="Login required"
+                        title="Login required to edit team"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <EditActionIcon />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="small"
+                        className="icon-edit-btn match-action-icon-btn"
+                        to={`/fantasy/select?contest=${contestId}&match=${match.id}&mode=edit`}
+                        aria-label="Edit team"
+                        title="Edit team"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <EditActionIcon />
+                      </Button>
+                    )
+                  ) : loginRequired ? (
                     <Button
                       variant="ghost"
                       size="small"
                       className="icon-edit-btn match-action-icon-btn"
                       disabled
                       aria-label="Login required"
-                      title="Login required to edit team"
+                      title="Login required to add team"
                       onClick={(event) => event.stopPropagation()}
                     >
-                      <EditActionIcon />
+                      <AddActionIcon />
                     </Button>
                   ) : (
                     <Button
                       variant="ghost"
                       size="small"
                       className="icon-edit-btn match-action-icon-btn"
-                      to={`/fantasy/select?contest=${contestId}&match=${match.id}&mode=${match.hasTeam ? 'edit' : 'add'}`}
-                      aria-label={match.hasTeam ? 'Edit team' : 'Add team'}
-                      title={match.hasTeam ? 'Edit team' : 'Add team'}
+                      to={`/fantasy/select?contest=${contestId}&match=${match.id}&mode=add`}
+                      aria-label="Add team"
+                      title="Add team"
                       onClick={(event) => event.stopPropagation()}
                     >
-                      <EditActionIcon />
+                      <AddActionIcon />
                     </Button>
                   ))}
-                <Button
-                  variant="ghost"
-                  size="small"
-                  className="icon-eye-btn match-action-icon-btn"
-                  disabled={!match.hasTeam || loginRequired}
-                  aria-label="View team"
-                  title={
-                    loginRequired
-                      ? 'Login required to view team'
-                      : match.hasTeam
-                        ? 'View team'
-                        : 'No team added'
-                  }
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onPreviewTeam?.(match)
-                  }}
-                >
-                  <ViewActionIcon />
-                  <span>{` (${Number(match.submittedCount || 0)})`}</span>
-                </Button>
+                {match.hasTeam && (
+                  <Button
+                    variant="ghost"
+                    size="small"
+                    className="icon-eye-btn match-action-icon-btn"
+                    disabled={loginRequired}
+                    aria-label="View team"
+                    title={loginRequired ? 'Login required to view team' : 'View team'}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onPreviewTeam?.(match)
+                    }}
+                  >
+                    <ViewActionIcon />
+                    <span>{` (${Number(match.submittedCount || 0)})`}</span>
+                  </Button>
+                )}
               </>
             ) : canView ? (
               <Button

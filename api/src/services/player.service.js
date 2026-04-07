@@ -5,14 +5,17 @@ import { mapMatchWithDerivedStatus } from './tournamentImport.service.js'
 const factory = createRepositoryFactory()
 
 class PlayerService {
+  // Normalizes imported role strings into canonical uppercase role values.
   normalizeImportedRole(value = '') {
     return value.toString().trim().toUpperCase()
   }
 
+  // Extracts and normalizes player country/nationality from import payloads.
   normalizeImportedCountry(payload = {}) {
     return (payload.country || payload.nationality || '').toString().trim()
   }
 
+  // Validates required player fields and returns normalized identity values.
   validatePlayerPayload(payload = {}, { label = 'player' } = {}) {
     const fullName = (payload.name || payload.displayName || '').toString().trim()
     if (!fullName) throw new Error(`${label} name is required`)
@@ -27,6 +30,7 @@ class PlayerService {
     }
   }
 
+  // Rejects duplicate catalog players unless source identifiers map to the same entity.
   async ensureNoDuplicateCatalogPlayer(payload = {}) {
     const repo = await factory.getPlayerRepository()
     const { fullName, country } = this.validatePlayerPayload(payload, {
@@ -60,6 +64,7 @@ class PlayerService {
     }
   }
 
+  // Resolves tournament id from payload identifiers or tournament name fallback.
   async resolveTournamentIdFromPayload(payload = {}) {
     const tournamentRepo = await factory.getTournamentRepository()
     const explicitTournamentId = payload?.tournamentId
@@ -94,10 +99,12 @@ class PlayerService {
     return Number(result.rows[0]?.id || 0) || null
   }
 
+  // Normalizes lineup player names for consistent dedupe and comparison.
   normalizeLineupName(value = '') {
     return value.toString().trim()
   }
 
+  // Removes duplicate lineup names while preserving first-seen order.
   dedupeLineupNames(values = []) {
     return Array.from(
       new Set(
@@ -108,6 +115,7 @@ class PlayerService {
     )
   }
 
+  // Validates and normalizes lineup payload for a single team.
   validateLineupTeamPayload({ teamCode, payload, fallbackSquad = [] }) {
     if (!payload || typeof payload !== 'object') {
       throw new Error(`lineups.${teamCode} is required`)
@@ -158,6 +166,7 @@ class PlayerService {
     }
   }
 
+  // Returns saved lineup rows for a tournament match as a team-code keyed map.
   async getMatchLineupMap(tournamentId, matchId) {
     if (!tournamentId || !matchId) return new Map()
     const result = await dbQuery(
@@ -197,11 +206,13 @@ class PlayerService {
     )
   }
 
+  // Returns the full player catalog.
   async getAllPlayers() {
     const repo = await factory.getPlayerRepository()
     return await repo.findAll()
   }
 
+  // Creates one player with payload validation and duplicate checks.
   async createPlayer(payload = {}) {
     const repo = await factory.getPlayerRepository()
     const { fullName, country, role } = this.validatePlayerPayload(payload, {
@@ -239,6 +250,7 @@ class PlayerService {
     })
   }
 
+  // Imports multiple players and returns created/skipped/error summaries.
   async importPlayers(payload = {}) {
     const entries = Array.isArray(payload)
       ? payload
@@ -289,6 +301,7 @@ class PlayerService {
     }
   }
 
+  // Deletes a single player from the catalog.
   async deletePlayer(id) {
     const repo = await factory.getPlayerRepository()
     if (!id && id !== 0) throw new Error('Player id is required')
@@ -297,6 +310,7 @@ class PlayerService {
     return { deleted: true }
   }
 
+  // Bulk deletes players by id.
   async deletePlayers(ids = []) {
     const repo = await factory.getPlayerRepository()
     const normalizedIds = Array.from(
@@ -325,16 +339,19 @@ class PlayerService {
     }
   }
 
+  // Returns players mapped to a specific team key.
   async getPlayersByTeam(teamKey) {
     const repo = await factory.getPlayerRepository()
     return await repo.findByTeam(teamKey)
   }
 
+  // Returns stored stats for a single player.
   async getPlayerStats(playerId) {
     const repo = await factory.getPlayerRepository()
     return await repo.findStats(playerId)
   }
 
+  // Returns tournament-level player stats and participation data.
   async getTournamentPlayerStats(tournamentId) {
     if (!tournamentId) return []
 
@@ -432,6 +449,7 @@ class PlayerService {
       .sort((a, b) => Number(b.points || 0) - Number(a.points || 0))
   }
 
+  // Builds selectable team pool for a user with contest and lineup context.
   async getTeamPool({ contestId, tournamentId, matchId, userId }) {
     const contestRepo = await factory.getContestRepository()
     const matchRepo = await factory.getMatchRepository()
@@ -543,6 +561,7 @@ class PlayerService {
     }
   }
 
+  // Returns saved picks for a user with optional tournament/contest/match filters.
   async getUserPicks({ userId, tournamentId, contestId, matchId }) {
     const contestRepo = await factory.getContestRepository()
     const playerRepo = await factory.getPlayerRepository()
@@ -692,6 +711,7 @@ class PlayerService {
     }
   }
 
+  // Returns team squad mappings for a tournament.
   async getTeamSquads(tournamentId) {
     const repo = await factory.getPlayerRepository()
     const resolvedTournamentId =
@@ -736,6 +756,7 @@ class PlayerService {
     return squads
   }
 
+  // Creates or updates one team squad mapping.
   async createTeamSquad(teamKey, payload) {
     const repo = await factory.getPlayerRepository()
     const normalizedPlayers = Array.isArray(payload)
@@ -829,6 +850,7 @@ class PlayerService {
     return await repo.bulkCreateLegacy(data)
   }
 
+  // Imports bulk team-squad mappings from admin payload format.
   async importTeamSquadMappings(payload = {}) {
     const teamSquads = Array.isArray(payload)
       ? payload
@@ -889,6 +911,7 @@ class PlayerService {
     }
   }
 
+  // Deletes a team squad mapping for a team and optional tournament.
   async deleteTeamSquad(teamKey, tournamentId = null) {
     const repo = await factory.getPlayerRepository()
     const resolvedTournamentId =
@@ -911,6 +934,7 @@ class PlayerService {
     return { deleted: true }
   }
 
+  // Returns admin-facing lineup payload for a tournament match.
   async getTournamentMatchLineups(tournamentId, matchId) {
     const matchRepo = await factory.getMatchRepository()
     const match = await matchRepo.findById(matchId)
@@ -933,11 +957,22 @@ class PlayerService {
     }
   }
 
+  // Creates or updates match lineup entries for both teams in a match.
   async upsertMatchLineups(tournamentId, matchId, lineups, meta = {}) {
     const matchRepo = await factory.getMatchRepository()
     const match = await matchRepo.findById(matchId)
     if (!match || String(match.tournamentId) !== String(tournamentId)) {
       throw new Error('Match not found')
+    }
+    if (
+      lineups &&
+      typeof lineups === 'object' &&
+      !Array.isArray(lineups) &&
+      Array.isArray(lineups.playerStats)
+    ) {
+      throw new Error(
+        'Received scorecard payload on lineup save. Use Scorecards > JSON Upload to save playerStats.',
+      )
     }
     const teamCodes = [
       match.teamAKey || match.teamA,
@@ -983,6 +1018,9 @@ class PlayerService {
         payload: lineups[teamCode],
         fallbackSquad: fallbackByTeam[teamCode],
       })
+      if (meta?.dryRun === true) {
+        continue
+      }
       await dbQuery(
         `INSERT INTO match_lineups (
            tournament_id, match_id, team_code, squad, playing_xi, bench,
@@ -1017,6 +1055,7 @@ class PlayerService {
 
     return {
       ok: true,
+      dryRun: meta?.dryRun === true,
       saved: {
         tournamentId,
         matchId,

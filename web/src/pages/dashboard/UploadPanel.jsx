@@ -1,17 +1,23 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Button from '../../components/ui/Button.jsx'
 import { CountryText } from '../../components/ui/CountryFlag.jsx'
 import PlayerIdentity from '../../components/ui/PlayerIdentity.jsx'
 import SelectField from '../../components/ui/SelectField.jsx'
 import StickyTable from '../../components/ui/StickyTable.jsx'
 import { getCountryFlag } from '../../components/ui/countryFlagUtils.js'
-const SCORECARD_SAMPLE_JSON_URL = '/scorecard-upload.sample.json'
+import {
+  getPlayerDisplayRoleRank,
+  sortPlayersByDisplayRole,
+} from '../../lib/playerRoleSort.js'
 
 function UploadPanel({
+  forcedMatchOpsTab = '',
+  hideMatchOpsTabs = false,
   uploadTab,
   setUploadTab,
   uploadPayloadText,
   setUploadPayloadText,
+  scoreJsonUnmatchedDetails,
   lineupPayloadText,
   setLineupPayloadText,
   manualScoreContext,
@@ -24,17 +30,38 @@ function UploadPanel({
   manualPlayingXi,
   onToggleManualPlayingXi,
   onSaveManualLineups,
+  onGenerateLineupsJson,
   onSaveLineupsFromJson,
+  isGeneratedLineupJsonOpen,
+  generatedLineupJsonText,
+  onCloseGeneratedLineupJson,
+  isLineupPreviewOpen,
+  lineupPreviewPayload,
+  onCloseLineupPreview,
+  onConfirmLineupPreviewSave,
   onReplaceManualBackups,
   onManualStatChange,
   onSaveManualScores,
   onResetManualScores,
   isLoadingManualPool,
   onSaveScores,
+  onGenerateScoreJson,
+  isGeneratedScoreJsonOpen,
+  generatedScoreJsonText,
+  onCloseGeneratedScoreJson,
   isSavingScores,
 }) {
-  const [activeMatchOpsTab, setActiveMatchOpsTab] = useState('lineups')
+  const [activeMatchOpsTab, setActiveMatchOpsTab] = useState(
+    forcedMatchOpsTab || 'lineups',
+  )
   const [lineupUploadTab, setLineupUploadTab] = useState('manual')
+  const [copyButtonLabel, setCopyButtonLabel] = useState('Copy JSON')
+  const [lineupCopyButtonLabel, setLineupCopyButtonLabel] = useState('Copy JSON')
+
+  useEffect(() => {
+    if (!forcedMatchOpsTab) return
+    setActiveMatchOpsTab(forcedMatchOpsTab)
+  }, [forcedMatchOpsTab])
   const calculateStrikeRate = (runs, ballsFaced) => {
     const parsedRuns = Number(runs || 0)
     const parsedBalls = Number(ballsFaced || 0)
@@ -84,6 +111,19 @@ function UploadPanel({
       players: manualTeamPool?.teamBPlayers || [],
     },
   ]
+  const sortedManualTeamTabs = useMemo(
+    () =>
+      manualTeamTabs.map((team) => ({
+        ...team,
+        players: sortPlayersByDisplayRole(team.players || []),
+      })),
+    [
+      manualTeamPool?.teamAName,
+      manualTeamPool?.teamAPlayers,
+      manualTeamPool?.teamBName,
+      manualTeamPool?.teamBPlayers,
+    ],
+  )
   const manualCategoryTabs = [
     { key: 'batting', label: 'Bat' },
     { key: 'bowling', label: 'Bowl' },
@@ -103,12 +143,28 @@ function UploadPanel({
       selected: manualPlayingXi?.teamB || [],
     },
   ]
+  const sortedManualLineupTeams = useMemo(
+    () =>
+      manualLineupTeams.map((team) => ({
+        ...team,
+        players: sortPlayersByDisplayRole(team.players || []),
+      })),
+    [
+      manualPlayingXi?.teamA,
+      manualPlayingXi?.teamB,
+      manualTeamPool?.teamAName,
+      manualTeamPool?.teamAPlayers,
+      manualTeamPool?.teamBName,
+      manualTeamPool?.teamBPlayers,
+    ],
+  )
   const manualPlayersCount =
     (manualTeamPool?.teamAPlayers?.length || 0) +
     (manualTeamPool?.teamBPlayers?.length || 0)
   const hasManualPlayers = manualPlayersCount > 0
   const isScorecardsTab = activeMatchOpsTab === 'scores'
   const isManualScorecards = isScorecardsTab && uploadTab === 'manual'
+  const isJsonScorecards = isScorecardsTab && uploadTab === 'json'
   const isScoreActionDisabled =
     isSavingScores ||
     !manualTournamentId ||
@@ -118,6 +174,30 @@ function UploadPanel({
     isSavingScores || !manualTournamentId || !manualMatchId || isLoadingManualPool
   const [activeManualCategory, setActiveManualCategory] = useState('batting')
   const activeColumns = categoryColumns[activeManualCategory] || categoryColumns.batting
+  const onCopyGeneratedJson = async () => {
+    if (!generatedScoreJsonText) return
+    try {
+      await navigator.clipboard.writeText(generatedScoreJsonText)
+      setCopyButtonLabel('Copied')
+      window.setTimeout(() => setCopyButtonLabel('Copy JSON'), 1200)
+    } catch {
+      setCopyButtonLabel('Copy failed')
+      window.setTimeout(() => setCopyButtonLabel('Copy JSON'), 1600)
+    }
+  }
+
+  const onCopyGeneratedLineupJson = async () => {
+    if (!generatedLineupJsonText) return
+    try {
+      await navigator.clipboard.writeText(generatedLineupJsonText)
+      setLineupCopyButtonLabel('Copied')
+      window.setTimeout(() => setLineupCopyButtonLabel('Copy JSON'), 1200)
+    } catch {
+      setLineupCopyButtonLabel('Copy failed')
+      window.setTimeout(() => setLineupCopyButtonLabel('Copy JSON'), 1600)
+    }
+  }
+
   const getMatchOptionLabel = (item) => {
     const rawLabel = item.label || item.name || ''
     const normalized = rawLabel.includes(':')
@@ -153,7 +233,8 @@ function UploadPanel({
       label: 'Role',
       headerClassName: 'manual-col-role',
       cellClassName: 'manual-col-role manual-player-role',
-      sortValue: (row) => row.role || '',
+      sortValue: (row) =>
+        `${String(getPlayerDisplayRoleRank(row.role)).padStart(2, '0')}:${row.role || ''}`,
       render: (row) => row.role,
     },
     ...activeColumns.map((column) => ({
@@ -264,7 +345,8 @@ function UploadPanel({
         width: '150px',
         headerClassName: 'manual-col-role',
         cellClassName: 'manual-col-role manual-player-role',
-        sortValue: (row) => row.role || '',
+        sortValue: (row) =>
+          `${String(getPlayerDisplayRoleRank(row.role)).padStart(2, '0')}:${row.role || ''}`,
         render: (row) => row.role || 'ALL',
       },
       {
@@ -319,33 +401,35 @@ function UploadPanel({
         <div className="match-upload-form">
           <div className="upload-tab-head">
             <div className="upload-tab-groups">
-              <div className="upload-tab-group upload-tab-group-primary">
-                <span className="upload-tab-group-label">Mode</span>
-                <div
-                  className="upload-tab-row match-ops-row"
-                  role="tablist"
-                  aria-label="Match operations"
-                >
-                  <Button
-                    type="button"
-                    role="tab"
-                    aria-selected={activeMatchOpsTab === 'lineups'}
-                    className={`upload-tab-btn ${activeMatchOpsTab === 'lineups' ? 'active' : ''}`.trim()}
-                    onClick={() => setActiveMatchOpsTab('lineups')}
+              {!hideMatchOpsTabs && (
+                <div className="upload-tab-group upload-tab-group-primary">
+                  <span className="upload-tab-group-label">Mode</span>
+                  <div
+                    className="upload-tab-row match-ops-row"
+                    role="tablist"
+                    aria-label="Match operations"
                   >
-                    Playing XI
-                  </Button>
-                  <Button
-                    type="button"
-                    role="tab"
-                    aria-selected={activeMatchOpsTab === 'scores'}
-                    className={`upload-tab-btn ${activeMatchOpsTab === 'scores' ? 'active' : ''}`.trim()}
-                    onClick={() => setActiveMatchOpsTab('scores')}
-                  >
-                    Scorecards
-                  </Button>
+                    <Button
+                      type="button"
+                      role="tab"
+                      aria-selected={activeMatchOpsTab === 'lineups'}
+                      className={`upload-tab-btn ${activeMatchOpsTab === 'lineups' ? 'active' : ''}`.trim()}
+                      onClick={() => setActiveMatchOpsTab('lineups')}
+                    >
+                      Playing XI
+                    </Button>
+                    <Button
+                      type="button"
+                      role="tab"
+                      aria-selected={activeMatchOpsTab === 'scores'}
+                      className={`upload-tab-btn ${activeMatchOpsTab === 'scores' ? 'active' : ''}`.trim()}
+                      onClick={() => setActiveMatchOpsTab('scores')}
+                    >
+                      Scorecards
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="upload-tab-group upload-tab-group-secondary">
                 <span className="upload-tab-group-label">
                   {activeMatchOpsTab === 'lineups'
@@ -421,7 +505,7 @@ function UploadPanel({
                     !manualTournamentId ||
                     !manualMatchId ||
                     isLoadingManualPool ||
-                    !manualLineupTeams.every((team) => {
+                    !sortedManualLineupTeams.every((team) => {
                       const count = (team.selected || []).length
                       return count >= 11 && count <= 12
                     })
@@ -433,6 +517,16 @@ function UploadPanel({
             )}
             {activeMatchOpsTab === 'lineups' && lineupUploadTab === 'json' && (
               <div className="top-actions upload-head-actions upload-actions-row">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="small"
+                  className="upload-action-btn"
+                  onClick={onGenerateLineupsJson}
+                  disabled={isSavingScores || !manualTournamentId || !manualMatchId}
+                >
+                  Generate JSON
+                </Button>
                 <Button
                   type="button"
                   variant="secondary"
@@ -450,21 +544,24 @@ function UploadPanel({
                   onClick={onSaveLineupsFromJson}
                   disabled={isSavingScores || !manualTournamentId || !manualMatchId}
                 >
-                  {isSavingScores ? 'Saving...' : 'Save Playing XI JSON'}
+                  {isSavingScores ? 'Processing...' : 'Save Playing XI JSON'}
                 </Button>
               </div>
             )}
             {isScorecardsTab && (
               <div className="top-actions upload-head-actions upload-actions-row">
-                <Button
-                  href={SCORECARD_SAMPLE_JSON_URL}
-                  download="scorecard-upload.sample.json"
-                  variant="ghost"
-                  size="small"
-                  className="upload-action-btn"
-                >
-                  Download sample JSON
-                </Button>
+                {isJsonScorecards && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="small"
+                    className="upload-action-btn"
+                    onClick={onGenerateScoreJson}
+                    disabled={isScoreActionDisabled}
+                  >
+                    Generate JSON
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="danger"
@@ -482,7 +579,13 @@ function UploadPanel({
                   onClick={isManualScorecards ? onSaveManualScores : onSaveScores}
                   disabled={isScoreActionDisabled}
                 >
-                  {isSavingScores ? 'Saving...' : 'Save'}
+                  {isSavingScores
+                    ? isJsonScorecards
+                      ? 'Uploading...'
+                      : 'Saving...'
+                    : isJsonScorecards
+                      ? 'Upload JSON'
+                      : 'Save'}
                 </Button>
               </div>
             )}
@@ -494,7 +597,10 @@ function UploadPanel({
               Tournament
               <SelectField
                 value={manualTournamentId}
-                onChange={(event) => setManualTournamentId(event.target.value)}
+                onChange={(event) => {
+                  setManualTournamentId(event.target.value)
+                  setLineupPayloadText('')
+                }}
               >
                 <option value="">Select tournament</option>
                 {(manualScoreContext?.tournaments || []).map((item) => (
@@ -508,7 +614,10 @@ function UploadPanel({
               Match
               <SelectField
                 value={manualMatchId}
-                onChange={(event) => setManualMatchId(event.target.value)}
+                onChange={(event) => {
+                  setManualMatchId(event.target.value)
+                  setLineupPayloadText('')
+                }}
               >
                 <option value="">Select match</option>
                 {(manualScoreContext?.matches || []).map((item) => (
@@ -559,7 +668,7 @@ function UploadPanel({
                   </div>
                 ) : (
                   <div className="manual-entry-grid manual-lineup-layout">
-                    {manualLineupTeams.map((team) => renderLineupTeamCard(team))}
+                    {sortedManualLineupTeams.map((team) => renderLineupTeamCard(team))}
                   </div>
                 )}
               </div>
@@ -602,7 +711,7 @@ function UploadPanel({
               ) : (
                 <>
                   <div className="manual-entry-grid">
-                    {manualTeamTabs.map((team) =>
+                    {sortedManualTeamTabs.map((team) =>
                       renderManualTeamTable(team.name, team.players),
                     )}
                   </div>
@@ -631,10 +740,175 @@ function UploadPanel({
 }`}
                 />
               </label>
+              {Array.isArray(scoreJsonUnmatchedDetails) &&
+                scoreJsonUnmatchedDetails.length > 0 && (
+                  <div className="json-upload-diagnostics" role="alert">
+                    <h5>Unmatched Players</h5>
+                    <p>
+                      These player names could not be mapped to the selected match teams.
+                    </p>
+                    <ul>
+                      {scoreJsonUnmatchedDetails.map((entry, index) => {
+                        const input =
+                          (entry?.input || '').toString().trim() || 'unknown-player'
+                        const normalizedInput =
+                          (entry?.normalizedInput || '').toString().trim() ||
+                          input.toLowerCase()
+                        const suggestions = Array.isArray(entry?.suggestions)
+                          ? entry.suggestions
+                          : []
+                        return (
+                          <li key={`${input}-${index}`}>
+                            <strong>{input}</strong>
+                            <span>{`normalized: ${normalizedInput}`}</span>
+                            <span>
+                              {suggestions.length
+                                ? `suggestions: ${suggestions.join(', ')}`
+                                : 'suggestions: none'}
+                            </span>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </div>
+                )}
             </div>
           )}
         </div>
       </div>
+
+      {isGeneratedScoreJsonOpen && (
+        <div className="score-preview-modal-backdrop" role="presentation">
+          <div
+            className="score-preview-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Generated score JSON"
+          >
+            <div className="score-preview-modal-head">
+              <h4>Generated Score JSON</h4>
+              <p>
+                Built from saved Playing XI/XII for this match. Copy it, update with AI,
+                then paste into JSON Upload.
+              </p>
+            </div>
+            <textarea
+              className="score-preview-textarea"
+              value={generatedScoreJsonText || '{\n  "playerStats": []\n}'}
+              readOnly
+            />
+            <div className="score-preview-modal-actions">
+              <Button
+                type="button"
+                variant="ghost"
+                size="small"
+                onClick={onCopyGeneratedJson}
+                disabled={isSavingScores || !generatedScoreJsonText}
+              >
+                {copyButtonLabel}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="small"
+                onClick={onCloseGeneratedScoreJson}
+                disabled={isSavingScores}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isGeneratedLineupJsonOpen && (
+        <div className="score-preview-modal-backdrop" role="presentation">
+          <div
+            className="score-preview-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Generated Playing XI JSON"
+          >
+            <div className="score-preview-modal-head">
+              <h4>Generated Playing XI JSON</h4>
+              <p>
+                Built from current squads and selected Playing XI/XII. Copy it, then paste
+                into JSON Upload.
+              </p>
+            </div>
+            <textarea
+              className="score-preview-textarea"
+              value={generatedLineupJsonText || '{\n  "lineups": {},\n  "meta": {}\n}'}
+              readOnly
+            />
+            <div className="score-preview-modal-actions">
+              <Button
+                type="button"
+                variant="ghost"
+                size="small"
+                onClick={onCopyGeneratedLineupJson}
+                disabled={isSavingScores || !generatedLineupJsonText}
+              >
+                {lineupCopyButtonLabel}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="small"
+                onClick={onCloseGeneratedLineupJson}
+                disabled={isSavingScores}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isLineupPreviewOpen && (
+        <div className="score-preview-modal-backdrop" role="presentation">
+          <div
+            className="score-preview-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Processed lineup JSON preview"
+          >
+            <div className="score-preview-modal-head">
+              <h4>Processed Playing XI JSON</h4>
+              <p>
+                Review this normalized lineup payload. Confirm save to write it to the
+                database.
+              </p>
+            </div>
+            <textarea
+              className="score-preview-textarea"
+              value={JSON.stringify({ lineups: lineupPreviewPayload || {} }, null, 2)}
+              readOnly
+            />
+            <div className="score-preview-modal-actions">
+              <Button
+                type="button"
+                variant="secondary"
+                size="small"
+                onClick={onCloseLineupPreview}
+                disabled={isSavingScores}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="small"
+                className="upload-action-btn"
+                onClick={onConfirmLineupPreviewSave}
+                disabled={isSavingScores}
+              >
+                {isSavingScores ? 'Saving...' : 'Confirm Save'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

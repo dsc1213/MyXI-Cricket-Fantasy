@@ -157,6 +157,7 @@ const createDbService = (dependencies) => {
       req.currentUser ||
       null
 
+    // Returns all data needed to render the app on initial page load for the current user.
     router.get('/page-load-data', async (req, res, next) => {
       try {
         const actor = req.currentUser || null
@@ -168,6 +169,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns common bootstrap data used to initialize the app.
     router.get('/bootstrap', async (req, res, next) => {
       try {
         const payload = await pageLoadService.getBootstrapData()
@@ -177,6 +179,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Saves the default scoring rules, allowed only for admin or master users.
     router.post('/scoring-rules/save', async (req, res, next) => {
       try {
         const actor =
@@ -200,6 +203,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Deletes a contest from the admin catalog if the actor has permission.
     router.delete('/admin/contests/:contestId', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -218,6 +222,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Deletes a tournament from the admin catalog if the actor has permission.
     router.delete('/admin/tournaments/:id', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -236,6 +241,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns the full tournament catalog for admin management screens.
     router.get('/admin/tournaments/catalog', async (req, res, next) => {
       try {
         const rows = await tournamentService.getTournamentCatalog()
@@ -245,6 +251,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns tournaments that should be visible in the main app.
     router.get('/tournaments', async (req, res, next) => {
       try {
         const rows = await tournamentService.getVisibleTournaments()
@@ -254,6 +261,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns all matches for a specific tournament.
     router.get('/tournaments/:id/matches', async (req, res, next) => {
       try {
         const rows = await tournamentService.getTournamentMatches(req.params.id)
@@ -263,6 +271,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns contests with viewer-specific joined state and optional query filters.
     router.get('/contests', async (req, res, next) => {
       try {
         const allRows = await contestService.getAllContests()
@@ -346,6 +355,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns one contest with participant counts and latest score metadata.
     router.get('/contests/:id', async (req, res, next) => {
       try {
         const contest = await contestService.getContestById(req.params.id)
@@ -374,6 +384,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns contest matches, optionally filtered by status/team for the viewer.
     router.get('/contests/:id/matches', async (req, res, next) => {
       try {
         const actor = req.currentUser || null
@@ -396,6 +407,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns contest participants, joined count, and preview XI details.
     router.get('/contests/:id/participants', async (req, res, next) => {
       try {
         const actor = req.currentUser || null
@@ -417,6 +429,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns contests for admin catalog views, with optional tournament filtering.
     router.get('/admin/contests/catalog', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -445,6 +458,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns score-manager context data, including tournament and match selectors.
     router.get('/admin/match-score-context', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -488,6 +502,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns users for admin management with optional search, role, and status filters.
     router.get('/admin/users', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -502,6 +517,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Updates a user from admin tools, with protection rules for master admin accounts.
     router.patch('/admin/users/:id', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -527,6 +543,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Deletes a user account, allowed only for master admin and non-master targets.
     router.delete('/admin/users/:id', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -550,6 +567,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Enables multiple tournaments in one request.
     router.post('/admin/tournaments/enable', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -570,6 +588,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Disables multiple tournaments in one request.
     router.post('/admin/tournaments/disable', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -590,6 +609,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns selectable contest-match options for admin configuration flows.
     router.get('/admin/contest-match-options', async (req, res, next) => {
       try {
         const tournamentId = (req.query.tournamentId || '').toString()
@@ -600,6 +620,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Creates a new tournament from imported admin payload data.
     router.post('/admin/tournaments', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -621,6 +642,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Creates a new contest from admin payload data.
     router.post('/admin/contests', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -642,6 +664,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Starts a contest from admin controls.
     router.post('/admin/contests/:id/start', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -661,6 +684,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Updates a match status after validating the requested status value.
     router.post('/admin/matches/:id/status', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -680,6 +704,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Replaces current lineups with backup players for a match.
     router.post('/admin/matches/:id/replace-backups', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -701,6 +726,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Imports an auction contest setup into the system.
     router.post('/admin/auctions/import', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -722,6 +748,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns team squads for admin, with optional tournament and team filters.
     router.get('/admin/team-squads', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -738,6 +765,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Creates a single player or bulk imports players from admin payload.
     router.post('/admin/players', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -755,6 +783,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Deletes multiple players in one admin action.
     router.post('/admin/players/bulk-delete', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -771,6 +800,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Deletes a single player by id from admin tools.
     router.delete('/admin/players/:id', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -786,6 +816,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Creates or bulk imports team squad mappings from admin payload.
     router.post('/admin/team-squads', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -812,6 +843,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Deletes a team squad mapping for the given team code.
     router.delete('/admin/team-squads/:teamCode', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -829,6 +861,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns the full player list.
     router.get('/players', async (req, res, next) => {
       try {
         const rows = await playerService.getAllPlayers()
@@ -838,6 +871,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns player stats for the requested tournament.
     router.get('/player-stats', async (req, res, next) => {
       try {
         const tournamentId = (req.query.tournamentId || '').toString()
@@ -848,6 +882,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns a user's team pool with access checks for self or master admin.
     router.get('/team-pool', async (req, res, next) => {
       try {
         const contestId = (req.query.contestId || '').toString()
@@ -882,6 +917,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns a user's picks with access checks and optional contest/match filters.
     router.get('/users/:userId/picks', async (req, res, next) => {
       try {
         const actor = req.currentUser || null
@@ -913,6 +949,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Saves a user's team selection for a match using request body fields.
     router.post('/team-selection/save', async (req, res, next) => {
       try {
         const matchId = req.body?.matchId
@@ -951,6 +988,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Saves a user's team selection for the match id provided in the route.
     router.post('/matches/:id/team', async (req, res, next) => {
       try {
         const actor = req.currentUser || null
@@ -988,6 +1026,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Joins a user to a contest, allowing self-join or master-admin override.
     router.post('/contests/:id/join', async (req, res, next) => {
       try {
         const actor = req.currentUser || null
@@ -1010,6 +1049,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns leaderboard standings for a contest.
     router.get('/contests/:id/leaderboard', async (req, res, next) => {
       try {
         const rows = await contestService.getContestLeaderboard(req.params.id)
@@ -1019,6 +1059,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns saved match lineups for a tournament match in admin tools.
     router.get('/admin/match-lineups/:tournamentId/:matchId', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -1038,6 +1079,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns saved match scores for a tournament match for score managers.
     router.get('/admin/match-scores/:tournamentId/:matchId', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -1056,6 +1098,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Creates or updates match lineups for a tournament match.
     router.post('/admin/match-lineups/upsert', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -1086,6 +1129,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Returns per-match score breakdown for a user inside a contest.
     router.get(
       '/contests/:contestId/users/:userId/match-scores',
       async (req, res, next) => {
@@ -1102,6 +1146,7 @@ const createDbService = (dependencies) => {
       },
     )
 
+    // Creates or updates match scores from admin score upload payload.
     router.post('/admin/match-scores/upsert', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -1132,6 +1177,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Resets all saved scores for the given tournament and match.
     router.post('/admin/match-scores/reset', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
@@ -1162,6 +1208,7 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Saves match scores from processed rows or a JSON payload text.
     router.post('/match-scores/save', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)

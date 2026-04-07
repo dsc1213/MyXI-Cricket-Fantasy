@@ -6,13 +6,42 @@ import {
   buildPlayerIdentityIndex,
   calculateFantasyPoints,
   getRuleSetForTournament,
-  normalizePlayerStatRows,
   resolvePlayerStatPlayer,
   resolveEffectiveSelection,
 } from '../scoring.js'
 
 const factory = createRepositoryFactory()
 const FIXED_ROSTER_COUNTED_SIZE = 11
+
+// Normalize user-provided player names so unmatched error details are consistent.
+const normalizeNameForMatch = (value) =>
+  (value || '')
+    .toString()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const resolvePlayerWithNormalizedFallback = ({
+  row,
+  identityIndex,
+  matchPlayers = [],
+}) => {
+  const directMatch = resolvePlayerStatPlayer(row, identityIndex)
+  if (directMatch) {
+    return {
+      player: directMatch,
+      normalizedInput: normalizeNameForMatch(row?.playerName || row?.name || ''),
+    }
+  }
+
+  const incomingName = (row?.playerName || row?.name || '').toString().trim()
+  const normalizedInput = normalizeNameForMatch(incomingName)
+  return {
+    player: null,
+    normalizedInput,
+  }
+}
 
 const sumTopFixedRosterPoints = (playerIds = [], fantasyPointsByPlayerId = new Map()) => {
   const scored = (Array.isArray(playerIds) ? playerIds : [])
@@ -22,6 +51,7 @@ const sumTopFixedRosterPoints = (playerIds = [], fantasyPointsByPlayerId = new M
 }
 
 class MatchScoreService {
+  // Resets active scores and derived score tables for a tournament match.
   async resetMatchScores(matchId, tournamentId, resetBy) {
     if (!matchId || !tournamentId) {
       throw new Error('matchId and tournamentId are required')
@@ -75,6 +105,7 @@ class MatchScoreService {
     }
   }
 
+  // Validates raw player stat rows before score processing.
   validatePlayerStatsPayload(playerStats = []) {
     if (!Array.isArray(playerStats) || !playerStats.length) {
       throw new Error('playerStats array required')
@@ -114,12 +145,17 @@ class MatchScoreService {
     })
   }
 
+  // Uploads match scores, stores active score row, and rebuilds derived contest scores.
   async uploadMatchScores(matchId, tournamentId, playerStats, uploadedBy) {
     if (!matchId || !tournamentId) {
       throw new Error('matchId and tournamentId are required')
     }
     this.validatePlayerStatsPayload(playerStats)
-    await this.validatePlayersBelongToMatchTeams(matchId, tournamentId, playerStats)
+    const normalizedPlayerStats = await this.validatePlayersBelongToMatchTeams(
+      matchId,
+      tournamentId,
+      playerStats,
+    )
     // Deactivate previous scores
     const repo = await factory.getMatchScoreRepository()
     await repo.deactivatePrevious(matchId)
@@ -127,13 +163,13 @@ class MatchScoreService {
     const savedScore = await repo.create({
       matchId,
       tournamentId,
-      playerStats,
+      playerStats: normalizedPlayerStats,
       uploadedBy,
     })
     const { contestSummaries } = await this.rebuildDerivedScores({
       matchId,
       tournamentId,
-      playerStats,
+      playerStats: normalizedPlayerStats,
     })
     return {
       ok: true,
@@ -144,6 +180,29 @@ class MatchScoreService {
     }
   }
 
+  // Validates match score payload and returns normalized dry-run preview data.
+  async previewMatchScores(matchId, tournamentId, playerStats) {
+    if (!matchId || !tournamentId) {
+      throw new Error('matchId and tournamentId are required')
+    }
+    this.validatePlayerStatsPayload(playerStats)
+    const normalizedPlayerStats = await this.validatePlayersBelongToMatchTeams(
+      matchId,
+      tournamentId,
+      playerStats,
+    )
+    return {
+      ok: true,
+      dryRun: true,
+      matchId: String(matchId),
+      tournamentId: String(tournamentId),
+      processedPayload: {
+        playerStats: normalizedPlayerStats,
+      },
+    }
+  }
+
+  // Ensures submitted players belong to the selected match teams and normalizes identities.
   async validatePlayersBelongToMatchTeams(matchId, tournamentId, playerStats = []) {
     const matchRepo = await factory.getMatchRepository()
     const playerRepo = await factory.getPlayerRepository()
@@ -181,29 +240,55 @@ class MatchScoreService {
     const identityIndex = buildPlayerIdentityIndex(matchPlayers)
 
     const invalidEntries = []
+    const normalizedRows = []
     for (const row of playerStats) {
       if (!row || typeof row !== 'object') continue
       const incomingName = (row.playerName || row.name || '').toString().trim()
       const incomingId = (row.playerId || '').toString().trim()
-      const resolvedPlayer = resolvePlayerStatPlayer(row, identityIndex)
+      const resolved = resolvePlayerWithNormalizedFallback({
+        row,
+        identityIndex,
+        matchPlayers,
+      })
+      const resolvedPlayer = resolved?.player || null
       if (!resolvedPlayer) {
-        invalidEntries.push(incomingName || incomingId || 'unknown-player')
+        const unresolved = incomingName || incomingId || 'unknown-player'
+        invalidEntries.push({
+          input: unresolved,
+          normalizedInput: resolved?.normalizedInput || normalizeNameForMatch(unresolved),
+          suggestions: [],
+        })
+        continue
       }
+      normalizedRows.push({
+        ...row,
+        playerId: resolvedPlayer.id,
+        playerName: resolvedPlayer.name,
+        team: resolvedPlayer.team || row.team || null,
+      })
     }
 
     if (invalidEntries.length) {
-      const preview = invalidEntries.slice(0, 5).join(', ')
-      throw new Error(
+      const preview = invalidEntries
+        .slice(0, 5)
+        .map((entry) => entry.input)
+        .join(', ')
+      const error = new Error(
         `Submitted score JSON includes players not in selected match teams: ${preview}`,
       )
+      error.unmatchedPlayers = invalidEntries.map((entry) => entry.input)
+      error.unmatchedDetails = invalidEntries
+      throw error
     }
 
-    const normalizedRows = normalizePlayerStatRows(playerStats || [], matchPlayers)
     if (!normalizedRows.length) {
       throw new Error('No valid playerStats rows found for the selected match teams')
     }
+
+    return normalizedRows
   }
 
+  // Returns the active (or latest) saved match score row scoped by tournament.
   async getMatchScores(tournamentId, matchId) {
     const repo = await factory.getMatchScoreRepository()
     const rows = await repo.findByMatch(matchId)
@@ -214,30 +299,36 @@ class MatchScoreService {
     return activeRow || scoped[0] || null
   }
 
+  // Returns the latest active score entry for a match.
   async getActiveMatchScore(matchId) {
     const repo = await factory.getMatchScoreRepository()
     return await repo.findLatestActive(matchId)
   }
 
+  // Parses processed spreadsheet data into API-ready score payload.
   async processExcelScores(excelData) {
     // Parse Excel data and return formatted for upload
     return { data: excelData, validated: true }
   }
 
+  // Persists score rows produced from spreadsheet processing.
   async saveExcelProcessedScores(matchId, tournamentId, playerStats, uploadedBy) {
     return await this.uploadMatchScores(matchId, tournamentId, playerStats, uploadedBy)
   }
 
+  // Returns context data used by the player-overrides admin UI.
   async getPlayerOverridesContext(tournamentId) {
     // Get context data for player overrides UI
     return { overrides: [], context: {} }
   }
 
+  // Persists admin-provided player stat overrides.
   async savePlayerOverrides(tournamentId, overrides) {
     // Save player stat overrides
     return { saved: true, count: overrides.length }
   }
 
+  // Rebuilds derived score tables from one stored match score row.
   async rebuildStoredMatchScore(scoreRow) {
     if (!scoreRow?.matchId || !scoreRow?.tournamentId) {
       return { contestSummaries: [] }
@@ -253,6 +344,7 @@ class MatchScoreService {
     })
   }
 
+  // Recomputes all derived player/contest scores for active score entries.
   async rebuildAllDerivedScores({ tournamentId = null } = {}) {
     const params = []
     const tournamentFilter = tournamentId
@@ -296,6 +388,7 @@ class MatchScoreService {
     }
   }
 
+  // Rebuilds player_match_scores and contest_scores for one match payload.
   async rebuildDerivedScores({ matchId, tournamentId, playerStats }) {
     const matchRepo = await factory.getMatchRepository()
     const playerRepo = await factory.getPlayerRepository()

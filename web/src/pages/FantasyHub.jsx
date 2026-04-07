@@ -71,6 +71,22 @@ const shouldShowContestStart = (startAt, nowTs) => {
   return parsed.getTime() > nowTs
 }
 
+const formatLocalMatchOptionDate = (value) => {
+  const raw = (value || '').toString().trim()
+  if (!raw) return 'Manual'
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) return raw
+  return parsed.toLocaleString(undefined, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZoneName: 'short',
+  })
+}
+
 function FantasyHub() {
   const [selectedTournament, setSelectedTournament] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
@@ -746,7 +762,8 @@ function FantasyHub() {
                       <span>
                         Match {match.matchNo}: {match.name}
                         <small>
-                          {match.date} - {match.status}
+                          {formatLocalMatchOptionDate(match.startAt || match.date)} -{' '}
+                          {match.status}
                         </small>
                       </span>
                     </label>

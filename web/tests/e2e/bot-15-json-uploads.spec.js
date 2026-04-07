@@ -86,10 +86,7 @@ const createTournamentViaApi = async ({ request, tournamentId, name }) =>
 test.describe('15) JSON uploads and UI validation', () => {
   test.setTimeout(180000)
 
-  test('score manager json mode exposes downloadable sample payload', async ({
-    page,
-    request,
-  }) => {
+  test('score manager json mode exposes generated score JSON modal', async ({ page }) => {
     await loginUi(page, MASTER_LOGIN)
     await page.goto('/home?panel=upload')
 
@@ -101,41 +98,49 @@ test.describe('15) JSON uploads and UI validation', () => {
     await expect(jsonUploadTab).toBeVisible()
     await jsonUploadTab.click()
 
-    const sampleLink = page.getByRole('link', { name: 'Download sample JSON' })
-    await expect(sampleLink).toBeVisible()
-    await expect(sampleLink).toHaveAttribute('href', '/scorecard-upload.sample.json')
-    await expect(sampleLink).toHaveAttribute('download', 'scorecard-upload.sample.json')
+    const selects = page.locator('.manual-scope-row select')
+    await selects.nth(0).selectOption('ipl-2026')
+    await selects.nth(1).selectOption('ipl-m1')
 
-    const saveButton = page.getByRole('button', { name: 'Save' })
-    await expect(saveButton).toBeVisible()
-    const [sampleBox, saveBox] = await Promise.all([
-      sampleLink.boundingBox(),
-      saveButton.boundingBox(),
-    ])
-    expect(sampleBox).toBeTruthy()
-    expect(saveBox).toBeTruthy()
-    if (sampleBox && saveBox) {
-      const overlapWidth = Math.max(
-        0,
-        Math.min(sampleBox.x + sampleBox.width, saveBox.x + saveBox.width) -
-          Math.max(sampleBox.x, saveBox.x),
-      )
-      const overlapHeight = Math.max(
-        0,
-        Math.min(sampleBox.y + sampleBox.height, saveBox.y + saveBox.height) -
-          Math.max(sampleBox.y, saveBox.y),
-      )
-      expect(overlapWidth * overlapHeight).toBe(0)
+    await page.getByRole('tab', { name: 'Playing XI' }).click()
+    await page.getByRole('tab', { name: 'Manual Entry' }).click()
+    const lineupCards = page.locator('.manual-lineup-card')
+    await expect(lineupCards).toHaveCount(2)
+    for (let cardIndex = 0; cardIndex < 2; cardIndex += 1) {
+      const card = lineupCards.nth(cardIndex)
+      const toggles = card.locator('tbody input[type="checkbox"]')
+      const total = await toggles.count()
+      for (let idx = 0; idx < total; idx += 1) {
+        const selectedCount = await card
+          .locator('tbody input[type="checkbox"]:checked')
+          .count()
+        if (selectedCount >= 11) break
+        const toggle = toggles.nth(idx)
+        if (!(await toggle.isChecked())) {
+          await toggle.click()
+        }
+      }
+      await expect(card.locator('tbody input[type="checkbox"]:checked')).toHaveCount(11)
     }
+    await page.getByRole('button', { name: 'Save Playing XI' }).click()
+    await expect(page.getByText('Playing XI saved')).toBeVisible()
 
-    const response = await request.get('/scorecard-upload.sample.json')
-    expect(response.ok()).toBe(true)
-    const sample = await response.json()
-    expect(Array.isArray(sample?.playerStats)).toBe(true)
-    expect(sample.playerStats.length).toBeGreaterThan(0)
+    await page.getByRole('tab', { name: 'Scorecards' }).click()
+    await page.getByRole('tab', { name: 'JSON Upload' }).click()
+
+    await expect(page.getByRole('link', { name: 'Download sample JSON' })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Generate JSON' }).click()
+    const generatedDialog = page.getByRole('dialog', { name: 'Generated score JSON' })
+    await expect(generatedDialog).toBeVisible()
+    await expect(generatedDialog.locator('.score-preview-textarea')).toContainText(
+      '"playerStats"',
+    )
+    await expect(page.getByRole('button', { name: 'Copy JSON' })).toBeVisible()
+    await generatedDialog.getByRole('button', { name: 'Close' }).click()
+    await expect(generatedDialog).toBeHidden()
   })
 
-  test('score manager manual mode exposes sample link and save action', async ({
+  test('score manager manual mode exposes save action without scorecard sample link', async ({
     page,
   }) => {
     await loginUi(page, MASTER_LOGIN)
@@ -149,10 +154,7 @@ test.describe('15) JSON uploads and UI validation', () => {
     await expect(manualEntryTab).toBeVisible()
     await manualEntryTab.click()
 
-    const sampleLink = page.getByRole('link', { name: 'Download sample JSON' })
-    await expect(sampleLink).toBeVisible()
-    await expect(sampleLink).toHaveAttribute('href', '/scorecard-upload.sample.json')
-    await expect(sampleLink).toHaveAttribute('download', 'scorecard-upload.sample.json')
+    await expect(page.getByRole('link', { name: 'Download sample JSON' })).toHaveCount(0)
 
     await expect(page.getByRole('button', { name: 'Save' })).toBeVisible()
   })
@@ -1916,7 +1918,7 @@ test.describe('15) JSON uploads and UI validation', () => {
     await page
       .locator('.match-upload-json textarea')
       .fill(JSON.stringify(payload, null, 2))
-    await page.locator('.upload-actions .upload-action-btn.primary').click()
+    await page.getByRole('button', { name: 'Upload JSON' }).click()
     await expect(page.getByText(/payload saved/i)).toBeVisible()
 
     const afterStats = await apiCall(
@@ -2789,7 +2791,11 @@ test.describe('15) JSON uploads and UI validation', () => {
       await page
         .locator('.match-upload-json textarea')
         .fill(JSON.stringify(lineupPayload, null, 2))
-      await page.getByRole('button', { name: 'Save Playing XI JSON' }).click()
+      await page.getByRole('button', { name: 'Preview Playing XI JSON' }).click()
+      await expect(
+        page.getByRole('dialog', { name: 'Processed lineup JSON preview' }),
+      ).toBeVisible()
+      await page.getByRole('button', { name: 'Confirm Save' }).click()
       await page.waitForTimeout(300)
       const saved = await apiCall(
         request,
@@ -2889,12 +2895,12 @@ test.describe('15) JSON uploads and UI validation', () => {
       await loginUi(page, 'master')
       await page.goto('/home')
       await page.getByRole('button', { name: 'Score Manager' }).click()
-
-      const scopeRow = page.locator('.manual-scope-row')
-      await scopeRow.getByLabel('Tournament').selectOption(tournamentId)
-      await scopeRow.getByLabel('Match').selectOption('m1')
       await page.getByRole('tab', { name: 'Scorecards' }).click()
       await page.getByRole('tab', { name: 'JSON Upload' }).click()
+
+      const selects = page.locator('.manual-scope-row select')
+      await selects.nth(0).selectOption(tournamentId)
+      await selects.nth(1).selectOption('m1')
 
       const payload = {
         playerStats: [
@@ -2913,8 +2919,8 @@ test.describe('15) JSON uploads and UI validation', () => {
       await page
         .locator('.match-upload-json textarea')
         .fill(JSON.stringify(payload, null, 2))
-      await page.getByRole('button', { name: 'Save' }).click()
-      await expect(page.getByText('Match scores payload saved')).toBeVisible()
+      await page.getByRole('button', { name: 'Upload JSON' }).click()
+      await expect(page.getByText(/payload saved/i)).toBeVisible()
 
       await page.getByRole('tab', { name: 'Manual Entry' }).click()
       await page.getByRole('tab', { name: 'Bat' }).click()
@@ -2926,6 +2932,108 @@ test.describe('15) JSON uploads and UI validation', () => {
       await expect(playerRow.locator('input[type="number"]').nth(2)).toHaveValue('3')
       await expect(playerRow.locator('input[type="number"]').nth(3)).toHaveValue('5')
       await expect(playerRow.locator('input[type="checkbox"]')).toBeChecked()
+    } finally {
+      if (contestId) {
+        await request.fetch(`http://127.0.0.1:4000/admin/contests/${contestId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          data: { actorUserId: 'master' },
+        })
+      }
+      await request.fetch(`http://127.0.0.1:4000/admin/tournaments/${tournamentId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        data: { actorUserId: 'master' },
+      })
+    }
+  })
+
+  test('scorecard JSON upload shows inline unmatched diagnostics for unknown player names', async ({
+    page,
+    request,
+  }) => {
+    const tag = Date.now()
+    const tournamentId = `json-score-unmatched-tour-${tag}`
+    let contestId = ''
+
+    try {
+      await apiCall(
+        request,
+        'POST',
+        '/admin/tournaments',
+        {
+          actorUserId: 'master',
+          tournamentId,
+          name: `JSON Score Unmatched Tournament ${tag}`,
+          season: '2026',
+          source: 'json',
+          tournamentType: 'international',
+          selectedTeams: ['IND', 'AUS'],
+          matches: [
+            {
+              id: 'm1',
+              matchNo: 1,
+              home: 'IND',
+              away: 'AUS',
+              startAt: '2099-03-10T14:00:00.000Z',
+              timezone: 'UTC',
+              venue: 'Melbourne',
+            },
+          ],
+        },
+        201,
+      )
+
+      const contest = await apiCall(
+        request,
+        'POST',
+        '/admin/contests',
+        {
+          name: `JSON Score Unmatched Contest ${tag}`,
+          tournamentId,
+          game: 'Fantasy',
+          teams: 25,
+          status: 'Open',
+          createdBy: 'master',
+          matchIds: ['m1'],
+        },
+        201,
+      )
+      contestId = contest.id
+
+      await loginUi(page, 'master')
+      await page.goto('/home')
+      await page.getByRole('button', { name: 'Score Manager' }).click()
+      await page.getByRole('tab', { name: 'Scorecards' }).click()
+      await page.getByRole('tab', { name: 'JSON Upload' }).click()
+
+      const selects = page.locator('.manual-scope-row select')
+      await selects.nth(0).selectOption(tournamentId)
+      await selects.nth(1).selectOption('m1')
+
+      const payload = {
+        playerStats: [
+          {
+            playerName: 'Xyz Unknown Person',
+            runs: 12,
+            ballsFaced: 9,
+            fours: 2,
+            sixes: 0,
+            dismissed: true,
+          },
+        ],
+      }
+
+      await page
+        .locator('.match-upload-json textarea')
+        .fill(JSON.stringify(payload, null, 2))
+      await page.getByRole('button', { name: 'Upload JSON' }).click()
+
+      const diagnostics = page.locator('.json-upload-diagnostics')
+      await expect(diagnostics).toBeVisible()
+      await expect(diagnostics).toContainText('Unmatched Players')
+      await expect(diagnostics).toContainText('Xyz Unknown Person')
+      await expect(diagnostics).toContainText('normalized: xyz unknown person')
     } finally {
       if (contestId) {
         await request.fetch(`http://127.0.0.1:4000/admin/contests/${contestId}`, {

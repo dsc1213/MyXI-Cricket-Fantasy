@@ -8,7 +8,8 @@ const adminMenuItems = [
   { key: 'tournamentManager', label: 'Tournament Manager' },
   { key: 'contestManager', label: 'Contest Manager' },
   { key: 'squads', label: 'Squad Manager' },
-  { key: 'upload', label: 'Score Manager' },
+  { key: 'playingXiManager', label: 'Playing XI Manager' },
+  { key: 'scoreManager', label: 'Score Manager' },
   { key: 'audit', label: 'Audit Logs' },
 ]
 const masterMenuItems = [{ key: 'userManager', label: 'User Manager' }]
@@ -30,6 +31,8 @@ const sectionTitles = {
   players: 'Player Manager',
   squads: 'Squad Manager',
   upload: 'Score Manager',
+  playingXiManager: 'Playing XI Manager',
+  scoreManager: 'Score Manager',
   audit: 'Audit Logs',
   admin: 'User Manager',
   createTournament: 'Tournament Manager',

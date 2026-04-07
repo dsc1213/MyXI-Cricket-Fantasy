@@ -11,7 +11,7 @@ import {
 test.describe('7) New join has no auto team', () => {
   test.setTimeout(120000)
 
-  test('newly joined user should see Not added for all contest matches before saving XI', async ({
+  test('newly joined user should see add-team action for all contest matches before saving XI', async ({
     page,
     request,
   }) => {
@@ -69,7 +69,8 @@ test.describe('7) New join has no auto team', () => {
       const rowCount = await rows.count()
       expect(rowCount).toBeGreaterThan(0)
       for (let i = 0; i < rowCount; i += 1) {
-        await expect(rows.nth(i).getByRole('cell').nth(3)).toHaveText('Not added')
+        await expect(rows.nth(i).getByLabel('Add team')).toHaveCount(1)
+        await expect(rows.nth(i).getByLabel('View team')).toHaveCount(0)
       }
     } finally {
       await deleteUserIfPresent(request, bot.gameName)
