@@ -111,6 +111,13 @@ test('tournament manager create flow has generate button for JSON and Auction pa
   await expect(tournamentDialog.locator('.score-preview-textarea')).toContainText(
     '"name": "IPL 2026"',
   )
+  await expect(tournamentDialog.getByText('AI Prompt For Tournament JSON')).toBeVisible()
+  await expect(
+    tournamentDialog.getByRole('button', { name: 'Copy AI Prompt' }),
+  ).toBeVisible()
+  await expect(tournamentDialog.locator('.score-preview-textarea-prompt')).toContainText(
+    '/admin/tournaments',
+  )
   await tournamentDialog.getByRole('button', { name: 'Close' }).click()
   await expect(tournamentDialog).toBeHidden()
 
@@ -120,6 +127,13 @@ test('tournament manager create flow has generate button for JSON and Auction pa
   await expect(auctionDialog).toBeVisible()
   await expect(auctionDialog.locator('.score-preview-textarea')).toContainText(
     '"contestName"',
+  )
+  await expect(auctionDialog.getByText('AI Prompt For Auction JSON')).toBeVisible()
+  await expect(
+    auctionDialog.getByRole('button', { name: 'Copy AI Prompt' }),
+  ).toBeVisible()
+  await expect(auctionDialog.locator('.score-preview-textarea-prompt')).toContainText(
+    '/admin/auctions/import',
   )
   await auctionDialog.getByRole('button', { name: 'Close' }).click()
   await expect(auctionDialog).toBeHidden()

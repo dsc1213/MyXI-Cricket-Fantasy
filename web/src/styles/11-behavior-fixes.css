@@ -5,8 +5,6 @@
 
 .app.landing {
   gap: 1rem;
-  padding-top: 1rem;
-  padding-bottom: 1rem;
 }
 
 .app.landing .main {
@@ -365,5 +363,66 @@ body.dark-theme .team-preview-panel.solid {
 
   .topbar.compact.landing .nav-actions {
     justify-self: end;
+  }
+}
+
+@media (max-width: 900px) {
+  .team-grid-2.compact-fit {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.42rem;
+  }
+
+  .app.app-team .desktop-only {
+    display: none;
+  }
+
+  .app.app-team .tile-grid.two-col {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+  }
+
+  .app.app-team .player-tile {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 0.28rem;
+  }
+
+  .app.app-team .tile-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.18rem;
+    min-width: max-content;
+  }
+
+  .app.app-team .tile-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+    padding: 0;
+    line-height: 1;
+  }
+
+  .app.app-team
+    .team-column
+    .player-chip.slot-chip.compact
+    .player-chip-identity
+    .player-identity-copy {
+    justify-items: start;
+  }
+
+  .app.app-team
+    .team-column
+    .player-chip.slot-chip.compact
+    .player-chip-identity
+    .player-identity-name {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.14;
+  }
+
+  .player-chip.slot-chip.compact {
+    max-width: none;
   }
 }

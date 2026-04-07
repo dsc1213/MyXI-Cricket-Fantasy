@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Button from '../../components/ui/Button.jsx'
 import { CountryText } from '../../components/ui/CountryFlag.jsx'
+import JsonAssistantModal from '../../components/ui/JsonAssistantModal.jsx'
 import PlayerIdentity from '../../components/ui/PlayerIdentity.jsx'
 import SelectField from '../../components/ui/SelectField.jsx'
 import StickyTable from '../../components/ui/StickyTable.jsx'
@@ -39,7 +40,6 @@ function UploadPanel({
   lineupPreviewPayload,
   onCloseLineupPreview,
   onConfirmLineupPreviewSave,
-  onReplaceManualBackups,
   onManualStatChange,
   onSaveManualScores,
   onResetManualScores,
@@ -56,7 +56,12 @@ function UploadPanel({
   )
   const [lineupUploadTab, setLineupUploadTab] = useState('manual')
   const [copyButtonLabel, setCopyButtonLabel] = useState('Copy JSON')
+  const [copyAiPromptLabel, setCopyAiPromptLabel] = useState('Copy AI Prompt')
   const [lineupCopyButtonLabel, setLineupCopyButtonLabel] = useState('Copy JSON')
+  const [lineupPromptCopyButtonLabel, setLineupPromptCopyButtonLabel] =
+    useState('Copy AI Prompt')
+  const [lineupPreviewCopyButtonLabel, setLineupPreviewCopyButtonLabel] =
+    useState('Copy JSON')
 
   useEffect(() => {
     if (!forcedMatchOpsTab) return
@@ -186,6 +191,43 @@ function UploadPanel({
     }
   }
 
+  const scoreAiPromptText = useMemo(() => {
+    const templateJson = generatedScoreJsonText || '{\n  "playerStats": []\n}'
+    return [
+      'Convert the provided scorecard into the exact JSON format used by /match-scores/save.',
+      '',
+      'Rules:',
+      '- Return valid JSON only.',
+      '- Do not include markdown, code fences, or any explanations.',
+      '- Keep top-level shape exactly as {"playerStats": [...]}.',
+      '- Use only players already present in the template JSON.',
+      '- Keep playerId and playerName exactly as provided in template.',
+      '- Fill batting stats: runs, ballsFaced, fours, sixes, dismissed.',
+      '- Fill bowling stats: overs, maidens, runsConceded, wickets, noBalls, wides.',
+      '- Fill fielding stats when known else keep 0: catches, stumpings, runoutDirect, runoutIndirect.',
+      '- dismissed should be true when batter is out, else false for not out/DNB.',
+      '- Keep missing numeric stats as 0.',
+      '',
+      'Template JSON:',
+      templateJson,
+      '',
+      'Scorecard JSON:',
+      'PASTE_SCORECARD_JSON_HERE',
+    ].join('\n')
+  }, [generatedScoreJsonText])
+
+  const onCopyScoreAiPrompt = async () => {
+    if (!scoreAiPromptText) return
+    try {
+      await navigator.clipboard.writeText(scoreAiPromptText)
+      setCopyAiPromptLabel('Copied')
+      window.setTimeout(() => setCopyAiPromptLabel('Copy AI Prompt'), 1200)
+    } catch {
+      setCopyAiPromptLabel('Copy failed')
+      window.setTimeout(() => setCopyAiPromptLabel('Copy AI Prompt'), 1600)
+    }
+  }
+
   const onCopyGeneratedLineupJson = async () => {
     if (!generatedLineupJsonText) return
     try {
@@ -195,6 +237,58 @@ function UploadPanel({
     } catch {
       setLineupCopyButtonLabel('Copy failed')
       window.setTimeout(() => setLineupCopyButtonLabel('Copy JSON'), 1600)
+    }
+  }
+
+  const lineupAiPromptText = useMemo(() => {
+    const templateJson = generatedLineupJsonText || '{\n  "lineups": {},\n  "meta": {}\n}'
+    return [
+      'Convert source lineup notes into the exact JSON format used by /admin/match-lineups/upsert.',
+      '',
+      'Rules:',
+      '- Return valid JSON only.',
+      '- Do not include markdown, code fences, or explanations.',
+      '- Keep top-level shape as {"lineups": {...}, "meta": {...}}.',
+      '- Keep team names exactly as in template lineups keys.',
+      '- Include squad, playingXI, and bench arrays for each team.',
+      '- Use player names exactly from known squad names.',
+      '- playingXI must contain 11 or 12 unique players.',
+      '- captain and viceCaptain are optional but must be in playingXI when present.',
+      '',
+      'Template JSON:',
+      templateJson,
+      '',
+      'Source lineup notes:',
+      'PASTE_LINEUP_SOURCE_HERE',
+    ].join('\n')
+  }, [generatedLineupJsonText])
+
+  const onCopyGeneratedLineupPrompt = async () => {
+    if (!lineupAiPromptText) return
+    try {
+      await navigator.clipboard.writeText(lineupAiPromptText)
+      setLineupPromptCopyButtonLabel('Copied')
+      window.setTimeout(() => setLineupPromptCopyButtonLabel('Copy AI Prompt'), 1200)
+    } catch {
+      setLineupPromptCopyButtonLabel('Copy failed')
+      window.setTimeout(() => setLineupPromptCopyButtonLabel('Copy AI Prompt'), 1600)
+    }
+  }
+
+  const lineupPreviewJsonText = useMemo(
+    () => JSON.stringify({ lineups: lineupPreviewPayload || {} }, null, 2),
+    [lineupPreviewPayload],
+  )
+
+  const onCopyLineupPreviewJson = async () => {
+    if (!lineupPreviewJsonText) return
+    try {
+      await navigator.clipboard.writeText(lineupPreviewJsonText)
+      setLineupPreviewCopyButtonLabel('Copied')
+      window.setTimeout(() => setLineupPreviewCopyButtonLabel('Copy JSON'), 1200)
+    } catch {
+      setLineupPreviewCopyButtonLabel('Copy failed')
+      window.setTimeout(() => setLineupPreviewCopyButtonLabel('Copy JSON'), 1600)
     }
   }
 
@@ -481,21 +575,12 @@ function UploadPanel({
               </div>
             </div>
             {activeMatchOpsTab === 'lineups' && lineupUploadTab === 'manual' && (
-              <div className="top-actions upload-head-actions upload-actions-row">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="small"
-                  onClick={onReplaceManualBackups}
-                  disabled={isLineupActionDisabled}
-                >
-                  Force Backups
-                </Button>
+              <div className="top-actions upload-head-actions upload-actions-row upload-sub-actions">
                 <Button
                   type="button"
                   variant="primary"
                   size="small"
-                  className="upload-action-btn"
+                  className="upload-action-btn upload-sub-btn upload-sub-btn-primary"
                   onClick={onSaveManualLineups}
                   disabled={
                     isSavingScores ||
@@ -513,12 +598,12 @@ function UploadPanel({
               </div>
             )}
             {activeMatchOpsTab === 'lineups' && lineupUploadTab === 'json' && (
-              <div className="top-actions upload-head-actions upload-actions-row">
+              <div className="top-actions upload-head-actions upload-actions-row upload-sub-actions is-json-actions">
                 <Button
                   type="button"
                   variant="secondary"
                   size="small"
-                  className="upload-action-btn"
+                  className="upload-action-btn upload-sub-btn"
                   onClick={onGenerateLineupsJson}
                   disabled={isSavingScores || !manualTournamentId || !manualMatchId}
                 >
@@ -526,18 +611,9 @@ function UploadPanel({
                 </Button>
                 <Button
                   type="button"
-                  variant="secondary"
-                  size="small"
-                  onClick={onReplaceManualBackups}
-                  disabled={isLineupActionDisabled}
-                >
-                  Force Backups
-                </Button>
-                <Button
-                  type="button"
                   variant="primary"
                   size="small"
-                  className="upload-action-btn"
+                  className="upload-action-btn upload-sub-btn upload-sub-btn-primary"
                   onClick={onSaveLineupsFromJson}
                   disabled={isSavingScores || !manualTournamentId || !manualMatchId}
                 >
@@ -581,7 +657,7 @@ function UploadPanel({
                       ? 'Uploading...'
                       : 'Saving...'
                     : isJsonScorecards
-                      ? 'Upload JSON'
+                      ? 'Save'
                       : 'Save'}
                 </Button>
               </div>
@@ -774,138 +850,86 @@ function UploadPanel({
         </div>
       </div>
 
-      {isGeneratedScoreJsonOpen && (
-        <div className="score-preview-modal-backdrop" role="presentation">
-          <div
-            className="score-preview-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Generated score JSON"
-          >
-            <div className="score-preview-modal-head">
-              <h4>Generated Score JSON</h4>
-              <p>
-                Built from saved Playing XI/XII for this match. Copy it, update with AI,
-                then paste into JSON Upload.
-              </p>
-            </div>
-            <textarea
-              className="score-preview-textarea"
-              value={generatedScoreJsonText || '{\n  "playerStats": []\n}'}
-              readOnly
-            />
-            <div className="score-preview-modal-actions">
-              <Button
-                type="button"
-                variant="ghost"
-                size="small"
-                onClick={onCopyGeneratedJson}
-                disabled={isSavingScores || !generatedScoreJsonText}
-              >
-                {copyButtonLabel}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="small"
-                onClick={onCloseGeneratedScoreJson}
-                disabled={isSavingScores}
-              >
-                Close
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <JsonAssistantModal
+        open={isGeneratedScoreJsonOpen}
+        ariaLabel="Generated score JSON"
+        title="Generated Score JSON"
+        description="Built from saved Playing XI/XII for this match. Copy it, update with AI, then paste into JSON Upload."
+        jsonLabel="JSON Template"
+        jsonText={generatedScoreJsonText}
+        jsonFallback={'{\n  "playerStats": []\n}'}
+        onCopyJson={onCopyGeneratedJson}
+        copyJsonLabel={copyButtonLabel}
+        disableCopyJson={isSavingScores || !generatedScoreJsonText}
+        promptLabel="AI Prompt For Live Scoring"
+        promptText={scoreAiPromptText}
+        onCopyPrompt={onCopyScoreAiPrompt}
+        copyPromptLabel={copyAiPromptLabel}
+        disableCopyPrompt={isSavingScores}
+        footerActions={[
+          {
+            label: 'Close',
+            variant: 'secondary',
+            onClick: onCloseGeneratedScoreJson,
+            disabled: isSavingScores,
+          },
+        ]}
+      />
 
-      {isGeneratedLineupJsonOpen && (
-        <div className="score-preview-modal-backdrop" role="presentation">
-          <div
-            className="score-preview-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Generated Playing XI JSON"
-          >
-            <div className="score-preview-modal-head">
-              <h4>Generated Playing XI JSON</h4>
-              <p>
-                Built from current squads and selected Playing XI/XII. Copy it, then paste
-                into JSON Upload.
-              </p>
-            </div>
-            <textarea
-              className="score-preview-textarea"
-              value={generatedLineupJsonText || '{\n  "lineups": {},\n  "meta": {}\n}'}
-              readOnly
-            />
-            <div className="score-preview-modal-actions">
-              <Button
-                type="button"
-                variant="ghost"
-                size="small"
-                onClick={onCopyGeneratedLineupJson}
-                disabled={isSavingScores || !generatedLineupJsonText}
-              >
-                {lineupCopyButtonLabel}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="small"
-                onClick={onCloseGeneratedLineupJson}
-                disabled={isSavingScores}
-              >
-                Close
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <JsonAssistantModal
+        open={isGeneratedLineupJsonOpen}
+        ariaLabel="Generated Playing XI JSON"
+        title="Generated Playing XI JSON"
+        description="Built from current squads and selected Playing XI/XII. Copy it, update with AI if needed, then paste into JSON Upload."
+        jsonLabel="JSON Template"
+        jsonText={generatedLineupJsonText}
+        jsonFallback={'{\n  "lineups": {},\n  "meta": {}\n}'}
+        onCopyJson={onCopyGeneratedLineupJson}
+        copyJsonLabel={lineupCopyButtonLabel}
+        disableCopyJson={isSavingScores || !generatedLineupJsonText}
+        promptLabel="AI Prompt For Playing XI JSON"
+        promptText={lineupAiPromptText}
+        onCopyPrompt={onCopyGeneratedLineupPrompt}
+        copyPromptLabel={lineupPromptCopyButtonLabel}
+        disableCopyPrompt={isSavingScores}
+        footerActions={[
+          {
+            label: 'Close',
+            variant: 'secondary',
+            onClick: onCloseGeneratedLineupJson,
+            disabled: isSavingScores,
+          },
+        ]}
+      />
 
-      {isLineupPreviewOpen && (
-        <div className="score-preview-modal-backdrop" role="presentation">
-          <div
-            className="score-preview-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Processed lineup JSON preview"
-          >
-            <div className="score-preview-modal-head">
-              <h4>Processed Playing XI JSON</h4>
-              <p>
-                Review this normalized lineup payload. Confirm save to write it to the
-                database.
-              </p>
-            </div>
-            <textarea
-              className="score-preview-textarea"
-              value={JSON.stringify({ lineups: lineupPreviewPayload || {} }, null, 2)}
-              readOnly
-            />
-            <div className="score-preview-modal-actions">
-              <Button
-                type="button"
-                variant="secondary"
-                size="small"
-                onClick={onCloseLineupPreview}
-                disabled={isSavingScores}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                size="small"
-                className="upload-action-btn"
-                onClick={onConfirmLineupPreviewSave}
-                disabled={isSavingScores}
-              >
-                {isSavingScores ? 'Saving...' : 'Confirm Save'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <JsonAssistantModal
+        open={isLineupPreviewOpen}
+        ariaLabel="Processed lineup JSON preview"
+        title="Processed Playing XI JSON"
+        description="Review this normalized lineup payload. Confirm save to write it to the database."
+        jsonLabel="Processed JSON"
+        jsonText={lineupPreviewJsonText}
+        jsonFallback={'{\n  "lineups": {}\n}'}
+        onCopyJson={onCopyLineupPreviewJson}
+        copyJsonLabel={lineupPreviewCopyButtonLabel}
+        disableCopyJson={isSavingScores}
+        promptText=""
+        footerActions={[
+          {
+            label: 'Cancel',
+            variant: 'secondary',
+            onClick: onCloseLineupPreview,
+            disabled: isSavingScores,
+          },
+          {
+            label: isSavingScores ? 'Saving...' : 'Confirm Save',
+            variant: 'primary',
+            className: 'upload-action-btn',
+            onClick: onConfirmLineupPreviewSave,
+            disabled: isSavingScores,
+          },
+        ]}
+      />
     </section>
   )
 }

@@ -101,6 +101,15 @@ test('admin can reset match scores and clear contest last score update meta', as
     expect(resetResult?.ok).toBeTruthy()
     expect(String(resetResult?.matchId || '')).toBe('m1')
 
+    const scoreAfterReset = await apiCall(
+      request,
+      'GET',
+      `/admin/match-scores/${encodeURIComponent(tournamentId)}/m1`,
+      undefined,
+      200,
+    )
+    expect(scoreAfterReset).toBeNull()
+
     const contestsAfterReset = await apiCall(
       request,
       'GET',
@@ -115,6 +124,85 @@ test('admin can reset match scores and clear contest last score update meta', as
     expect(contestAfter).toBeTruthy()
     expect(contestAfter?.lastScoreUpdatedAt || null).toBeNull()
     expect(contestAfter?.lastScoreUpdatedBy || null).toBeNull()
+  } finally {
+    await deleteContestIfPresent(request, contestId, 'master')
+    await request.fetch(`${E2E_API_BASE}/admin/tournaments/${tournamentId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      data: { actorUserId: 'master' },
+    })
+  }
+})
+
+test('score upsert reuses same row id for same tournament and match', async ({
+  request,
+}) => {
+  test.setTimeout(120000)
+
+  const tag = Date.now()
+  const tournamentId = `score-upsert-unique-tour-${tag}`
+  const contestName = `Score Upsert Unique Contest ${tag}`
+  let contestId = ''
+
+  try {
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000)
+
+    await createTournamentViaApi({
+      request,
+      tournamentId,
+      name: `Score Upsert Unique Tournament ${tag}`,
+      matches: [
+        {
+          id: 'm1',
+          matchNo: 1,
+          home: 'RCB',
+          away: 'MI',
+          date: tomorrow.toISOString().slice(0, 10),
+          startAt: tomorrow.toISOString(),
+          venue: 'Bengaluru',
+          status: 'notstarted',
+        },
+      ],
+    })
+
+    const contest = await createContest({
+      request,
+      tournamentId,
+      name: contestName,
+      matchIds: ['m1'],
+    })
+    contestId = contest.id
+
+    const firstSave = await apiCall(
+      request,
+      'POST',
+      '/admin/match-scores/upsert',
+      {
+        actorUserId: 'master',
+        userId: 'master',
+        tournamentId,
+        matchId: 'm1',
+        playerStats: [{ playerName: 'Virat Kohli', runs: 31 }],
+      },
+      200,
+    )
+
+    const secondSave = await apiCall(
+      request,
+      'POST',
+      '/admin/match-scores/upsert',
+      {
+        actorUserId: 'master',
+        userId: 'master',
+        tournamentId,
+        matchId: 'm1',
+        playerStats: [{ playerName: 'Virat Kohli', runs: 54 }],
+      },
+      200,
+    )
+
+    expect(firstSave?.savedScore?.id).toBeTruthy()
+    expect(secondSave?.savedScore?.id).toBe(firstSave?.savedScore?.id)
   } finally {
     await deleteContestIfPresent(request, contestId, 'master')
     await request.fetch(`${E2E_API_BASE}/admin/tournaments/${tournamentId}`, {

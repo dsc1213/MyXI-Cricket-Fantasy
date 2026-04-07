@@ -61,13 +61,39 @@ class MatchScoreRepository {
 
   async create(data) {
     const { matchId, tournamentId, playerStats, uploadedBy } = data
-    const result = await dbQuery(
-      `INSERT INTO match_scores (match_id, tournament_id, player_stats, uploaded_by, active, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, true, now(), now())
-      RETURNING id, match_id as "matchId", tournament_id as "tournamentId", player_stats as "playerStats",
-                 uploaded_by as "uploadedBy", active, created_at as "createdAt", updated_at as "updatedAt"`,
-      [matchId, tournamentId, JSON.stringify(playerStats), uploadedBy || null],
+    const payloadJson = JSON.stringify(playerStats)
+
+    const updated = await dbQuery(
+      `WITH target AS (
+         SELECT id
+         FROM match_scores
+         WHERE tournament_id = $1 AND match_id = $2
+         ORDER BY updated_at DESC, id DESC
+         LIMIT 1
+       )
+       UPDATE match_scores ms
+       SET player_stats = $3,
+           uploaded_by = $4,
+           active = true,
+           updated_at = now()
+       FROM target
+       WHERE ms.id = target.id
+       RETURNING ms.id, ms.match_id as "matchId", ms.tournament_id as "tournamentId",
+                 ms.player_stats as "playerStats", ms.uploaded_by as "uploadedBy",
+                 ms.active, ms.created_at as "createdAt", ms.updated_at as "updatedAt"`,
+      [tournamentId, matchId, payloadJson, uploadedBy || null],
     )
+
+    const result = updated.rows[0]
+      ? updated
+      : await dbQuery(
+          `INSERT INTO match_scores (match_id, tournament_id, player_stats, uploaded_by, active, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, true, now(), now())
+             RETURNING id, match_id as "matchId", tournament_id as "tournamentId", player_stats as "playerStats",
+                       uploaded_by as "uploadedBy", active, created_at as "createdAt", updated_at as "updatedAt"`,
+          [matchId, tournamentId, payloadJson, uploadedBy || null],
+        )
+
     const row = result.rows[0]
     return {
       ...row,

@@ -16,8 +16,16 @@ function PlayerTile({
       {!!lineupStatus && (
         <span
           className={`lineup-status-light ${lineupStatus}`.trim()}
-          title={lineupStatus === 'playing' ? 'In announced playing XI' : 'Not in announced playing XI'}
-          aria-label={lineupStatus === 'playing' ? 'In announced playing XI' : 'Not in announced playing XI'}
+          title={
+            lineupStatus === 'playing'
+              ? 'In announced playing XI'
+              : 'Not in announced playing XI'
+          }
+          aria-label={
+            lineupStatus === 'playing'
+              ? 'In announced playing XI'
+              : 'Not in announced playing XI'
+          }
         />
       )}
       <div className="player-meta">
@@ -32,7 +40,7 @@ function PlayerTile({
           className="tile-btn backup"
           onClick={onBackup}
           disabled={disabled || isSelected}
-          title="Add to backups"
+          title={isBackup ? 'Remove from backups' : 'Add to backups'}
         >
           {isBackup ? '–' : 'B'}
         </button>

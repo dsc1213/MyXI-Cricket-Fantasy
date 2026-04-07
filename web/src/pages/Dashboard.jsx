@@ -11,7 +11,6 @@ import {
   saveMatchScores,
   saveScoringRules,
   resetManualMatchScores,
-  replaceAdminMatchBackups,
   upsertMatchLineups,
   upsertManualMatchScores,
 } from '../lib/api.js'
@@ -803,15 +802,18 @@ function Dashboard({ defaultPanel = 'joined' }) {
           teamBPlayers: manualTeamPool.teamBPlayers,
           savedScore: response.savedScore,
         })
-      } else {
-        await refreshManualStatsState({
-          tournamentId: manualTournamentId,
-          matchId: manualMatchId,
-          teamAPlayers: manualTeamPool.teamAPlayers,
-          teamBPlayers: manualTeamPool.teamBPlayers,
-          forceRefresh: true,
-        })
       }
+
+      // Always fetch latest persisted stats so manual entry reflects the saved payload reliably.
+      await refreshManualStatsState({
+        tournamentId: manualTournamentId,
+        matchId: manualMatchId,
+        teamAPlayers: manualTeamPool.teamAPlayers,
+        teamBPlayers: manualTeamPool.teamBPlayers,
+        forceRefresh: true,
+      })
+
+      setUploadPayloadText('')
     } catch (error) {
       const details = Array.isArray(error?.data?.unmatchedDetails)
         ? error.data.unmatchedDetails
@@ -1254,34 +1256,10 @@ function Dashboard({ defaultPanel = 'joined' }) {
         matchId: manualMatchId,
         teamAPlayers: manualTeamPool.teamAPlayers,
         teamBPlayers: manualTeamPool.teamBPlayers,
+        forceRefresh: true,
       })
     } catch (error) {
       setErrorText(error.message || 'Failed to reset match scores')
-    } finally {
-      setIsSavingScores(false)
-    }
-  }
-
-  const onReplaceManualBackups = async () => {
-    try {
-      if (!manualMatchId) return
-      const shouldReplace = window.confirm(
-        'Replace backups for this match using the latest Playing XI and saved selections?',
-      )
-      if (!shouldReplace) return
-
-      setSaveNotice('')
-      setErrorText('')
-      setIsSavingScores(true)
-
-      const result = await replaceAdminMatchBackups({ id: manualMatchId })
-      const updatedSelections = Number(result?.autoReplacement?.updatedSelections || 0)
-      const skippedSelections = Number(result?.autoReplacement?.skippedSelections || 0)
-      setSaveNotice(
-        `Backups replaced (${updatedSelections} updated, ${skippedSelections} skipped)`,
-      )
-    } catch (error) {
-      setErrorText(error.message || 'Failed to replace backups')
     } finally {
       setIsSavingScores(false)
     }
@@ -1358,7 +1336,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
         lineupPreviewPayload={lineupPreviewPayload}
         onCloseLineupPreview={onCloseLineupPreview}
         onConfirmLineupPreviewSave={onConfirmLineupPreviewSave}
-        onReplaceManualBackups={onReplaceManualBackups}
         onManualStatChange={onManualStatChange}
         onSaveManualScores={onSaveManualScores}
         onResetManualScores={onResetManualScores}
@@ -1400,7 +1377,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
         lineupPreviewPayload={lineupPreviewPayload}
         onCloseLineupPreview={onCloseLineupPreview}
         onConfirmLineupPreviewSave={onConfirmLineupPreviewSave}
-        onReplaceManualBackups={onReplaceManualBackups}
         onManualStatChange={onManualStatChange}
         onSaveManualScores={onSaveManualScores}
         onResetManualScores={onResetManualScores}

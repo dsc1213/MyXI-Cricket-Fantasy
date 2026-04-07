@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Button from '../../components/ui/Button.jsx'
 import DateTimeTimezoneField from '../../components/ui/DateTimeTimezoneField.jsx'
-import Modal from '../../components/ui/Modal.jsx'
+import JsonAssistantModal from '../../components/ui/JsonAssistantModal.jsx'
 import SelectField from '../../components/ui/SelectField.jsx'
 import StickyTable from '../../components/ui/StickyTable.jsx'
 import {
@@ -106,6 +106,7 @@ function CreateTournamentPanel({ onCreated }) {
   const [generatedJsonText, setGeneratedJsonText] = useState('')
   const [generatedJsonKind, setGeneratedJsonKind] = useState('tournament')
   const [copyButtonLabel, setCopyButtonLabel] = useState('Copy JSON')
+  const [copyPromptButtonLabel, setCopyPromptButtonLabel] = useState('Copy AI Prompt')
 
   useEffect(() => {
     let active = true
@@ -518,6 +519,7 @@ function CreateTournamentPanel({ onCreated }) {
   const onCloseGeneratedJsonModal = () => {
     setIsGeneratedJsonModalOpen(false)
     setCopyButtonLabel('Copy JSON')
+    setCopyPromptButtonLabel('Copy AI Prompt')
   }
 
   const onCopyGeneratedJson = async () => {
@@ -529,6 +531,56 @@ function CreateTournamentPanel({ onCreated }) {
     } catch {
       setCopyButtonLabel('Copy failed')
       window.setTimeout(() => setCopyButtonLabel('Copy JSON'), 1600)
+    }
+  }
+
+  const generatedJsonAiPromptText = useMemo(() => {
+    const templateJson = generatedJsonText || '{\n}\n'
+    if (generatedJsonKind === 'auction') {
+      return [
+        'Convert source notes into the exact JSON format used by /admin/auctions/import.',
+        '',
+        'Rules:',
+        '- Return valid JSON only.',
+        '- Do not include markdown, code fences, or explanations.',
+        '- Keep top-level shape as {"tournamentId": "...", "contestName": "...", "participants": [...]}',
+        '- Each participant must include userId, name, and roster array.',
+        '- roster must include valid player names as strings.',
+        '',
+        'Template JSON:',
+        templateJson,
+        '',
+        'Source auction notes:',
+        'PASTE_AUCTION_NOTES_HERE',
+      ].join('\n')
+    }
+    return [
+      'Convert source notes into the exact JSON format used by /admin/tournaments.',
+      '',
+      'Rules:',
+      '- Return valid JSON only.',
+      '- Do not include markdown, code fences, or explanations.',
+      '- Keep top-level keys compatible with tournament import payload.',
+      '- Include: name, season, tournamentId, source, tournamentType, selectedTeams, matches.',
+      '- Each match should include id, matchNo, home, away, startAt, timezone and optional venue/location.',
+      '',
+      'Template JSON:',
+      templateJson,
+      '',
+      'Source tournament notes:',
+      'PASTE_TOURNAMENT_NOTES_HERE',
+    ].join('\n')
+  }, [generatedJsonKind, generatedJsonText])
+
+  const onCopyGeneratedJsonPrompt = async () => {
+    if (!generatedJsonAiPromptText) return
+    try {
+      await navigator.clipboard.writeText(generatedJsonAiPromptText)
+      setCopyPromptButtonLabel('Copied')
+      window.setTimeout(() => setCopyPromptButtonLabel('Copy AI Prompt'), 1200)
+    } catch {
+      setCopyPromptButtonLabel('Copy failed')
+      window.setTimeout(() => setCopyPromptButtonLabel('Copy AI Prompt'), 1600)
     }
   }
 
@@ -826,42 +878,43 @@ function CreateTournamentPanel({ onCreated }) {
         )}
       </div>
 
-      <Modal
+      <JsonAssistantModal
         open={isGeneratedJsonModalOpen}
-        onClose={onCloseGeneratedJsonModal}
+        ariaLabel={
+          generatedJsonKind === 'auction'
+            ? 'Generated Auction JSON'
+            : 'Generated Tournament JSON'
+        }
         title={
           generatedJsonKind === 'auction'
             ? 'Generated Auction JSON'
             : 'Generated Tournament JSON'
         }
-        size="lg"
-        footer={
-          <>
-            <Button
-              type="button"
-              variant="ghost"
-              size="small"
-              onClick={onCopyGeneratedJson}
-              disabled={!generatedJsonText}
-            >
-              {copyButtonLabel}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="small"
-              onClick={onCloseGeneratedJsonModal}
-            >
-              Close
-            </Button>
-          </>
+        description="Copy this template, then paste it into the corresponding JSON textarea."
+        jsonLabel="JSON Template"
+        jsonText={generatedJsonText}
+        jsonFallback="{\n}\n"
+        onCopyJson={onCopyGeneratedJson}
+        copyJsonLabel={copyButtonLabel}
+        disableCopyJson={!generatedJsonText}
+        promptLabel={
+          generatedJsonKind === 'auction'
+            ? 'AI Prompt For Auction JSON'
+            : 'AI Prompt For Tournament JSON'
         }
-      >
-        <p className="team-note">
-          Copy this template, then paste it into the corresponding JSON textarea.
-        </p>
-        <textarea className="score-preview-textarea" value={generatedJsonText} readOnly />
-      </Modal>
+        promptText={generatedJsonAiPromptText}
+        onCopyPrompt={onCopyGeneratedJsonPrompt}
+        copyPromptLabel={copyPromptButtonLabel}
+        disableCopyPrompt={!generatedJsonAiPromptText}
+        footerActions={[
+          {
+            label: 'Close',
+            variant: 'secondary',
+            onClick: onCloseGeneratedJsonModal,
+            disabled: false,
+          },
+        ]}
+      />
     </section>
   )
 }

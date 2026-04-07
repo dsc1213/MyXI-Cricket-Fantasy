@@ -1123,6 +1123,138 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     expect(pageErrors).toEqual([])
   })
 
+  test('score manager generated score modal shows AI prompt and json mode action uses Save label', async ({
+    page,
+  }) => {
+    await loginUi(page, 'master')
+    await page.goto('/home')
+    await page.getByRole('button', { name: 'Score Manager' }).click()
+
+    await expect(page.locator('.match-scores-section')).toBeVisible()
+    await page.getByRole('tab', { name: 'Scorecards' }).click()
+    await page.getByRole('tab', { name: 'JSON Upload' }).click()
+
+    const tournamentSelect = page.locator('.manual-scope-row select').nth(0)
+    const matchSelect = page.locator('.manual-scope-row select').nth(1)
+    await tournamentSelect.selectOption({ index: 1 })
+    await expect
+      .poll(async () => matchSelect.locator('option').count(), { timeout: 15000 })
+      .toBeGreaterThan(1)
+    await matchSelect.selectOption({ index: 1 })
+
+    const actionRow = page.locator('.upload-head-actions.upload-actions-row').first()
+    await expect(actionRow.getByRole('button', { name: 'Save' })).toBeVisible()
+    await expect(actionRow.getByRole('button', { name: 'Upload JSON' })).toHaveCount(0)
+
+    await actionRow.getByRole('button', { name: 'Generate JSON' }).click()
+    const scoreModal = page.locator('.score-preview-modal', {
+      has: page.getByRole('heading', { name: 'Generated Score JSON' }),
+    })
+    await expect(scoreModal).toBeVisible()
+    await expect(scoreModal.getByText('AI Prompt For Live Scoring')).toBeVisible()
+    await expect(scoreModal.getByRole('button', { name: 'Copy AI Prompt' })).toBeVisible()
+    await expect(scoreModal.locator('.score-preview-textarea-prompt')).toContainText(
+      '/match-scores/save',
+    )
+  })
+
+  test('playing xi generated json modal shows reusable AI prompt and inline copy controls', async ({
+    page,
+  }) => {
+    await loginUi(page, 'master')
+    await page.goto('/home')
+    await page.getByRole('button', { name: 'Score Manager' }).click()
+
+    await expect(page.locator('.match-scores-section')).toBeVisible()
+    await page.getByRole('tab', { name: 'Playing XI' }).click()
+    await page.getByRole('tab', { name: 'JSON Upload' }).click()
+
+    const tournamentSelect = page.locator('.manual-scope-row select').nth(0)
+    const matchSelect = page.locator('.manual-scope-row select').nth(1)
+    await tournamentSelect.selectOption({ index: 1 })
+    await expect
+      .poll(async () => matchSelect.locator('option').count(), { timeout: 15000 })
+      .toBeGreaterThan(1)
+    await matchSelect.selectOption({ index: 1 })
+
+    const actionRow = page.locator('.upload-head-actions.upload-actions-row').first()
+    await actionRow.getByRole('button', { name: 'Generate JSON' }).click()
+
+    const lineupModal = page.locator('.score-preview-modal', {
+      has: page.getByRole('heading', { name: 'Generated Playing XI JSON' }),
+    })
+    await expect(lineupModal).toBeVisible()
+    await expect(lineupModal.getByText('AI Prompt For Playing XI JSON')).toBeVisible()
+    await expect(lineupModal.getByRole('button', { name: 'Copy JSON' })).toBeVisible()
+    await expect(
+      lineupModal.getByRole('button', { name: 'Copy AI Prompt' }),
+    ).toBeVisible()
+    await expect(lineupModal.locator('.score-preview-textarea-prompt')).toContainText(
+      '/admin/match-lineups/upsert',
+    )
+  })
+
+  test('score manager clears json upload textarea after successful save', async ({
+    page,
+  }) => {
+    await loginUi(page, 'master')
+    await page.goto('/home')
+    await page.getByRole('button', { name: 'Score Manager' }).click()
+
+    await expect(page.locator('.match-scores-section')).toBeVisible()
+    await page.getByRole('tab', { name: 'Scorecards' }).click()
+
+    const tournamentSelect = page.locator('.manual-scope-row select').nth(0)
+    const matchSelect = page.locator('.manual-scope-row select').nth(1)
+    await tournamentSelect.selectOption({ index: 1 })
+    await expect
+      .poll(async () => matchSelect.locator('option').count(), { timeout: 15000 })
+      .toBeGreaterThan(1)
+    await matchSelect.selectOption({ index: 1 })
+
+    await page.getByRole('tab', { name: 'Manual Entry' }).click()
+    const firstPlayerName = (
+      (await page
+        .locator('.manual-entry-grid .manual-team-card .player-identity-name')
+        .first()
+        .textContent()) || ''
+    ).trim()
+    expect(firstPlayerName.length).toBeGreaterThan(0)
+
+    await page.getByRole('tab', { name: 'JSON Upload' }).click()
+
+    const payloadTextarea = page
+      .locator('.match-upload-grid.json-mode .match-upload-json textarea')
+      .first()
+    const payload = {
+      playerStats: [
+        {
+          playerName: firstPlayerName,
+          runs: 0,
+          ballsFaced: 0,
+          fours: 0,
+          sixes: 0,
+          wickets: 0,
+          overs: 0,
+          maidens: 0,
+          runsConceded: 0,
+          noBalls: 0,
+          wides: 0,
+          catches: 0,
+          stumpings: 0,
+          runoutDirect: 0,
+          runoutIndirect: 0,
+          dismissed: false,
+        },
+      ],
+    }
+    await payloadTextarea.fill(JSON.stringify(payload, null, 2))
+
+    await page.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByText('Match scores payload saved')).toBeVisible()
+    await expect(payloadTextarea).toHaveValue('')
+  })
+
   test('admin manager users table shows safe joined dates instead of invalid date text', async ({
     page,
   }) => {

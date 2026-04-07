@@ -6,6 +6,7 @@ import {
   buildPlayerIdentityIndex,
   calculateFantasyPoints,
   getRuleSetForTournament,
+  normalizePlayerStatRows,
   resolvePlayerStatPlayer,
   resolveEffectiveSelection,
 } from '../scoring.js'
@@ -156,10 +157,8 @@ class MatchScoreService {
       tournamentId,
       playerStats,
     )
-    // Deactivate previous scores
     const repo = await factory.getMatchScoreRepository()
-    await repo.deactivatePrevious(matchId)
-    // Create new score
+    // Upsert score snapshot for this tournament/match.
     const savedScore = await repo.create({
       matchId,
       tournamentId,
@@ -288,7 +287,7 @@ class MatchScoreService {
     return normalizedRows
   }
 
-  // Returns the active (or latest) saved match score row scoped by tournament.
+  // Returns the active saved match score row scoped by tournament.
   async getMatchScores(tournamentId, matchId) {
     const repo = await factory.getMatchScoreRepository()
     const rows = await repo.findByMatch(matchId)
@@ -296,7 +295,7 @@ class MatchScoreService {
       (row) => String(row?.tournamentId || '') === String(tournamentId || ''),
     )
     const activeRow = scoped.find((row) => row?.active)
-    return activeRow || scoped[0] || null
+    return activeRow || null
   }
 
   // Returns the latest active score entry for a match.

@@ -2522,7 +2522,10 @@ body.dark-theme .fantasy-hub-main {
     Liberation Mono,
     Courier New,
     monospace;
-  resize: none;
+  resize: vertical;
+  overflow-y: auto;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 0.62rem;
 }
 
@@ -2530,6 +2533,48 @@ body.dark-theme .fantasy-hub-main {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+.score-preview-block {
+  display: grid;
+  gap: 0.3rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 0.52rem;
+}
+
+.score-preview-block-json {
+  background: color-mix(in srgb, var(--panel-bg) 86%, rgba(59, 130, 246, 0.16));
+}
+
+.score-preview-block-prompt {
+  background: color-mix(in srgb, var(--panel-bg) 88%, rgba(16, 185, 129, 0.14));
+}
+
+.score-preview-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
+.score-preview-block-head > span {
+  font-size: 0.73rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.score-preview-block-head .btn {
+  min-height: 28px;
+  padding: 0.24rem 0.58rem;
+  font-size: 0.7rem;
+}
+
+.score-preview-textarea-prompt {
+  min-height: 170px;
+  max-height: 35vh;
+  font-size: 0.72rem;
 }
 
 .match-upload-excel {
@@ -2957,6 +3002,26 @@ body.dark-theme .fantasy-hub-main {
   justify-content: center;
   gap: 0.55rem;
   flex-wrap: wrap;
+}
+
+.upload-sub-actions {
+  margin-top: 0.1rem;
+  justify-content: flex-start;
+  align-items: stretch;
+  gap: 0.45rem;
+}
+
+.upload-sub-btn {
+  border-radius: 12px;
+  min-height: 36px;
+  padding: 0.36rem 0.74rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.upload-sub-btn-primary {
+  min-width: 170px;
 }
 
 .btn {
@@ -3984,6 +4049,27 @@ body.dark-theme .app.app-lower-content select {
 
   .upload-head-actions {
     margin-left: 0;
+  }
+
+  .upload-sub-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+    gap: 0.36rem;
+  }
+
+  .upload-sub-actions .upload-sub-btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 32px;
+    padding: 0.28rem 0.5rem;
+    font-size: 0.7rem;
+    border-radius: 10px;
+  }
+
+  .upload-sub-actions.is-json-actions .upload-sub-btn-primary {
+    grid-column: 1 / -1;
   }
 
   .upload-tab-btn {

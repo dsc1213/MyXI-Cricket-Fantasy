@@ -2262,26 +2262,44 @@ const registerMockProviderRoutes = (router, ctx) => {
       }
     }
 
-    matchScores.forEach((row) => {
-      const sameMatch = row.matchId?.toString() === matchId?.toString()
-      const sameTournament = row.tournamentId?.toString() === tournamentId?.toString()
-      if (sameMatch && sameTournament) {
-        row.active = false
-      }
-    })
+    const existing = matchScores.find(
+      (row) =>
+        row.matchId?.toString() === matchId?.toString() &&
+        row.tournamentId?.toString() === tournamentId?.toString(),
+    )
 
-    const payload = {
-      id: getNextMatchScoreId(),
-      matchId,
-      tournamentId,
-      playerStats: normalizedRows,
-      teamScore: teamScore || {},
-      uploadedBy,
-      source,
-      active: true,
-      createdAt: new Date().toISOString(),
+    const nowIso = new Date().toISOString()
+    const payload = existing
+      ? {
+          ...existing,
+          playerStats: normalizedRows,
+          teamScore: teamScore || {},
+          uploadedBy,
+          source,
+          active: true,
+          updatedAt: nowIso,
+        }
+      : {
+          id: getNextMatchScoreId(),
+          matchId,
+          tournamentId,
+          playerStats: normalizedRows,
+          teamScore: teamScore || {},
+          uploadedBy,
+          source,
+          active: true,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        }
+
+    if (existing) {
+      const targetIndex = matchScores.findIndex((row) => row.id === existing.id)
+      if (targetIndex >= 0) {
+        matchScores[targetIndex] = payload
+      }
+    } else {
+      matchScores.push(payload)
     }
-    matchScores.push(payload)
 
     const pointsIndex = getPlayerPointsIndex(tournamentId)
     const topPlayers = Object.values(pointsIndex)
@@ -2302,7 +2320,7 @@ const registerMockProviderRoutes = (router, ctx) => {
       payload,
       topPlayers,
       contestSummaries,
-      lastScoreUpdatedAt: payload.createdAt,
+      lastScoreUpdatedAt: payload.updatedAt || payload.createdAt,
       impactedContests: contestSummaries.length,
     }
   }

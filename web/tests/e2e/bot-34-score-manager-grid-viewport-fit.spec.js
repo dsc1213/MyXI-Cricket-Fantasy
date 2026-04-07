@@ -110,9 +110,9 @@ test('score manager uses available width and keeps team grids vertically scrolla
       'aria-selected',
       'true',
     )
-    const forceBackupsBtn = page.getByRole('button', { name: 'Force Backups' })
-    await expect(forceBackupsBtn).toBeVisible()
-    await expect(forceBackupsBtn).toHaveClass(/btn-secondary/)
+    const saveLineupBtn = page.getByRole('button', { name: 'Save Playing XI' })
+    await expect(saveLineupBtn).toBeVisible()
+    await expect(saveLineupBtn).toHaveClass(/btn-primary/)
     await assertLayout()
     const playingXiColumnMetrics = await page.evaluate(() => {
       const table = document.querySelector('.manual-team-table.manual-lineup-table')
@@ -138,6 +138,70 @@ test('score manager uses available width and keeps team grids vertically scrolla
     await expect(resetScoresBtn).toHaveClass(/btn-danger/)
     await expect(saveScoresBtn).toHaveClass(/btn-primary/)
     await assertLayout()
+  } finally {
+    await deleteContestIfPresent(request, contestId, 'master')
+    await request.fetch(`${E2E_API_BASE}/admin/tournaments/${tournamentId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      data: { actorUserId: 'master' },
+    })
+  }
+})
+
+test('score manager reset clears manual entry values without page reload', async ({
+  page,
+  request,
+}) => {
+  test.setTimeout(120000)
+
+  const tag = Date.now()
+  const tournamentId = `score-reset-refresh-tour-${tag}`
+  let contestId = ''
+
+  try {
+    await createTournamentViaApi({
+      request,
+      tournamentId,
+      name: `Score Reset Refresh Tournament ${tag}`,
+    })
+
+    const contest = await createContest({
+      request,
+      tournamentId,
+      name: `Score Reset Refresh Contest ${tag}`,
+      matchIds: ['m1'],
+    })
+    contestId = contest.id
+
+    await page.setViewportSize({ width: 1366, height: 768 })
+    await loginUi(page, 'master')
+    await page.goto('/home?panel=upload', { waitUntil: 'domcontentloaded' })
+
+    const scopeRow = page.locator('.manual-scope-row')
+    await scopeRow.getByLabel('Tournament').selectOption(tournamentId)
+    await scopeRow.getByLabel('Match').selectOption('m1')
+    await expect(page.getByText('Loading playing XI...')).toHaveCount(0)
+
+    await page.getByRole('tab', { name: 'Scorecards' }).click()
+    await page.getByRole('tab', { name: 'Manual Entry' }).click()
+
+    const firstRunsInput = page
+      .locator('.manual-team-table-wrap')
+      .first()
+      .locator('tbody tr')
+      .first()
+      .locator('input[type="number"]')
+      .first()
+
+    await firstRunsInput.fill('27')
+    await page.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByText('Manual scores saved')).toBeVisible()
+
+    page.once('dialog', (dialog) => dialog.accept())
+    await page.getByRole('button', { name: 'Reset Scores' }).click()
+
+    await expect(page.getByText('Match scores reset')).toBeVisible()
+    await expect(firstRunsInput).toHaveValue('0')
   } finally {
     await deleteContestIfPresent(request, contestId, 'master')
     await request.fetch(`${E2E_API_BASE}/admin/tournaments/${tournamentId}`, {
