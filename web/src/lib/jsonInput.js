@@ -1,6 +1,8 @@
-const SMART_DOUBLE_QUOTES_REGEX = /[\u201C\u201D\u201E\u201F\u2033\u2036]/g
-const SMART_SINGLE_QUOTES_REGEX = /[\u2018\u2019\u201A\u201B\u2032\u2035]/g
-const ZERO_WIDTH_REGEX = /[\u200B-\u200D\u2060\uFEFF]/g
+const SMART_DOUBLE_QUOTES_REGEX = /[\u201C\u201D\u201E\u201F\u2033\u2036\uFF02]/g
+const SMART_SINGLE_QUOTES_REGEX = /[\u2018\u2019\u201A\u201B\u2032\u2035\uFF07]/g
+// Strip invisible formatting chars that frequently appear in AI/copied text.
+const INVISIBLE_FORMAT_REGEX =
+  /[\u00AD\u034F\u061C\u17B4\u17B5\u180E\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g
 const FENCED_JSON_REGEX = /```(?:json)?\s*([\s\S]*?)\s*```/i
 
 const trimToLikelyJson = (value = '') => {
@@ -21,7 +23,7 @@ const trimToLikelyJson = (value = '') => {
 
 export const normalizeJsonInputText = (value = '') => {
   let normalized = String(value || '')
-    .replace(ZERO_WIDTH_REGEX, '')
+    .replace(INVISIBLE_FORMAT_REGEX, '')
     .replace(SMART_DOUBLE_QUOTES_REGEX, '"')
     .replace(SMART_SINGLE_QUOTES_REGEX, "'")
     .trim()
