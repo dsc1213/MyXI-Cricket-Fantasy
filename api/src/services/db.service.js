@@ -1038,6 +1038,24 @@ const createDbService = (dependencies) => {
       }
     })
 
+    router.get('/admin/match-scores/:tournamentId/:matchId', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor) && actor?.role !== 'contest_manager') {
+          return res
+            .status(403)
+            .json({ message: 'Only score managers/admin/master can access match scores' })
+        }
+        const payload = await matchScoreService.getMatchScores(
+          req.params.tournamentId,
+          req.params.matchId,
+        )
+        return res.json(payload || null)
+      } catch (error) {
+        return next(error)
+      }
+    })
+
     router.post('/admin/match-lineups/upsert', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)

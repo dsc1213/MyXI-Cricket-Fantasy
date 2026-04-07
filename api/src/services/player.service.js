@@ -449,10 +449,22 @@ class PlayerService {
     const availableMatches = contest
       ? tournamentMatches.filter((item) => contestMatchIds.includes(item.id))
       : tournamentMatches
+    const requestedMatch = matchId
+      ? tournamentMatches.find((item) => String(item.id) === String(matchId))
+      : null
+    if (matchId && !requestedMatch) {
+      return {
+        contest: contest || null,
+        activeMatch: null,
+        selection: null,
+        teams: {
+          teamA: { name: '', players: [], lineup: null },
+          teamB: { name: '', players: [], lineup: null },
+        },
+      }
+    }
     const activeMatchRaw =
-      availableMatches.find((item) => String(item.id) === String(matchId)) ||
-      availableMatches[0] ||
-      null
+      requestedMatch || availableMatches[0] || tournamentMatches[0] || null
     const activeMatch = activeMatchRaw ? mapMatchWithDerivedStatus(activeMatchRaw) : null
 
     if (!activeMatch) {

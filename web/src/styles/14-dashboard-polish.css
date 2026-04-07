@@ -1560,8 +1560,8 @@ body.dark-theme .squad-manager-success {
   overflow-y: auto;
   overflow-x: auto;
   min-height: 0;
-  height: min(28vh, 320px);
-  max-height: min(40vh, 340px);
+  height: min(40vh, 500px);
+  max-height: min(50vh, 340px);
   width: 100%;
   padding-bottom: 0.9rem;
   box-sizing: border-box;
@@ -3699,7 +3699,7 @@ body.dark-theme .app.app-lower-content select {
   }
 
   .manual-entry-grid {
-    grid-template-columns: 1fr;
+    flex-direction: column;
     min-height: 0;
     height: 100%;
     max-height: none;

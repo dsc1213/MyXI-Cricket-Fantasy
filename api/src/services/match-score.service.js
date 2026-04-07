@@ -206,7 +206,12 @@ class MatchScoreService {
 
   async getMatchScores(tournamentId, matchId) {
     const repo = await factory.getMatchScoreRepository()
-    return await repo.findByMatch(matchId)
+    const rows = await repo.findByMatch(matchId)
+    const scoped = (rows || []).filter(
+      (row) => String(row?.tournamentId || '') === String(tournamentId || ''),
+    )
+    const activeRow = scoped.find((row) => row?.active)
+    return activeRow || scoped[0] || null
   }
 
   async getActiveMatchScore(matchId) {

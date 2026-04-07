@@ -320,7 +320,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
   }, [filteredManualContests, manualContestId])
 
   useEffect(() => {
-    if (!manualContestId || !manualMatchId) {
+    if (!manualMatchId) {
       setManualTeamPool({
         teamAName: 'Team A',
         teamBName: 'Team B',
@@ -339,7 +339,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
         setIsLoadingManualPool(true)
         const [data, savedScore] = await Promise.all([
           fetchTeamPool({
-            contestId: manualContestId,
+            contestId: undefined,
             tournamentId: manualTournamentId,
             matchId: manualMatchId,
           }),
@@ -390,7 +390,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
     return () => {
       active = false
     }
-  }, [manualContestId, manualMatchId, manualTournamentId])
+  }, [manualMatchId, manualTournamentId])
 
   const filteredJoined = useMemo(() => {
     return pageLoadData.joinedContests.filter((contest) => {
