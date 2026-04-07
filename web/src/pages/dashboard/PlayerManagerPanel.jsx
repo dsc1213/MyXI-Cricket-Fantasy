@@ -55,6 +55,35 @@ const formatCountryLabel = (value = '') => {
 const resolvePlayerCountry = (row = {}) =>
   (row.country || row.nationality || row.playerCountry || '').toString().trim()
 
+const buildPlayerImportPayload = (rows = []) => {
+  const mapped = (rows || [])
+    .slice(0, 24)
+    .map((row) => ({
+      id: String(row.id || '').trim(),
+      name: (row.displayName || row.name || '').toString().trim(),
+      nationality: resolvePlayerCountry(row).toLowerCase(),
+      role: (row.role || '').toString().trim().toUpperCase(),
+      player_img: (row.imageUrl || row.player_img || '').toString().trim(),
+      base_price: Number(row.basePrice || row.base_price || 25) || 25,
+    }))
+    .filter((row) => row.id && row.name && row.nationality && row.role)
+
+  if (mapped.length) return { players: mapped }
+
+  return {
+    players: [
+      {
+        id: '02e239d1-c27b-48f4-af45-9c6f45f4fdb3',
+        name: 'Shubham Dubey',
+        nationality: 'india',
+        role: 'BAT',
+        player_img: 'https://h.cricapi.com/img/icon512.png',
+        base_price: 25,
+      },
+    ],
+  }
+}
+
 function PlayerManagerPanel() {
   const currentUser = getStoredUser()
   const canManagePlayers = ['admin', 'master_admin'].includes(currentUser?.role || '')
@@ -71,6 +100,7 @@ function PlayerManagerPanel() {
   const [showImportModal, setShowImportModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [importJson, setImportJson] = useState('')
+  const [generatedImportJson, setGeneratedImportJson] = useState('')
   const [selectedPlayerIds, setSelectedPlayerIds] = useState([])
   const [form, setForm] = useState({
     name: '',
@@ -184,6 +214,15 @@ function PlayerManagerPanel() {
 
   const closeImportModal = () => {
     setShowImportModal(false)
+    setGeneratedImportJson('')
+  }
+
+  const onGenerateImportJson = () => {
+    const payload = buildPlayerImportPayload(
+      filteredPlayers.length ? filteredPlayers : players,
+    )
+    const text = JSON.stringify(payload, null, 2)
+    setGeneratedImportJson(text)
   }
 
   const onImportPlayers = async () => {
@@ -368,7 +407,10 @@ function PlayerManagerPanel() {
                   type="button"
                   variant="ghost"
                   size="small"
-                  onClick={() => setShowImportModal(true)}
+                  onClick={() => {
+                    setGeneratedImportJson('')
+                    setShowImportModal(true)
+                  }}
                   disabled={isSaving}
                 >
                   JSON import
@@ -513,6 +555,17 @@ function PlayerManagerPanel() {
           </>
         }
       >
+        <div className="player-manager-import-actions">
+          <Button
+            type="button"
+            variant="ghost"
+            size="small"
+            onClick={onGenerateImportJson}
+            disabled={isSaving}
+          >
+            Generate JSON
+          </Button>
+        </div>
         <div className="player-manager-import-layout">
           <label className="player-manager-import-field">
             JSON payload
@@ -522,6 +575,16 @@ function PlayerManagerPanel() {
               value={importJson}
               onChange={(event) => setImportJson(event.target.value)}
               placeholder={`{\n  "players": [\n    {\n      "id": "02e239d1-c27b-48f4-af45-9c6f45f4fdb3",\n      "name": "Shubham Dubey",\n      "nationality": "india",\n      "role": "BAT",\n      "player_img": "https://h.cricapi.com/img/icon512.png",\n      "base_price": 25\n    }\n  ]\n}`}
+            />
+          </label>
+          <label className="player-manager-import-field player-manager-generated-field">
+            Generated JSON
+            <textarea
+              className="dashboard-json-textarea player-manager-generated-json"
+              rows={12}
+              value={generatedImportJson}
+              readOnly
+              placeholder="Click Generate JSON to create payload from current catalog."
             />
           </label>
         </div>

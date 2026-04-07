@@ -165,6 +165,22 @@ function App() {
   const isAuctionNavActive = location.pathname === '/auction' || isAuctionView
   const showCricketRouteLoader = isApiLoading && isHomeFantasyRoute
   const showApiOnlyError = showApiError && !isAuthPage && !isLanding
+  const normalizedRole = (currentUser?.role || '').toString().trim().toLowerCase()
+  const isAdminRole = ['admin', 'master_admin'].includes(normalizedRole)
+  const isMasterRole = normalizedRole === 'master_admin'
+  const mobileAdminLinks = [
+    { to: '/home?panel=tournamentManager', label: 'Admin • Tournament Manager' },
+    { to: '/home?panel=contestManager', label: 'Admin • Contest Manager' },
+    { to: '/home?panel=squads', label: 'Admin • Squad Manager' },
+    { to: '/home?panel=playingXiManager', label: 'Admin • Playing XI Manager' },
+    { to: '/home?panel=scoreManager', label: 'Admin • Score Manager' },
+    { to: '/home?panel=audit', label: 'Admin • Audit Logs' },
+  ]
+  const mobileMasterLinks = [
+    { to: '/home?panel=userManager', label: 'Master • User Manager' },
+    { to: '/all-pages', label: 'Master • All Pages' },
+    { to: '/all-apis', label: 'Master • All APIs' },
+  ]
 
   useEffect(() => {
     window.localStorage.setItem('myxi-theme', theme)
@@ -456,48 +472,86 @@ function App() {
             </button>
           </div>
           <div className="mobile-nav-links">
-            <NavLink
-              to="/home?panel=joined"
-              className="leaderboard-link"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Home
-            </NavLink>
-            <NavLink
-              to="/fantasy"
-              className="leaderboard-link"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Fantasy
-            </NavLink>
-            <NavLink
-              to="/auction"
-              className="leaderboard-link"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Auction
-            </NavLink>
-            <NavLink
-              to="/cricketer-stats"
-              className="leaderboard-link"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Cricketer stats
-            </NavLink>
-            <NavLink
-              to="/profile"
-              className="leaderboard-link"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Profile
-            </NavLink>
-            <NavLink
-              to="/change-password"
-              className="leaderboard-link"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Change password
-            </NavLink>
+            <div className="mobile-nav-section">
+              <div className="mobile-nav-section-links">
+                <NavLink
+                  to="/home?panel=joined"
+                  className="leaderboard-link"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Home
+                </NavLink>
+                <NavLink
+                  to="/fantasy"
+                  className="leaderboard-link"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Fantasy
+                </NavLink>
+                <NavLink
+                  to="/auction"
+                  className="leaderboard-link"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Auction
+                </NavLink>
+                <NavLink
+                  to="/cricketer-stats"
+                  className="leaderboard-link"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Cricketer stats
+                </NavLink>
+                <NavLink
+                  to="/profile"
+                  className="leaderboard-link"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Profile
+                </NavLink>
+                <NavLink
+                  to="/change-password"
+                  className="leaderboard-link"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Change password
+                </NavLink>
+              </div>
+            </div>
+            {isAdminRole && (
+              <div className="mobile-nav-section mobile-nav-section-admin">
+                <p className="mobile-nav-section-title">Admin</p>
+                <div className="mobile-nav-section-links">
+                  {mobileAdminLinks.map((item) => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      className="leaderboard-link"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      {item.label}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            )}
+            {isMasterRole && (
+              <div className="mobile-nav-section mobile-nav-section-master">
+                <p className="mobile-nav-section-title">Master</p>
+                <div className="mobile-nav-section-links">
+                  {mobileMasterLinks.map((item) => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      className="leaderboard-link"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      {item.label}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            )}
             <label
               className="user-theme-toggle mobile-user-theme-toggle"
               htmlFor="mobile-theme-toggle"

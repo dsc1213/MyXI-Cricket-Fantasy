@@ -152,6 +152,7 @@ function SquadManagerPanel() {
   const [team, setTeam] = useState('')
   const [teamName, setTeamName] = useState('')
   const [players, setPlayers] = useState([])
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState([])
   const [playerSearch, setPlayerSearch] = useState('')
   const [showAddPlayerModal, setShowAddPlayerModal] = useState(false)
   const [existingPlayerQuery, setExistingPlayerQuery] = useState('')
@@ -280,13 +281,16 @@ function SquadManagerPanel() {
       }),
     )
     setPlayers(mapped)
+    setSelectedPlayerIds([])
   }, [team, rows, tournamentId, selectedTournamentName])
 
-  const displayTeamCode = team
+  useEffect(() => {
+    if (!isEditMode) {
+      setSelectedPlayerIds([])
+    }
+  }, [isEditMode])
 
-  const removePlayerById = (playerId) => {
-    setPlayers((prev) => prev.filter((item) => item.id !== playerId))
-  }
+  const displayTeamCode = team
 
   const filteredPlayers = useMemo(() => {
     const q = (playerSearch || '').toString().trim().toLowerCase()
@@ -306,6 +310,42 @@ function SquadManagerPanel() {
         })
     return sortPlayersByDisplayRole(filtered)
   }, [players, playerSearch])
+
+  const filteredPlayerIds = useMemo(
+    () => filteredPlayers.map((item) => item.id),
+    [filteredPlayers],
+  )
+
+  const allFilteredSelected =
+    filteredPlayerIds.length > 0 &&
+    filteredPlayerIds.every((id) => selectedPlayerIds.includes(id))
+
+  const togglePlayerSelection = (playerId) => {
+    setSelectedPlayerIds((prev) =>
+      prev.includes(playerId)
+        ? prev.filter((id) => id !== playerId)
+        : [...prev, playerId],
+    )
+  }
+
+  const toggleSelectAllFiltered = () => {
+    setSelectedPlayerIds((prev) => {
+      if (allFilteredSelected) {
+        const filteredSet = new Set(filteredPlayerIds)
+        return prev.filter((id) => !filteredSet.has(id))
+      }
+      const next = new Set(prev)
+      filteredPlayerIds.forEach((id) => next.add(id))
+      return Array.from(next)
+    })
+  }
+
+  const removeSelectedPlayers = () => {
+    if (!selectedPlayerIds.length) return
+    const selectedSet = new Set(selectedPlayerIds)
+    setPlayers((prev) => prev.filter((item) => !selectedSet.has(item.id)))
+    setSelectedPlayerIds([])
+  }
 
   const existingPlayerOptions = useMemo(() => {
     const selectedIds = new Set(
@@ -475,20 +515,36 @@ function SquadManagerPanel() {
   }
 
   const playerColumns = [
-    {
-      key: 'id',
-      label: '#',
-      headerClassName: 'match-no-col',
-      cellClassName: 'match-no-col',
-      render: (row) => (
-        <span className="match-no-readonly">
-          {players.findIndex((p) => p.id === row.id) + 1}
-        </span>
-      ),
-    },
+    ...(isEditMode
+      ? [
+          {
+            key: 'select',
+            label: (
+              <input
+                type="checkbox"
+                checked={allFilteredSelected}
+                onChange={toggleSelectAllFiltered}
+                aria-label="Select all filtered players"
+              />
+            ),
+            headerClassName: 'squad-manager-select-col',
+            cellClassName: 'squad-manager-select-col',
+            sortable: false,
+            render: (row) => (
+              <input
+                type="checkbox"
+                checked={selectedPlayerIds.includes(row.id)}
+                onChange={() => togglePlayerSelection(row.id)}
+                aria-label={`Select ${row.name || 'player'}`}
+              />
+            ),
+          },
+        ]
+      : []),
     {
       key: 'name',
       label: 'Player Name',
+      headerClassName: 'squad-manager-name-col',
       cellClassName: 'squad-manager-player-cell',
       render: (row) => (
         <PlayerIdentity
@@ -505,42 +561,19 @@ function SquadManagerPanel() {
     {
       key: 'country',
       label: 'Country',
+      headerClassName: 'squad-manager-country-col',
       cellClassName: 'squad-manager-meta-cell',
       render: (row) => formatCountryLabel(row.country || ''),
     },
     {
       key: 'role',
       label: 'Role',
+      headerClassName: 'squad-manager-role-col',
       cellClassName: 'squad-manager-meta-cell',
       sortValue: (row) =>
         `${String(getPlayerDisplayRoleRank(row.role)).padStart(2, '0')}:${row.role || ''}`,
       render: (row) => row.role || 'NA',
     },
-    {
-      key: 'active',
-      label: 'Active',
-      cellClassName: 'squad-manager-meta-cell',
-      render: (row) => (row.active !== false ? 'Yes' : 'No'),
-    },
-    ...(isEditMode
-      ? [
-          {
-            key: 'actions',
-            label: 'Actions',
-            sortable: false,
-            render: (row) => (
-              <Button
-                type="button"
-                variant="ghost"
-                size="small"
-                onClick={() => removePlayerById(row.id)}
-              >
-                Remove
-              </Button>
-            ),
-          },
-        ]
-      : []),
   ]
 
   const onSave = async () => {
@@ -711,14 +744,24 @@ function SquadManagerPanel() {
                   onChange={(event) => setPlayerSearch(event.target.value)}
                 />
                 {canManageSquads && isEditMode && (
-                  <Button
-                    variant="ghost"
-                    size="small"
-                    onClick={() => setShowAddPlayerModal(true)}
-                    disabled={!displayTeamCode}
-                  >
-                    Add player
-                  </Button>
+                  <div className="squad-manager-row-actions">
+                    <Button
+                      variant="danger"
+                      size="small"
+                      onClick={removeSelectedPlayers}
+                      disabled={!selectedPlayerIds.length}
+                    >
+                      {`Remove selected (${selectedPlayerIds.length})`}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="small"
+                      onClick={() => setShowAddPlayerModal(true)}
+                      disabled={!displayTeamCode}
+                    >
+                      Add player
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
@@ -728,8 +771,8 @@ function SquadManagerPanel() {
               rows={filteredPlayers}
               rowKey={(row) => row.id}
               emptyText="No players"
-              wrapperClassName="catalog-table-wrap"
-              tableClassName="catalog-table"
+              wrapperClassName="catalog-table-wrap squad-manager-table-wrap"
+              tableClassName="catalog-table squad-manager-table"
             />
           </>
         )}

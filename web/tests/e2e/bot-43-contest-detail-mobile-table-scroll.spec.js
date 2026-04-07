@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { loginUi } from './helpers/mock-e2e.js'
 
-test('contest detail tables scroll horizontally on mobile without column compression', async ({
+test('contest detail mobile match table is compact, unlocked, and scrolls only below min width', async ({
   page,
 }) => {
   await loginUi(page, 'player', 'demo123')
@@ -10,17 +10,29 @@ test('contest detail tables scroll horizontally on mobile without column compres
   await page.goto('/tournaments/t20wc-2026/contests/huntercherry')
   await expect(page.locator('.match-table-wrap')).toBeVisible()
 
-  const matchScrollState = await page.locator('.match-table-wrap').evaluate((node) => ({
+  const addTeamButtons = page.locator('.match-table button[aria-label="Add team"]')
+  if ((await addTeamButtons.count()) > 0) {
+    await expect(addTeamButtons.first()).toContainText('Join')
+  }
+
+  const standardWidthState = await page.locator('.match-table-wrap').evaluate((node) => ({
     clientWidth: node.clientWidth,
     scrollWidth: node.scrollWidth,
   }))
 
-  expect(matchScrollState.scrollWidth).toBeGreaterThan(matchScrollState.clientWidth)
-
-  const lockedColumnState = await page.locator('.match-table-wrap').evaluate((node) => {
+  const unlockedColumnState = await page.locator('.match-table-wrap').evaluate((node) => {
     const headerCell = node.querySelector('.match-table thead th:first-child')
     const firstCell = node.querySelector('.match-table tbody tr td:first-child')
     const secondCell = node.querySelector('.match-table tbody tr td:nth-child(2)')
+    const dateCell = node.querySelector(
+      '.match-table tbody tr td:nth-child(2) .match-date-cell',
+    )
+    const dateMain = node.querySelector(
+      '.match-table tbody tr td:nth-child(2) .match-date-main',
+    )
+    const dateTime = node.querySelector(
+      '.match-table tbody tr td:nth-child(2) .match-date-time',
+    )
     if (!headerCell || !firstCell || !secondCell) {
       return { hasCells: false }
     }
@@ -38,8 +50,9 @@ test('contest detail tables scroll horizontally on mobile without column compres
       scrollLeft: node.scrollLeft,
       headerPosition: getComputedStyle(headerCell).position,
       cellPosition: getComputedStyle(firstCell).position,
-      headerLeft: getComputedStyle(headerCell).left,
-      cellLeft: getComputedStyle(firstCell).left,
+      dateDisplay: dateCell ? getComputedStyle(dateCell).display : '',
+      dateMainExists: Boolean(dateMain),
+      dateTimeExists: Boolean(dateTime),
     }
 
     return {
@@ -50,26 +63,52 @@ test('contest detail tables scroll horizontally on mobile without column compres
     }
   })
 
-  expect(lockedColumnState.hasCells).toBe(true)
-  expect(lockedColumnState.scrollLeft).toBeGreaterThan(0)
-  expect(lockedColumnState.firstDrift).toBeLessThanOrEqual(2)
-  expect(lockedColumnState.secondShift).toBeGreaterThan(40)
-  expect(lockedColumnState.headerPosition).toBe('sticky')
-  expect(lockedColumnState.cellPosition).toBe('sticky')
-  expect(lockedColumnState.headerLeft).toBe('0px')
-  expect(lockedColumnState.cellLeft).toBe('0px')
+  expect(unlockedColumnState.hasCells).toBe(true)
+  if (standardWidthState.scrollWidth > standardWidthState.clientWidth + 1) {
+    expect(unlockedColumnState.scrollLeft).toBeGreaterThan(0)
+    expect(unlockedColumnState.firstDrift).toBeGreaterThan(20)
+    expect(unlockedColumnState.secondShift).toBeGreaterThan(20)
+  } else {
+    expect(standardWidthState.scrollWidth).toBeLessThanOrEqual(
+      standardWidthState.clientWidth + 1,
+    )
+  }
+  expect(unlockedColumnState.headerPosition).not.toBe('sticky')
+  expect(unlockedColumnState.cellPosition).not.toBe('sticky')
+  expect(unlockedColumnState.dateDisplay).toBe('grid')
+  expect(unlockedColumnState.dateMainExists).toBe(true)
+  expect(unlockedColumnState.dateTimeExists).toBe(true)
+
+  await page.setViewportSize({ width: 320, height: 932 })
+  const narrowScrollState = await page.locator('.match-table-wrap').evaluate((node) => ({
+    clientWidth: node.clientWidth,
+    scrollWidth: node.scrollWidth,
+  }))
+  expect(narrowScrollState.scrollWidth).toBeGreaterThan(narrowScrollState.clientWidth)
 
   const participantsWrap = page.locator('.participants-table-wrap')
   await expect(participantsWrap).toBeVisible()
   const participantsHasRows =
     (await page.locator('.participants-table tbody tr').count()) > 0
   if (participantsHasRows) {
-    const participantsScrollState = await participantsWrap.evaluate((node) => ({
+    await page.setViewportSize({ width: 430, height: 932 })
+    const participantsStandardState = await participantsWrap.evaluate((node) => ({
       clientWidth: node.clientWidth,
       scrollWidth: node.scrollWidth,
     }))
-    expect(participantsScrollState.scrollWidth).toBeGreaterThan(
-      participantsScrollState.clientWidth,
+
+    expect(participantsStandardState.scrollWidth).toBeLessThanOrEqual(
+      participantsStandardState.clientWidth + 1,
+    )
+
+    await page.setViewportSize({ width: 320, height: 932 })
+    const participantsNarrowState = await participantsWrap.evaluate((node) => ({
+      clientWidth: node.clientWidth,
+      scrollWidth: node.scrollWidth,
+    }))
+
+    expect(participantsNarrowState.scrollWidth).toBeGreaterThan(
+      participantsNarrowState.clientWidth,
     )
   }
 })

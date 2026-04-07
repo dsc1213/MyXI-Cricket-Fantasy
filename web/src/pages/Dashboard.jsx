@@ -264,6 +264,13 @@ function Dashboard({ defaultPanel = 'joined' }) {
   }, [activePanel])
 
   useEffect(() => {
+    // Clear shared banner state when switching dashboard panels.
+    setErrorText('')
+    setSaveNotice('')
+    setScoreJsonUnmatchedDetails([])
+  }, [activePanel])
+
+  useEffect(() => {
     let active = true
 
     const load = async () => {

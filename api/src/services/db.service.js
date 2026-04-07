@@ -130,7 +130,13 @@ const dbHandlers = {
   '/admin/match-lineups/:tournamentId/:matchId': (tournamentId, matchId) =>
     playerService.getTournamentMatchLineups(tournamentId, matchId),
   '/admin/match-lineups/upsert': (data) =>
-    playerService.upsertMatchLineups(data.tournamentId, data.matchId, data.lineups),
+    playerService.upsertMatchLineups(data.tournamentId, data.matchId, data.lineups, {
+      source: data.source,
+      updatedBy: data.updatedBy,
+      dryRun: data.dryRun === true,
+      strictSquad: data.strictSquad === true,
+      meta: data.meta,
+    }),
 
   // Users
   '/users': (filters) => userRepository.findAll(filters),
@@ -1118,6 +1124,8 @@ const createDbService = (dependencies) => {
               req.currentUser?.gameName ||
               req.currentUser?.email ||
               'admin',
+            dryRun: req.body?.dryRun === true,
+            strictSquad: req.body?.strictSquad === true,
             meta: req.body?.meta || {},
           },
         )

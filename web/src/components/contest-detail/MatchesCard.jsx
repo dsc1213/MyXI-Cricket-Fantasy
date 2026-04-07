@@ -93,15 +93,18 @@ function formatShortDate(value) {
 function formatMatchDateTime(match) {
   const shortDate = formatShortDate(match?.date || '')
   const rawStart = (match?.startAt || '').toString().trim()
-  if (!rawStart) return shortDate
+  if (!rawStart) {
+    return { dateText: shortDate, timeText: '' }
+  }
   const parsed = new Date(rawStart)
-  if (Number.isNaN(parsed.getTime())) return shortDate
+  if (Number.isNaN(parsed.getTime())) {
+    return { dateText: shortDate, timeText: '' }
+  }
   const formattedTime = new Intl.DateTimeFormat(undefined, {
     hour: 'numeric',
     minute: '2-digit',
   }).format(parsed)
-  if (!shortDate) return formattedTime
-  return `${shortDate} • ${formattedTime}`
+  return { dateText: shortDate, timeText: formattedTime }
 }
 
 function MatchesCard({
@@ -138,7 +141,19 @@ function MatchesCard({
         </button>
       ),
     },
-    { key: 'date', label: 'Date', render: (match) => formatMatchDateTime(match) },
+    {
+      key: 'date',
+      label: 'Date',
+      render: (match) => {
+        const { dateText, timeText } = formatMatchDateTime(match)
+        return (
+          <span className="match-date-cell">
+            <span className="match-date-main">{dateText || '-'}</span>
+            {timeText ? <span className="match-date-time">{timeText}</span> : null}
+          </span>
+        )
+      },
+    },
     {
       key: 'status',
       label: 'Status',
@@ -219,25 +234,27 @@ function MatchesCard({
                     <Button
                       variant="ghost"
                       size="small"
-                      className="icon-edit-btn match-action-icon-btn"
+                      className="icon-edit-btn match-action-icon-btn join-action-btn"
                       disabled
                       aria-label="Login required"
                       title="Login required to add team"
                       onClick={(event) => event.stopPropagation()}
                     >
                       <AddActionIcon />
+                      <span className="join-action-label">Join</span>
                     </Button>
                   ) : (
                     <Button
                       variant="ghost"
                       size="small"
-                      className="icon-edit-btn match-action-icon-btn"
+                      className="icon-edit-btn match-action-icon-btn join-action-btn"
                       to={`/fantasy/select?contest=${contestId}&match=${match.id}&mode=add`}
                       aria-label="Add team"
                       title="Add team"
                       onClick={(event) => event.stopPropagation()}
                     >
                       <AddActionIcon />
+                      <span className="join-action-label">Join</span>
                     </Button>
                   ))}
                 {match.hasTeam && (

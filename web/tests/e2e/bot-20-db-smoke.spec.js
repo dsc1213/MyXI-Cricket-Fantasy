@@ -86,8 +86,137 @@ const buildValidPlayingXi = (teamAPlayers = [], teamBPlayers = []) => {
   return selected
 }
 
+const trackedSmokeArtifacts = {
+  userIds: new Set(),
+  playerIds: new Set(),
+  contestIds: new Set(),
+  tournamentIds: new Set(),
+  tournamentSourceKeys: new Set(),
+}
+
+const trackSmokeArtifact = (bucket, value) => {
+  if (!value && value !== 0) return
+  trackedSmokeArtifacts[bucket]?.add(String(value))
+}
+
+const resolveTournamentIdBySourceKey = async (requestContext, sourceKey) => {
+  if (!sourceKey) return null
+  const catalog = await apiCall(
+    requestContext,
+    'GET',
+    '/admin/tournaments/catalog',
+    undefined,
+    200,
+  )
+  const tournament = (catalog || []).find(
+    (row) => String(row?.sourceKey) === String(sourceKey),
+  )
+  return tournament?.id || null
+}
+
+const cleanupTrackedSmokeArtifacts = async () => {
+  if (KEEP_DB_SMOKE_DATA) return
+  if (!MASTER_LOGIN || !MASTER_PASSWORD) return
+
+  let cleanupRequest = null
+
+  try {
+    const anonymousRequest = await playwrightRequest.newContext({
+      baseURL: E2E_API_BASE,
+      extraHTTPHeaders: {
+        'Content-Type': 'application/json',
+      },
+    })
+    const authState = await apiCall(
+      anonymousRequest,
+      'POST',
+      '/auth/login',
+      { userId: MASTER_LOGIN, password: MASTER_PASSWORD },
+      200,
+    )
+    await anonymousRequest.dispose()
+
+    const actorUserId =
+      authState?.user?.userId ||
+      authState?.user?.gameName ||
+      authState?.user?.email ||
+      MASTER_LOGIN
+
+    cleanupRequest = await playwrightRequest.newContext({
+      baseURL: E2E_API_BASE,
+      extraHTTPHeaders: {
+        Authorization: `Bearer ${authState.token}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    for (const sourceKey of trackedSmokeArtifacts.tournamentSourceKeys) {
+      try {
+        const resolvedId = await resolveTournamentIdBySourceKey(cleanupRequest, sourceKey)
+        if (resolvedId) trackedSmokeArtifacts.tournamentIds.add(String(resolvedId))
+      } catch {
+        // best effort resolution
+      }
+    }
+
+    for (const contestId of trackedSmokeArtifacts.contestIds) {
+      try {
+        await cleanupRequest.fetch(`${E2E_API_BASE}/admin/contests/${contestId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          data: { actorUserId },
+        })
+      } catch {
+        // best effort cleanup
+      }
+    }
+
+    for (const playerId of trackedSmokeArtifacts.playerIds) {
+      try {
+        await cleanupRequest.fetch(`${E2E_API_BASE}/admin/players/${playerId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          data: { actorUserId },
+        })
+      } catch {
+        // best effort cleanup
+      }
+    }
+
+    for (const tournamentId of trackedSmokeArtifacts.tournamentIds) {
+      try {
+        await cleanupRequest.fetch(`${E2E_API_BASE}/admin/tournaments/${tournamentId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          data: { actorUserId },
+        })
+      } catch {
+        // best effort cleanup
+      }
+    }
+
+    for (const userId of trackedSmokeArtifacts.userIds) {
+      try {
+        await cleanupRequest.fetch(`${E2E_API_BASE}/admin/users/${userId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          data: { actorUserId },
+        })
+      } catch {
+        // best effort cleanup
+      }
+    }
+  } finally {
+    await cleanupRequest?.dispose()
+  }
+}
+
 test.describe('20) DB smoke flows', () => {
   test.setTimeout(180000)
+
+  test.afterAll(async () => {
+    await cleanupTrackedSmokeArtifacts()
+  })
 
   test('db pending approvals lists and approves registered pending users', async ({
     page,
@@ -150,6 +279,7 @@ test.describe('20) DB smoke flows', () => {
       expect(createdUser).toBeTruthy()
       expect(createdUser.status).toBe('pending')
       createdUserId = createdUser.id
+      trackSmokeArtifact('userIds', createdUserId)
 
       await page.goto('/login')
       await page.evaluate((session) => {
@@ -263,6 +393,7 @@ test.describe('20) DB smoke flows', () => {
         },
         201,
       )
+      trackSmokeArtifact('tournamentSourceKeys', tournamentId)
 
       await apiCall(
         cleanupRequest,
@@ -398,6 +529,7 @@ test.describe('20) DB smoke flows', () => {
             return name === playerName
           })
           if (imported?.id) {
+            trackSmokeArtifact('playerIds', imported.id)
             await cleanupRequest.fetch(`${E2E_API_BASE}/admin/players/${imported.id}`, {
               method: 'DELETE',
               headers: { 'Content-Type': 'application/json' },
@@ -498,6 +630,8 @@ test.describe('20) DB smoke flows', () => {
       )
       createdTournamentRowId = createdTournament?.tournament?.id || null
       expect(createdTournamentRowId).toBeTruthy()
+      trackSmokeArtifact('tournamentIds', createdTournamentRowId)
+      trackSmokeArtifact('tournamentSourceKeys', tournamentId)
 
       await page.getByRole('button', { name: 'Add player' }).click()
       const playerModal = page.locator('.player-manager-create-modal')
@@ -521,6 +655,7 @@ test.describe('20) DB smoke flows', () => {
       })
       expect(createdPlayer).toBeTruthy()
       createdPlayerId = createdPlayer?.id
+      trackSmokeArtifact('playerIds', createdPlayerId)
       await page.getByPlaceholder('Filter players').fill(playerName)
 
       await page.goto('/home?panel=squads')
@@ -711,6 +846,8 @@ test.describe('20) DB smoke flows', () => {
       )
       createdTournamentRowId = tournamentCreate?.tournament?.id || null
       expect(createdTournamentRowId).toBeTruthy()
+      trackSmokeArtifact('tournamentIds', createdTournamentRowId)
+      trackSmokeArtifact('tournamentSourceKeys', tournamentSourceId)
 
       await apiCall(
         authedRequest,
@@ -762,6 +899,7 @@ test.describe('20) DB smoke flows', () => {
           return [...teamASquad, ...teamBSquad].some((item) => item.name === name)
         })
         .map((row) => row.id)
+      createdPlayerIds.forEach((playerId) => trackSmokeArtifact('playerIds', playerId))
 
       await apiCall(
         authedRequest,
@@ -801,6 +939,7 @@ test.describe('20) DB smoke flows', () => {
       fantasyContestId =
         createdFantasyContest?.id || createdFantasyContest?.contest?.id || null
       expect(fantasyContestId).toBeTruthy()
+      trackSmokeArtifact('contestIds', fantasyContestId)
       const tournamentCatalog = await apiCall(
         authedRequest,
         'GET',
@@ -834,6 +973,7 @@ test.describe('20) DB smoke flows', () => {
       )
       auctionContestId = importedAuctionContest?.contest?.id || null
       expect(auctionContestId).toBeTruthy()
+      trackSmokeArtifact('contestIds', auctionContestId)
       importedAuctionUserId = `auction-db-${tag}`
 
       await apiCall(
@@ -1207,6 +1347,8 @@ test.describe('20) DB smoke flows', () => {
         (row) => row.sourceKey === tournamentId,
       )
       expect(createdTournament).toBeTruthy()
+      trackSmokeArtifact('tournamentIds', createdTournament?.id)
+      trackSmokeArtifact('tournamentSourceKeys', tournamentId)
       await apiCall(
         authedRequest,
         'POST',
@@ -1299,6 +1441,7 @@ test.describe('20) DB smoke flows', () => {
         (row) => row.name === contestName,
       )
       expect(createdContest).toBeTruthy()
+      trackSmokeArtifact('contestIds', createdContest?.id)
       await apiCall(
         authedRequest,
         'POST',
@@ -1507,6 +1650,8 @@ test.describe('20) DB smoke flows', () => {
       )
       const createdTournamentId = tournamentCreate?.tournament?.id
       expect(createdTournamentId).toBeTruthy()
+      trackSmokeArtifact('tournamentIds', createdTournamentId)
+      trackSmokeArtifact('tournamentSourceKeys', tournamentId)
 
       await apiCall(
         authedRequest,
@@ -1581,6 +1726,7 @@ test.describe('20) DB smoke flows', () => {
       )
       const contestId = contest?.id || contest?.contest?.id
       expect(contestId).toBeTruthy()
+      trackSmokeArtifact('contestIds', contestId)
 
       await apiCall(
         authedRequest,
@@ -1771,6 +1917,8 @@ test.describe('20) DB smoke flows', () => {
       )
       const createdTournamentId = tournamentCreate?.tournament?.id
       expect(createdTournamentId).toBeTruthy()
+      trackSmokeArtifact('tournamentIds', createdTournamentId)
+      trackSmokeArtifact('tournamentSourceKeys', tournamentId)
 
       const buildSquad = (prefix) =>
         Array.from({ length: 11 }).map((_, index) => ({
@@ -1945,6 +2093,8 @@ test.describe('20) DB smoke flows', () => {
       )
       const createdTournamentId = tournamentCreate?.tournament?.id
       expect(createdTournamentId).toBeTruthy()
+      trackSmokeArtifact('tournamentIds', createdTournamentId)
+      trackSmokeArtifact('tournamentSourceKeys', tournamentId)
 
       const buildSquad = (prefix, withAlias = false) =>
         Array.from({ length: 11 }).map((_, index) => {

@@ -326,7 +326,6 @@ function UploadPanel({
       {
         key: 'player',
         label: 'Player',
-        width: '190px',
         headerClassName: 'manual-col-player',
         cellClassName: 'manual-col-player',
         sortValue: (row) => row.name || '',
@@ -342,7 +341,6 @@ function UploadPanel({
       {
         key: 'role',
         label: 'Role',
-        width: '150px',
         headerClassName: 'manual-col-role',
         cellClassName: 'manual-col-role manual-player-role',
         sortValue: (row) =>
@@ -352,7 +350,6 @@ function UploadPanel({
       {
         key: 'playing',
         label: 'Playing',
-        width: '150px',
         headerClassName: 'manual-col-metric',
         cellClassName: 'manual-col-metric',
         sortValue: (row) => selectedNames.has(row.name),

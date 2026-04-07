@@ -729,6 +729,116 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     expect(successColor).toBe('rgb(21, 128, 61)')
   })
 
+  test('mobile squad manager uses compact columns and bulk remove without row remove button', async ({
+    page,
+    request,
+  }) => {
+    const tag = Date.now()
+    const tournamentId = `squad-mobile-${tag}`
+    const tournamentName = `Squad Mobile ${tag}`
+    try {
+      await apiCall(
+        request,
+        'POST',
+        '/admin/tournaments',
+        {
+          actorUserId: 'master',
+          tournamentId,
+          name: tournamentName,
+          season: '2026',
+          source: 'json',
+          selectedTeams: ['SMT'],
+          matches: [
+            {
+              id: 'm1',
+              matchNo: 1,
+              home: 'SMT',
+              away: 'AAA',
+              startAt: '2099-03-10T14:00:00.000Z',
+              timezone: 'UTC',
+              venue: 'Mumbai',
+            },
+          ],
+        },
+        201,
+      )
+
+      await apiCall(
+        request,
+        'POST',
+        '/admin/team-squads',
+        {
+          actorUserId: 'master',
+          teamCode: 'SMT',
+          teamName: 'Squad Mobile Team',
+          tournamentType: 'tournament',
+          tournamentId,
+          tournament: tournamentName,
+          country: 'india',
+          league: 'IPL',
+          source: 'manual',
+          squad: [
+            {
+              name: `Mobile Player A ${tag}`,
+              country: 'india',
+              role: 'BAT',
+              active: true,
+            },
+            {
+              name: `Mobile Player B ${tag}`,
+              country: 'india',
+              role: 'BOWL',
+              active: true,
+            },
+            {
+              name: `Mobile Player C ${tag}`,
+              country: 'india',
+              role: 'AR',
+              active: true,
+            },
+          ],
+        },
+        201,
+      )
+
+      await page.setViewportSize({ width: 390, height: 844 })
+      await loginUi(page, 'master')
+      await page.goto('/home?panel=squads')
+      await enableSquadManagerEditMode(page)
+
+      await page
+        .locator('.dashboard-shell.panel-squads label', { hasText: 'Tournament' })
+        .locator('select')
+        .selectOption(tournamentId)
+      await page
+        .locator('.dashboard-shell.panel-squads label', { hasText: 'Team' })
+        .locator('select')
+        .selectOption('SMT')
+
+      const squadTable = page.locator('.squad-manager-table')
+      await expect(squadTable).toContainText(`Mobile Player A ${tag}`)
+      await expect(squadTable.getByRole('button', { name: 'Remove' })).toHaveCount(0)
+      await expect(squadTable.locator('thead th', { hasText: '#' })).toHaveCount(0)
+      await expect(squadTable.locator('thead th', { hasText: /Active/i })).toHaveCount(0)
+
+      await squadTable.getByLabel(`Select Mobile Player A ${tag}`).check()
+      await squadTable.getByLabel(`Select Mobile Player B ${tag}`).check()
+      await page.getByRole('button', { name: /Remove selected \(2\)/ }).click()
+
+      await expect(squadTable).not.toContainText(`Mobile Player A ${tag}`)
+      await expect(squadTable).not.toContainText(`Mobile Player B ${tag}`)
+      await expect(squadTable).toContainText(`Mobile Player C ${tag}`)
+    } finally {
+      await request
+        .fetch(`${E2E_API_BASE}/admin/tournaments/${tournamentId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          data: { actorUserId: 'master' },
+        })
+        .catch(() => {})
+    }
+  })
+
   test('dashboard json areas clear after successful save', async ({ page }) => {
     const tag = Date.now()
 
@@ -1130,6 +1240,52 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await expect(page).toHaveURL(/\/home\?panel=joined$/)
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
     await expect(page.locator('.mobile-nav-drawer')).not.toHaveClass(/open/)
+  })
+
+  test('mobile nav shows admin panel links for master and hides them for player', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+
+    await loginUi(page, 'master')
+    await page.goto('/home')
+    await page.getByRole('button', { name: 'Open navigation menu' }).click()
+    await expect(
+      page.getByRole('link', { name: 'Admin • Tournament Manager' }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('link', { name: 'Admin • Contest Manager' }),
+    ).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Admin • Squad Manager' })).toBeVisible()
+    await expect(
+      page.getByRole('link', { name: 'Admin • Playing XI Manager' }),
+    ).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Admin • Score Manager' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Admin • Audit Logs' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Master • User Manager' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Master • All Pages' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Master • All APIs' })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Close' }).click()
+
+    await loginUi(page, 'player')
+    await page.goto('/home')
+    await page.getByRole('button', { name: 'Open navigation menu' }).click()
+    await expect(
+      page.getByRole('link', { name: 'Admin • Tournament Manager' }),
+    ).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Admin • Contest Manager' })).toHaveCount(
+      0,
+    )
+    await expect(page.getByRole('link', { name: 'Admin • Squad Manager' })).toHaveCount(0)
+    await expect(
+      page.getByRole('link', { name: 'Admin • Playing XI Manager' }),
+    ).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Admin • Score Manager' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Admin • Audit Logs' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Master • User Manager' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Master • All Pages' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Master • All APIs' })).toHaveCount(0)
   })
 
   test('short wide dashboard view hides the left sidebar and uses the compact panel selector', async ({

@@ -101,35 +101,54 @@ class PlayerService {
 
   // Normalizes lineup player names for consistent dedupe and comparison.
   normalizeLineupName(value = '') {
-    return value.toString().trim()
+    return value
+      .toString()
+      .normalize('NFKC')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+
+  // Normalizes lineup names to canonical keys for case/whitespace-insensitive comparisons.
+  normalizeLineupNameKey(value = '') {
+    return this.normalizeLineupName(value).replace(/\s+/g, ' ').toLowerCase()
   }
 
   // Removes duplicate lineup names while preserving first-seen order.
   dedupeLineupNames(values = []) {
-    return Array.from(
-      new Set(
-        (Array.isArray(values) ? values : [])
-          .map((item) => this.normalizeLineupName(item))
-          .filter(Boolean),
-      ),
-    )
+    const unique = []
+    const seen = new Set()
+    for (const item of Array.isArray(values) ? values : []) {
+      const normalizedName = this.normalizeLineupName(item)
+      if (!normalizedName) continue
+      const key = this.normalizeLineupNameKey(normalizedName)
+      if (seen.has(key)) continue
+      seen.add(key)
+      unique.push(normalizedName)
+    }
+    return unique
   }
 
   // Validates and normalizes lineup payload for a single team.
-  validateLineupTeamPayload({ teamCode, payload, fallbackSquad = [] }) {
+  validateLineupTeamPayload({
+    teamCode,
+    payload,
+    fallbackSquad = [],
+    strictSquad = false,
+  }) {
     if (!payload || typeof payload !== 'object') {
       throw new Error(`lineups.${teamCode} is required`)
     }
 
     const providedSquad = Array.isArray(payload.squad) ? payload.squad : []
-    const normalizedSquad = this.dedupeLineupNames(
+    let normalizedSquad = this.dedupeLineupNames(
       providedSquad.length ? providedSquad : fallbackSquad,
     )
     const playingXI = this.dedupeLineupNames(payload.playingXI)
     const bench = this.dedupeLineupNames(payload.bench)
 
-    if (normalizedSquad.length < 11) {
-      throw new Error(`lineups.${teamCode}.squad must contain at least 11 unique players`)
+    if (strictSquad && !providedSquad.length) {
+      throw new Error(`lineups.${teamCode}.squad is required for manual updates`)
     }
     if (playingXI.length < 11 || playingXI.length > 12) {
       throw new Error(
@@ -137,30 +156,53 @@ class PlayerService {
       )
     }
 
-    const squadSet = new Set(normalizedSquad)
-    const xiOutside = playingXI.find((name) => !squadSet.has(name))
-    if (xiOutside) {
+    const squadKeySet = new Set(
+      normalizedSquad.map((name) => this.normalizeLineupNameKey(name)),
+    )
+    const xiOutside = playingXI.filter(
+      (name) => !squadKeySet.has(this.normalizeLineupNameKey(name)),
+    )
+    if (xiOutside.length && strictSquad) {
       throw new Error(
-        `lineups.${teamCode}.playingXI player "${xiOutside}" is not in squad`,
+        `lineups.${teamCode}.playingXI player "${xiOutside[0]}" is not in squad`,
       )
+    }
+    if (xiOutside.length && !strictSquad) {
+      normalizedSquad = this.dedupeLineupNames([...normalizedSquad, ...xiOutside])
+    }
+    if (normalizedSquad.length < 11) {
+      throw new Error(`lineups.${teamCode}.squad must contain at least 11 unique players`)
     }
 
     const captain = this.normalizeLineupName(payload.captain || '')
     const viceCaptain = this.normalizeLineupName(payload.viceCaptain || '')
-    if (captain && !playingXI.includes(captain)) {
+    const playingXIKeySet = new Set(
+      playingXI.map((name) => this.normalizeLineupNameKey(name)),
+    )
+    if (captain && !playingXIKeySet.has(this.normalizeLineupNameKey(captain))) {
       throw new Error(`lineups.${teamCode}.captain must be part of playingXI`)
     }
-    if (viceCaptain && !playingXI.includes(viceCaptain)) {
+    if (viceCaptain && !playingXIKeySet.has(this.normalizeLineupNameKey(viceCaptain))) {
       throw new Error(`lineups.${teamCode}.viceCaptain must be part of playingXI`)
     }
-    if (captain && viceCaptain && captain === viceCaptain) {
+    if (
+      captain &&
+      viceCaptain &&
+      this.normalizeLineupNameKey(captain) === this.normalizeLineupNameKey(viceCaptain)
+    ) {
       throw new Error(`lineups.${teamCode}.captain and viceCaptain cannot be the same`)
     }
+
+    const playingXIKeys = new Set(
+      playingXI.map((name) => this.normalizeLineupNameKey(name)),
+    )
 
     return {
       squad: normalizedSquad,
       playingXI,
-      bench: bench.filter((name) => !playingXI.includes(name)),
+      bench: bench.filter(
+        (name) => !playingXIKeys.has(this.normalizeLineupNameKey(name)),
+      ),
       captain: captain || null,
       viceCaptain: viceCaptain || null,
     }
@@ -1017,6 +1059,7 @@ class PlayerService {
         teamCode,
         payload: lineups[teamCode],
         fallbackSquad: fallbackByTeam[teamCode],
+        strictSquad: meta?.strictSquad === true,
       })
       if (meta?.dryRun === true) {
         continue

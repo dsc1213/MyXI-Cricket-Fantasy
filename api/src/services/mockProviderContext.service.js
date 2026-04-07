@@ -58,7 +58,9 @@ const createMockProviderContext = ({
   const normalizedPlayerMap = new Map(
     allKnownPlayers.map((player) => [normalizePlayerName(player.name), player]),
   )
-  const idToPlayerName = new Map(allKnownPlayers.map((player) => [player.id, player.name]))
+  const idToPlayerName = new Map(
+    allKnownPlayers.map((player) => [player.id, player.name]),
+  )
   const allPlayerNames = Array.from(new Set(allKnownPlayers.map((player) => player.name)))
   const resetContextState = () => {
     mockTeamSelections.clear()
@@ -115,7 +117,8 @@ const createMockProviderContext = ({
         ...existing,
         role: entry.role || existing.role || 'BAT',
         team: entry.team || entry.teamCode || existing.team || fallbackTeam || 'TBD',
-        teamName: entry.teamName || existing.teamName || existing.team || fallbackTeam || '',
+        teamName:
+          entry.teamName || existing.teamName || existing.team || fallbackTeam || '',
         imageUrl: entry.imageUrl || existing.imageUrl || '',
       }
     }
@@ -260,7 +263,9 @@ const createMockProviderContext = ({
       (user) => (user?.gameName || '').toString().trim().toLowerCase() === 'contestmgr',
     )
     if (contestManagerUser) {
-      const assignedId = (contestManagerUser.contestManagerContestId || '').toString().trim()
+      const assignedId = (contestManagerUser.contestManagerContestId || '')
+        .toString()
+        .trim()
       const assignedExists = mockContests.some((contest) => contest.id === assignedId)
       if (!assignedExists) {
         contestManagerUser.contestManagerContestId = 'huntercherry'
@@ -328,7 +333,10 @@ const createMockProviderContext = ({
         lastUpdatedAt: '2026-02-01T00:00:00.000Z',
       })
     }
-    if (!Array.isArray(customTournamentMatches[flowTournamentId]) || !customTournamentMatches[flowTournamentId].length) {
+    if (
+      !Array.isArray(customTournamentMatches[flowTournamentId]) ||
+      !customTournamentMatches[flowTournamentId].length
+    ) {
       customTournamentMatches[flowTournamentId] = [
         {
           id: 'm1',
@@ -556,7 +564,8 @@ const createMockProviderContext = ({
       const exists = matchScores.some(
         (item) =>
           Number(item?.id) === Number(row.id) ||
-          ((item?.tournamentId || '').toString() === (row.tournamentId || '').toString() &&
+          ((item?.tournamentId || '').toString() ===
+            (row.tournamentId || '').toString() &&
             (item?.matchId || '').toString() === (row.matchId || '').toString() &&
             item?.source === 'seed'),
       )
@@ -586,9 +595,7 @@ const createMockProviderContext = ({
     if (/^player\d+$/i.test(normalized)) return true
     if (Object.hasOwn(sampleUserPicks, normalized)) return true
     const normalizedKey = normalized.toLowerCase()
-    return Object.keys(sampleUserPicks).some(
-      (key) => key.toLowerCase() === normalizedKey,
-    )
+    return Object.keys(sampleUserPicks).some((key) => key.toLowerCase() === normalizedKey)
   }
   const resolveMockSelection = ({
     contestId,
@@ -604,7 +611,8 @@ const createMockProviderContext = ({
       (item) =>
         (item?.contestId || '').toString() === (contestId || '').toString() &&
         (item?.matchId || '').toString() === (matchId || '').toString() &&
-        (item?.userId || '').toString().toLowerCase() === (userId || '').toString().toLowerCase(),
+        (item?.userId || '').toString().toLowerCase() ===
+          (userId || '').toString().toLowerCase(),
     )
     if (flowSeed) {
       const seeded = {
@@ -628,9 +636,10 @@ const createMockProviderContext = ({
     // Custom/admin-created contests should always start with no team picks.
     if (targetContest?.isCustom) return null
     if (!hasSeededTemplateUser(userId)) return null
-    const defaultMatch = buildMatches(100, targetContest?.tournamentId || 't20wc-2026').find(
-      (item) => item.id === matchId,
-    )
+    const defaultMatch = buildMatches(
+      100,
+      targetContest?.tournamentId || 't20wc-2026',
+    ).find((item) => item.id === matchId)
     if (!defaultMatch?.hasTeam) return null
     const normalizedMatchStatus = normalizeMatchStatus(defaultMatch.status)
     const canBackfillLegacyCompleted =
@@ -787,14 +796,28 @@ const createMockProviderContext = ({
   }
   const normalizeMatchStatus = (value = '') =>
     value.toString().trim().toLowerCase().replace(/\s+/g, '')
+  const normalizeLineupName = (value = '') =>
+    value
+      .toString()
+      .normalize('NFKC')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+  const normalizeLineupNameKey = (value = '') =>
+    normalizeLineupName(value).replace(/\s+/g, ' ').toLowerCase()
   const dedupeNames = (names = []) =>
-    Array.from(
-      new Set(
-        names
-          .map((item) => (typeof item === 'string' ? item.trim() : ''))
-          .filter(Boolean),
-      ),
-    )
+    (Array.isArray(names) ? names : []).reduce(
+      (acc, item) => {
+        const normalizedName = normalizeLineupName(item)
+        if (!normalizedName) return acc
+        const key = normalizeLineupNameKey(normalizedName)
+        if (acc.seen.has(key)) return acc
+        acc.seen.add(key)
+        acc.values.push(normalizedName)
+        return acc
+      },
+      { seen: new Set(), values: [] },
+    ).values
   const validateLineupTeamPayload = ({
     teamCode,
     payload,
@@ -805,7 +828,7 @@ const createMockProviderContext = ({
       return { ok: false, message: `lineups.${teamCode} is required` }
     }
     const providedSquad = Array.isArray(payload.squad) ? payload.squad : []
-    const normalizedSquad = dedupeNames(
+    let normalizedSquad = dedupeNames(
       providedSquad.length ? providedSquad : fallbackSquad,
     )
     const playingXI = dedupeNames(payload.playingXI)
@@ -816,48 +839,65 @@ const createMockProviderContext = ({
         message: `lineups.${teamCode}.squad is required for manual updates`,
       }
     }
-    if (normalizedSquad.length < 11) {
-      return {
-        ok: false,
-        message: `lineups.${teamCode}.squad must contain at least 11 unique players`,
-      }
-    }
     if (playingXI.length < 11 || playingXI.length > 12) {
       return {
         ok: false,
         message: `lineups.${teamCode}.playingXI must contain 11 or 12 unique players`,
       }
     }
-    const squadSet = new Set(normalizedSquad)
-    const xiOutside = playingXI.find((name) => !squadSet.has(name))
-    if (xiOutside) {
+    const squadKeySet = new Set(
+      normalizedSquad.map((name) => normalizeLineupNameKey(name)),
+    )
+    const xiOutside = playingXI.filter(
+      (name) => !squadKeySet.has(normalizeLineupNameKey(name)),
+    )
+    if (xiOutside.length && strictSquad) {
       return {
         ok: false,
-        message: `lineups.${teamCode}.playingXI player "${xiOutside}" is not in squad`,
+        message: `lineups.${teamCode}.playingXI player "${xiOutside[0]}" is not in squad`,
       }
     }
-    const captain = typeof payload.captain === 'string' ? payload.captain.trim() : ''
+    if (xiOutside.length && !strictSquad) {
+      normalizedSquad = dedupeNames([...normalizedSquad, ...xiOutside])
+    }
+    if (normalizedSquad.length < 11) {
+      return {
+        ok: false,
+        message: `lineups.${teamCode}.squad must contain at least 11 unique players`,
+      }
+    }
+    const captain =
+      typeof payload.captain === 'string' ? normalizeLineupName(payload.captain) : ''
     const viceCaptain =
-      typeof payload.viceCaptain === 'string' ? payload.viceCaptain.trim() : ''
-    if (captain && !playingXI.includes(captain)) {
+      typeof payload.viceCaptain === 'string'
+        ? normalizeLineupName(payload.viceCaptain)
+        : ''
+    const playingXIKeySet = new Set(playingXI.map((name) => normalizeLineupNameKey(name)))
+    if (captain && !playingXIKeySet.has(normalizeLineupNameKey(captain))) {
       return {
         ok: false,
         message: `lineups.${teamCode}.captain must be part of playingXI`,
       }
     }
-    if (viceCaptain && !playingXI.includes(viceCaptain)) {
+    if (viceCaptain && !playingXIKeySet.has(normalizeLineupNameKey(viceCaptain))) {
       return {
         ok: false,
         message: `lineups.${teamCode}.viceCaptain must be part of playingXI`,
       }
     }
-    if (captain && viceCaptain && captain === viceCaptain) {
+    if (
+      captain &&
+      viceCaptain &&
+      normalizeLineupNameKey(captain) === normalizeLineupNameKey(viceCaptain)
+    ) {
       return {
         ok: false,
         message: `lineups.${teamCode}.captain and viceCaptain cannot be the same`,
       }
     }
-    const normalizedBench = bench.filter((name) => !playingXI.includes(name))
+    const normalizedBench = bench.filter(
+      (name) => !playingXIKeySet.has(normalizeLineupNameKey(name)),
+    )
     return {
       ok: true,
       value: {
@@ -881,8 +921,9 @@ const createMockProviderContext = ({
   }
 
   const getContestById = (contestId = '') =>
-    mockContests.find((contest) => (contest?.id || '').toString() === (contestId || '').toString()) ||
-    null
+    mockContests.find(
+      (contest) => (contest?.id || '').toString() === (contestId || '').toString(),
+    ) || null
 
   const isFixedRosterContest = (contest) =>
     (contest?.mode || '').toString().trim().toLowerCase() === 'fixed_roster'
@@ -939,7 +980,11 @@ const createMockProviderContext = ({
     const resolveMatchUserSelection = ({ targetUserId, match }) => {
       if (isFixedRosterContest(contest)) {
         return {
-          pickNames: getFixedRosterNames({ contest, userId: targetUserId, matchId: match.id }).roster,
+          pickNames: getFixedRosterNames({
+            contest,
+            userId: targetUserId,
+            matchId: match.id,
+          }).roster,
           multiplierMap: new Map(),
         }
       }
@@ -960,12 +1005,12 @@ const createMockProviderContext = ({
           }),
         ) || null
       const activeNameSet = new Set([
-        ...((savedLineup?.lineups?.[match.home]?.playingXI || []).map((name) =>
+        ...(savedLineup?.lineups?.[match.home]?.playingXI || []).map((name) =>
           normalizeUserKey(name),
-        )),
-        ...((savedLineup?.lineups?.[match.away]?.playingXI || []).map((name) =>
+        ),
+        ...(savedLineup?.lineups?.[match.away]?.playingXI || []).map((name) =>
           normalizeUserKey(name),
-        )),
+        ),
       ])
       const activePlayerIds = activeNameSet.size
         ? [...idToPlayerName.entries()]
@@ -1031,8 +1076,7 @@ const createMockProviderContext = ({
               (acc, player) => {
                 const nameKey = normalizeUserKey(player.name)
                 acc[nameKey] =
-                  12 +
-                  ((nameHash(player.name) + Number(match.matchNo || 1) * 17) % 79)
+                  12 + ((nameHash(player.name) + Number(match.matchNo || 1) * 17) % 79)
                 return acc
               },
               {},
@@ -1126,12 +1170,12 @@ const createMockProviderContext = ({
         }),
       ) || null
     const activeNameSet = new Set([
-      ...((savedLineup?.lineups?.[match.home]?.playingXI || []).map((name) =>
+      ...(savedLineup?.lineups?.[match.home]?.playingXI || []).map((name) =>
         normalizeUserKey(name),
-      )),
-      ...((savedLineup?.lineups?.[match.away]?.playingXI || []).map((name) =>
+      ),
+      ...(savedLineup?.lineups?.[match.away]?.playingXI || []).map((name) =>
         normalizeUserKey(name),
-      )),
+      ),
     ])
     const activePlayerIds = activeNameSet.size
       ? [...idToPlayerName.entries()]
@@ -1145,9 +1189,7 @@ const createMockProviderContext = ({
       captainId: selection.captainId,
       viceCaptainId: selection.viceCaptainId,
     })
-    return resolved.effectivePlayerIds
-      .map((id) => idToPlayerName.get(id))
-      .filter(Boolean)
+    return resolved.effectivePlayerIds.map((id) => idToPlayerName.get(id)).filter(Boolean)
   }
 
   const getContestUserPool = ({ contest, viewerUserId = '' }) => {
@@ -1205,7 +1247,11 @@ const createMockProviderContext = ({
     } else {
       knownUsers.forEach((user) => seededUserMap.set(user.userId, user))
     }
-    if (!joinedUsersForContest.length && viewerUserId && !seededUserMap.has(viewerUserId)) {
+    if (
+      !joinedUsersForContest.length &&
+      viewerUserId &&
+      !seededUserMap.has(viewerUserId)
+    ) {
       const actor = resolveActorUser(viewerUserId)
       if (actor?.gameName) {
         seededUserMap.set(viewerUserId, {

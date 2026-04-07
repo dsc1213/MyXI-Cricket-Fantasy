@@ -159,6 +159,25 @@ test.describe('15) JSON uploads and UI validation', () => {
     await expect(page.getByRole('button', { name: 'Save' })).toBeVisible()
   })
 
+  test('player manager import modal generates JSON beside input area', async ({
+    page,
+  }) => {
+    await loginUi(page, MASTER_LOGIN)
+    await page.goto('/home?panel=players')
+
+    await page.getByRole('button', { name: 'Edit' }).click()
+    await page.getByRole('button', { name: 'JSON import' }).click()
+
+    const modal = page.locator('.player-manager-import-modal')
+    await expect(modal).toBeVisible()
+
+    await modal.getByRole('button', { name: 'Generate JSON' }).click()
+    await expect(modal.getByText('Generated JSON')).toBeVisible()
+    await expect(modal.locator('.player-manager-generated-json')).toContainText(
+      '"players"',
+    )
+  })
+
   test('canonical player identity survives tournament unlink and avoids duplicate player rows', async ({
     page,
   }) => {
