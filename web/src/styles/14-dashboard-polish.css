@@ -1192,6 +1192,13 @@ select.dashboard-text-input {
   gap: 0.4rem;
 }
 
+.squad-manager-json-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 0.15rem;
+}
+
 .squad-manager-json-textarea {
   width: 100%;
   min-width: 0;
@@ -3562,6 +3569,11 @@ body.dark-theme .fantasy-hub-main {
   color: var(--btn-outline-text);
   border: 1px solid var(--btn-outline-border);
   box-shadow: none;
+}
+
+.json-textarea-actions {
+  margin-top: 0.4rem;
+  display: inline-flex;
 }
 
 .ghost:hover,

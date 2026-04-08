@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import Button from '../../components/ui/Button.jsx'
+import JsonTextareaField from '../../components/ui/JsonTextareaField.jsx'
 import Modal from '../../components/ui/Modal.jsx'
 import PlayerIdentity from '../../components/ui/PlayerIdentity.jsx'
 import SelectField from '../../components/ui/SelectField.jsx'
@@ -571,16 +572,17 @@ function PlayerManagerPanel() {
           </Button>
         </div>
         <div className="player-manager-import-layout">
-          <label className="player-manager-import-field">
-            JSON payload
-            <textarea
-              className="dashboard-json-textarea"
-              rows={12}
-              value={importJson}
-              onChange={(event) => setImportJson(event.target.value)}
-              placeholder={`{\n  "players": [\n    {\n      "id": "02e239d1-c27b-48f4-af45-9c6f45f4fdb3",\n      "name": "Shubham Dubey",\n      "nationality": "india",\n      "role": "BAT",\n      "player_img": "https://h.cricapi.com/img/icon512.png",\n      "base_price": 25\n    }\n  ]\n}`}
-            />
-          </label>
+          <JsonTextareaField
+            wrapperClassName="player-manager-import-field"
+            label="JSON payload"
+            textareaClassName="dashboard-json-textarea"
+            rows={12}
+            value={importJson}
+            onChange={(event) => setImportJson(event.target.value)}
+            placeholder={`{\n  "players": [\n    {\n      "id": "02e239d1-c27b-48f4-af45-9c6f45f4fdb3",\n      "name": "Shubham Dubey",\n      "nationality": "india",\n      "role": "BAT",\n      "player_img": "https://h.cricapi.com/img/icon512.png",\n      "base_price": 25\n    }\n  ]\n}`}
+            onClear={() => setImportJson('')}
+            clearDisabled={!importJson.trim()}
+          />
           <label className="player-manager-import-field player-manager-generated-field">
             Generated JSON
             <textarea

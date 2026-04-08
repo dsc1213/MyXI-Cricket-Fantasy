@@ -1860,7 +1860,7 @@ const registerMockProviderRoutes = (router, ctx) => {
     const savedLineup =
       mockMatchLineups.get(
         lineupKey({
-          tournamentId: contest?.tournamentId || '',
+          tournamentId: contest?.tournamentId || resolvedTournamentId,
           matchId,
         }),
       ) || null

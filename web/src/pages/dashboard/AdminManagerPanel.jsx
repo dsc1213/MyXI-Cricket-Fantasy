@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Button from '../../components/ui/Button.jsx'
+import JsonTextareaField from '../../components/ui/JsonTextareaField.jsx'
 import Modal from '../../components/ui/Modal.jsx'
 import StickyTable from '../../components/ui/StickyTable.jsx'
 import {
@@ -1182,15 +1183,16 @@ function AdminManagerPanel({
             </select>
           </label>
           {tournamentCreateMode === 'json' ? (
-            <label className="create-contest-field">
-              <span>JSON payload</span>
-              <textarea
-                rows={12}
-                value={createTournamentJson}
-                onChange={(event) => setCreateTournamentJson(event.target.value)}
-                placeholder='{"name":"New Cup","season":"2026","matches":[{"matchNo":1,"home":"IND","away":"AUS","date":"2026-03-10","startAt":"2026-03-10T14:00:00.000Z"}]}'
-              />
-            </label>
+            <JsonTextareaField
+              wrapperClassName="create-contest-field"
+              label="JSON payload"
+              rows={12}
+              value={createTournamentJson}
+              onChange={(event) => setCreateTournamentJson(event.target.value)}
+              placeholder='{"name":"New Cup","season":"2026","matches":[{"matchNo":1,"home":"IND","away":"AUS","date":"2026-03-10","startAt":"2026-03-10T14:00:00.000Z"}]}'
+              onClear={() => setCreateTournamentJson('')}
+              clearDisabled={!createTournamentJson.trim()}
+            />
           ) : (
             <>
               <label className="create-contest-field">

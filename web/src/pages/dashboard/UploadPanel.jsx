@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Button from '../../components/ui/Button.jsx'
 import { CountryText } from '../../components/ui/CountryFlag.jsx'
 import JsonAssistantModal from '../../components/ui/JsonAssistantModal.jsx'
+import JsonTextareaField from '../../components/ui/JsonTextareaField.jsx'
 import PlayerIdentity from '../../components/ui/PlayerIdentity.jsx'
 import SelectField from '../../components/ui/SelectField.jsx'
 import StickyTable from '../../components/ui/StickyTable.jsx'
@@ -747,13 +748,13 @@ function UploadPanel({
               </div>
             ) : (
               <div className="match-upload-grid json-mode lineup-json-mode">
-                <label className="match-upload-json">
-                  Lineup JSON schema
-                  <textarea
-                    rows="10"
-                    value={lineupPayloadText}
-                    onChange={(event) => setLineupPayloadText(event.target.value)}
-                    placeholder={`{
+                <JsonTextareaField
+                  wrapperClassName="match-upload-json"
+                  label="Lineup JSON schema"
+                  rows={10}
+                  value={lineupPayloadText}
+                  onChange={(event) => setLineupPayloadText(event.target.value)}
+                  placeholder={`{
   "lineups": {
     "${manualTeamPool?.teamAName || 'MI'}": {
       "playingXI": ["Player 1", "Player 2"],
@@ -765,9 +766,9 @@ function UploadPanel({
     }
   }
 }`}
-                    className="dashboard-json-textarea"
-                  />
-                </label>
+                  onClear={() => setLineupPayloadText('')}
+                  clearDisabled={!lineupPayloadText.trim()}
+                />
               </div>
             )
           ) : uploadTab === 'manual' ? (
@@ -793,13 +794,13 @@ function UploadPanel({
             </div>
           ) : (
             <div className="match-upload-grid json-mode">
-              <label className="match-upload-json">
-                JSON schema
-                <textarea
-                  rows="10"
-                  value={uploadPayloadText}
-                  onChange={(event) => setUploadPayloadText(event.target.value)}
-                  placeholder={`{
+              <JsonTextareaField
+                wrapperClassName="match-upload-json"
+                label="JSON schema"
+                rows={10}
+                value={uploadPayloadText}
+                onChange={(event) => setUploadPayloadText(event.target.value)}
+                placeholder={`{
   "playerStats": [
     {
       "playerId": "p1",
@@ -811,8 +812,9 @@ function UploadPanel({
     }
   ]
 }`}
-                />
-              </label>
+                onClear={() => setUploadPayloadText('')}
+                clearDisabled={!uploadPayloadText.trim()}
+              />
               {Array.isArray(scoreJsonUnmatchedDetails) &&
                 scoreJsonUnmatchedDetails.length > 0 && (
                   <div className="json-upload-diagnostics" role="alert">

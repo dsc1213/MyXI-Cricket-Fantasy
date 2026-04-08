@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Button from '../../components/ui/Button.jsx'
 import DateTimeTimezoneField from '../../components/ui/DateTimeTimezoneField.jsx'
 import JsonAssistantModal from '../../components/ui/JsonAssistantModal.jsx'
+import JsonTextareaField from '../../components/ui/JsonTextareaField.jsx'
 import SelectField from '../../components/ui/SelectField.jsx'
 import StickyTable from '../../components/ui/StickyTable.jsx'
 import {
@@ -723,33 +724,37 @@ function CreateTournamentPanel({ onCreated }) {
         </div>
 
         {inputType === 'auction' ? (
-          <label>
-            Auction JSON payload
-            <span className="field-help-text auction-json-help">
-              Accepted shape: <code>tournamentId</code>, <code>contestName</code>, and{' '}
-              <code>participants</code> with <code>userId</code>, <code>name</code>, and{' '}
-              <code>roster</code>. This matches the output from{' '}
-              <code>api/scripts/build_auction_import.py</code>.
-            </span>
-            <textarea
-              className="dashboard-json-textarea"
-              rows={14}
-              value={auctionPayload}
-              onChange={(event) => setAuctionPayload(event.target.value)}
-              placeholder={buildAuctionJsonExample(preferredAuctionTournamentId)}
-            />
-          </label>
+          <JsonTextareaField
+            label={
+              <>
+                Auction JSON payload
+                <span className="field-help-text auction-json-help">
+                  Accepted shape: <code>tournamentId</code>, <code>contestName</code>, and{' '}
+                  <code>participants</code> with <code>userId</code>, <code>name</code>,
+                  and <code>roster</code>. This matches the output from{' '}
+                  <code>api/scripts/build_auction_import.py</code>.
+                </span>
+              </>
+            }
+            textareaClassName="dashboard-json-textarea"
+            rows={14}
+            value={auctionPayload}
+            onChange={(event) => setAuctionPayload(event.target.value)}
+            placeholder={buildAuctionJsonExample(preferredAuctionTournamentId)}
+            onClear={() => setAuctionPayload('')}
+            clearDisabled={!auctionPayload.trim()}
+          />
         ) : inputType === 'json' ? (
-          <label>
-            JSON payload
-            <textarea
-              className="dashboard-json-textarea"
-              rows={14}
-              value={jsonPayload}
-              onChange={(event) => setJsonPayload(event.target.value)}
-              placeholder={TOURNAMENT_JSON_EXAMPLE}
-            />
-          </label>
+          <JsonTextareaField
+            label="JSON payload"
+            textareaClassName="dashboard-json-textarea"
+            rows={14}
+            value={jsonPayload}
+            onChange={(event) => setJsonPayload(event.target.value)}
+            placeholder={TOURNAMENT_JSON_EXAMPLE}
+            onClear={() => setJsonPayload('')}
+            clearDisabled={!jsonPayload.trim()}
+          />
         ) : (
           <>
             <p className="team-note breadcrumb-note">

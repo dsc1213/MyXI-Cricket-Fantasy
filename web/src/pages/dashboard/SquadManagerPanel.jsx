@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import Button from '../../components/ui/Button.jsx'
+import JsonTextareaField from '../../components/ui/JsonTextareaField.jsx'
 import Modal from '../../components/ui/Modal.jsx'
 import PlayerIdentity from '../../components/ui/PlayerIdentity.jsx'
 import SelectField from '../../components/ui/SelectField.jsx'
@@ -636,6 +637,80 @@ function SquadManagerPanel() {
     }
   }
 
+  const onGenerateJson = () => {
+    setErrorText('')
+    setNotice('')
+    const resolvedTournamentId =
+      (tournamentId || selectedTournament?.id || 'ipl-2026').toString().trim() ||
+      'ipl-2026'
+    const resolvedTournamentName =
+      (selectedTournament?.name || 'IPL 2026').toString().trim() || 'IPL 2026'
+    const resolvedCountry =
+      (selectedTournament?.country || 'india').toString().trim().toLowerCase() || 'india'
+    const resolvedLeague =
+      (selectedTournament?.league || 'IPL').toString().trim() || 'IPL'
+    const resolvedTeamCode =
+      (displayTeamCode || team || 'CSK').toString().trim().toUpperCase() || 'CSK'
+    const resolvedTeamName =
+      (
+        teamName ||
+        LEAGUE_TEAM_MAP[resolvedLeague]?.[resolvedTeamCode] ||
+        resolvedTeamCode
+      )
+        .toString()
+        .trim() || resolvedTeamCode
+
+    const mappedSquad = players
+      .map((item) => ({
+        canonicalPlayerId: (item.canonicalPlayerId || '').toString().trim(),
+        name: (item.name || '').toString().trim(),
+        country: (item.country || '').toString().trim().toLowerCase(),
+        role: (item.role || '').toString().trim().toUpperCase(),
+        imageUrl: (item.imageUrl || '').toString().trim(),
+        battingStyle: (item.battingStyle || '').toString().trim(),
+        bowlingStyle: (item.bowlingStyle || '').toString().trim(),
+        active: item.active !== false,
+      }))
+      .filter((item) => item.name)
+
+    const fallbackSquad = [
+      {
+        canonicalPlayerId: 'player-uuid-1',
+        name: 'MS Dhoni',
+        country: 'india',
+        role: 'WK',
+        imageUrl: 'https://cdn.example.com/ms-dhoni.png',
+        active: true,
+      },
+    ]
+
+    const payload = {
+      tournamentId: resolvedTournamentId,
+      tournament: resolvedTournamentName,
+      country: resolvedCountry,
+      league: resolvedLeague,
+      teamSquads: [
+        {
+          teamCode: resolvedTeamCode,
+          teamName: resolvedTeamName,
+          tournamentId: resolvedTournamentId,
+          tournament: resolvedTournamentName,
+          tournamentType: 'tournament',
+          source: 'json',
+          squad: mappedSquad.length ? mappedSquad : fallbackSquad,
+        },
+      ],
+    }
+
+    setMode('json')
+    setJsonPayload(JSON.stringify(payload, null, 2))
+    setNotice(
+      mappedSquad.length
+        ? 'Generated JSON from current squad'
+        : 'Generated JSON template',
+    )
+  }
+
   return (
     <section className="dashboard-section">
       <div className="admin-card dashboard-panel-card">
@@ -698,16 +773,30 @@ function SquadManagerPanel() {
         )}
 
         {canManageSquads && isEditMode && mode === 'json' ? (
-          <label className="squad-manager-json-field">
-            JSON payload
-            <textarea
-              className="dashboard-json-textarea squad-manager-json-textarea"
+          <>
+            <div className="squad-manager-json-actions">
+              <Button
+                type="button"
+                variant="ghost"
+                size="small"
+                onClick={onGenerateJson}
+                disabled={isSaving}
+              >
+                Generate JSON
+              </Button>
+            </div>
+            <JsonTextareaField
+              wrapperClassName="squad-manager-json-field"
+              label="JSON payload"
+              textareaClassName="dashboard-json-textarea squad-manager-json-textarea"
               rows={16}
               value={jsonPayload}
               onChange={(event) => setJsonPayload(event.target.value)}
               placeholder={SQUAD_JSON_EXAMPLE}
+              onClear={() => setJsonPayload('')}
+              clearDisabled={!jsonPayload.trim()}
             />
-          </label>
+          </>
         ) : (
           <>
             <div className="manual-scope-row">

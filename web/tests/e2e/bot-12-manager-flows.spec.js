@@ -64,12 +64,21 @@ const enablePlayerManagerEditMode = async (page) => {
   }
 }
 
-const enableSquadManagerEditMode = async (page) => {
-  const editButton = page.getByRole('button', { name: 'Edit squad' })
-  if (await editButton.count()) {
-    await editButton.click()
-    await expect(page.getByRole('button', { name: 'Done' })).toBeVisible()
+const openScorecardsTabIfPresent = async (page) => {
+  const scorecardsTab = page.getByRole('tab', { name: 'Scorecards' })
+  if (await scorecardsTab.count()) {
+    await scorecardsTab.click()
   }
+}
+
+const enableSquadManagerEditMode = async (page) => {
+  const doneButton = page.getByRole('button', { name: 'Done' })
+  if ((await doneButton.count()) === 0) {
+    await page.getByRole('button', { name: 'Edit squad' }).click()
+  }
+  await expect
+    .poll(async () => page.getByRole('tab', { name: 'JSON' }).count(), { timeout: 15000 })
+    .toBeGreaterThan(0)
 }
 
 test.describe('12) Squad manager + tournament manager flows', () => {
@@ -185,7 +194,7 @@ test.describe('12) Squad manager + tournament manager flows', () => {
 
     await loginUi(page, 'master')
     await page.goto('/home?panel=upload')
-    await page.getByRole('tab', { name: 'Scorecards' }).click()
+    await openScorecardsTabIfPresent(page)
     await expect(page.getByRole('tab', { name: 'Excel Upload' })).toHaveCount(0)
     await expect(page.locator('.upload-tab-row')).not.toContainText('Excel Upload')
   })
@@ -620,8 +629,14 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await enableSquadManagerEditMode(page)
     await page.getByRole('tab', { name: 'JSON' }).click()
 
+    const generateJsonButton = page.getByRole('button', { name: 'Generate JSON' })
+    await expect(generateJsonButton).toBeVisible()
+
     const jsonTextarea = page.locator('.squad-manager-json-textarea')
     await expect(jsonTextarea).toBeVisible()
+    await generateJsonButton.click()
+    await expect(jsonTextarea).toContainText('"teamSquads": [')
+
     const textareaHeight = await jsonTextarea.evaluate((node) => {
       return window.getComputedStyle(node).minHeight
     })
@@ -1125,13 +1140,14 @@ test.describe('12) Squad manager + tournament manager flows', () => {
 
   test('score manager generated score modal shows AI prompt and json mode action uses Save label', async ({
     page,
+    request,
   }) => {
     await loginUi(page, 'master')
     await page.goto('/home')
     await page.getByRole('button', { name: 'Score Manager' }).click()
 
     await expect(page.locator('.match-scores-section')).toBeVisible()
-    await page.getByRole('tab', { name: 'Scorecards' }).click()
+    await openScorecardsTabIfPresent(page)
     await page.getByRole('tab', { name: 'JSON Upload' }).click()
 
     const tournamentSelect = page.locator('.manual-scope-row select').nth(0)
@@ -1141,6 +1157,78 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       .poll(async () => matchSelect.locator('option').count(), { timeout: 15000 })
       .toBeGreaterThan(1)
     await matchSelect.selectOption({ index: 1 })
+
+    const tournamentId = await tournamentSelect.inputValue()
+    const matchId = await matchSelect.inputValue()
+    const teamPool = await apiCall(
+      request,
+      'GET',
+      `/team-pool?tournamentId=${encodeURIComponent(tournamentId)}&matchId=${encodeURIComponent(matchId)}&userId=master`,
+      undefined,
+      200,
+    )
+    const teamAName = (teamPool?.teams?.teamA?.name || '').toString().trim()
+    const teamBName = (teamPool?.teams?.teamB?.name || '').toString().trim()
+    const teamASquad = (teamPool?.teams?.teamA?.players || [])
+      .map((player) => (player?.name || '').toString().trim())
+      .filter(Boolean)
+    const teamBSquad = (teamPool?.teams?.teamB?.players || [])
+      .map((player) => (player?.name || '').toString().trim())
+      .filter(Boolean)
+
+    await apiCall(
+      request,
+      'POST',
+      '/admin/match-lineups/upsert',
+      {
+        actorUserId: 'master',
+        tournamentId,
+        matchId,
+        lineups: {
+          [teamAName]: {
+            squad: teamASquad,
+            playingXI: teamASquad.slice(0, 11),
+            bench: teamASquad.slice(11),
+          },
+          [teamBName]: {
+            squad: teamBSquad,
+            playingXI: teamBSquad.slice(0, 11),
+            bench: teamBSquad.slice(11),
+          },
+        },
+      },
+      200,
+    )
+
+    await page.goto('/home')
+    await page.getByRole('button', { name: 'Score Manager' }).click()
+    await expect(page.locator('.match-scores-section')).toBeVisible()
+    await openScorecardsTabIfPresent(page)
+    await page.getByRole('tab', { name: 'JSON Upload' }).click()
+    await tournamentSelect.selectOption(tournamentId)
+    await expect
+      .poll(async () => matchSelect.locator('option').count(), { timeout: 15000 })
+      .toBeGreaterThan(1)
+    await matchSelect.selectOption(matchId)
+    const alternativeMatchId = await matchSelect
+      .locator('option')
+      .evaluateAll((options, current) => {
+        const values = options
+          .map((option) => option.value)
+          .filter((value) => value && value !== current)
+        return values[0] || null
+      }, matchId)
+    if (alternativeMatchId) {
+      await matchSelect.selectOption(alternativeMatchId)
+      await matchSelect.selectOption(matchId)
+    }
+
+    const playingXiTab = page.getByRole('tab', { name: 'Playing XI' })
+    if (await playingXiTab.count()) {
+      await playingXiTab.click()
+      await openScorecardsTabIfPresent(page)
+      await page.getByRole('tab', { name: 'JSON Upload' }).click()
+    }
 
     const actionRow = page.locator('.upload-head-actions.upload-actions-row').first()
     await expect(actionRow.getByRole('button', { name: 'Save' })).toBeVisible()
@@ -1202,7 +1290,7 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await page.getByRole('button', { name: 'Score Manager' }).click()
 
     await expect(page.locator('.match-scores-section')).toBeVisible()
-    await page.getByRole('tab', { name: 'Scorecards' }).click()
+    await openScorecardsTabIfPresent(page)
 
     const tournamentSelect = page.locator('.manual-scope-row select').nth(0)
     const matchSelect = page.locator('.manual-scope-row select').nth(1)
@@ -1255,6 +1343,34 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await expect(payloadTextarea).toHaveValue('')
   })
 
+  test('score manager json upload has clear button for large payload text', async ({
+    page,
+  }) => {
+    await loginUi(page, 'master')
+    await page.goto('/home')
+    await page.getByRole('button', { name: 'Score Manager' }).click()
+
+    await expect(page.locator('.match-scores-section')).toBeVisible()
+    await openScorecardsTabIfPresent(page)
+    await page.getByRole('tab', { name: 'JSON Upload' }).click()
+
+    const payloadTextarea = page
+      .locator('.match-upload-grid.json-mode .match-upload-json textarea')
+      .first()
+    await payloadTextarea.fill(
+      '{\n  "playerStats": [{"playerName": "Large Payload Test"}]\n}',
+    )
+    await expect(payloadTextarea).not.toHaveValue('')
+
+    const clearButton = page
+      .locator('.match-upload-grid.json-mode .match-upload-json .json-textarea-actions')
+      .getByRole('button', { name: 'Clear' })
+    await expect(clearButton).toBeVisible()
+    await clearButton.click()
+
+    await expect(payloadTextarea).toHaveValue('')
+  })
+
   test('score manager normalizes AI-formatted json payload before save', async ({
     page,
   }) => {
@@ -1263,7 +1379,7 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await page.getByRole('button', { name: 'Score Manager' }).click()
 
     await expect(page.locator('.match-scores-section')).toBeVisible()
-    await page.getByRole('tab', { name: 'Scorecards' }).click()
+    await openScorecardsTabIfPresent(page)
 
     const tournamentSelect = page.locator('.manual-scope-row select').nth(0)
     const matchSelect = page.locator('.manual-scope-row select').nth(1)
