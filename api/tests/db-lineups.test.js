@@ -102,7 +102,7 @@ describe('match lineup provider contract', () => {
     expect(refreshedPool.body?.teams?.teamB?.lineup?.playingXI?.length).toBe(11)
   })
 
-  it('accepts lineup name variants for Brijesh Sharma when strictSquad is false', async () => {
+  it('accepts lineup name variants for existing squad players', async () => {
     const tournamentRes = await request(app)
       .post('/admin/tournaments')
       .send({
@@ -154,9 +154,13 @@ describe('match lineup provider contract', () => {
     const teamAPlayingXI = teamA.players.slice(0, 11).map((player) => player.name)
     const teamABench = teamA.players.slice(11).map((player) => player.name)
 
-    const teamAWithBrijesh = {
-      squad: [...teamASquadNames, 'Brijesh Sharma'],
-      playingXI: [...teamAPlayingXI.slice(0, 10), '  BRIJESH   SHARMA\u200B'],
+    const variantPlayerName = teamAPlayingXI[10]
+    const teamAWithVariant = {
+      squad: teamASquadNames,
+      playingXI: [
+        ...teamAPlayingXI.slice(0, 10),
+        `  ${variantPlayerName.toUpperCase()}\u200B`,
+      ],
       bench: teamABench,
     }
 
@@ -171,7 +175,7 @@ describe('match lineup provider contract', () => {
         dryRun: true,
         strictSquad: false,
         lineups: {
-          [teamAName]: teamAWithBrijesh,
+          [teamAName]: teamAWithVariant,
           [teamBName]: {
             squad: teamB.players.map((player) => player.name),
             playingXI: teamB.players.slice(0, 11).map((player) => player.name),
@@ -183,10 +187,10 @@ describe('match lineup provider contract', () => {
     expect(lineupRes.status).toBe(200)
     expect(lineupRes.body.ok).toBe(true)
     expect(lineupRes.body.saved?.lineups?.[teamAName]?.squad).toEqual(
-      expect.arrayContaining(['Brijesh Sharma']),
+      expect.arrayContaining([variantPlayerName]),
     )
     expect(lineupRes.body.saved?.lineups?.[teamAName]?.playingXI).toEqual(
-      expect.arrayContaining(['BRIJESH SHARMA']),
+      expect.arrayContaining([variantPlayerName.toUpperCase()]),
     )
   })
 })

@@ -828,7 +828,7 @@ const createMockProviderContext = ({
       return { ok: false, message: `lineups.${teamCode} is required` }
     }
     const providedSquad = Array.isArray(payload.squad) ? payload.squad : []
-    let normalizedSquad = dedupeNames(
+    const normalizedSquad = dedupeNames(
       providedSquad.length ? providedSquad : fallbackSquad,
     )
     const playingXI = dedupeNames(payload.playingXI)
@@ -851,14 +851,11 @@ const createMockProviderContext = ({
     const xiOutside = playingXI.filter(
       (name) => !squadKeySet.has(normalizeLineupNameKey(name)),
     )
-    if (xiOutside.length && strictSquad) {
+    if (xiOutside.length) {
       return {
         ok: false,
         message: `lineups.${teamCode}.playingXI player "${xiOutside[0]}" is not in squad`,
       }
-    }
-    if (xiOutside.length && !strictSquad) {
-      normalizedSquad = dedupeNames([...normalizedSquad, ...xiOutside])
     }
     if (normalizedSquad.length < 11) {
       return {

@@ -1246,6 +1246,72 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     )
   })
 
+  test('playing xi json upload shows early error for unmapped player names', async ({
+    page,
+    request,
+  }) => {
+    await loginUi(page, 'master')
+    await page.goto('/home?panel=playingXiManager')
+
+    await expect(page.locator('.match-scores-section')).toBeVisible()
+    await page.getByRole('tab', { name: 'JSON Upload' }).click()
+
+    const tournamentSelect = page.locator('.manual-scope-row select').nth(0)
+    const matchSelect = page.locator('.manual-scope-row select').nth(1)
+    await tournamentSelect.selectOption({ index: 1 })
+    await expect
+      .poll(async () => matchSelect.locator('option').count(), { timeout: 15000 })
+      .toBeGreaterThan(1)
+    await matchSelect.selectOption({ index: 1 })
+
+    const tournamentId = await tournamentSelect.inputValue()
+    const matchId = await matchSelect.inputValue()
+    const teamPool = await apiCall(
+      request,
+      'GET',
+      `/team-pool?tournamentId=${encodeURIComponent(tournamentId)}&matchId=${encodeURIComponent(matchId)}&userId=master`,
+      undefined,
+      200,
+    )
+    const teamAName = (teamPool?.teams?.teamA?.name || '').toString().trim()
+    const teamBName = (teamPool?.teams?.teamB?.name || '').toString().trim()
+    const teamASquad = (teamPool?.teams?.teamA?.players || [])
+      .map((player) => (player?.name || '').toString().trim())
+      .filter(Boolean)
+    const teamBSquad = (teamPool?.teams?.teamB?.players || [])
+      .map((player) => (player?.name || '').toString().trim())
+      .filter(Boolean)
+
+    const invalidPayload = {
+      lineups: {
+        [teamAName]: {
+          squad: teamASquad,
+          playingXI: [...teamASquad.slice(0, 10), 'Definitely Unknown Player'],
+          bench: teamASquad.slice(10),
+        },
+        [teamBName]: {
+          squad: teamBSquad,
+          playingXI: teamBSquad.slice(0, 11),
+          bench: teamBSquad.slice(11),
+        },
+      },
+      meta: {
+        source: 'e2e-unmapped-player-check',
+      },
+    }
+
+    const lineupTextarea = page.getByLabel('Lineup JSON schema')
+    await lineupTextarea.fill(JSON.stringify(invalidPayload, null, 2))
+    await page.getByRole('button', { name: 'Save Playing XI JSON' }).click()
+
+    await expect(page.locator('.error-text')).toContainText(
+      'Lineup JSON contains unmapped players',
+    )
+    await expect(
+      page.getByRole('heading', { name: 'Processed Playing XI JSON' }),
+    ).toHaveCount(0)
+  })
+
   test('playing xi generated json modal shows reusable AI prompt and inline copy controls', async ({
     page,
   }) => {

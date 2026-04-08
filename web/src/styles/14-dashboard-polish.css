@@ -2488,11 +2488,13 @@ body.dark-theme .fantasy-hub-main {
   place-items: center;
   padding: 1rem;
   pointer-events: auto;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .score-preview-modal {
   width: min(880px, 95vw);
-  max-height: 90vh;
+  max-height: min(90vh, calc(100dvh - 2rem));
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 0.7rem;
@@ -3285,11 +3287,13 @@ body.dark-theme .fantasy-hub-main {
   justify-content: center;
   padding: 1rem;
   overscroll-behavior: contain;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ui-modal-card {
   width: min(94vw, 760px);
-  max-height: 88vh;
+  max-height: min(88vh, calc(100dvh - 2rem));
   background: var(--panel-bg);
   color: var(--text-primary);
   border: 1px solid var(--panel-border);
@@ -3298,6 +3302,20 @@ body.dark-theme .fantasy-hub-main {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .score-preview-modal-backdrop,
+  .ui-modal-overlay {
+    align-items: center;
+    padding: 0.7rem;
+  }
+
+  .score-preview-modal,
+  .ui-modal-card {
+    width: min(100%, 100vw - 1.4rem);
+    max-height: calc(100dvh - 1.4rem);
+  }
 }
 
 .ui-modal-card.size-sm {

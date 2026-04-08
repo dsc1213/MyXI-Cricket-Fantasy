@@ -141,7 +141,7 @@ class PlayerService {
     }
 
     const providedSquad = Array.isArray(payload.squad) ? payload.squad : []
-    let normalizedSquad = this.dedupeLineupNames(
+    const normalizedSquad = this.dedupeLineupNames(
       providedSquad.length ? providedSquad : fallbackSquad,
     )
     const playingXI = this.dedupeLineupNames(payload.playingXI)
@@ -162,13 +162,10 @@ class PlayerService {
     const xiOutside = playingXI.filter(
       (name) => !squadKeySet.has(this.normalizeLineupNameKey(name)),
     )
-    if (xiOutside.length && strictSquad) {
+    if (xiOutside.length) {
       throw new Error(
         `lineups.${teamCode}.playingXI player "${xiOutside[0]}" is not in squad`,
       )
-    }
-    if (xiOutside.length && !strictSquad) {
-      normalizedSquad = this.dedupeLineupNames([...normalizedSquad, ...xiOutside])
     }
     if (normalizedSquad.length < 11) {
       throw new Error(`lineups.${teamCode}.squad must contain at least 11 unique players`)

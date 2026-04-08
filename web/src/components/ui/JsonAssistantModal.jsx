@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import Button from './Button.jsx'
 
 function JsonAssistantModal({
@@ -35,7 +36,9 @@ function JsonAssistantModal({
 
   if (!open) return null
 
-  return (
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
     <div
       className="score-preview-modal-backdrop"
       role="presentation"
@@ -116,7 +119,8 @@ function JsonAssistantModal({
           ))}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

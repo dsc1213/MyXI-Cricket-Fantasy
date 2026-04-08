@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 function Modal({
   open,
@@ -25,7 +26,9 @@ function Modal({
 
   if (!open) return null
 
-  return (
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
     <div
       className="ui-modal-overlay"
       onClick={(event) => {
@@ -42,7 +45,8 @@ function Modal({
         <div className="ui-modal-body">{children}</div>
         {!!footer && <div className="ui-modal-footer">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

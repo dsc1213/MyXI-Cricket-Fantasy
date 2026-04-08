@@ -76,6 +76,128 @@ const normalizeManualPlayerKey = (value) =>
 const normalizeLooseKey = (value) =>
   normalizeManualPlayerKey(value).replace(/[^a-z0-9]/g, '')
 
+const levenshteinDistance = (left = '', right = '') => {
+  const a = String(left || '')
+  const b = String(right || '')
+  if (!a) return b.length
+  if (!b) return a.length
+  const prev = new Array(b.length + 1)
+  const curr = new Array(b.length + 1)
+  for (let j = 0; j <= b.length; j += 1) prev[j] = j
+  for (let i = 1; i <= a.length; i += 1) {
+    curr[0] = i
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost)
+    }
+    for (let j = 0; j <= b.length; j += 1) prev[j] = curr[j]
+  }
+  return prev[b.length]
+}
+
+const buildNameSuggestions = (needle, knownNames = []) => {
+  const compactNeedle = normalizeLooseKey(needle)
+  if (!compactNeedle) return []
+  return (knownNames || [])
+    .map((name) => ({ name, compact: normalizeLooseKey(name) }))
+    .filter(
+      (item) =>
+        item.compact.includes(compactNeedle) ||
+        compactNeedle.includes(item.compact) ||
+        levenshteinDistance(item.compact, compactNeedle) <= 2,
+    )
+    .slice(0, 5)
+    .map((item) => item.name)
+}
+
+const resolveKnownPlayerByName = (players = [], inputName = '') => {
+  const raw = String(inputName || '').trim()
+  if (!raw) return null
+  const exactKey = normalizeManualPlayerKey(raw)
+  const looseKey = normalizeLooseKey(raw)
+  const byExact = new Map(
+    (players || []).map((player) => [normalizeManualPlayerKey(player?.name), player]),
+  )
+  const byLoose = new Map(
+    (players || []).map((player) => [normalizeLooseKey(player?.name), player]),
+  )
+  if (byExact.has(exactKey)) return byExact.get(exactKey)
+  if (byLoose.has(looseKey)) return byLoose.get(looseKey)
+  const fuzzyMatches = (players || []).filter((player) => {
+    const key = normalizeLooseKey(player?.name)
+    return key && looseKey && levenshteinDistance(key, looseKey) <= 2
+  })
+  if (fuzzyMatches.length === 1) return fuzzyMatches[0]
+  return null
+}
+
+const normalizeLineupTeamPayload = (
+  teamPayload = {},
+  knownPlayers = [],
+  teamName = '',
+) => {
+  const knownNames = (knownPlayers || [])
+    .map((player) => String(player?.name || '').trim())
+    .filter(Boolean)
+  const unmatched = []
+  const normalizeList = (list = [], field = '') => {
+    const next = []
+    ;(Array.isArray(list) ? list : []).forEach((name) => {
+      const resolved = resolveKnownPlayerByName(knownPlayers, name)
+      if (!resolved?.name) {
+        const raw = String(name || '').trim()
+        if (raw) {
+          unmatched.push({
+            team: teamName,
+            field,
+            input: raw,
+            suggestions: buildNameSuggestions(raw, knownNames),
+          })
+        }
+        return
+      }
+      next.push(resolved.name)
+    })
+    return next
+  }
+
+  const captainResolved = resolveKnownPlayerByName(knownPlayers, teamPayload?.captain)
+  const viceCaptainResolved = resolveKnownPlayerByName(
+    knownPlayers,
+    teamPayload?.viceCaptain,
+  )
+  if (teamPayload?.captain && !captainResolved?.name) {
+    const raw = String(teamPayload.captain || '').trim()
+    unmatched.push({
+      team: teamName,
+      field: 'captain',
+      input: raw,
+      suggestions: buildNameSuggestions(raw, knownNames),
+    })
+  }
+  if (teamPayload?.viceCaptain && !viceCaptainResolved?.name) {
+    const raw = String(teamPayload.viceCaptain || '').trim()
+    unmatched.push({
+      team: teamName,
+      field: 'viceCaptain',
+      input: raw,
+      suggestions: buildNameSuggestions(raw, knownNames),
+    })
+  }
+
+  return {
+    normalized: {
+      ...(teamPayload || {}),
+      squad: normalizeList(teamPayload?.squad || [], 'squad'),
+      playingXI: normalizeList(teamPayload?.playingXI || [], 'playingXI'),
+      bench: normalizeList(teamPayload?.bench || [], 'bench'),
+      captain: captainResolved?.name,
+      viceCaptain: viceCaptainResolved?.name,
+    },
+    unmatched,
+  }
+}
+
 const buildManualStatsState = (players = [], savedRows = []) => {
   const next = {}
   const playerIdsByName = new Map(
@@ -848,16 +970,18 @@ function Dashboard({ defaultPanel = 'joined' }) {
     }
 
     const resolveTeamRows = (players = [], selectedNames = []) => {
-      const byName = new Map(
-        (players || []).map((player) => [normalizeManualPlayerKey(player.name), player]),
-      )
+      const knownNames = (players || [])
+        .map((player) => String(player?.name || '').trim())
+        .filter(Boolean)
       const resolved = []
       const missing = []
       ;(selectedNames || []).forEach((name) => {
-        const key = normalizeManualPlayerKey(name)
-        const match = byName.get(key)
+        const match = resolveKnownPlayerByName(players, name)
         if (!match) {
-          missing.push(name)
+          missing.push({
+            name,
+            suggestions: buildNameSuggestions(name, knownNames),
+          })
           return
         }
         resolved.push(match)
@@ -886,10 +1010,19 @@ function Dashboard({ defaultPanel = 'joined' }) {
       manualTeamPool?.teamBPlayers || [],
       teamBSelected,
     )
-    const unresolvedNames = [...resolvedTeamA.missing, ...resolvedTeamB.missing]
-    if (unresolvedNames.length > 0) {
+    const unresolvedDetails = [...resolvedTeamA.missing, ...resolvedTeamB.missing]
+    if (unresolvedDetails.length > 0) {
+      const unresolvedNames = unresolvedDetails.map((item) => item.name)
+      const hints = unresolvedDetails
+        .slice(0, 3)
+        .map((item) =>
+          item.suggestions?.length
+            ? `${item.name} (try: ${item.suggestions.join(' / ')})`
+            : item.name,
+        )
+        .join(', ')
       setErrorText(
-        `Playing XI has unmapped players: ${unresolvedNames.join(', ')}. Re-save Playing XI and retry.`,
+        `Playing XI has unmapped players: ${hints || unresolvedNames.join(', ')}. Re-save Playing XI and retry.`,
       )
       return
     }
@@ -1048,6 +1181,26 @@ function Dashboard({ defaultPanel = 'joined' }) {
       }
       const lineups =
         parsed?.lineups && typeof parsed.lineups === 'object' ? parsed.lineups : parsed
+      const teamPlayersByName = {
+        [manualTeamPool?.teamAName || '']: manualTeamPool?.teamAPlayers || [],
+        [manualTeamPool?.teamBName || '']: manualTeamPool?.teamBPlayers || [],
+      }
+      const normalizedLineups = {}
+      let unmatched = []
+      Object.entries(lineups || {}).forEach(([teamName, teamPayload]) => {
+        const knownPlayers = teamPlayersByName[teamName] || []
+        const result = normalizeLineupTeamPayload(teamPayload, knownPlayers, teamName)
+        normalizedLineups[teamName] = result.normalized
+        unmatched = unmatched.concat(result.unmatched)
+      })
+      if (unmatched.length > 0) {
+        const sample = unmatched
+          .slice(0, 3)
+          .map((item) => `${item.team}: ${item.input}`)
+          .join(', ')
+        setErrorText(`Lineup JSON contains unmapped players. Fix and retry. ${sample}`)
+        return
+      }
       const response = await upsertMatchLineups({
         tournamentId: manualTournamentId,
         matchId: manualMatchId,
@@ -1056,7 +1209,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
         source: 'json-lineup',
         dryRun: true,
         strictSquad: false,
-        lineups,
+        lineups: normalizedLineups,
         meta: parsed?.meta && typeof parsed.meta === 'object' ? parsed.meta : {},
       })
       setLineupPreviewPayload(response?.saved?.lineups || {})
@@ -1124,7 +1277,26 @@ function Dashboard({ defaultPanel = 'joined' }) {
     try {
       if (!manualTournamentId || !manualMatchId) return
       if (!lineupPreviewPayload || typeof lineupPreviewPayload !== 'object') return
-      const lineupsToSave = lineupPreviewPayload
+      const teamPlayersByName = {
+        [manualTeamPool?.teamAName || '']: manualTeamPool?.teamAPlayers || [],
+        [manualTeamPool?.teamBName || '']: manualTeamPool?.teamBPlayers || [],
+      }
+      const lineupsToSave = {}
+      let unmatched = []
+      Object.entries(lineupPreviewPayload || {}).forEach(([teamName, teamPayload]) => {
+        const knownPlayers = teamPlayersByName[teamName] || []
+        const result = normalizeLineupTeamPayload(teamPayload, knownPlayers, teamName)
+        lineupsToSave[teamName] = result.normalized
+        unmatched = unmatched.concat(result.unmatched)
+      })
+      if (unmatched.length > 0) {
+        const sample = unmatched
+          .slice(0, 3)
+          .map((item) => `${item.team}: ${item.input}`)
+          .join(', ')
+        setErrorText(`Lineup JSON contains unmapped players. Fix and retry. ${sample}`)
+        return
+      }
       setIsLineupPreviewOpen(false)
       setSaveNotice('')
       setErrorText('')
