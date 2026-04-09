@@ -1,18 +1,6 @@
 import { Link } from 'react-router-dom'
 import { getStatusClassName } from '../ui/status.js'
-
-const formatLastScoreText = (contest = {}) => {
-  if (!contest?.lastScoreUpdatedAt) return '-'
-  const parsed = new Date(contest.lastScoreUpdatedAt)
-  if (Number.isNaN(parsed.getTime())) return '-'
-  const mm = String(parsed.getMonth() + 1).padStart(2, '0')
-  const dd = String(parsed.getDate()).padStart(2, '0')
-  const hh = String(parsed.getHours()).padStart(2, '0')
-  const min = String(parsed.getMinutes()).padStart(2, '0')
-  const stamp = `${mm}/${dd}:${hh}:${min}`
-  const updatedBy = contest?.lastScoreUpdatedBy ? ` by ${contest.lastScoreUpdatedBy}` : ''
-  return `${stamp}${updatedBy}`
-}
+import { formatLastScoreMeta } from '../../lib/lastScoreMeta.js'
 
 function ContestTileCard({
   contest,
@@ -40,7 +28,14 @@ function ContestTileCard({
     .filter(Boolean)
     .slice(0, 2)
   const supplementalLines = [
-    ...(showLastScore ? [`Updated ${formatLastScoreText(contest)}`] : []),
+    ...(showLastScore
+      ? [
+          formatLastScoreMeta({
+            lastScoreUpdatedAt: contest?.lastScoreUpdatedAt,
+            lastScoreUpdatedBy: contest?.lastScoreUpdatedBy,
+          }),
+        ]
+      : []),
     ...(extraNotes || []).filter(Boolean).slice(0, 1),
   ].slice(0, 1)
   const showStatsRow = Boolean(statsLeftText || statsRightText)

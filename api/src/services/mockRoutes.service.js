@@ -429,10 +429,28 @@ const registerMockProviderRoutes = (router, ctx) => {
       customTournamentMatches[tournamentId].length > 0
         ? customTournamentMatches[tournamentId]
         : buildMatches(100, tournamentId)
+    const lastScoreUpdatedAtByMatchId = new Map()
+    ;(matchScores || []).forEach((row) => {
+      if (
+        String(row?.tournamentId || '') !== tournamentId ||
+        row?.active === false ||
+        !row?.matchId
+      ) {
+        return
+      }
+      const existing = lastScoreUpdatedAtByMatchId.get(String(row.matchId))
+      const candidate = row.updatedAt || row.createdAt || null
+      if (!candidate) return
+      if (!existing || new Date(candidate).getTime() > new Date(existing).getTime()) {
+        lastScoreUpdatedAtByMatchId.set(String(row.matchId), candidate)
+      }
+    })
     return res.json(
       matches.map((match) => ({
         ...match,
         status: match.status,
+        scoresUpdated: lastScoreUpdatedAtByMatchId.has(String(match.id)),
+        lastScoreUpdatedAt: lastScoreUpdatedAtByMatchId.get(String(match.id)) || null,
       })),
     )
   })

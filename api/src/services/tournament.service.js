@@ -152,7 +152,30 @@ class TournamentService {
   async getTournamentMatches(tournamentId) {
     const matchRepo = await factory.getMatchRepository()
     const matches = await matchRepo.findByTournament(tournamentId)
-    return matches.map((match) => mapMatchWithDerivedStatus(match))
+    const scoreStatusResult = await dbQuery(
+      `SELECT match_id as "matchId",
+              MAX(created_at) as "lastScoreUpdatedAt"
+       FROM match_scores
+       WHERE tournament_id = $1
+         AND active = true
+       GROUP BY match_id`,
+      [tournamentId],
+    )
+    const scoreStatusByMatchId = new Map(
+      (scoreStatusResult.rows || []).map((row) => [
+        String(row.matchId),
+        row.lastScoreUpdatedAt || null,
+      ]),
+    )
+    return matches.map((match) => {
+      const normalized = mapMatchWithDerivedStatus(match)
+      const lastScoreUpdatedAt = scoreStatusByMatchId.get(String(match.id)) || null
+      return {
+        ...normalized,
+        scoresUpdated: Boolean(lastScoreUpdatedAt),
+        lastScoreUpdatedAt,
+      }
+    })
   }
 
   // Returns admin-ready tournament catalog with contest and team summaries.

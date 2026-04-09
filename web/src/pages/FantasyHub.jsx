@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import ApiFailureTile from '../components/ui/ApiFailureTile.jsx'
 import Button from '../components/ui/Button.jsx'
 import LoadingNote from '../components/ui/LoadingNote.jsx'
+import LastScoreMeta from '../components/ui/LastScoreMeta.jsx'
 import Modal from '../components/ui/Modal.jsx'
 import PlayingXiModalLink from '../components/ui/PlayingXiModalLink.jsx'
 import SelectField from '../components/ui/SelectField.jsx'
@@ -248,6 +249,23 @@ function FantasyHub() {
 
   const selectedTournamentName =
     tournamentNameMap[selectedTournament] || selectedTournament || 'Tournament'
+  const selectedTournamentLastScore = useMemo(() => {
+    const rows = contests.filter(
+      (contest) =>
+        contest.tournamentId === selectedTournament && contest.mode !== 'fixed_roster',
+    )
+    return rows.reduce(
+      (latest, contest) => {
+        const raw = (contest?.lastScoreUpdatedAt || '').toString().trim()
+        if (!raw) return latest
+        const parsed = new Date(raw)
+        const time = parsed.getTime()
+        if (Number.isNaN(time) || time <= latest.time) return latest
+        return { time, at: raw, by: contest?.lastScoreUpdatedBy || '' }
+      },
+      { time: Number.NEGATIVE_INFINITY, at: '', by: '' },
+    )
+  }, [contests, selectedTournament])
   const showApiFailureTile =
     !isLoading && !!errorText && tournaments.length === 0 && contests.length === 0
   const canCreateContest = !isLoading && tournaments.length > 0
@@ -431,6 +449,11 @@ function FantasyHub() {
               <span>/</span>
               <strong>{selectedTournamentName}</strong>
             </div>
+            <LastScoreMeta
+              lastScoreUpdatedAt={selectedTournamentLastScore.at}
+              lastScoreUpdatedBy={selectedTournamentLastScore.by}
+              compact
+            />
             {tournaments.length === 0 && !isLoading ? (
               <div className="dashboard-empty-state">
                 <h3>No tournaments available</h3>

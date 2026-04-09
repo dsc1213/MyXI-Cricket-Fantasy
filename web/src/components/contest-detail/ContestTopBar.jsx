@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import LoadingNote from '../ui/LoadingNote.jsx'
+import LastScoreMeta from '../ui/LastScoreMeta.jsx'
 
 function ContestTopBar({
   contestTitle,
@@ -34,11 +35,11 @@ function ContestTopBar({
           {!!actions && <div className="top-actions">{actions}</div>}
         </div>
         <p className="team-note">{tournamentName}</p>
-        <p className="team-note">
-          Last score update:{' '}
-          {lastScoreUpdatedAt ? new Date(lastScoreUpdatedAt).toLocaleString() : '-'}
-          {lastScoreUpdatedBy ? ` by ${lastScoreUpdatedBy}` : ''}
-        </p>
+        <LastScoreMeta
+          lastScoreUpdatedAt={lastScoreUpdatedAt}
+          lastScoreUpdatedBy={lastScoreUpdatedBy}
+          compact
+        />
         <LoadingNote loading={isLoading} errorText={errorText} />
       </div>
     </div>

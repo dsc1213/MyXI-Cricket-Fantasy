@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ApiFailureTile from '../components/ui/ApiFailureTile.jsx'
 import ContestTileCard from '../components/contest/ContestTileCard.jsx'
+import LastScoreMeta from '../components/ui/LastScoreMeta.jsx'
 import LoadingNote from '../components/ui/LoadingNote.jsx'
 import SelectField from '../components/ui/SelectField.jsx'
 import { fetchContests, fetchTournaments } from '../lib/api.js'
@@ -118,6 +119,24 @@ function AuctionHub() {
 
   const selectedTournamentName =
     tournamentNameMap[selectedTournament] || selectedTournament || 'Tournament'
+  const selectedTournamentLastScore = useMemo(() => {
+    const rows = contests.filter(
+      (contest) =>
+        contest.tournamentId === selectedTournament &&
+        contest.mode === 'fixed_roster',
+    )
+    return rows.reduce(
+      (latest, contest) => {
+        const raw = (contest?.lastScoreUpdatedAt || '').toString().trim()
+        if (!raw) return latest
+        const parsed = new Date(raw)
+        const time = parsed.getTime()
+        if (Number.isNaN(time) || time <= latest.time) return latest
+        return { time, at: raw, by: contest?.lastScoreUpdatedBy || '' }
+      },
+      { time: Number.NEGATIVE_INFINITY, at: '', by: '' },
+    )
+  }, [contests, selectedTournament])
   const showApiFailureTile =
     !isLoading && !!errorText && tournaments.length === 0 && contests.length === 0
 
@@ -229,6 +248,11 @@ function AuctionHub() {
               <span>/</span>
               <strong>{selectedTournamentName}</strong>
             </div>
+            <LastScoreMeta
+              lastScoreUpdatedAt={selectedTournamentLastScore.at}
+              lastScoreUpdatedBy={selectedTournamentLastScore.by}
+              compact
+            />
             {tournaments.length === 0 && !isLoading ? (
               <div className="dashboard-empty-state">
                 <h3>No tournaments available</h3>

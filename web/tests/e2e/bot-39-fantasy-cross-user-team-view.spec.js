@@ -126,4 +126,100 @@ test.describe('39) Fantasy cross-user team visibility', () => {
       await deleteUserIfPresent(request, outsider.gameName)
     }
   })
+
+  test('after contest start, joined users can view other participants teams', async ({
+    page,
+    request,
+  }) => {
+    const tag = Date.now()
+    const tournamentId = `fantasy-cross-view-live-tour-${tag}`
+    const contestName = `fantasy-cross-view-live-${tag}`
+    let contestId = ''
+
+    try {
+      await apiCall(
+        request,
+        'POST',
+        '/admin/tournaments',
+        {
+          actorUserId: 'master',
+          tournamentId,
+          name: `Fantasy Cross View Live Tournament ${tag}`,
+          season: '2026',
+          source: 'json',
+          tournamentType: 'international',
+          selectedTeams: ['IND', 'AUS'],
+          matches: [
+            {
+              id: 'm1',
+              matchNo: 1,
+              home: 'IND',
+              away: 'AUS',
+              startAt: '2026-04-01T14:00:00.000Z',
+              timezone: 'UTC',
+              venue: 'Melbourne',
+            },
+          ],
+        },
+        201,
+      )
+
+      const contest = await createContest({
+        request,
+        tournamentId,
+        name: contestName,
+        teams: 25,
+        createdBy: 'master',
+        matchIds: ['m1'],
+      })
+      contestId = contest.id
+
+      await apiCall(
+        request,
+        'POST',
+        `/contests/${contestId}/join`,
+        { userId: 'huntercherryxi' },
+        200,
+      )
+      await apiCall(
+        request,
+        'POST',
+        `/contests/${contestId}/join`,
+        { userId: 'draker' },
+        200,
+      )
+      await saveSelection({ request, contestId, userId: 'huntercherryxi' })
+      await saveSelection({ request, contestId, userId: 'draker' })
+
+      await apiCall(
+        request,
+        'PATCH',
+        '/admin/matches/m1/status',
+        { actorUserId: 'master', status: 'in_progress' },
+        200,
+      )
+
+      await loginUi(page, 'draker')
+      await page.goto(`/tournaments/${tournamentId}/contests/${contestId}`)
+      await expect(page.locator('.participants-table tbody tr').first()).toBeVisible()
+
+      const hunterRow = page
+        .locator('.participants-table tbody tr', { hasText: 'HunterCherryXI' })
+        .first()
+      await expect(
+        hunterRow.getByRole('button', { name: 'View HunterCherryXI team' }),
+      ).toBeEnabled()
+
+      await hunterRow.getByRole('button', { name: 'View HunterCherryXI team' }).click()
+      await expect(page.locator('.team-preview-drawer.open')).toBeVisible()
+      await expect(page.locator('.team-preview-list').first()).toContainText('IND')
+    } finally {
+      await deleteContestIfPresent(request, contestId, 'master')
+      await request.fetch(`http://127.0.0.1:4000/admin/tournaments/${tournamentId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        data: { actorUserId: 'master' },
+      })
+    }
+  })
 })

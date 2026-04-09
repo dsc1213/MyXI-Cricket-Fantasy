@@ -739,6 +739,11 @@ function AdminManagerPanel({
       render: (row) => formatMatchStatusLabel(row.status),
     },
     {
+      key: 'scoresUpdated',
+      label: 'Scores Updated',
+      render: (row) => (row?.scoresUpdated ? 'Yes' : 'No'),
+    },
+    {
       key: 'actions',
       label: 'Actions',
       render: (row) => (

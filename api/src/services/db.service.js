@@ -21,6 +21,51 @@ const resolveDbUser = async (rawIdentifier) => {
   return userRepository.findByIdentifier(value)
 }
 
+const canReadOtherUserContestTeam = async ({ actor, targetUser, contestId }) => {
+  if (!actor || !targetUser) return false
+  const isSelfRead = Boolean(
+    actor?.id && targetUser?.id && Number(actor.id) === Number(targetUser.id),
+  )
+  if (isSelfRead) return true
+  if (actor?.role === 'master_admin') return true
+
+  const normalizedContestId = (contestId || '').toString().trim()
+  if (!normalizedContestId) return false
+
+  const contest = await contestService.getContestById(normalizedContestId)
+  if (!contest) return false
+
+  const lifecycle = buildContestView(contest)
+  const hasStarted =
+    lifecycle.hasStarted ||
+    ['In Progress', 'Locked', 'Completed'].includes(lifecycle.status)
+  if (!hasStarted) return false
+
+  const participantResult = await dbQuery(
+    (contest.mode || '').toString().trim().toLowerCase() === 'fixed_roster'
+      ? `WITH participant_ids AS (
+           SELECT user_id
+           FROM contest_joins
+           WHERE contest_id = $1
+           UNION
+           SELECT user_id
+           FROM contest_fixed_rosters
+           WHERE contest_id = $1
+         )
+         SELECT user_id as "userId"
+         FROM participant_ids`
+      : `SELECT DISTINCT user_id as "userId"
+         FROM contest_joins
+         WHERE contest_id = $1`,
+    [normalizedContestId],
+  )
+  const participantIds = new Set(
+    (participantResult.rows || []).map((row) => Number(row.userId)).filter(Number.isFinite),
+  )
+
+  return participantIds.has(Number(actor.id)) && participantIds.has(Number(targetUser.id))
+}
+
 // Handler registry for provider routes
 const dbHandlers = {
   // Page load & bootstrap
@@ -918,13 +963,15 @@ const createDbService = (dependencies) => {
         if (!actor || !targetUser) {
           return res.status(401).json({ message: 'Unauthorized' })
         }
-        const isSelfRead = Boolean(
-          actor?.id && targetUser?.id && Number(actor.id) === Number(targetUser.id),
-        )
-        const isMasterAdmin = actor?.role === 'master_admin'
-        if (!isSelfRead && !isMasterAdmin) {
+        const canRead = await canReadOtherUserContestTeam({
+          actor,
+          targetUser,
+          contestId,
+        })
+        if (!canRead) {
           return res.status(403).json({
-            message: 'Only master admin can access another user full team.',
+            message:
+              'Other participants become viewable only after the contest starts. Editing still remains admin-only.',
           })
         }
         const payload = await playerService.getTeamPool({
@@ -950,13 +997,15 @@ const createDbService = (dependencies) => {
         if (!actor || !targetUser) {
           return res.status(401).json({ message: 'Unauthorized' })
         }
-        const isSelfRead = Boolean(
-          actor?.id && targetUser?.id && Number(actor.id) === Number(targetUser.id),
-        )
-        const isMasterAdmin = actor?.role === 'master_admin'
-        if (!isSelfRead && !isMasterAdmin) {
+        const canRead = await canReadOtherUserContestTeam({
+          actor,
+          targetUser,
+          contestId: (req.query.contestId || '').toString(),
+        })
+        if (!canRead) {
           return res.status(403).json({
-            message: 'Only master admin can access another user full team.',
+            message:
+              'Other participants become viewable only after the contest starts. Editing still remains admin-only.',
           })
         }
         const payload = await playerService.getUserPicks({

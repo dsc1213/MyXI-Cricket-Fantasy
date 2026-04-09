@@ -173,19 +173,28 @@ function Leaderboard() {
     selectedContest?.tournamentId ||
     selectedTournamentId ||
     tournamentId
-  const normalizedCurrentGameName = (currentUserId || '')
-    .toString()
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '')
+  const normalizeIdentityKey = (value = '') =>
+    (value || '')
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '')
+  const currentUserIdentityKeys = new Set(
+    [
+      currentUser?.userId,
+      currentUser?.gameName,
+      currentUser?.email,
+      currentUserId,
+    ]
+      .map((value) => normalizeIdentityKey(value))
+      .filter(Boolean),
+  )
   const compareRow =
     rows.find(
       (row) =>
-        (row.userId || '')
-          .toString()
-          .trim()
-          .toLowerCase()
-          .replace(/[^a-z0-9]/g, '') === normalizedCurrentGameName,
+        currentUserIdentityKeys.has(normalizeIdentityKey(row.userId)) ||
+        currentUserIdentityKeys.has(normalizeIdentityKey(row.gameName)) ||
+        currentUserIdentityKeys.has(normalizeIdentityKey(row.name)),
     ) || null
   const compareUserId = compareRow?.userId || ''
 
