@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { MatchLabel } from '../ui/CountryFlag.jsx'
 import PlayerAvatar from '../ui/PlayerAvatar.jsx'
 import { sortPlayersByDisplayRole } from '../../lib/playerRoleSort.js'
@@ -31,6 +31,7 @@ function TeamPreviewDrawer({
   onClose,
 }) {
   const isFixedRosterContest = contestMode === 'fixed_roster'
+  const [expandedRows, setExpandedRows] = useState({})
   useEffect(() => {
     document.body.classList.toggle('team-preview-open', !!previewPlayer)
     return () => document.body.classList.remove('team-preview-open')
@@ -101,6 +102,68 @@ function TeamPreviewDrawer({
     return ''
   }
 
+  const toggleExpanded = (key) => {
+    setExpandedRows((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const renderPointCell = (entry, key) => {
+    const points = typeof entry === 'object' ? Number(entry?.points || 0) : 0
+    const isExpanded = Boolean(expandedRows[key])
+    const hasDetails =
+      typeof entry === 'object' &&
+      (Array.isArray(entry?.pointBreakdown) && entry.pointBreakdown.length > 0
+        ? true
+        : Number(entry?.multiplier || 1) !== 1 ||
+          Boolean(entry?.roleTag))
+    if (!hasDetails) return <span>{points}</span>
+    return (
+      <button
+        type="button"
+        className="team-preview-points-link"
+        onClick={() => toggleExpanded(key)}
+        aria-expanded={isExpanded}
+        aria-label={`${isExpanded ? 'Hide' : 'Show'} score breakdown for ${entry?.name || 'player'}`}
+      >
+        <span>{`${points} pts`}</span>
+        <span className="team-preview-points-caret" aria-hidden="true">
+          {isExpanded ? '▴' : '▾'}
+        </span>
+      </button>
+    )
+  }
+
+  const renderExpandedBreakdown = (entry, key) => {
+    if (!expandedRows[key] || typeof entry !== 'object') return null
+    const breakdown = Array.isArray(entry?.pointBreakdown) ? entry.pointBreakdown : []
+    const basePoints = Number(entry?.basePoints || 0)
+    const multiplier = Number(entry?.multiplier || 1)
+    const totalPoints = Number(entry?.points || 0)
+    const roleTag = (entry?.roleTag || '').toString().trim()
+    return (
+      <div className="team-preview-breakdown">
+        {!!breakdown.length && (
+          <ul className="team-preview-breakdown-list">
+            {breakdown.map((row, index) => (
+              <li key={`${key}-row-${index}`}>
+                <span>{row.label}</span>
+                <span>{row.points}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="team-preview-breakdown-summary">
+          <span>{`Base: ${basePoints}`}</span>
+          <span>
+            {multiplier === 1
+              ? 'No multiplier'
+              : `${roleTag || 'Multiplier'} x${multiplier}`}
+          </span>
+          <strong>{`Total: ${totalPoints}`}</strong>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       className={`team-preview-drawer ${previewPlayer ? 'open' : ''}`.trim()}
@@ -150,37 +213,42 @@ function TeamPreviewDrawer({
                     typeof entry === 'string'
                       ? entry
                       : entry?.name || `Player ${index + 1}`
-                  const points =
-                    typeof entry === 'object' ? Number(entry?.points || 0) : 0
                   const lineupStatus =
                     typeof entry === 'object' ? resolveLineupStatus(entry) : ''
+                  const rowKey = `xi-${name}-${index}`
                   return (
-                    <div className="player-row team-preview-row" key={`${name}-${index}`}>
-                      <div className="player-row-main">
-                        <PlayerAvatar
-                          name={name}
-                          imageUrl={
-                            typeof entry === 'object' ? entry?.imageUrl || '' : ''
-                          }
-                        />
-                        {!!lineupStatus && (
-                          <span
-                            className={`team-preview-lineup-dot lineup-status-light ${lineupStatus}`.trim()}
-                            title={
-                              lineupStatus === 'playing'
-                                ? 'In announced playing XI'
-                                : 'Not in announced playing XI'
-                            }
-                            aria-label={
-                              lineupStatus === 'playing'
-                                ? 'In announced playing XI'
-                                : 'Not in announced playing XI'
+                    <div className="team-preview-entry" key={rowKey}>
+                      <div className="player-row team-preview-row">
+                        <div className="player-row-main">
+                          <PlayerAvatar
+                            name={name}
+                            imageUrl={
+                              typeof entry === 'object' ? entry?.imageUrl || '' : ''
                             }
                           />
-                        )}
-                        <strong>{name}</strong>
+                          {!!lineupStatus && (
+                            <span
+                              className={`team-preview-lineup-dot lineup-status-light ${lineupStatus}`.trim()}
+                              title={
+                                lineupStatus === 'playing'
+                                  ? 'In announced playing XI'
+                                  : 'Not in announced playing XI'
+                              }
+                              aria-label={
+                                lineupStatus === 'playing'
+                                  ? 'In announced playing XI'
+                                  : 'Not in announced playing XI'
+                              }
+                            />
+                          )}
+                          <strong>{name}</strong>
+                          {entry?.roleTag ? (
+                            <span className="team-preview-role-badge">{entry.roleTag}</span>
+                          ) : null}
+                        </div>
+                        {renderPointCell(entry, rowKey)}
                       </div>
-                      <span>{points}</span>
+                      {renderExpandedBreakdown(entry, rowKey)}
                     </div>
                   )
                 })}
@@ -195,40 +263,42 @@ function TeamPreviewDrawer({
                     typeof entry === 'string'
                       ? entry
                       : entry?.name || `Backup ${index + 1}`
-                  const points =
-                    typeof entry === 'object' ? Number(entry?.points || 0) : 0
                   const lineupStatus =
                     typeof entry === 'object' ? resolveLineupStatus(entry) : ''
+                  const rowKey = `backup-${name}-${index}`
                   return (
-                    <div
-                      className="player-row team-preview-row"
-                      key={`backup-${name}-${index}`}
-                    >
-                      <div className="player-row-main">
-                        <PlayerAvatar
-                          name={name}
-                          imageUrl={
-                            typeof entry === 'object' ? entry?.imageUrl || '' : ''
-                          }
-                        />
-                        {!!lineupStatus && (
-                          <span
-                            className={`team-preview-lineup-dot lineup-status-light ${lineupStatus}`.trim()}
-                            title={
-                              lineupStatus === 'playing'
-                                ? 'In announced playing XI'
-                                : 'Not in announced playing XI'
-                            }
-                            aria-label={
-                              lineupStatus === 'playing'
-                                ? 'In announced playing XI'
-                                : 'Not in announced playing XI'
+                    <div className="team-preview-entry" key={rowKey}>
+                      <div className="player-row team-preview-row">
+                        <div className="player-row-main">
+                          <PlayerAvatar
+                            name={name}
+                            imageUrl={
+                              typeof entry === 'object' ? entry?.imageUrl || '' : ''
                             }
                           />
-                        )}
-                        <strong>{name}</strong>
+                          {!!lineupStatus && (
+                            <span
+                              className={`team-preview-lineup-dot lineup-status-light ${lineupStatus}`.trim()}
+                              title={
+                                lineupStatus === 'playing'
+                                  ? 'In announced playing XI'
+                                  : 'Not in announced playing XI'
+                              }
+                              aria-label={
+                                lineupStatus === 'playing'
+                                  ? 'In announced playing XI'
+                                  : 'Not in announced playing XI'
+                              }
+                            />
+                          )}
+                          <strong>{name}</strong>
+                          {entry?.roleTag ? (
+                            <span className="team-preview-role-badge">{entry.roleTag}</span>
+                          ) : null}
+                        </div>
+                        {renderPointCell(entry, rowKey)}
                       </div>
-                      <span>{points}</span>
+                      {renderExpandedBreakdown(entry, rowKey)}
                     </div>
                   )
                 })}

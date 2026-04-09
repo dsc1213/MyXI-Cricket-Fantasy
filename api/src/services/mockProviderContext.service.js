@@ -831,8 +831,29 @@ const createMockProviderContext = ({
     const normalizedSquad = dedupeNames(
       providedSquad.length ? providedSquad : fallbackSquad,
     )
+    const submittedPlayingXI = Array.isArray(payload.playingXI) ? payload.playingXI : []
     const playingXI = dedupeNames(payload.playingXI)
     const bench = dedupeNames(payload.bench)
+    const findDuplicateLineupNames = (values = []) => {
+      const firstSeenByKey = new Map()
+      const duplicates = []
+      const seenDuplicateKeys = new Set()
+
+      for (const item of Array.isArray(values) ? values : []) {
+        const normalizedName = normalizeLineupName(item)
+        if (!normalizedName) continue
+        const key = normalizeLineupNameKey(normalizedName)
+        if (!firstSeenByKey.has(key)) {
+          firstSeenByKey.set(key, normalizedName)
+          continue
+        }
+        if (seenDuplicateKeys.has(key)) continue
+        seenDuplicateKeys.add(key)
+        duplicates.push(firstSeenByKey.get(key))
+      }
+
+      return duplicates
+    }
     if (strictSquad && !providedSquad.length) {
       return {
         ok: false,
@@ -840,9 +861,19 @@ const createMockProviderContext = ({
       }
     }
     if (playingXI.length < 11 || playingXI.length > 12) {
+      const duplicates = findDuplicateLineupNames(submittedPlayingXI)
+      const submittedNames = (Array.isArray(submittedPlayingXI) ? submittedPlayingXI : [])
+        .map((name) => normalizeLineupName(name))
+        .filter(Boolean)
+      const duplicateText = duplicates.length
+        ? ` Duplicates: ${duplicates.join(', ')}.`
+        : ''
+      const submittedText = submittedNames.length
+        ? ` Submitted players: ${submittedNames.join(', ')}.`
+        : ''
       return {
         ok: false,
-        message: `lineups.${teamCode}.playingXI must contain 11 or 12 unique players`,
+        message: `lineups.${teamCode}.playingXI must contain 11 or 12 unique players. Received ${playingXI.length} unique players from ${submittedPlayingXI.length} entries.${duplicateText}${submittedText} Next steps: check the full submitted list above, remove duplicates if any, and make sure exactly 11 or 12 valid player names are listed.`,
       }
     }
     const squadKeySet = new Set(

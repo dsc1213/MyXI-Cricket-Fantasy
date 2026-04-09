@@ -1,4 +1,4 @@
-import { useEffect, useState, forwardRef, useImperativeHandle } from 'react'
+import { useCallback, useEffect, useState, forwardRef, useImperativeHandle } from 'react'
 
 const ApiStatusDot = forwardRef(function ApiStatusDot(
   {
@@ -13,7 +13,7 @@ const ApiStatusDot = forwardRef(function ApiStatusDot(
 ) {
   const [status, setStatus] = useState('pending') // 'ok', 'fail', 'pending'
 
-  const checkHealth = async () => {
+  const checkHealth = useCallback(async () => {
     setStatus('pending')
     try {
       const res = await fetch(`${apiBase}${checkUrl}`, {
@@ -31,18 +31,25 @@ const ApiStatusDot = forwardRef(function ApiStatusDot(
       setStatus('fail')
       onStatus?.('fail')
     }
-  }
+  }, [apiBase, checkUrl, onStatus])
 
-  useImperativeHandle(ref, () => ({ checkHealth }), [apiBase, checkUrl])
+  useImperativeHandle(ref, () => ({ checkHealth }), [checkHealth])
 
   useEffect(() => {
-    checkHealth()
+    const initialId = setTimeout(() => {
+      void checkHealth()
+    }, 0)
     if (interval > 0) {
-      const id = setInterval(checkHealth, interval)
-      return () => clearInterval(id)
+      const id = setInterval(() => {
+        void checkHealth()
+      }, interval)
+      return () => {
+        clearTimeout(initialId)
+        clearInterval(id)
+      }
     }
-    // eslint-disable-next-line
-  }, [apiBase, checkUrl, interval])
+    return () => clearTimeout(initialId)
+  }, [checkHealth, interval])
 
   const color = status === 'ok' ? '#2ecc40' : status === 'fail' ? '#ff4136' : '#ffdc00'
   const tooltip =

@@ -663,11 +663,83 @@ body.dark-theme .team-preview-panel.solid {
   color: var(--text-primary);
 }
 
+.team-preview-entry {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.team-preview-points-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  background: none;
+  border: 0;
+  color: #93c5fd;
+  font: inherit;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.team-preview-points-caret {
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
 .team-preview-row .player-row-main {
   display: flex;
   align-items: center;
   gap: 0.55rem;
   min-width: 0;
+}
+
+.team-preview-role-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 0.32rem;
+  border-radius: 999px;
+  background: rgba(96, 165, 250, 0.16);
+  color: #93c5fd;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.team-preview-breakdown {
+  margin-left: 2.15rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.18);
+}
+
+.team-preview-breakdown-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.22rem;
+}
+
+.team-preview-breakdown-list li,
+.team-preview-breakdown-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.74rem;
+}
+
+.team-preview-breakdown-summary {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
 }
 
 .team-preview-lineup-dot.lineup-status-light {

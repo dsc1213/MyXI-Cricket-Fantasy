@@ -226,9 +226,10 @@ function App() {
         if (!active) return
         setCurrentUser(storedUser)
       } finally {
-        if (!active) return
-        setIsRefreshingSession(false)
-        setIsRestoringSession(false)
+        if (active) {
+          setIsRefreshingSession(false)
+          setIsRestoringSession(false)
+        }
       }
     }
 

@@ -133,6 +133,7 @@ const registerMockProviderRoutes = (router, ctx) => {
       .replace(/[^a-z0-9]+/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
+  const normalizeLineupNameKey = (value = '') => normalizeUserKey(value)
   const slugify = (value = '') =>
     value
       .toString()
@@ -695,6 +696,31 @@ const registerMockProviderRoutes = (router, ctx) => {
       return res.status(201).json({ ok: true, player })
     } catch (error) {
       return res.status(400).json({ message: error.message || 'Failed to save player' })
+    }
+  })
+
+  router.put('/admin/players/:id', async (req, res) => {
+    const actor = resolveAdminActor(req)
+    if (!canManageTournaments(actor)) {
+      return res.status(403).json({ message: 'Only admin/master can manage players' })
+    }
+    try {
+      const player = await playerService.updatePlayer(req.params.id, req.body || {})
+      appendAuditLog({
+        actor: actor?.gameName || actor?.name || 'Admin',
+        action: 'Updated player',
+        target:
+          player?.displayName ||
+          [player?.firstName, player?.lastName].filter(Boolean).join(' ').trim() ||
+          'player',
+        detail: player?.role || '-',
+        tournamentId: 'global',
+        module: 'players',
+      })
+      persistState()
+      return res.json({ ok: true, player })
+    } catch (error) {
+      return res.status(400).json({ message: error.message || 'Failed to update player' })
     }
   })
 
@@ -1422,15 +1448,11 @@ const registerMockProviderRoutes = (router, ctx) => {
       const previousStatus = normalizeMatchStatus(target.status)
       target.status = status
       target.locked = status !== 'notstarted'
-      const movedToInProgress = previousStatus === 'notstarted' && status === 'inprogress'
-      const autoReplacement = movedToInProgress
-        ? applyMockBackupReplacementsOnMatchStart({ tournamentId, matchId })
-        : { updatedSelections: 0, skippedSelections: 0 }
       persistState()
       return res.json({
         ...target,
         tournamentId,
-        autoReplacement,
+        autoReplacement: { updatedSelections: 0, skippedSelections: 0 },
       })
     }
     return res.status(404).json({ message: 'Match not found' })
@@ -1848,8 +1870,23 @@ const registerMockProviderRoutes = (router, ctx) => {
     const contest = mockContests.find((item) => item.id === contestId)
     const resolvedTournamentId = contest?.tournamentId || tournamentId || 't20wc-2026'
     const tournamentMatches = buildMatches(100, resolvedTournamentId)
-    const activeMatch =
-      tournamentMatches.find((match) => match.id === matchId) || tournamentMatches[0]
+    const activeMatch = tournamentMatches.find((match) => match.id === matchId) || null
+    if (matchId && !activeMatch) {
+      return res
+        .status(404)
+        .json({ message: 'Match not found for the selected tournament' })
+    }
+    if (!activeMatch) {
+      return res.json({
+        contest: contest || null,
+        activeMatch: null,
+        selection: null,
+        teams: {
+          teamA: { name: '', players: [], lineup: null },
+          teamB: { name: '', players: [], lineup: null },
+        },
+      })
+    }
     const selection = resolveMockSelection({
       contestId,
       matchId,
@@ -2003,6 +2040,10 @@ const registerMockProviderRoutes = (router, ctx) => {
     }
 
     mockMatchLineups.set(lineupKey(payload), payload)
+    const autoReplacement = applyMockBackupReplacementsOnMatchStart({
+      tournamentId,
+      matchId,
+    })
     appendAuditLog({
       actor: updatedBy,
       action: 'Saved match lineup',
@@ -2015,6 +2056,7 @@ const registerMockProviderRoutes = (router, ctx) => {
     return res.json({
       ok: true,
       saved: payload,
+      autoReplacement,
     })
   })
 
@@ -2156,6 +2198,13 @@ const registerMockProviderRoutes = (router, ctx) => {
     const contestId = (req.query.contestId || '').toString()
     const matchId = (req.query.matchId || '').toString()
     const contest = mockContests.find((item) => item.id === contestId) || null
+    const effectiveTournamentId = (tournamentId || contest?.tournamentId || '').toString()
+    const activeMatch = matchId
+      ? buildMatches(100, effectiveTournamentId || 't20wc-2026').find(
+          (item) => item.id === matchId,
+        ) || null
+      : null
+
     const selection = matchId
       ? isFixedRosterContest(contest)
         ? null
@@ -2168,17 +2217,13 @@ const registerMockProviderRoutes = (router, ctx) => {
       : null
     const idToName = new Map(allKnownPlayers.map((player) => [player.id, player.name]))
     const matchPointsByName = getMatchPlayerPointsByName({
-      tournamentId,
+      tournamentId: effectiveTournamentId,
       matchId,
     })
     const hasUploadedMatchPoints = Object.keys(matchPointsByName).length > 0
     const fallbackMatchPointsByName =
       !hasUploadedMatchPoints && matchId
         ? (() => {
-            const activeMatch =
-              buildMatches(100, tournamentId || 't20wc-2026').find(
-                (item) => item.id === matchId,
-              ) || null
             if (!activeMatch || activeMatch.status === 'notstarted') return {}
             return [
               ...getMatchRosters(activeMatch).teamA,
@@ -2195,17 +2240,12 @@ const registerMockProviderRoutes = (router, ctx) => {
     const effectiveMatchPointsByName = hasUploadedMatchPoints
       ? matchPointsByName
       : fallbackMatchPointsByName
-    const pointsByPlayerId = getTournamentPlayerStatsIndex(tournamentId)
-    const activeMatch = matchId
-      ? buildMatches(100, tournamentId || 't20wc-2026').find(
-          (item) => item.id === matchId,
-        ) || null
-      : null
+    const pointsByPlayerId = getTournamentPlayerStatsIndex(effectiveTournamentId)
     const savedLineup =
-      activeMatch && tournamentId
+      activeMatch && effectiveTournamentId
         ? mockMatchLineups.get(
             lineupKey({
-              tournamentId,
+              tournamentId: effectiveTournamentId,
               matchId: activeMatch.id,
             }),
           )
@@ -2285,10 +2325,10 @@ const registerMockProviderRoutes = (router, ctx) => {
     })
     return res.json({
       userId,
-      tournamentId,
+      tournamentId: effectiveTournamentId,
       contestId,
       matchId,
-      tournamentName: prettyTournament[tournamentId] || tournamentId,
+      tournamentName: prettyTournament[effectiveTournamentId] || effectiveTournamentId,
       picks,
       backups,
       picksDetailed,

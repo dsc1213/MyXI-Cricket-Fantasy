@@ -124,6 +124,20 @@ test.describe('15) JSON uploads and UI validation', () => {
     }
     await page.getByRole('button', { name: 'Save Playing XI' }).click()
     await expect(page.getByText('Playing XI saved')).toBeVisible()
+    await page.reload()
+    await page.goto('/home?panel=upload')
+    await page.getByRole('tab', { name: 'Playing XI' }).click()
+    await page.getByRole('tab', { name: 'Manual Entry' }).click()
+    const refreshedSelects = page.locator('.manual-scope-row select')
+    await refreshedSelects.nth(0).selectOption('ipl-2026')
+    await refreshedSelects.nth(1).selectOption('ipl-m1')
+    const refreshedCards = page.locator('.manual-lineup-card')
+    await expect(refreshedCards).toHaveCount(2)
+    for (let cardIndex = 0; cardIndex < 2; cardIndex += 1) {
+      await expect(
+        refreshedCards.nth(cardIndex).locator('tbody input[type="checkbox"]:checked'),
+      ).toHaveCount(11)
+    }
 
     await page.getByRole('tab', { name: 'Scorecards' }).click()
     await page.getByRole('tab', { name: 'JSON Upload' }).click()
@@ -176,6 +190,44 @@ test.describe('15) JSON uploads and UI validation', () => {
     await expect(modal.locator('.player-manager-generated-json')).toContainText(
       '"players"',
     )
+  })
+
+  test('player manager edit mode allows renaming a player row', async ({
+    page,
+    request,
+  }) => {
+    const tag = `${Date.now()}`
+    const originalName = `Edit Player ${tag}`
+    const updatedName = `Edited Player ${tag}`
+
+    await apiCall(
+      request,
+      'POST',
+      '/admin/players',
+      {
+        actorUserId: 'master',
+        name: originalName,
+        country: 'india',
+        role: 'BAT',
+      },
+      201,
+    )
+
+    await loginUi(page, MASTER_LOGIN)
+    await page.goto('/home?panel=players')
+    await page.getByPlaceholder('Filter players').fill(originalName)
+    await page.getByRole('button', { name: 'Edit' }).click()
+
+    const row = page.locator('tbody tr', { hasText: originalName }).first()
+    await expect(row).toBeVisible()
+    await row.getByLabel(`Player name ${originalName}`).fill(updatedName)
+    await row.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByText('Player updated')).toBeVisible()
+
+    await page.reload()
+    await page.goto('/home?panel=players')
+    await page.getByPlaceholder('Filter players').fill(updatedName)
+    await expect(page.locator('tbody tr', { hasText: updatedName }).first()).toBeVisible()
   })
 
   test('canonical player identity survives tournament unlink and avoids duplicate player rows', async ({
@@ -1964,7 +2016,7 @@ test.describe('15) JSON uploads and UI validation', () => {
     await page
       .locator('.match-upload-json textarea')
       .fill(JSON.stringify(payload, null, 2))
-    await page.getByRole('button', { name: 'Upload JSON' }).click()
+    await page.getByRole('button', { name: /^(Save|Upload JSON)$/ }).click()
     await expect(page.getByText(/payload saved/i)).toBeVisible()
 
     const afterStats = await apiCall(
@@ -2941,7 +2993,10 @@ test.describe('15) JSON uploads and UI validation', () => {
       await loginUi(page, 'master')
       await page.goto('/home')
       await page.getByRole('button', { name: 'Score Manager' }).click()
-      await page.getByRole('tab', { name: 'Scorecards' }).click()
+      const scorecardsTab = page.getByRole('tab', { name: 'Scorecards' })
+      if (await scorecardsTab.count()) {
+        await scorecardsTab.click()
+      }
       await page.getByRole('tab', { name: 'JSON Upload' }).click()
 
       const selects = page.locator('.manual-scope-row select')
@@ -2996,104 +3051,47 @@ test.describe('15) JSON uploads and UI validation', () => {
 
   test('scorecard JSON upload shows inline unmatched diagnostics for unknown player names', async ({
     page,
-    request,
   }) => {
-    const tag = Date.now()
-    const tournamentId = `json-score-unmatched-tour-${tag}`
-    let contestId = ''
+    await loginUi(page, 'master')
+    await page.goto('/home')
+    await page.getByRole('button', { name: 'Score Manager' }).click()
 
-    try {
-      await apiCall(
-        request,
-        'POST',
-        '/admin/tournaments',
-        {
-          actorUserId: 'master',
-          tournamentId,
-          name: `JSON Score Unmatched Tournament ${tag}`,
-          season: '2026',
-          source: 'json',
-          tournamentType: 'international',
-          selectedTeams: ['IND', 'AUS'],
-          matches: [
-            {
-              id: 'm1',
-              matchNo: 1,
-              home: 'IND',
-              away: 'AUS',
-              startAt: '2099-03-10T14:00:00.000Z',
-              timezone: 'UTC',
-              venue: 'Melbourne',
-            },
-          ],
-        },
-        201,
-      )
-
-      const contest = await apiCall(
-        request,
-        'POST',
-        '/admin/contests',
-        {
-          name: `JSON Score Unmatched Contest ${tag}`,
-          tournamentId,
-          game: 'Fantasy',
-          teams: 25,
-          status: 'Open',
-          createdBy: 'master',
-          matchIds: ['m1'],
-        },
-        201,
-      )
-      contestId = contest.id
-
-      await loginUi(page, 'master')
-      await page.goto('/home')
-      await page.getByRole('button', { name: 'Score Manager' }).click()
-      await page.getByRole('tab', { name: 'Scorecards' }).click()
-      await page.getByRole('tab', { name: 'JSON Upload' }).click()
-
-      const selects = page.locator('.manual-scope-row select')
-      await selects.nth(0).selectOption(tournamentId)
-      await selects.nth(1).selectOption('m1')
-
-      const payload = {
-        playerStats: [
-          {
-            playerName: 'Xyz Unknown Person',
-            runs: 12,
-            ballsFaced: 9,
-            fours: 2,
-            sixes: 0,
-            dismissed: true,
-          },
-        ],
-      }
-
-      await page
-        .locator('.match-upload-json textarea')
-        .fill(JSON.stringify(payload, null, 2))
-      await page.getByRole('button', { name: 'Upload JSON' }).click()
-
-      const diagnostics = page.locator('.json-upload-diagnostics')
-      await expect(diagnostics).toBeVisible()
-      await expect(diagnostics).toContainText('Unmatched Players')
-      await expect(diagnostics).toContainText('Xyz Unknown Person')
-      await expect(diagnostics).toContainText('normalized: xyz unknown person')
-    } finally {
-      if (contestId) {
-        await request.fetch(`http://127.0.0.1:4000/admin/contests/${contestId}`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          data: { actorUserId: 'master' },
-        })
-      }
-      await request.fetch(`http://127.0.0.1:4000/admin/tournaments/${tournamentId}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        data: { actorUserId: 'master' },
-      })
+    const scorecardsTab = page.getByRole('tab', { name: 'Scorecards' })
+    if (await scorecardsTab.count()) {
+      await scorecardsTab.click()
     }
+    await page.getByRole('tab', { name: 'JSON Upload' }).click()
+
+    const selects = page.locator('.manual-scope-row select')
+    await selects.nth(0).selectOption({ index: 1 })
+    await expect
+      .poll(async () => selects.nth(1).locator('option').count(), { timeout: 15000 })
+      .toBeGreaterThan(1)
+    await selects.nth(1).selectOption({ index: 1 })
+
+    const payload = {
+      playerStats: [
+        {
+          playerName: 'Xyz Unknown Person',
+          runs: 12,
+          ballsFaced: 9,
+          fours: 2,
+          sixes: 0,
+          dismissed: true,
+        },
+      ],
+    }
+
+    await page
+      .locator('.match-upload-json textarea')
+      .fill(JSON.stringify(payload, null, 2))
+    await page.getByRole('button', { name: /^(Save|Upload JSON)$/ }).click()
+
+    const diagnostics = page.locator('.json-upload-diagnostics')
+    await expect(diagnostics).toBeVisible()
+    await expect(diagnostics).toContainText('Unmatched Players')
+    await expect(diagnostics).toContainText('Xyz Unknown Person')
+    await expect(diagnostics).toContainText('normalized: xyz unknown person')
   })
 
   test('team-pool and team save persist through the selection API', async ({
@@ -3220,6 +3218,7 @@ test.describe('15) JSON uploads and UI validation', () => {
 
   test('captain and vice captain multipliers boost leaderboard points', async ({
     request,
+    page,
   }) => {
     const tag = Date.now()
     const tournamentId = `json-cvc-tour-${tag}`
@@ -3358,6 +3357,183 @@ test.describe('15) JSON uploads and UI validation', () => {
       )
       const playerRow = (leaderboard.rows || []).find((row) => row.userId === 'player')
       expect(Number(playerRow?.points || 0)).toBe(64.5)
+    } finally {
+      if (contestId) {
+        await request.fetch(`http://127.0.0.1:4000/admin/contests/${contestId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          data: { actorUserId: 'master' },
+        })
+      }
+      await request.fetch(`http://127.0.0.1:4000/admin/tournaments/${tournamentId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        data: { actorUserId: 'master' },
+      })
+    }
+  })
+
+  test('team preview payload exposes multiplied captain and vice captain breakdown', async ({
+    request,
+    page,
+  }) => {
+    const tag = Date.now()
+    const tournamentId = `json-preview-cvc-tour-${tag}`
+    let contestId = ''
+
+    try {
+      await apiCall(
+        request,
+        'POST',
+        '/admin/tournaments',
+        {
+          actorUserId: 'master',
+          tournamentId,
+          name: `JSON Preview CVC Tournament ${tag}`,
+          season: '2026',
+          source: 'json',
+          tournamentType: 'international',
+          selectedTeams: ['IND', 'AUS'],
+          matches: [
+            {
+              id: 'm1',
+              matchNo: 1,
+              home: 'IND',
+              away: 'AUS',
+              startAt: '2099-03-10T14:00:00.000Z',
+              timezone: 'UTC',
+              venue: 'Melbourne',
+            },
+          ],
+        },
+        201,
+      )
+
+      const contest = await apiCall(
+        request,
+        'POST',
+        '/admin/contests',
+        {
+          name: `JSON Preview CVC Contest ${tag}`,
+          tournamentId,
+          game: 'Fantasy',
+          teams: 25,
+          status: 'Open',
+          createdBy: 'master',
+          matchIds: ['m1'],
+        },
+        201,
+      )
+      contestId = contest.id
+
+      await loginUi(page, 'player')
+      await page.evaluate(
+        async ({ innerContestId }) => {
+          const api = await import('/src/lib/api.js')
+          return api.joinContest({ contestId: innerContestId, userId: 'player' })
+        },
+        { innerContestId: contestId },
+      )
+
+      const pool = await page.evaluate(
+        async ({ innerContestId }) => {
+          const api = await import('/src/lib/api.js')
+          return api.fetchTeamPool({
+            contestId: innerContestId,
+            matchId: 'm1',
+            userId: 'player',
+          })
+        },
+        { innerContestId: contestId },
+      )
+      const playingXi = buildValidPlayingXi(
+        pool?.teams?.teamA?.players || [],
+        pool?.teams?.teamB?.players || [],
+      )
+      const allPlayers = [
+        ...(pool?.teams?.teamA?.players || []),
+        ...(pool?.teams?.teamB?.players || []),
+      ]
+      const playerById = new Map(allPlayers.map((player) => [player.id, player]))
+      const captain = playerById.get(playingXi[0])
+      const viceCaptain = playerById.get(playingXi[1])
+
+      await apiCall(
+        request,
+        'POST',
+        '/team-selection/save',
+        {
+          contestId,
+          matchId: 'm1',
+          userId: 'player',
+          playingXi,
+          backups: [],
+          captainId: captain.id,
+          viceCaptainId: viceCaptain.id,
+        },
+        200,
+      )
+
+      await apiCall(
+        request,
+        'POST',
+        '/admin/match-scores/upsert',
+        {
+          tournamentId,
+          matchId: 'm1',
+          userId: 'master',
+          playerStats: [
+            {
+              playerId: captain.id,
+              playerName: captain.name,
+              runs: 20,
+              fours: 2,
+              sixes: 1,
+            },
+            {
+              playerId: viceCaptain.id,
+              playerName: viceCaptain.name,
+              runs: 10,
+              fours: 1,
+              sixes: 0,
+            },
+          ],
+        },
+        200,
+      )
+
+      const picks = await page.evaluate(
+        async ({ innerContestId }) => {
+          const api = await import('/src/lib/api.js')
+          return api.fetchUserPicks({
+            userId: 'player',
+            contestId: innerContestId,
+            matchId: 'm1',
+          })
+        },
+        { innerContestId: contestId },
+      )
+
+      const captainRow = (picks?.picksDetailed || []).find((row) => row.id === captain.id)
+      const viceCaptainRow = (picks?.picksDetailed || []).find(
+        (row) => row.id === viceCaptain.id,
+      )
+
+      expect(captainRow?.roleTag).toBe('C')
+      expect(Number(captainRow?.basePoints || 0)).toBe(24)
+      expect(Number(captainRow?.multiplier || 0)).toBe(2)
+      expect(Number(captainRow?.points || 0)).toBe(48)
+      expect((captainRow?.pointBreakdown || []).map((row) => row.label)).toEqual(
+        expect.arrayContaining(['Runs', 'Fours', 'Sixes']),
+      )
+
+      expect(viceCaptainRow?.roleTag).toBe('VC')
+      expect(Number(viceCaptainRow?.basePoints || 0)).toBe(11)
+      expect(Number(viceCaptainRow?.multiplier || 0)).toBe(1.5)
+      expect(Number(viceCaptainRow?.points || 0)).toBe(16.5)
+      expect((viceCaptainRow?.pointBreakdown || []).map((row) => row.label)).toEqual(
+        expect.arrayContaining(['Runs', 'Fours']),
+      )
     } finally {
       if (contestId) {
         await request.fetch(`http://127.0.0.1:4000/admin/contests/${contestId}`, {

@@ -520,6 +520,12 @@ body.dark-theme
   color: rgba(202, 220, 246, 0.86);
 }
 
+body.dark-theme .app.app-team .backups-card .player-chip.slot-chip.compact,
+body.dark-theme .app.app-team .backups-card .backup-chip.empty {
+  background: rgba(20, 37, 66, 0.72);
+  border-color: rgba(186, 198, 255, 0.42);
+}
+
 body.dark-theme
   .app.app-team
   .team-column

@@ -331,9 +331,7 @@ test.describe('20) DB smoke flows', () => {
     }
   })
 
-  test('db squad manager import resolves string tournament source keys', async ({
-    request,
-  }) => {
+  test('db squad manager import resolves string tournament source keys', async () => {
     requireDbMasterCreds()
     const tag = Date.now()
     const tournamentName = `DB Squad Import ${tag}`
@@ -1610,8 +1608,6 @@ test.describe('20) DB smoke flows', () => {
         authState?.user?.gameName ||
         authState?.user?.email ||
         MASTER_LOGIN
-      const actorNumericUserId = Number(authState?.user?.id || 0) || null
-
       authedRequest = await playwrightRequest.newContext({
         baseURL: E2E_API_BASE,
         extraHTTPHeaders: {

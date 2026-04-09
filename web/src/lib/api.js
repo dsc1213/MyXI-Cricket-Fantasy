@@ -2,12 +2,10 @@ import { updateStoredSession } from './auth.js'
 
 export const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 const inFlightGetRequests = new Map()
-const cachedGetResponses = new Map()
 const apiActivityListeners = new Set()
 let pendingApiRequestCount = 0
 let pendingRefreshRequest = null
 const SESSION_REFRESH_WINDOW_MS = 30 * 1000
-const GET_CACHE_TTL_MS = 30 * 1000
 
 const emitApiActivity = () => {
   apiActivityListeners.forEach((listener) => {
@@ -68,33 +66,6 @@ const clearStoredAuth = () => {
   if (typeof window === 'undefined') return
   window.localStorage.removeItem('myxi-user')
   window.localStorage.removeItem('myxi-token')
-  clearGetResponseCache()
-}
-
-const cloneData = (data) => {
-  if (data == null) return data
-  return JSON.parse(JSON.stringify(data))
-}
-
-const getCachedGetResponse = (key, ttlMs = GET_CACHE_TTL_MS) => {
-  const cached = cachedGetResponses.get(key)
-  if (!cached) return null
-  if (Date.now() - cached.ts > ttlMs) {
-    cachedGetResponses.delete(key)
-    return null
-  }
-  return cloneData(cached.data)
-}
-
-const setCachedGetResponse = (key, data) => {
-  cachedGetResponses.set(key, {
-    ts: Date.now(),
-    data: cloneData(data),
-  })
-}
-
-const clearGetResponseCache = () => {
-  cachedGetResponses.clear()
 }
 
 const rawApiRequest = async (path, options = {}) => {
@@ -115,7 +86,9 @@ const rawApiRequest = async (path, options = {}) => {
         const parsed = JSON.parse(raw)
         if (parsed?.token) token = parsed.token
       }
-    } catch {}
+    } catch {
+      // Ignore malformed stored session payloads and continue without auth.
+    }
   }
   for (const url of candidates) {
     try {
@@ -189,18 +162,6 @@ async function request(path, options = {}) {
   const normalizedPath = path
   const method = (options.method || 'GET').toUpperCase()
   const dedupeKey = method === 'GET' ? `${method}:${normalizedPath}` : null
-  const cacheTtlMs =
-    typeof options.cacheTtlMs === 'number' && options.cacheTtlMs >= 0
-      ? options.cacheTtlMs
-      : GET_CACHE_TTL_MS
-  const canUseGetCache = method === 'GET' && !normalizedPath.startsWith('/auth/')
-
-  if (canUseGetCache) {
-    const cached = getCachedGetResponse(dedupeKey, cacheTtlMs)
-    if (cached != null) {
-      return cached
-    }
-  }
 
   if (dedupeKey && inFlightGetRequests.has(dedupeKey)) {
     return inFlightGetRequests.get(dedupeKey)
@@ -219,12 +180,6 @@ async function request(path, options = {}) {
           try {
             const data = await rawApiRequest(normalizedPath, options)
             if (data?.token || data?.tokenExpiresAt) updateStoredSessionData(data)
-            if (canUseGetCache) {
-              setCachedGetResponse(dedupeKey, data)
-            } else if (method !== 'GET') {
-              // Any write can change downstream read models. Keep this simple and safe.
-              clearGetResponseCache()
-            }
             return data
           } catch (error) {
             const text = (error?.message || '').toLowerCase()
@@ -510,6 +465,11 @@ const createAdminPlayer = (payload) =>
     method: 'POST',
     body: JSON.stringify(payload || {}),
   })
+const updateAdminPlayer = ({ id, ...payload }) =>
+  request(`/admin/players/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload || {}),
+  })
 const importAdminPlayers = (payload) =>
   request('/admin/players', {
     method: 'POST',
@@ -756,6 +716,7 @@ const updateUserProfile = ({ id, payload }) =>
 
 export {
   subscribeApiActivity,
+  clearStoredAuth,
   login,
   refreshSession,
   logout,
@@ -782,6 +743,7 @@ export {
   fetchUserPicks,
   fetchPlayers,
   createAdminPlayer,
+  updateAdminPlayer,
   importAdminPlayers,
   deleteAdminPlayer,
   deleteAdminPlayersBulk,

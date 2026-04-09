@@ -32,199 +32,20 @@ import {
   sectionTitles,
 } from './dashboard/constants.js'
 import { getStoredUser } from '../lib/auth.js'
+import { normalizePointsRuleTemplate } from '../lib/defaultPointsRules.js'
 import {
-  cloneDefaultPointsRules,
-  normalizePointsRuleTemplate,
-} from '../lib/defaultPointsRules.js'
+  normalizeManualPlayerKey,
+  normalizeLooseKey,
+  buildNameSuggestions,
+  resolveKnownPlayerByName,
+  normalizeLineupTeamPayload,
+} from './dashboard/utils.js'
+import {
+  defaultPointsRules,
+  buildFallbackBootstrap,
+} from './dashboard/stateBuilders.js'
+import { buildManualStatsState } from './dashboard/manualStats.js'
 import { parseNormalizedJsonInput } from '../lib/jsonInput.js'
-import { useScoreManagerCache } from '../contexts/ScoreManagerCacheContext.jsx'
-
-const defaultPointsRules = cloneDefaultPointsRules()
-
-const buildFallbackBootstrap = () => ({
-  tournaments: [],
-  joinedContests: [],
-  pointsRuleTemplate: defaultPointsRules,
-  adminManager: [],
-  masterConsole: [],
-  auditLogs: [],
-})
-
-const buildDefaultManualStatsRow = () => ({
-  runs: 0,
-  ballsFaced: 0,
-  fours: 0,
-  sixes: 0,
-  overs: 0,
-  runsConceded: 0,
-  wickets: 0,
-  maidens: 0,
-  noBalls: 0,
-  wides: 0,
-  catches: 0,
-  stumpings: 0,
-  runoutDirect: 0,
-  runoutIndirect: 0,
-  dismissed: false,
-})
-
-const normalizeManualPlayerKey = (value) =>
-  String(value || '')
-    .trim()
-    .toLowerCase()
-
-const normalizeLooseKey = (value) =>
-  normalizeManualPlayerKey(value).replace(/[^a-z0-9]/g, '')
-
-const levenshteinDistance = (left = '', right = '') => {
-  const a = String(left || '')
-  const b = String(right || '')
-  if (!a) return b.length
-  if (!b) return a.length
-  const prev = new Array(b.length + 1)
-  const curr = new Array(b.length + 1)
-  for (let j = 0; j <= b.length; j += 1) prev[j] = j
-  for (let i = 1; i <= a.length; i += 1) {
-    curr[0] = i
-    for (let j = 1; j <= b.length; j += 1) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1
-      curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost)
-    }
-    for (let j = 0; j <= b.length; j += 1) prev[j] = curr[j]
-  }
-  return prev[b.length]
-}
-
-const buildNameSuggestions = (needle, knownNames = []) => {
-  const compactNeedle = normalizeLooseKey(needle)
-  if (!compactNeedle) return []
-  return (knownNames || [])
-    .map((name) => ({ name, compact: normalizeLooseKey(name) }))
-    .filter(
-      (item) =>
-        item.compact.includes(compactNeedle) ||
-        compactNeedle.includes(item.compact) ||
-        levenshteinDistance(item.compact, compactNeedle) <= 2,
-    )
-    .slice(0, 5)
-    .map((item) => item.name)
-}
-
-const resolveKnownPlayerByName = (players = [], inputName = '') => {
-  const raw = String(inputName || '').trim()
-  if (!raw) return null
-  const exactKey = normalizeManualPlayerKey(raw)
-  const looseKey = normalizeLooseKey(raw)
-  const byExact = new Map(
-    (players || []).map((player) => [normalizeManualPlayerKey(player?.name), player]),
-  )
-  const byLoose = new Map(
-    (players || []).map((player) => [normalizeLooseKey(player?.name), player]),
-  )
-  if (byExact.has(exactKey)) return byExact.get(exactKey)
-  if (byLoose.has(looseKey)) return byLoose.get(looseKey)
-  const fuzzyMatches = (players || []).filter((player) => {
-    const key = normalizeLooseKey(player?.name)
-    return key && looseKey && levenshteinDistance(key, looseKey) <= 2
-  })
-  if (fuzzyMatches.length === 1) return fuzzyMatches[0]
-  return null
-}
-
-const normalizeLineupTeamPayload = (
-  teamPayload = {},
-  knownPlayers = [],
-  teamName = '',
-) => {
-  const knownNames = (knownPlayers || [])
-    .map((player) => String(player?.name || '').trim())
-    .filter(Boolean)
-  const unmatched = []
-  const normalizeList = (list = [], field = '') => {
-    const next = []
-    ;(Array.isArray(list) ? list : []).forEach((name) => {
-      const resolved = resolveKnownPlayerByName(knownPlayers, name)
-      if (!resolved?.name) {
-        const raw = String(name || '').trim()
-        if (raw) {
-          unmatched.push({
-            team: teamName,
-            field,
-            input: raw,
-            suggestions: buildNameSuggestions(raw, knownNames),
-          })
-        }
-        return
-      }
-      next.push(resolved.name)
-    })
-    return next
-  }
-
-  const captainResolved = resolveKnownPlayerByName(knownPlayers, teamPayload?.captain)
-  const viceCaptainResolved = resolveKnownPlayerByName(
-    knownPlayers,
-    teamPayload?.viceCaptain,
-  )
-  if (teamPayload?.captain && !captainResolved?.name) {
-    const raw = String(teamPayload.captain || '').trim()
-    unmatched.push({
-      team: teamName,
-      field: 'captain',
-      input: raw,
-      suggestions: buildNameSuggestions(raw, knownNames),
-    })
-  }
-  if (teamPayload?.viceCaptain && !viceCaptainResolved?.name) {
-    const raw = String(teamPayload.viceCaptain || '').trim()
-    unmatched.push({
-      team: teamName,
-      field: 'viceCaptain',
-      input: raw,
-      suggestions: buildNameSuggestions(raw, knownNames),
-    })
-  }
-
-  return {
-    normalized: {
-      ...(teamPayload || {}),
-      squad: normalizeList(teamPayload?.squad || [], 'squad'),
-      playingXI: normalizeList(teamPayload?.playingXI || [], 'playingXI'),
-      bench: normalizeList(teamPayload?.bench || [], 'bench'),
-      captain: captainResolved?.name,
-      viceCaptain: viceCaptainResolved?.name,
-    },
-    unmatched,
-  }
-}
-
-const buildManualStatsState = (players = [], savedRows = []) => {
-  const next = {}
-  const playerIdsByName = new Map(
-    (players || []).map((player) => [normalizeManualPlayerKey(player.name), player.id]),
-  )
-
-  ;(players || []).forEach((player) => {
-    next[player.id] = buildDefaultManualStatsRow()
-  })
-  ;(savedRows || []).forEach((row) => {
-    const targetId =
-      (row?.playerId != null && next[row.playerId] ? row.playerId : null) ||
-      playerIdsByName.get(normalizeManualPlayerKey(row?.playerName))
-    if (!targetId) return
-    const normalizedOvers =
-      row?.overs != null && row?.overs !== '' ? row.overs : row?.oversBowled
-    next[targetId] = {
-      ...buildDefaultManualStatsRow(),
-      ...next[targetId],
-      ...row,
-      overs: Number(normalizedOvers || 0),
-      dismissed: Boolean(row?.dismissed),
-    }
-  })
-
-  return next
-}
 
 function Dashboard({ defaultPanel = 'joined' }) {
   const location = useLocation()
@@ -258,6 +79,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
   const [manualMatchId, setManualMatchId] = useState('')
   const [uploadPayloadText, setUploadPayloadText] = useState('')
   const [scoreJsonUnmatchedDetails, setScoreJsonUnmatchedDetails] = useState([])
+  const [lineupJsonUnmatchedDetails, setLineupJsonUnmatchedDetails] = useState([])
   const [isGeneratedScoreJsonOpen, setIsGeneratedScoreJsonOpen] = useState(false)
   const [generatedScoreJsonText, setGeneratedScoreJsonText] = useState('')
   const [lineupPayloadText, setLineupPayloadText] = useState('')
@@ -273,9 +95,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
   const [saveNotice, setSaveNotice] = useState('')
   const [pageLoadData, setPageLoadData] = useState(buildFallbackBootstrap)
   const [pointsRules, setPointsRules] = useState(defaultPointsRules)
-  const { cache: scoreManagerCache, setCache: setScoreManagerCache } =
-    useScoreManagerCache()
-  const allContests = scoreManagerCache?.allContests || []
+  const [allContests, setAllContests] = useState([])
   const currentUser = getStoredUser()
   const currentUserId =
     currentUser?.userId || currentUser?.gameName || currentUser?.email || ''
@@ -294,6 +114,80 @@ function Dashboard({ defaultPanel = 'joined' }) {
     'playingXiManager',
     'scoreManager',
   ])
+
+  const buildLineupUnmappedErrorMessage = (unmatched = []) => {
+    const sample = (unmatched || [])
+      .slice(0, 3)
+      .map((item) => `${item.team}: ${item.input}`)
+      .join(', ')
+    const base = 'Lineup JSON contains unmapped players for the selected match squads.'
+    const nextSteps =
+      ' Next steps: 1) verify Tournament/Match selection, 2) use Generate JSON to start from current squads, 3) replace names using suggestions below, 4) save again.'
+    return `${base}${sample ? ` Examples: ${sample}.` : ''}${nextSteps}`
+  }
+
+  const buildScoreUnmappedErrorMessage = (unmatched = []) => {
+    const sample = (unmatched || [])
+      .slice(0, 3)
+      .map((item) => item.input)
+      .join(', ')
+    const base =
+      'Scorecard JSON contains player names that do not match DB players for the selected match.'
+    const nextSteps =
+      ' Next steps: 1) verify Tournament/Match selection, 2) use Generate JSON to start from current DB players, 3) replace names using suggestions below, 4) save again.'
+    return `${base}${sample ? ` Examples: ${sample}.` : ''}${nextSteps}`
+  }
+
+  const resolveTeamPlayersForInput = (teamName = '') => {
+    const normalizedInput = normalizeLooseKey(teamName)
+    const knownTeams = [
+      {
+        key: manualTeamPool?.teamAName || '',
+        players: manualTeamPool?.teamAPlayers || [],
+      },
+      {
+        key: manualTeamPool?.teamBName || '',
+        players: manualTeamPool?.teamBPlayers || [],
+      },
+    ]
+    const exactMatch = knownTeams.find(
+      (team) => normalizeLooseKey(team.key) === normalizedInput,
+    )
+    if (exactMatch) return exactMatch
+    return null
+  }
+
+  const canonicalizePlayingXiNames = (players = [], selectedNames = []) => {
+    const canonical = []
+    const seen = new Set()
+
+    ;(Array.isArray(selectedNames) ? selectedNames : []).forEach((name) => {
+      const resolved = resolveKnownPlayerByName(players, name)
+      const nextName = String(resolved?.name || name || '').trim()
+      const key = normalizeLooseKey(nextName)
+      if (!nextName || !key || seen.has(key)) return
+      seen.add(key)
+      canonical.push(nextName)
+    })
+
+    return canonical
+  }
+
+  const canonicalizePlayingXiState = (teamPool, playingXiState) => ({
+    teamA: canonicalizePlayingXiNames(
+      teamPool?.teamAPlayers || [],
+      playingXiState?.teamA || [],
+    ),
+    teamB: canonicalizePlayingXiNames(
+      teamPool?.teamBPlayers || [],
+      playingXiState?.teamB || [],
+    ),
+  })
+
+  const getTeamPlayersBySide = (side) =>
+    side === 'teamA'
+      ? manualTeamPool?.teamAPlayers || []
+      : manualTeamPool?.teamBPlayers || []
 
   const selectPanel = (nextPanel) => {
     if (nextPanel === '__all-pages__') {
@@ -315,9 +209,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
     )
   }
 
-  const getMatchCacheKey = (tournamentId, matchId) =>
-    `${String(tournamentId || '')}::${String(matchId || '')}`
-
   const applyManualStatsFromSavedScore = ({
     teamAPlayers = [],
     teamBPlayers = [],
@@ -331,42 +222,15 @@ function Dashboard({ defaultPanel = 'joined' }) {
     )
   }
 
-  const cacheSavedScoreForMatch = ({ tournamentId, matchId, savedScore }) => {
-    const cacheKey = getMatchCacheKey(tournamentId, matchId)
-    setScoreManagerCache((prev) => ({
-      ...prev,
-      savedScoresByMatch: {
-        ...(prev.savedScoresByMatch || {}),
-        [cacheKey]: savedScore,
-      },
-    }))
-  }
-
   const refreshManualStatsState = async ({
-    tournamentId,
-    matchId,
     teamAPlayers = [],
     teamBPlayers = [],
-    forceRefresh = false,
   }) => {
-    const cacheKey = getMatchCacheKey(tournamentId, matchId)
-    const savedScoresByMatch = scoreManagerCache?.savedScoresByMatch || {}
-    const hasCachedScore = Object.prototype.hasOwnProperty.call(
-      savedScoresByMatch,
-      cacheKey,
-    )
-    if (!forceRefresh && hasCachedScore) {
-      applyManualStatsFromSavedScore({
-        teamAPlayers,
-        teamBPlayers,
-        savedScore: savedScoresByMatch[cacheKey],
-      })
-      return
-    }
-
     try {
-      const savedScore = await fetchAdminMatchScores({ tournamentId, matchId })
-      cacheSavedScoreForMatch({ tournamentId, matchId, savedScore: savedScore || null })
+      const savedScore = await fetchAdminMatchScores({
+        tournamentId: manualTournamentId,
+        matchId: manualMatchId,
+      })
       applyManualStatsFromSavedScore({ teamAPlayers, teamBPlayers, savedScore })
     } catch {
       applyManualStatsFromSavedScore({ teamAPlayers, teamBPlayers, savedScore: null })
@@ -438,10 +302,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
           auditLogs: data?.auditLogs || [],
         })
         setPointsRules(normalizePointsRuleTemplate(data?.pointsRuleTemplate))
-        setScoreManagerCache((prev) => ({
-          ...prev,
-          allContests: allContestsRes || [],
-        }))
+        setAllContests(allContestsRes || [])
       } catch (error) {
         if (!active) return
         setErrorText(error.message || 'Failed to load dashboard data')
@@ -459,20 +320,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
   }, [currentUserId])
 
   useEffect(() => {
-    if (
-      Array.isArray(scoreManagerCache?.tournaments) &&
-      scoreManagerCache.tournaments.length
-    ) {
-      setManualScoreContext((prev) => ({
-        ...prev,
-        tournaments: scoreManagerCache.tournaments,
-      }))
-      if (!manualTournamentId && scoreManagerCache.tournaments[0]?.id) {
-        setManualTournamentId(scoreManagerCache.tournaments[0].id)
-      }
-      return
-    }
-
     let active = true
     const loadManualContext = async () => {
       try {
@@ -480,10 +327,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
         if (!active) return
         const tournaments = data?.tournaments || []
         setManualScoreContext((prev) => ({ ...prev, tournaments }))
-        setScoreManagerCache((prev) => ({
-          ...prev,
-          tournaments,
-        }))
         if (!manualTournamentId && data?.selectedTournamentId) {
           setManualTournamentId(data.selectedTournamentId)
         }
@@ -496,24 +339,11 @@ function Dashboard({ defaultPanel = 'joined' }) {
     return () => {
       active = false
     }
-  }, [manualTournamentId, scoreManagerCache?.tournaments, setScoreManagerCache])
+  }, [manualTournamentId])
 
   useEffect(() => {
     if (!manualTournamentId) {
       setManualScoreContext((prev) => ({ ...prev, matches: [] }))
-      return
-    }
-
-    const cachedMatches = scoreManagerCache?.matchesByTournament?.[manualTournamentId]
-    if (Array.isArray(cachedMatches)) {
-      setManualScoreContext((prev) => ({ ...prev, matches: cachedMatches }))
-      setManualMatchId((prev) => {
-        const hasSelectedMatch = cachedMatches.some((item) => item.id === prev)
-        if ((!prev || !hasSelectedMatch) && cachedMatches.length) {
-          return cachedMatches[0].id
-        }
-        return prev
-      })
       return
     }
 
@@ -523,13 +353,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
         const matches = await fetchTournamentMatches(manualTournamentId)
         if (!active) return
         setManualScoreContext((prev) => ({ ...prev, matches: matches || [] }))
-        setScoreManagerCache((prev) => ({
-          ...prev,
-          matchesByTournament: {
-            ...(prev.matchesByTournament || {}),
-            [manualTournamentId]: matches || [],
-          },
-        }))
         setManualMatchId((prev) => {
           const safeMatches = matches || []
           const hasSelectedMatch = safeMatches.some((item) => item.id === prev)
@@ -548,7 +371,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
     return () => {
       active = false
     }
-  }, [manualTournamentId, scoreManagerCache?.matchesByTournament, setScoreManagerCache])
+  }, [manualTournamentId])
 
   const filteredManualContests = useMemo(() => {
     const contestManagerScopeId =
@@ -589,27 +412,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
       return
     }
 
-    const cacheKey = `${manualTournamentId}::${manualMatchId}`
-    const cachedTeamPool = scoreManagerCache?.teamPoolByMatch?.[cacheKey]
-    const cachedSavedScore = scoreManagerCache?.savedScoresByMatch?.[cacheKey]
-    const cachedPlayingXi = scoreManagerCache?.playingXiByMatch?.[cacheKey]
-    if (cachedTeamPool) {
-      setManualTeamPool(cachedTeamPool)
-      if (cachedPlayingXi) {
-        setManualPlayingXi(cachedPlayingXi)
-      }
-      setManualPlayerStats(
-        buildManualStatsState(
-          [
-            ...(cachedTeamPool.teamAPlayers || []),
-            ...(cachedTeamPool.teamBPlayers || []),
-          ],
-          cachedSavedScore?.playerStats || [],
-        ),
-      )
-      return
-    }
-
     let active = true
     const loadTeamPool = async () => {
       try {
@@ -639,11 +441,17 @@ function Dashboard({ defaultPanel = 'joined' }) {
         setManualTeamPool(nextTeamPool)
         const defaultPlayingA =
           data?.teams?.teamA?.lineup?.playingXI?.length >= 11
-            ? data.teams.teamA.lineup.playingXI
+            ? canonicalizePlayingXiNames(
+                teamAPlayers,
+                data.teams.teamA.lineup.playingXI,
+              )
             : []
         const defaultPlayingB =
           data?.teams?.teamB?.lineup?.playingXI?.length >= 11
-            ? data.teams.teamB.lineup.playingXI
+            ? canonicalizePlayingXiNames(
+                teamBPlayers,
+                data.teams.teamB.lineup.playingXI,
+              )
             : []
         const nextPlayingXi = {
           teamA: defaultPlayingA,
@@ -656,21 +464,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
             savedScore?.playerStats || [],
           ),
         )
-        setScoreManagerCache((prev) => ({
-          ...prev,
-          teamPoolByMatch: {
-            ...(prev.teamPoolByMatch || {}),
-            [cacheKey]: nextTeamPool,
-          },
-          savedScoresByMatch: {
-            ...(prev.savedScoresByMatch || {}),
-            [cacheKey]: savedScore || null,
-          },
-          playingXiByMatch: {
-            ...(prev.playingXiByMatch || {}),
-            [cacheKey]: nextPlayingXi,
-          },
-        }))
       } catch (error) {
         if (!active) return
         setErrorText(error.message || 'Failed to load playing XI for manual scoring')
@@ -685,18 +478,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
       active = false
     }
   }, [manualMatchId, manualTournamentId])
-
-  useEffect(() => {
-    if (!manualTournamentId || !manualMatchId) return
-    const cacheKey = `${manualTournamentId}::${manualMatchId}`
-    setScoreManagerCache((prev) => ({
-      ...prev,
-      playingXiByMatch: {
-        ...(prev.playingXiByMatch || {}),
-        [cacheKey]: manualPlayingXi,
-      },
-    }))
-  }, [manualPlayingXi, manualTournamentId, manualMatchId, setScoreManagerCache])
 
   const filteredJoined = useMemo(() => {
     return pageLoadData.joinedContests.filter((contest) => {
@@ -841,10 +622,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
       const { parsed, normalizedText } = parseNormalizedJsonInput(
         uploadPayloadText || '{}',
       )
-      const formattedPayloadText = JSON.stringify(parsed, null, 2)
-      if (normalizedText !== uploadPayloadText) {
-        setUploadPayloadText(formattedPayloadText)
-      }
       const playerStats = Array.isArray(parsed?.playerStats) ? parsed.playerStats : []
       const knownPlayers = [
         ...(manualTeamPool?.teamAPlayers || []),
@@ -853,33 +630,17 @@ function Dashboard({ defaultPanel = 'joined' }) {
       const knownById = new Set(
         knownPlayers.map((player) => String(player.id || '').trim()),
       )
-      const knownByName = new Map(
-        knownPlayers.map((player) => [normalizeLooseKey(player.name), player.name]),
-      )
       const knownNames = knownPlayers.map((player) => String(player.name || '').trim())
       const buildSuggestions = (needle) => {
-        const compactNeedle = normalizeLooseKey(needle)
-        if (!compactNeedle) return []
-        return knownNames
-          .map((name) => ({
-            name,
-            compact: normalizeLooseKey(name),
-          }))
-          .filter(
-            (item) =>
-              item.compact.includes(compactNeedle) ||
-              compactNeedle.includes(item.compact),
-          )
-          .slice(0, 5)
-          .map((item) => item.name)
+        return buildNameSuggestions(needle, knownNames)
       }
       const unmatchedDetails = playerStats
         .map((row) => {
           const rawId = String(row?.playerId || '').trim()
           if (rawId && knownById.has(rawId)) return null
           const inputName = String(row?.playerName || row?.name || '').trim()
-          const normalizedInput = normalizeLooseKey(inputName)
-          if (normalizedInput && knownByName.has(normalizedInput)) return null
+          const resolvedByName = resolveKnownPlayerByName(knownPlayers, inputName)
+          if (resolvedByName?.id != null) return null
           if (!rawId && !inputName) return null
           return {
             input: inputName || rawId,
@@ -890,10 +651,34 @@ function Dashboard({ defaultPanel = 'joined' }) {
         .filter(Boolean)
       if (unmatchedDetails.length > 0) {
         setScoreJsonUnmatchedDetails(unmatchedDetails)
-        setErrorText(
-          'Some players could not be mapped to this match. Fix names and retry.',
-        )
+        setErrorText(buildScoreUnmappedErrorMessage(unmatchedDetails))
         return
+      }
+
+      const playersById = new Map(
+        knownPlayers.map((player) => [String(player?.id || '').trim(), player]),
+      )
+      const resolvedPlayerStats = playerStats.map((row) => {
+        const rawId = String(row?.playerId || '').trim()
+        const inputName = String(row?.playerName || row?.name || '').trim()
+        const byId = rawId ? playersById.get(rawId) : null
+        const resolved = byId || resolveKnownPlayerByName(knownPlayers, inputName)
+        return {
+          ...row,
+          playerId: String(resolved?.id || rawId || '').trim(),
+          playerName: String(resolved?.name || inputName || '').trim(),
+        }
+      })
+      const normalizedPayload = {
+        ...(parsed || {}),
+        playerStats: resolvedPlayerStats,
+      }
+      const formattedPayloadText = JSON.stringify(normalizedPayload, null, 2)
+      if (
+        normalizedText !== uploadPayloadText ||
+        formattedPayloadText !== uploadPayloadText
+      ) {
+        setUploadPayloadText(formattedPayloadText)
       }
 
       setIsSavingScores(true)
@@ -921,11 +706,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
         `Match scores payload saved • ${impacted} contests updated • ${updatedAt}`,
       )
       if (response?.savedScore && typeof response.savedScore === 'object') {
-        cacheSavedScoreForMatch({
-          tournamentId: manualTournamentId,
-          matchId: manualMatchId,
-          savedScore: response.savedScore,
-        })
         applyManualStatsFromSavedScore({
           teamAPlayers: manualTeamPool.teamAPlayers,
           teamBPlayers: manualTeamPool.teamBPlayers,
@@ -935,11 +715,8 @@ function Dashboard({ defaultPanel = 'joined' }) {
 
       // Always fetch latest persisted stats so manual entry reflects the saved payload reliably.
       await refreshManualStatsState({
-        tournamentId: manualTournamentId,
-        matchId: manualMatchId,
         teamAPlayers: manualTeamPool.teamAPlayers,
         teamBPlayers: manualTeamPool.teamBPlayers,
-        forceRefresh: true,
       })
 
       setUploadPayloadText('')
@@ -957,15 +734,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
   const onGenerateScoreJson = () => {
     if (!manualTournamentId || !manualMatchId) {
       setErrorText('Select tournament and match before generating JSON')
-      return
-    }
-
-    const cacheKey = `${manualTournamentId}::${manualMatchId}`
-    const cached = scoreManagerCache?.generatedScoreJsonByMatch?.[cacheKey]
-    if (cached) {
-      setGeneratedScoreJsonText(cached)
-      setIsGeneratedScoreJsonOpen(true)
-      setUploadPayloadText(cached)
       return
     }
 
@@ -1051,13 +819,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
       playerStats: [...resolvedTeamA.resolved, ...resolvedTeamB.resolved].map(buildRow),
     }
     const payloadText = JSON.stringify(generated, null, 2)
-    setScoreManagerCache((prev) => ({
-      ...prev,
-      generatedScoreJsonByMatch: {
-        ...(prev.generatedScoreJsonByMatch || {}),
-        [cacheKey]: payloadText,
-      },
-    }))
     setGeneratedScoreJsonText(payloadText)
     setUploadPayloadText(payloadText)
     setScoreJsonUnmatchedDetails([])
@@ -1081,18 +842,25 @@ function Dashboard({ defaultPanel = 'joined' }) {
 
   const onToggleManualPlayingXi = (side, playerName) => {
     setManualPlayingXi((prev) => {
-      const current = Array.isArray(prev?.[side]) ? prev[side] : []
-      const exists = current.includes(playerName)
+      const players = getTeamPlayersBySide(side)
+      const resolvedPlayer = resolveKnownPlayerByName(players, playerName)
+      const nextPlayerName = String(resolvedPlayer?.name || playerName || '').trim()
+      const nextPlayerKey = normalizeLooseKey(nextPlayerName)
+      const current = canonicalizePlayingXiNames(players, prev?.[side] || [])
+      const currentKeys = new Set(current.map((item) => normalizeLooseKey(item)))
+      const exists = currentKeys.has(nextPlayerKey)
       if (exists) {
         return {
           ...prev,
-          [side]: current.filter((item) => item !== playerName),
+          [side]: current.filter(
+            (item) => normalizeLooseKey(item) !== nextPlayerKey,
+          ),
         }
       }
       if (current.length >= 12) return prev
       return {
         ...prev,
-        [side]: [...current, playerName],
+        [side]: [...current, nextPlayerName],
       }
     })
   }
@@ -1105,11 +873,16 @@ function Dashboard({ defaultPanel = 'joined' }) {
       setIsSavingScores(true)
       const buildPayloadForTeam = (players, selectedNames, existingLineup) => {
         const squad = players.map((player) => player.name)
-        const playingXI = squad.filter((name) => selectedNames.includes(name))
+        const selectedKeys = new Set(
+          canonicalizePlayingXiNames(players, selectedNames).map((name) =>
+            normalizeLooseKey(name),
+          ),
+        )
+        const playingXI = squad.filter((name) => selectedKeys.has(normalizeLooseKey(name)))
         return {
           squad,
           playingXI,
-          bench: squad.filter((name) => !selectedNames.includes(name)),
+          bench: squad.filter((name) => !selectedKeys.has(normalizeLooseKey(name))),
           captain:
             existingLineup?.captain && playingXI.includes(existingLineup.captain)
               ? existingLineup.captain
@@ -1147,18 +920,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
         teamALineup: payload[prev.teamAName],
         teamBLineup: payload[prev.teamBName],
       }))
-      const cacheKey = `${manualTournamentId}::${manualMatchId}`
-      setScoreManagerCache((prev) => ({
-        ...prev,
-        teamPoolByMatch: {
-          ...(prev.teamPoolByMatch || {}),
-          [cacheKey]: {
-            ...(prev.teamPoolByMatch?.[cacheKey] || manualTeamPool),
-            teamALineup: payload[manualTeamPool.teamAName],
-            teamBLineup: payload[manualTeamPool.teamBName],
-          },
-        },
-      }))
       setSaveNotice('Playing XI saved')
     } catch (error) {
       setErrorText(error.message || 'Failed to save playing XI')
@@ -1172,6 +933,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
       if (!manualTournamentId || !manualMatchId) return
       setSaveNotice('')
       setErrorText('')
+      setLineupJsonUnmatchedDetails([])
       setIsSavingScores(true)
       const { parsed, normalizedText } = parseNormalizedJsonInput(
         lineupPayloadText || '{}',
@@ -1181,24 +943,33 @@ function Dashboard({ defaultPanel = 'joined' }) {
       }
       const lineups =
         parsed?.lineups && typeof parsed.lineups === 'object' ? parsed.lineups : parsed
-      const teamPlayersByName = {
-        [manualTeamPool?.teamAName || '']: manualTeamPool?.teamAPlayers || [],
-        [manualTeamPool?.teamBName || '']: manualTeamPool?.teamBPlayers || [],
-      }
       const normalizedLineups = {}
       let unmatched = []
       Object.entries(lineups || {}).forEach(([teamName, teamPayload]) => {
-        const knownPlayers = teamPlayersByName[teamName] || []
-        const result = normalizeLineupTeamPayload(teamPayload, knownPlayers, teamName)
-        normalizedLineups[teamName] = result.normalized
+        const resolvedTeam = resolveTeamPlayersForInput(teamName)
+        if (!resolvedTeam?.key) {
+          unmatched.push({
+            team: teamName || '-',
+            field: 'team',
+            input: teamName || '-',
+            suggestions: [
+              manualTeamPool?.teamAName || '',
+              manualTeamPool?.teamBName || '',
+            ].filter(Boolean),
+          })
+          return
+        }
+        const result = normalizeLineupTeamPayload(
+          teamPayload,
+          resolvedTeam.players,
+          resolvedTeam.key || teamName,
+        )
+        normalizedLineups[resolvedTeam.key || teamName] = result.normalized
         unmatched = unmatched.concat(result.unmatched)
       })
       if (unmatched.length > 0) {
-        const sample = unmatched
-          .slice(0, 3)
-          .map((item) => `${item.team}: ${item.input}`)
-          .join(', ')
-        setErrorText(`Lineup JSON contains unmapped players. Fix and retry. ${sample}`)
+        setLineupJsonUnmatchedDetails(unmatched)
+        setErrorText(buildLineupUnmappedErrorMessage(unmatched))
         return
       }
       const response = await upsertMatchLineups({
@@ -1214,7 +985,9 @@ function Dashboard({ defaultPanel = 'joined' }) {
       })
       setLineupPreviewPayload(response?.saved?.lineups || {})
       setIsLineupPreviewOpen(true)
+      setLineupJsonUnmatchedDetails([])
     } catch (error) {
+      setLineupJsonUnmatchedDetails([])
       setErrorText(error.message || 'Failed to save lineup JSON')
     } finally {
       setIsSavingScores(false)
@@ -1237,11 +1010,14 @@ function Dashboard({ defaultPanel = 'joined' }) {
     const buildTeamPayload = (players = [], selected = []) => {
       const squad = players.map((player) => player.name).filter(Boolean)
       const selectedSet = new Set(
-        (selected || []).map((name) => String(name || '').trim()),
+        canonicalizePlayingXiNames(players, selected).map((name) =>
+          normalizeLooseKey(name),
+        ),
       )
-      const playingXI = squad.filter((name) => selectedSet.has(name)).slice(0, 12)
-      const bench = squad.filter((name) => !playingXI.includes(name))
-      return { squad, playingXI, bench }
+      const playingXI = squad
+        .filter((name) => selectedSet.has(normalizeLooseKey(name)))
+        .slice(0, 12)
+      return { playingXI }
     }
 
     const teamAName = manualTeamPool?.teamAName || 'Team A'
@@ -1277,24 +1053,34 @@ function Dashboard({ defaultPanel = 'joined' }) {
     try {
       if (!manualTournamentId || !manualMatchId) return
       if (!lineupPreviewPayload || typeof lineupPreviewPayload !== 'object') return
-      const teamPlayersByName = {
-        [manualTeamPool?.teamAName || '']: manualTeamPool?.teamAPlayers || [],
-        [manualTeamPool?.teamBName || '']: manualTeamPool?.teamBPlayers || [],
-      }
+      setLineupJsonUnmatchedDetails([])
       const lineupsToSave = {}
       let unmatched = []
       Object.entries(lineupPreviewPayload || {}).forEach(([teamName, teamPayload]) => {
-        const knownPlayers = teamPlayersByName[teamName] || []
-        const result = normalizeLineupTeamPayload(teamPayload, knownPlayers, teamName)
-        lineupsToSave[teamName] = result.normalized
+        const resolvedTeam = resolveTeamPlayersForInput(teamName)
+        if (!resolvedTeam?.key) {
+          unmatched.push({
+            team: teamName || '-',
+            field: 'team',
+            input: teamName || '-',
+            suggestions: [
+              manualTeamPool?.teamAName || '',
+              manualTeamPool?.teamBName || '',
+            ].filter(Boolean),
+          })
+          return
+        }
+        const result = normalizeLineupTeamPayload(
+          teamPayload,
+          resolvedTeam.players,
+          resolvedTeam.key || teamName,
+        )
+        lineupsToSave[resolvedTeam.key || teamName] = result.normalized
         unmatched = unmatched.concat(result.unmatched)
       })
       if (unmatched.length > 0) {
-        const sample = unmatched
-          .slice(0, 3)
-          .map((item) => `${item.team}: ${item.input}`)
-          .join(', ')
-        setErrorText(`Lineup JSON contains unmapped players. Fix and retry. ${sample}`)
+        setLineupJsonUnmatchedDetails(unmatched)
+        setErrorText(buildLineupUnmappedErrorMessage(unmatched))
         return
       }
       setIsLineupPreviewOpen(false)
@@ -1319,32 +1105,18 @@ function Dashboard({ defaultPanel = 'joined' }) {
         teamALineup: saved[prev.teamAName] || prev.teamALineup,
         teamBLineup: saved[prev.teamBName] || prev.teamBLineup,
       }))
-      const nextPlayingXi = {
+      const nextPlayingXi = canonicalizePlayingXiState(manualTeamPool, {
         teamA: saved[manualTeamPool.teamAName]?.playingXI || manualPlayingXi.teamA,
         teamB: saved[manualTeamPool.teamBName]?.playingXI || manualPlayingXi.teamB,
-      }
+      })
       setManualPlayingXi(nextPlayingXi)
-      const cacheKey = `${manualTournamentId}::${manualMatchId}`
-      setScoreManagerCache((prev) => ({
-        ...prev,
-        teamPoolByMatch: {
-          ...(prev.teamPoolByMatch || {}),
-          [cacheKey]: {
-            ...(prev.teamPoolByMatch?.[cacheKey] || manualTeamPool),
-            teamALineup: saved[manualTeamPool.teamAName] || manualTeamPool.teamALineup,
-            teamBLineup: saved[manualTeamPool.teamBName] || manualTeamPool.teamBLineup,
-          },
-        },
-        playingXiByMatch: {
-          ...(prev.playingXiByMatch || {}),
-          [cacheKey]: nextPlayingXi,
-        },
-      }))
       setSaveNotice('Playing XI JSON saved')
       setLineupPayloadText('')
+      setLineupJsonUnmatchedDetails([])
       setLineupPreviewPayload(null)
       setIsLineupPreviewOpen(false)
     } catch (error) {
+      setLineupJsonUnmatchedDetails([])
       setErrorText(error.message || 'Failed to save lineup JSON')
     } finally {
       setIsSavingScores(false)
@@ -1383,11 +1155,6 @@ function Dashboard({ defaultPanel = 'joined' }) {
         : 'now'
       setSaveNotice(`Manual scores saved • ${impacted} contests updated • ${updatedAt}`)
       if (response?.savedScore && typeof response.savedScore === 'object') {
-        cacheSavedScoreForMatch({
-          tournamentId: manualTournamentId,
-          matchId: manualMatchId,
-          savedScore: response.savedScore,
-        })
         applyManualStatsFromSavedScore({
           teamAPlayers: manualTeamPool.teamAPlayers,
           teamBPlayers: manualTeamPool.teamBPlayers,
@@ -1395,11 +1162,8 @@ function Dashboard({ defaultPanel = 'joined' }) {
         })
       } else {
         await refreshManualStatsState({
-          tournamentId: manualTournamentId,
-          matchId: manualMatchId,
           teamAPlayers: manualTeamPool.teamAPlayers,
           teamBPlayers: manualTeamPool.teamBPlayers,
-          forceRefresh: true,
         })
       }
     } catch (error) {
@@ -1429,18 +1193,10 @@ function Dashboard({ defaultPanel = 'joined' }) {
 
       const impacted = Number(response?.impactedContests || 0)
       setSaveNotice(`Match scores reset • ${impacted} contests updated`)
-      cacheSavedScoreForMatch({
-        tournamentId: manualTournamentId,
-        matchId: manualMatchId,
-        savedScore: null,
-      })
 
       await refreshManualStatsState({
-        tournamentId: manualTournamentId,
-        matchId: manualMatchId,
         teamAPlayers: manualTeamPool.teamAPlayers,
         teamBPlayers: manualTeamPool.teamBPlayers,
-        forceRefresh: true,
       })
     } catch (error) {
       setErrorText(error.message || 'Failed to reset match scores')
@@ -1499,6 +1255,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
         uploadPayloadText={uploadPayloadText}
         setUploadPayloadText={setUploadPayloadText}
         scoreJsonUnmatchedDetails={scoreJsonUnmatchedDetails}
+        lineupJsonUnmatchedDetails={lineupJsonUnmatchedDetails}
         lineupPayloadText={lineupPayloadText}
         setLineupPayloadText={setLineupPayloadText}
         manualScoreContext={manualScoreContext}
@@ -1508,6 +1265,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
         setManualMatchId={setManualMatchId}
         manualTeamPool={manualTeamPool}
         manualPlayerStats={manualPlayerStats}
+        pointsRules={pointsRules}
         manualPlayingXi={manualPlayingXi}
         onToggleManualPlayingXi={onToggleManualPlayingXi}
         onSaveManualLineups={onSaveManualLineups}
@@ -1541,6 +1299,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
         uploadPayloadText={uploadPayloadText}
         setUploadPayloadText={setUploadPayloadText}
         scoreJsonUnmatchedDetails={scoreJsonUnmatchedDetails}
+        lineupJsonUnmatchedDetails={lineupJsonUnmatchedDetails}
         lineupPayloadText={lineupPayloadText}
         setLineupPayloadText={setLineupPayloadText}
         manualScoreContext={manualScoreContext}
@@ -1550,6 +1309,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
         setManualMatchId={setManualMatchId}
         manualTeamPool={manualTeamPool}
         manualPlayerStats={manualPlayerStats}
+        pointsRules={pointsRules}
         manualPlayingXi={manualPlayingXi}
         onToggleManualPlayingXi={onToggleManualPlayingXi}
         onSaveManualLineups={onSaveManualLineups}

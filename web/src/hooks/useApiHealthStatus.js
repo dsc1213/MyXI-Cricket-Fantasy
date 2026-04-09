@@ -7,8 +7,7 @@ function useApiHealthStatus({
   checkDurationMs = 800,
   initialCheck = true,
 } = {}) {
-  const [apiStatus, setApiStatus] = useState('pending')
-  const [showApiError, setShowApiError] = useState(false)
+  const [apiStatus, setApiStatusState] = useState('pending')
   const [checkingApi, setCheckingApi] = useState(false)
   const [reconnectAttempt, setReconnectAttempt] = useState(0)
   const apiDotRef = useRef(null)
@@ -21,6 +20,17 @@ function useApiHealthStatus({
     }
   }, [])
 
+  const setApiStatus = useCallback(
+    (nextStatus) => {
+      setApiStatusState(nextStatus)
+      if (nextStatus === 'ok') {
+        clearReconnectTimer()
+        setReconnectAttempt(0)
+      }
+    },
+    [clearReconnectTimer],
+  )
+
   const checkApi = useCallback(
     (isAutoRetry = false) => {
       setCheckingApi(true)
@@ -30,15 +40,6 @@ function useApiHealthStatus({
     },
     [checkDurationMs],
   )
-
-  useEffect(() => {
-    if (apiStatus === 'fail') setShowApiError(true)
-    if (apiStatus === 'ok') {
-      setShowApiError(false)
-      setReconnectAttempt(0)
-      clearReconnectTimer()
-    }
-  }, [apiStatus, clearReconnectTimer])
 
   useEffect(() => {
     if (!autoRetry || apiStatus !== 'fail' || reconnectAttempt >= maxRetries) {
@@ -72,6 +73,8 @@ function useApiHealthStatus({
       clearReconnectTimer()
     }
   }, [initialCheck, clearReconnectTimer])
+
+  const showApiError = apiStatus === 'fail'
 
   return {
     apiStatus,

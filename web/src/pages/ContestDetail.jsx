@@ -41,9 +41,6 @@ const normalizeContestParticipants = (payload) => {
   }
 }
 
-const normalizeMatchStatus = (value) =>
-  (value || '').toString().trim().toLowerCase().replace(/\s+/g, '')
-
 const getMatchStartTime = (match) => {
   const raw = (match?.startAt || match?.startTime || '').toString().trim()
   if (!raw) return Number.POSITIVE_INFINITY
@@ -246,8 +243,9 @@ function ContestDetail() {
         setPreviewBackups([])
         setErrorText(error.message || 'Failed to load participants')
       } finally {
-        if (!active) return
-        setIsLoadingParticipants(false)
+        if (active) {
+          setIsLoadingParticipants(false)
+        }
       }
     }
 
@@ -323,7 +321,6 @@ function ContestDetail() {
     }
   }
 
-  const activeMatch = matches.find((match) => match.id === selectedMatchId) || matches[0]
   const sortedMatches = useMemo(() => sortContestMatches(matches), [matches])
   const activeSortedMatch =
     sortedMatches.find((match) => match.id === selectedMatchId) || sortedMatches[0]

@@ -1,6 +1,13 @@
 import { createRepositoryFactory } from '../repositories/repository.factory.js'
 import { dbQuery } from '../db.js'
 import { mapMatchWithDerivedStatus } from './tournamentImport.service.js'
+import scoringRuleService from './scoring-rule.service.js'
+import { cloneDefaultPointsRules } from '../default-points-rules.js'
+import {
+  calculateFantasyPointBreakdown,
+  getRuleSetForTournament,
+  resolveEffectiveSelection,
+} from '../scoring.js'
 
 const factory = createRepositoryFactory()
 
@@ -136,6 +143,27 @@ class PlayerService {
     fallbackSquad = [],
     strictSquad = false,
   }) {
+    const findDuplicateLineupNames = (values = []) => {
+      const firstSeenByKey = new Map()
+      const duplicates = []
+      const seenDuplicateKeys = new Set()
+
+      for (const item of Array.isArray(values) ? values : []) {
+        const normalizedName = this.normalizeLineupName(item)
+        if (!normalizedName) continue
+        const key = this.normalizeLineupNameKey(normalizedName)
+        if (!firstSeenByKey.has(key)) {
+          firstSeenByKey.set(key, normalizedName)
+          continue
+        }
+        if (seenDuplicateKeys.has(key)) continue
+        seenDuplicateKeys.add(key)
+        duplicates.push(firstSeenByKey.get(key))
+      }
+
+      return duplicates
+    }
+
     if (!payload || typeof payload !== 'object') {
       throw new Error(`lineups.${teamCode} is required`)
     }
@@ -144,6 +172,7 @@ class PlayerService {
     const normalizedSquad = this.dedupeLineupNames(
       providedSquad.length ? providedSquad : fallbackSquad,
     )
+    const submittedPlayingXI = Array.isArray(payload.playingXI) ? payload.playingXI : []
     const playingXI = this.dedupeLineupNames(payload.playingXI)
     const bench = this.dedupeLineupNames(payload.bench)
 
@@ -151,8 +180,18 @@ class PlayerService {
       throw new Error(`lineups.${teamCode}.squad is required for manual updates`)
     }
     if (playingXI.length < 11 || playingXI.length > 12) {
+      const duplicates = findDuplicateLineupNames(submittedPlayingXI)
+      const submittedNames = (Array.isArray(submittedPlayingXI) ? submittedPlayingXI : [])
+        .map((name) => this.normalizeLineupName(name))
+        .filter(Boolean)
+      const duplicateText = duplicates.length
+        ? ` Duplicates: ${duplicates.join(', ')}.`
+        : ''
+      const submittedText = submittedNames.length
+        ? ` Submitted players: ${submittedNames.join(', ')}.`
+        : ''
       throw new Error(
-        `lineups.${teamCode}.playingXI must contain 11 or 12 unique players`,
+        `lineups.${teamCode}.playingXI must contain 11 or 12 unique players. Received ${playingXI.length} unique players from ${submittedPlayingXI.length} entries.${duplicateText}${submittedText} Next steps: check the full submitted list above, remove duplicates if any, and make sure exactly 11 or 12 valid player names are listed.`,
       )
     }
 
@@ -286,6 +325,58 @@ class PlayerService {
         payload.player_id ||
         null,
       playerId: payload.playerId || payload.player_id || null,
+    })
+  }
+
+  // Updates one catalog player while preserving canonical identity.
+  async updatePlayer(id, payload = {}) {
+    const repo = await factory.getPlayerRepository()
+    if (!id && id !== 0) throw new Error('Player id is required')
+    const existing = await repo.findById(id)
+    if (!existing) throw new Error('Player not found')
+    const { fullName, country, role } = this.validatePlayerPayload(payload, {
+      label: 'Player',
+    })
+    await this.ensureNoDuplicateCatalogPlayer({
+      ...payload,
+      id: existing.id,
+      canonicalPlayerId: existing.id,
+    })
+    const firstName =
+      payload.firstName ||
+      payload.first_name ||
+      fullName.split(/\s+/).slice(0, -1).join(' ') ||
+      fullName
+    const lastName =
+      payload.lastName ||
+      payload.last_name ||
+      fullName.split(/\s+/).slice(-1).join(' ') ||
+      ''
+    return await repo.upsertCanonical({
+      canonicalPlayerId: existing.id,
+      id: existing.id,
+      firstName,
+      lastName,
+      displayName: fullName,
+      role,
+      country,
+      imageUrl:
+        payload.imageUrl !== undefined
+          ? (payload.imageUrl || '').toString().trim()
+          : existing.imageUrl || '',
+      battingStyle:
+        payload.battingStyle !== undefined
+          ? (payload.battingStyle || '').toString().trim()
+          : existing.battingStyle || '',
+      bowlingStyle:
+        payload.bowlingStyle !== undefined
+          ? (payload.bowlingStyle || '').toString().trim()
+          : existing.bowlingStyle || '',
+      active: payload.active !== undefined ? payload.active !== false : existing.active,
+      sourceKey: existing.sourceKey || payload.sourceKey || payload.source_key || null,
+      playerId: existing.playerId || payload.playerId || payload.player_id || null,
+      teamKey: existing.teamKey || '',
+      teamName: existing.teamName || '',
     })
   }
 
@@ -720,6 +811,32 @@ class PlayerService {
       return next
     }
 
+    const scoringRuleRecord = await scoringRuleService.getScoringRulesByTournament(
+      resolvedTournamentId,
+    )
+    const ruleSet = getRuleSetForTournament({
+      tournamentId: resolvedTournamentId,
+      scoringRules: scoringRuleRecord?.rules
+        ? [{ tournamentId: resolvedTournamentId, rules: scoringRuleRecord.rules }]
+        : [],
+      dashboardRuleTemplate: cloneDefaultPointsRules(),
+    })
+    const matchScoreRows =
+      matchId != null
+        ? await dbQuery(
+            `SELECT player_id as "playerId", raw_stats as "rawStats"
+             FROM player_match_scores
+             WHERE tournament_id = $1 AND match_id = $2`,
+            [resolvedTournamentId, matchId],
+          )
+        : { rows: [] }
+    const statsByPlayerId = new Map(
+      (matchScoreRows.rows || []).map((row) => [
+        Number(row.playerId),
+        typeof row.rawStats === 'string' ? JSON.parse(row.rawStats) : row.rawStats || {},
+      ]),
+    )
+
     if (isFixedRoster) {
       const fixedRosterResult = await dbQuery(
         `SELECT player_ids as "playerIds"
@@ -747,10 +864,19 @@ class PlayerService {
       const rosterDetailed = playerIds
         .map((id) => playerById.get(String(id)))
         .filter(Boolean)
-        .map((entry) => ({
-          ...entry,
-          points: Number(pointsByPlayerId.get(Number(entry.id)) || 0),
-        }))
+        .map((entry) => {
+          const stats = statsByPlayerId.get(Number(entry.id)) || null
+          const basePoints = Number(pointsByPlayerId.get(Number(entry.id)) || 0)
+          return {
+            ...entry,
+            basePoints,
+            multiplier: 1,
+            points: basePoints,
+            roleTag: '',
+            rawStats: stats,
+            pointBreakdown: stats ? calculateFantasyPointBreakdown(stats, ruleSet) : [],
+          }
+        })
       const picksDetailed = activeTeamSet.size
         ? rosterDetailed.filter((entry) =>
             activeTeamSet.has(
@@ -788,20 +914,63 @@ class PlayerService {
       matchId && userId
         ? await teamSelectionRepo.findByMatchAndUser(matchId, userId, contest?.id || null)
         : null
-    const picksDetailedRaw = (selection?.playingXi || [])
-      .map((id) => playerById.get(String(id)))
+    const activePlayerIds = Array.from(pointsByPlayerId.keys())
+    const resolvedSelection = resolveEffectiveSelection({
+      playingXi: selection?.playingXi || [],
+      backups: selection?.backups || [],
+      activePlayerIds,
+      captainId: selection?.captainId || null,
+      viceCaptainId: selection?.viceCaptainId || null,
+    })
+    const buildPreviewEntry = (id, { forcePlainMultiplier = false } = {}) => {
+      const baseEntry = playerById.get(String(id))
+      if (!baseEntry) return null
+
+      const numericId = Number(id)
+      const basePoints = Number(pointsByPlayerId.get(numericId) || 0)
+      const stats = statsByPlayerId.get(numericId) || null
+
+      let multiplier = 1
+      let roleTag = ''
+      if (!forcePlainMultiplier) {
+        if (
+          resolvedSelection.captainApplies &&
+          Number(selection?.captainId) === numericId
+        ) {
+          multiplier = 2
+          roleTag = 'C'
+        } else if (
+          resolvedSelection.viceCaptainApplies &&
+          Number(selection?.viceCaptainId) === numericId
+        ) {
+          multiplier = 1.5
+          roleTag = 'VC'
+        }
+      }
+
+      return {
+        ...baseEntry,
+        basePoints,
+        multiplier,
+        points: basePoints * multiplier,
+        roleTag,
+        rawStats: stats,
+        pointBreakdown: stats ? calculateFantasyPointBreakdown(stats, ruleSet) : [],
+      }
+    }
+
+    const effectiveIdKeys = new Set(
+      (resolvedSelection.effectivePlayerIds || []).map((id) => String(id)),
+    )
+    const picksDetailedRaw = (resolvedSelection.effectivePlayerIds || [])
+      .map((id) => buildPreviewEntry(id))
       .filter(Boolean)
-      .map((entry) => ({
-        ...entry,
-        points: Number(pointsByPlayerId.get(Number(entry.id)) || 0),
-      }))
-    const backupsDetailedRaw = (selection?.backups || [])
-      .map((id) => playerById.get(String(id)))
+    const backupsDetailedRaw = [
+      ...(selection?.playingXi || []).filter((id) => !effectiveIdKeys.has(String(id))),
+      ...(selection?.backups || []).filter((id) => !effectiveIdKeys.has(String(id))),
+    ]
+      .map((id) => buildPreviewEntry(id, { forcePlainMultiplier: true }))
       .filter(Boolean)
-      .map((entry) => ({
-        ...entry,
-        points: Number(pointsByPlayerId.get(Number(entry.id)) || 0),
-      }))
     const picksDetailed = await decorateWithLineupStatus(picksDetailedRaw)
     const backupsDetailed = await decorateWithLineupStatus(backupsDetailedRaw)
     return {

@@ -95,6 +95,66 @@ const calculateFantasyPoints = (stats, ruleSet) => {
   return total
 }
 
+const calculateFantasyPointBreakdown = (stats, ruleSet) => {
+  const rows = []
+  const push = (label, count, valuePerUnit) => {
+    const numericCount = Number(count || 0)
+    const numericValue = Number(valuePerUnit || 0)
+    if (!numericCount || !numericValue) return
+    rows.push({
+      label,
+      count: numericCount,
+      valuePerUnit: numericValue,
+      points: numericCount * numericValue,
+    })
+  }
+
+  const runs = Number(stats?.runs || 0)
+  const wickets = Number(stats?.wickets || 0)
+  const catches = Number(stats?.catches || 0)
+  const fours = Number(stats?.fours || 0)
+  const sixes = Number(stats?.sixes || 0)
+  const maidens = Number(stats?.maidens || 0)
+  const wides = Number(stats?.wides || 0)
+  const noBalls = Number(stats?.noBalls || 0)
+  const stumpings = Number(stats?.stumpings || 0)
+  const runoutDirect = Number(stats?.runoutDirect || 0)
+  const runoutIndirect = Number(stats?.runoutIndirect || 0)
+
+  push('Runs', runs, ruleSet.run)
+  push('Fours', fours, ruleSet.four)
+  push('Sixes', sixes, ruleSet.six)
+  push('Wickets', wickets, ruleSet.wicket)
+  push('Maidens', maidens, ruleSet.maiden)
+  push('Wides + no balls', wides + noBalls, ruleSet.wide)
+  push('Catches', catches, ruleSet.catch)
+  push('Stumpings', stumpings, ruleSet.stumping)
+  push('Run-out direct', runoutDirect, ruleSet.runoutDirect)
+  push('Run-out assist', runoutIndirect, ruleSet.runoutIndirect)
+
+  if (runs >= 100 && Number(ruleSet.century || 0)) {
+    rows.push({ label: 'Century bonus', count: 1, valuePerUnit: ruleSet.century, points: Number(ruleSet.century || 0) })
+  } else if (runs >= 50 && Number(ruleSet.fifty || 0)) {
+    rows.push({ label: 'Fifty bonus', count: 1, valuePerUnit: ruleSet.fifty, points: Number(ruleSet.fifty || 0) })
+  } else if (runs >= 30 && Number(ruleSet.thirty || 0)) {
+    rows.push({ label: 'Thirty bonus', count: 1, valuePerUnit: ruleSet.thirty, points: Number(ruleSet.thirty || 0) })
+  }
+
+  if (runs === 0 && stats?.dismissed === true && Number(ruleSet.duck || 0)) {
+    rows.push({ label: 'Duck', count: 1, valuePerUnit: ruleSet.duck, points: Number(ruleSet.duck || 0) })
+  }
+
+  if (wickets >= 5 && Number(ruleSet.fivew || 0)) {
+    rows.push({ label: 'Five wicket bonus', count: 1, valuePerUnit: ruleSet.fivew, points: Number(ruleSet.fivew || 0) })
+  } else if (wickets >= 4 && Number(ruleSet.fourw || 0)) {
+    rows.push({ label: 'Four wicket bonus', count: 1, valuePerUnit: ruleSet.fourw, points: Number(ruleSet.fourw || 0) })
+  } else if (wickets >= 3 && Number(ruleSet.threew || 0)) {
+    rows.push({ label: 'Three wicket bonus', count: 1, valuePerUnit: ruleSet.threew, points: Number(ruleSet.threew || 0) })
+  }
+
+  return rows
+}
+
 const FIRST_NAME_ALIASES = new Map([
   ['philip', 'phil'],
   ['phillip', 'phil'],
@@ -392,6 +452,7 @@ const resolveEffectiveSelection = ({
 export {
   getRuleSetForTournament,
   calculateFantasyPoints,
+  calculateFantasyPointBreakdown,
   buildPlayerIdentityIndex,
   resolvePlayerStatPlayer,
   normalizePlayerStatRows,

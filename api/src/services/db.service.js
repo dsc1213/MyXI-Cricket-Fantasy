@@ -789,6 +789,22 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Updates a single catalog player from admin tools.
+    router.put('/admin/players/:id', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res.status(403).json({ message: 'Only admin/master can manage players' })
+        }
+        const player = await playerService.updatePlayer(req.params.id, req.body || {})
+        return res.json({ ok: true, player })
+      } catch (error) {
+        return res
+          .status(400)
+          .json({ message: error.message || 'Failed to update player' })
+      }
+    })
+
     // Deletes multiple players in one admin action.
     router.post('/admin/players/bulk-delete', async (req, res, next) => {
       try {
@@ -1129,7 +1145,17 @@ const createDbService = (dependencies) => {
             meta: req.body?.meta || {},
           },
         )
-        return res.json(payload)
+        const replacement =
+          req.body?.dryRun === true
+            ? null
+            : await matchService.forceApplyBackupReplacement(req.body?.matchId)
+        return res.json({
+          ...payload,
+          autoReplacement: replacement?.autoReplacement || {
+            updatedSelections: 0,
+            skippedSelections: 0,
+          },
+        })
       } catch (error) {
         return res
           .status(400)

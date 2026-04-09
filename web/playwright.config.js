@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const apiMode = process.env.PW_API_MODE === 'db' ? 'db' : 'mock'
+const apiMode = globalThis?.process?.env?.PW_API_MODE === 'db' ? 'db' : 'mock'
 const useMockApi = apiMode === 'mock'
 
 export default defineConfig({

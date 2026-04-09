@@ -4,6 +4,7 @@ import ApiFailureTile from '../components/ui/ApiFailureTile.jsx'
 import Button from '../components/ui/Button.jsx'
 import LoadingNote from '../components/ui/LoadingNote.jsx'
 import Modal from '../components/ui/Modal.jsx'
+import PlayingXiModalLink from '../components/ui/PlayingXiModalLink.jsx'
 import SelectField from '../components/ui/SelectField.jsx'
 import ContestTileCard from '../components/contest/ContestTileCard.jsx'
 import {
@@ -15,6 +16,7 @@ import {
   joinContest,
 } from '../lib/api.js'
 import { getStoredUser } from '../lib/auth.js'
+import { formatCompactMatchLabel } from '../lib/matchLabels.js'
 
 const tournamentPalette = [
   '#0f7a67',
@@ -249,7 +251,6 @@ function FantasyHub() {
   const showApiFailureTile =
     !isLoading && !!errorText && tournaments.length === 0 && contests.length === 0
   const canCreateContest = !isLoading && tournaments.length > 0
-  const selectableMatchOptions = useMemo(() => contestMatchOptions, [contestMatchOptions])
   const canCreateWithMatches = selectedContestMatchIds.length > 0
 
   useEffect(() => {
@@ -760,11 +761,16 @@ function FantasyHub() {
                         }}
                       />
                       <span>
-                        Match {match.matchNo}: {match.name}
+                        {formatCompactMatchLabel(match)}
                         <small>
                           {formatLocalMatchOptionDate(match.startAt || match.date)} -{' '}
                           {match.status}
                         </small>
+                        <PlayingXiModalLink
+                          tournamentId={selectedTournament}
+                          matchId={match.id}
+                          className="inline-playing-xi-link"
+                        />
                       </span>
                     </label>
                   )

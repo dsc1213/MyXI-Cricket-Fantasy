@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 function normalizeInitials(value = '') {
   const words = value
@@ -14,16 +14,18 @@ function normalizeInitials(value = '') {
 function PlayerAvatar({ name = '', imageUrl = '', size = 'sm' }) {
   const normalizedUrl = imageUrl.toString().trim()
   const usableImage = Boolean(normalizedUrl) && !normalizedUrl.endsWith('/icon512.png')
-  const [imageFailed, setImageFailed] = useState(false)
-
-  useEffect(() => {
-    setImageFailed(false)
-  }, [normalizedUrl])
+  const [failedImageUrl, setFailedImageUrl] = useState('')
+  const imageFailed = failedImageUrl === normalizedUrl
 
   return (
     <span className={`player-avatar ${size}`.trim()} aria-hidden="true">
       {usableImage && !imageFailed ? (
-        <img src={normalizedUrl} alt="" loading="lazy" onError={() => setImageFailed(true)} />
+        <img
+          src={normalizedUrl}
+          alt=""
+          loading="lazy"
+          onError={() => setFailedImageUrl(normalizedUrl)}
+        />
       ) : (
         <span
           className="player-avatar-fallback"

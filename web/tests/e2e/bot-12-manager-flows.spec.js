@@ -670,6 +670,7 @@ test.describe('12) Squad manager + tournament manager flows', () => {
 
   test('squad manager success notice uses success color after save', async ({ page }) => {
     const tag = Date.now()
+    const tournamentId = `readonly-squad-${tag}`
     await page.route('**/admin/team-squads', async (route) => {
       await route.fulfill({
         status: 201,
@@ -1243,6 +1244,9 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await expect(scoreModal.getByRole('button', { name: 'Copy AI Prompt' })).toBeVisible()
     await expect(scoreModal.locator('.score-preview-textarea-prompt')).toContainText(
       '/match-scores/save',
+    )
+    await expect(scoreModal.locator('.score-preview-textarea-prompt')).toContainText(
+      'playerId is optional. Do not invent ids.',
     )
   })
 
@@ -2276,7 +2280,6 @@ test.describe('12) Squad manager + tournament manager flows', () => {
 
   test('admin can manually start a scheduled fantasy contest and close joins', async ({
     page,
-    request,
   }) => {
     const tag = Date.now()
     const tournamentId = `contest-start-window-${tag}`

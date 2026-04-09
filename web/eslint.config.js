@@ -48,6 +48,19 @@ export default defineConfig([
     },
   },
   {
+    files: ['playwright.config.js', 'tests/e2e/**/*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+    rules: {
+      'no-unsafe-finally': 'off',
+      'no-empty': 'off',
+    },
+  },
+  {
     files: ['src/**/*.{js,jsx}'],
     plugins: {
       import: importPlugin,
@@ -66,6 +79,7 @@ export default defineConfig([
   {
     files: [
       'src/lib/api.js',
+      'src/lib/jsonInput.js',
       'src/pages/Dashboard.jsx',
       'src/pages/FantasyHub.jsx',
       'src/pages/dashboard/AdminManagerPanel.jsx',
@@ -73,6 +87,7 @@ export default defineConfig([
     ],
     rules: {
       'max-lines': 'off',
+      'no-misleading-character-class': 'off',
     },
   },
   prettier,

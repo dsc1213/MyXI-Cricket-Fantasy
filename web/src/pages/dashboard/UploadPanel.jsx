@@ -4,13 +4,23 @@ import { CountryText } from '../../components/ui/CountryFlag.jsx'
 import JsonAssistantModal from '../../components/ui/JsonAssistantModal.jsx'
 import JsonTextareaField from '../../components/ui/JsonTextareaField.jsx'
 import PlayerIdentity from '../../components/ui/PlayerIdentity.jsx'
+import PlayingXiModalLink from '../../components/ui/PlayingXiModalLink.jsx'
 import SelectField from '../../components/ui/SelectField.jsx'
 import StickyTable from '../../components/ui/StickyTable.jsx'
-import { getCountryFlag } from '../../components/ui/countryFlagUtils.js'
+import { formatCompactMatchLabel } from '../../lib/matchLabels.js'
 import {
   getPlayerDisplayRoleRank,
   sortPlayersByDisplayRole,
 } from '../../lib/playerRoleSort.js'
+import { normalizeLooseKey } from './utils.js'
+import {
+  buildLineupJsonSchemaTemplate,
+  LINEUP_AI_PROMPT_TEXT,
+  LINEUP_JSON_FALLBACK,
+  SCORE_AI_PROMPT_TEXT,
+  SCORE_JSON_FALLBACK,
+  SCORE_JSON_SCHEMA_TEMPLATE,
+} from './templates/jsonTemplates.js'
 
 function UploadPanel({
   forcedMatchOpsTab = '',
@@ -20,6 +30,7 @@ function UploadPanel({
   uploadPayloadText,
   setUploadPayloadText,
   scoreJsonUnmatchedDetails,
+  lineupJsonUnmatchedDetails,
   lineupPayloadText,
   setLineupPayloadText,
   manualScoreContext,
@@ -29,6 +40,7 @@ function UploadPanel({
   setManualMatchId,
   manualTeamPool,
   manualPlayerStats,
+  pointsRules,
   manualPlayingXi,
   onToggleManualPlayingXi,
   onSaveManualLineups,
@@ -66,7 +78,10 @@ function UploadPanel({
 
   useEffect(() => {
     if (!forcedMatchOpsTab) return
-    setActiveMatchOpsTab(forcedMatchOpsTab)
+    const id = window.setTimeout(() => {
+      setActiveMatchOpsTab(forcedMatchOpsTab)
+    }, 0)
+    return () => window.clearTimeout(id)
   }, [forcedMatchOpsTab])
   const calculateStrikeRate = (runs, ballsFaced) => {
     const parsedRuns = Number(runs || 0)
@@ -117,19 +132,10 @@ function UploadPanel({
       players: manualTeamPool?.teamBPlayers || [],
     },
   ]
-  const sortedManualTeamTabs = useMemo(
-    () =>
-      manualTeamTabs.map((team) => ({
-        ...team,
-        players: sortPlayersByDisplayRole(team.players || []),
-      })),
-    [
-      manualTeamPool?.teamAName,
-      manualTeamPool?.teamAPlayers,
-      manualTeamPool?.teamBName,
-      manualTeamPool?.teamBPlayers,
-    ],
-  )
+  const sortedManualTeamTabs = manualTeamTabs.map((team) => ({
+    ...team,
+    players: sortPlayersByDisplayRole(team.players || []),
+  }))
   const manualCategoryTabs = [
     { key: 'batting', label: 'Bat' },
     { key: 'bowling', label: 'Bowl' },
@@ -149,21 +155,10 @@ function UploadPanel({
       selected: manualPlayingXi?.teamB || [],
     },
   ]
-  const sortedManualLineupTeams = useMemo(
-    () =>
-      manualLineupTeams.map((team) => ({
-        ...team,
-        players: sortPlayersByDisplayRole(team.players || []),
-      })),
-    [
-      manualPlayingXi?.teamA,
-      manualPlayingXi?.teamB,
-      manualTeamPool?.teamAName,
-      manualTeamPool?.teamAPlayers,
-      manualTeamPool?.teamBName,
-      manualTeamPool?.teamBPlayers,
-    ],
-  )
+  const sortedManualLineupTeams = manualLineupTeams.map((team) => ({
+    ...team,
+    players: sortPlayersByDisplayRole(team.players || []),
+  }))
   const manualPlayersCount =
     (manualTeamPool?.teamAPlayers?.length || 0) +
     (manualTeamPool?.teamBPlayers?.length || 0)
@@ -176,8 +171,6 @@ function UploadPanel({
     !manualTournamentId ||
     !manualMatchId ||
     (isManualScorecards && isLoadingManualPool)
-  const isLineupActionDisabled =
-    isSavingScores || !manualTournamentId || !manualMatchId || isLoadingManualPool
   const [activeManualCategory, setActiveManualCategory] = useState('batting')
   const activeColumns = categoryColumns[activeManualCategory] || categoryColumns.batting
   const onCopyGeneratedJson = async () => {
@@ -192,30 +185,7 @@ function UploadPanel({
     }
   }
 
-  const scoreAiPromptText = useMemo(() => {
-    const templateJson = generatedScoreJsonText || '{\n  "playerStats": []\n}'
-    return [
-      'Convert the provided scorecard into the exact JSON format used by /match-scores/save.',
-      '',
-      'Rules:',
-      '- Return valid JSON only.',
-      '- Do not include markdown, code fences, or any explanations.',
-      '- Keep top-level shape exactly as {"playerStats": [...]}.',
-      '- Use only players already present in the template JSON.',
-      '- Keep playerId and playerName exactly as provided in template.',
-      '- Fill batting stats: runs, ballsFaced, fours, sixes, dismissed.',
-      '- Fill bowling stats: overs, maidens, runsConceded, wickets, noBalls, wides.',
-      '- Fill fielding stats when known else keep 0: catches, stumpings, runoutDirect, runoutIndirect.',
-      '- dismissed should be true when batter is out, else false for not out/DNB.',
-      '- Keep missing numeric stats as 0.',
-      '',
-      'Template JSON:',
-      templateJson,
-      '',
-      'Scorecard JSON:',
-      'PASTE_SCORECARD_JSON_HERE',
-    ].join('\n')
-  }, [generatedScoreJsonText])
+  const scoreAiPromptText = SCORE_AI_PROMPT_TEXT
 
   const onCopyScoreAiPrompt = async () => {
     if (!scoreAiPromptText) return
@@ -241,28 +211,7 @@ function UploadPanel({
     }
   }
 
-  const lineupAiPromptText = useMemo(() => {
-    const templateJson = generatedLineupJsonText || '{\n  "lineups": {},\n  "meta": {}\n}'
-    return [
-      'Convert source lineup notes into the exact JSON format used by /admin/match-lineups/upsert.',
-      '',
-      'Rules:',
-      '- Return valid JSON only.',
-      '- Do not include markdown, code fences, or explanations.',
-      '- Keep top-level shape as {"lineups": {...}, "meta": {...}}.',
-      '- Keep team names exactly as in template lineups keys.',
-      '- Include squad, playingXI, and bench arrays for each team.',
-      '- Use player names exactly from known squad names.',
-      '- playingXI must contain 11 or 12 unique players.',
-      '- captain and viceCaptain are optional but must be in playingXI when present.',
-      '',
-      'Template JSON:',
-      templateJson,
-      '',
-      'Source lineup notes:',
-      'PASTE_LINEUP_SOURCE_HERE',
-    ].join('\n')
-  }, [generatedLineupJsonText])
+  const lineupAiPromptText = LINEUP_AI_PROMPT_TEXT
 
   const onCopyGeneratedLineupPrompt = async () => {
     if (!lineupAiPromptText) return
@@ -281,6 +230,83 @@ function UploadPanel({
     [lineupPreviewPayload],
   )
 
+  const processedLineupPreviewTeams = useMemo(
+    () =>
+      Object.entries(lineupPreviewPayload || {}).map(([teamName, teamPayload]) => ({
+        name: teamName,
+        players: Array.isArray(teamPayload?.playingXI) ? teamPayload.playingXI : [],
+      })),
+    [lineupPreviewPayload],
+  )
+
+  const getRuleValue = (rows = [], id, fallback = 0) => {
+    const entry = (Array.isArray(rows) ? rows : []).find((item) => item?.id === id)
+    return typeof entry?.value === 'number' ? entry.value : fallback
+  }
+
+  const calculateFantasyPoints = (stats = {}) => {
+    const rules = {
+      run: getRuleValue(pointsRules?.batting, 'run', 1),
+      four: getRuleValue(pointsRules?.batting, 'four', 1),
+      six: getRuleValue(pointsRules?.batting, 'six', 2),
+      thirty: getRuleValue(pointsRules?.batting, 'thirty', 0),
+      fifty: getRuleValue(pointsRules?.batting, 'fifty', 0),
+      century: getRuleValue(pointsRules?.batting, 'century', 0),
+      duck: getRuleValue(pointsRules?.batting, 'duck', 0),
+      wicket: getRuleValue(pointsRules?.bowling, 'wicket', 20),
+      maiden: getRuleValue(pointsRules?.bowling, 'maiden', 0),
+      threew: getRuleValue(pointsRules?.bowling, 'threew', 0),
+      fourw: getRuleValue(pointsRules?.bowling, 'fourw', 0),
+      fivew: getRuleValue(pointsRules?.bowling, 'fivew', 0),
+      wide: getRuleValue(pointsRules?.bowling, 'wide', 0),
+      catch: getRuleValue(pointsRules?.fielding, 'catch', 10),
+      stumping: getRuleValue(pointsRules?.fielding, 'stumping', 0),
+      runoutDirect: getRuleValue(pointsRules?.fielding, 'runout-direct', 0),
+      runoutIndirect: getRuleValue(pointsRules?.fielding, 'runout-indirect', 0),
+    }
+
+    const runs = Number(stats?.runs || 0)
+    const wickets = Number(stats?.wickets || 0)
+    const catches = Number(stats?.catches || 0)
+    const fours = Number(stats?.fours || 0)
+    const sixes = Number(stats?.sixes || 0)
+    const maidens = Number(stats?.maidens || 0)
+    const wides = Number(stats?.wides || 0)
+    const noBalls = Number(stats?.noBalls || 0)
+    const stumpings = Number(stats?.stumpings || 0)
+    const runoutDirect = Number(stats?.runoutDirect || 0)
+    const runoutIndirect = Number(stats?.runoutIndirect || 0)
+
+    let total = 0
+    total += runs * rules.run
+    total += wickets * rules.wicket
+    total += catches * rules.catch
+    total += fours * rules.four
+    total += sixes * rules.six
+    total += maidens * rules.maiden
+    total += (wides + noBalls) * rules.wide
+    total += stumpings * rules.stumping
+    total += runoutDirect * rules.runoutDirect
+    total += runoutIndirect * rules.runoutIndirect
+
+    if (runs >= 100) total += rules.century
+    else if (runs >= 50) total += rules.fifty
+    else if (runs >= 30) total += rules.thirty
+
+    if (runs === 0 && stats?.dismissed === true) total += rules.duck
+    if (wickets >= 5) total += rules.fivew
+    else if (wickets >= 4) total += rules.fourw
+    else if (wickets >= 3) total += rules.threew
+
+    return total
+  }
+
+  const renderManualScoreSummary = (player = {}) => {
+    const stats = manualPlayerStats?.[player.id] || {}
+    const total = calculateFantasyPoints(stats)
+    return Number.isFinite(total) ? `${total} pts` : ''
+  }
+
   const onCopyLineupPreviewJson = async () => {
     if (!lineupPreviewJsonText) return
     try {
@@ -293,109 +319,6 @@ function UploadPanel({
     }
   }
 
-  const getMatchOptionLabel = (item) => {
-    const rawLabel = item.label || item.name || ''
-    const normalized = rawLabel.includes(':')
-      ? rawLabel.split(':').slice(1).join(':').trim()
-      : rawLabel
-    const split = normalized.split(/\s+vs\s+/i)
-    if (split.length !== 2) return rawLabel
-    const left = split[0].trim()
-    const right = split[1].trim()
-    const leftFlag = getCountryFlag(left)
-    const rightFlag = getCountryFlag(right)
-    return `${left}${leftFlag ? ` ${leftFlag}` : ''} vs ${right}${rightFlag ? ` ${rightFlag}` : ''}`
-  }
-
-  const manualColumns = [
-    {
-      key: 'player',
-      label: 'Player',
-      headerClassName: 'manual-col-player',
-      cellClassName: 'manual-col-player',
-      sortValue: (row) => row.name || '',
-      render: (row) => (
-        <PlayerIdentity
-          name={row.name}
-          imageUrl={row.imageUrl || ''}
-          className="manual-player-identity dense"
-          size="sm"
-        />
-      ),
-    },
-    {
-      key: 'role',
-      label: 'Role',
-      headerClassName: 'manual-col-role',
-      cellClassName: 'manual-col-role manual-player-role',
-      sortValue: (row) =>
-        `${String(getPlayerDisplayRoleRank(row.role)).padStart(2, '0')}:${row.role || ''}`,
-      render: (row) => row.role,
-    },
-    ...activeColumns.map((column) => ({
-      key: column.key,
-      label: column.label,
-      headerClassName: 'manual-col-metric',
-      cellClassName: 'manual-col-metric',
-      sortValue: (row) => {
-        const value = (manualPlayerStats[row.id] || {})[column.key]
-        if (column.type === 'checkbox') return value ? 1 : 0
-        return Number(value || 0)
-      },
-      render: (row) => {
-        const value = manualPlayerStats[row.id] || {}
-        if (column.derived) {
-          if (column.key === 'strikeRate') {
-            return (
-              <span className="manual-derived-stat">
-                {calculateStrikeRate(value.runs, value.ballsFaced)}
-              </span>
-            )
-          }
-          return (
-            <span className="manual-derived-stat">
-              {calculateEconomy(value.overs, value.runsConceded)}
-            </span>
-          )
-        }
-        if (column.type === 'checkbox') {
-          return (
-            <input
-              type="checkbox"
-              checked={Boolean(value[column.key])}
-              onChange={(event) =>
-                onManualStatChange(row.id, column.key, event.target.checked)
-              }
-            />
-          )
-        }
-        return (
-          <input
-            type="number"
-            min="0"
-            step={column.inputMode === 'decimal' ? '0.1' : '1'}
-            inputMode={column.inputMode === 'decimal' ? 'decimal' : 'numeric'}
-            value={value[column.key] ?? 0}
-            onFocus={(event) => {
-              event.target.select()
-            }}
-            onChange={(event) =>
-              onManualStatChange(row.id, column.key, event.target.value)
-            }
-          />
-        )
-      },
-    })),
-  ]
-  const excelPreviewColumns = [
-    { key: 'playerId', label: 'Player' },
-    { key: 'runs', label: 'Runs' },
-    { key: 'wickets', label: 'Wkts' },
-    { key: 'catches', label: 'Catches' },
-    { key: 'fours', label: '4s' },
-    { key: 'sixes', label: '6s' },
-  ]
-
   const renderManualTeamTable = (title, players) => (
     <article className="manual-team-card">
       <div className="manual-team-head">
@@ -404,19 +327,121 @@ function UploadPanel({
         </h4>
         <span className="manual-team-meta">{`${players.length} players`}</span>
       </div>
-      <StickyTable
-        columns={manualColumns}
-        rows={players}
-        rowKey={(row) => row.id}
-        emptyText="No players"
-        wrapperClassName="manual-team-table-wrap"
-        tableClassName={`manual-team-table manual-category-${activeManualCategory}`}
-      />
+      {(() => {
+        const side = title === (manualTeamPool?.teamAName || 'Team A') ? 'teamA' : 'teamB'
+        const selectedNameKeys = new Set(
+          (manualPlayingXi?.[side] || []).map((name) => normalizeLooseKey(name)),
+        )
+        const scoreColumns = [
+          {
+            key: 'player',
+            label: 'Player',
+            headerClassName: 'manual-col-player',
+            cellClassName: 'manual-col-player',
+            sortValue: (row) => row.name || '',
+            render: (row) => (
+              <PlayerIdentity
+                name={row.name}
+                imageUrl={row.imageUrl || ''}
+                className={`manual-player-identity dense ${selectedNameKeys.has(normalizeLooseKey(row.name)) ? 'is-playing-xi' : ''}`.trim()}
+                size="sm"
+              />
+            ),
+          },
+          {
+            key: 'role',
+            label: 'Role',
+            headerClassName: 'manual-col-role',
+            cellClassName: 'manual-col-role manual-player-role',
+            sortValue: (row) =>
+              `${String(getPlayerDisplayRoleRank(row.role)).padStart(2, '0')}:${row.role || ''}`,
+            render: (row) => row.role,
+          },
+          {
+            key: 'playing',
+            label: 'XI',
+            headerClassName: 'manual-col-metric',
+            cellClassName: 'manual-col-metric manual-playing-indicator',
+            sortValue: (row) => selectedNameKeys.has(normalizeLooseKey(row.name)),
+            render: (row) =>
+              selectedNameKeys.has(normalizeLooseKey(row.name)) ? 'Yes' : '—',
+          },
+          ...activeColumns.map((column) => ({
+            key: column.key,
+            label: column.label,
+            headerClassName: 'manual-col-metric',
+            cellClassName: 'manual-col-metric',
+            sortValue: (row) => {
+              const value = (manualPlayerStats[row.id] || {})[column.key]
+              if (column.type === 'checkbox') return value ? 1 : 0
+              return Number(value || 0)
+            },
+            render: (row) => {
+              const value = manualPlayerStats[row.id] || {}
+              if (column.derived) {
+                if (column.key === 'strikeRate') {
+                  return (
+                    <span className="manual-derived-stat">
+                      {calculateStrikeRate(value.runs, value.ballsFaced)}
+                    </span>
+                  )
+                }
+                return (
+                  <span className="manual-derived-stat">
+                    {calculateEconomy(value.overs, value.runsConceded)}
+                  </span>
+                )
+              }
+              if (column.type === 'checkbox') {
+                return (
+                  <input
+                    type="checkbox"
+                    checked={Boolean(value[column.key])}
+                    onChange={(event) =>
+                      onManualStatChange(row.id, column.key, event.target.checked)
+                    }
+                  />
+                )
+              }
+              return (
+                <input
+                  type="number"
+                  min="0"
+                  step={column.inputMode === 'decimal' ? '0.1' : '1'}
+                  inputMode={column.inputMode === 'decimal' ? 'decimal' : 'numeric'}
+                  value={value[column.key] ?? 0}
+                  onFocus={(event) => {
+                    event.target.select()
+                  }}
+                  onChange={(event) =>
+                    onManualStatChange(row.id, column.key, event.target.value)
+                  }
+                />
+              )
+            },
+          })),
+        ]
+        return (
+          <StickyTable
+            columns={scoreColumns}
+            rows={players}
+            rowKey={(row) => row.id}
+            rowClassName={(row) =>
+              selectedNameKeys.has(normalizeLooseKey(row.name)) ? 'active' : ''
+            }
+            emptyText="No players"
+            wrapperClassName="manual-team-table-wrap"
+            tableClassName={`manual-team-table manual-scorecard-table manual-category-${activeManualCategory}`}
+          />
+        )
+      })()}
     </article>
   )
 
   const renderLineupTeamCard = (team) => {
-    const selectedNames = new Set(team.selected || [])
+    const selectedNameKeys = new Set(
+      (team.selected || []).map((name) => normalizeLooseKey(name)),
+    )
     const lineupColumns = [
       {
         key: 'player',
@@ -447,13 +472,16 @@ function UploadPanel({
         label: 'Playing',
         headerClassName: 'manual-col-metric',
         cellClassName: 'manual-col-metric',
-        sortValue: (row) => selectedNames.has(row.name),
+        sortValue: (row) => selectedNameKeys.has(normalizeLooseKey(row.name)),
         render: (row) => (
           <input
             type="checkbox"
-            checked={selectedNames.has(row.name)}
+            checked={selectedNameKeys.has(normalizeLooseKey(row.name))}
             onChange={() => onToggleManualPlayingXi(team.key, row.name)}
-            disabled={!selectedNames.has(row.name) && selectedNames.size >= 12}
+            disabled={
+              !selectedNameKeys.has(normalizeLooseKey(row.name)) &&
+              selectedNameKeys.size >= 12
+            }
             aria-label={`${row.name} playing`}
           />
         ),
@@ -469,16 +497,18 @@ function UploadPanel({
             <span className="manual-team-meta">{`${team.players.length} players`}</span>
           </div>
           <span
-            className={`manual-lineup-count ${selectedNames.size >= 11 && selectedNames.size <= 12 ? 'ready' : ''}`.trim()}
+            className={`manual-lineup-count ${selectedNameKeys.size >= 11 && selectedNameKeys.size <= 12 ? 'ready' : ''}`.trim()}
           >
-            {selectedNames.size}/12
+            {selectedNameKeys.size}/12
           </span>
         </div>
         <StickyTable
           columns={lineupColumns}
           rows={team.players}
           rowKey={(row) => row.id}
-          rowClassName={(row) => (selectedNames.has(row.name) ? 'active' : '')}
+          rowClassName={(row) =>
+            selectedNameKeys.has(normalizeLooseKey(row.name)) ? 'active' : ''
+          }
           emptyText="No players"
           wrapperClassName="manual-team-table-wrap"
           tableClassName="manual-team-table manual-lineup-table"
@@ -696,11 +726,37 @@ function UploadPanel({
                 <option value="">Select match</option>
                 {(manualScoreContext?.matches || []).map((item) => (
                   <option key={item.id} value={item.id}>
-                    {getMatchOptionLabel(item)}
+                    {formatCompactMatchLabel(item)}
                   </option>
                 ))}
               </SelectField>
             </label>
+          </div>
+          <div className="playing-xi-link-row">
+            <PlayingXiModalLink
+              tournamentId={manualTournamentId}
+              matchId={manualMatchId}
+              teams={{
+                teamA: {
+                  name: manualTeamPool?.teamAName || 'Team A',
+                  players: manualTeamPool?.teamAPlayers || [],
+                  lineup: {
+                    ...(manualTeamPool?.teamALineup || {}),
+                    playingXI: manualPlayingXi?.teamA || [],
+                  },
+                },
+                teamB: {
+                  name: manualTeamPool?.teamBName || 'Team B',
+                  players: manualTeamPool?.teamBPlayers || [],
+                  lineup: {
+                    ...(manualTeamPool?.teamBLineup || {}),
+                    playingXI: manualPlayingXi?.teamB || [],
+                  },
+                },
+              }}
+              renderScore={renderManualScoreSummary}
+              disabled={isLoadingManualPool}
+            />
           </div>
           {activeMatchOpsTab === 'scores' && uploadTab === 'manual' && (
             <div className="manual-category-row">
@@ -754,21 +810,45 @@ function UploadPanel({
                   rows={10}
                   value={lineupPayloadText}
                   onChange={(event) => setLineupPayloadText(event.target.value)}
-                  placeholder={`{
-  "lineups": {
-    "${manualTeamPool?.teamAName || 'MI'}": {
-      "playingXI": ["Player 1", "Player 2"],
-      "bench": ["Player 13"]
-    },
-    "${manualTeamPool?.teamBName || 'KKR'}": {
-      "playingXI": ["Player A", "Player B"],
-      "bench": ["Player M"]
-    }
-  }
-}`}
+                  placeholder={buildLineupJsonSchemaTemplate(
+                    manualTeamPool?.teamAName || 'MI',
+                    manualTeamPool?.teamBName || 'KKR',
+                  )}
                   onClear={() => setLineupPayloadText('')}
                   clearDisabled={!lineupPayloadText.trim()}
                 />
+                {Array.isArray(lineupJsonUnmatchedDetails) &&
+                  lineupJsonUnmatchedDetails.length > 0 && (
+                    <div className="json-upload-diagnostics" role="alert">
+                      <h5>Unmatched Lineup Names</h5>
+                      <p>
+                        These names are not part of the selected match squads. Use the
+                        suggestions and retry save.
+                      </p>
+                      <ul>
+                        {lineupJsonUnmatchedDetails.map((entry, index) => {
+                          const input =
+                            (entry?.input || '').toString().trim() || 'unknown-player'
+                          const team = (entry?.team || '').toString().trim() || '-'
+                          const field = (entry?.field || '').toString().trim() || '-'
+                          const suggestions = Array.isArray(entry?.suggestions)
+                            ? entry.suggestions
+                            : []
+                          return (
+                            <li key={`${team}-${field}-${input}-${index}`}>
+                              <strong>{input}</strong>
+                              <span>{`team: ${team} • field: ${field}`}</span>
+                              <span>
+                                {suggestions.length
+                                  ? `suggestions: ${suggestions.join(', ')}`
+                                  : 'suggestions: none'}
+                              </span>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    </div>
+                  )}
               </div>
             )
           ) : uploadTab === 'manual' ? (
@@ -800,18 +880,7 @@ function UploadPanel({
                 rows={10}
                 value={uploadPayloadText}
                 onChange={(event) => setUploadPayloadText(event.target.value)}
-                placeholder={`{
-  "playerStats": [
-    {
-      "playerId": "p1",
-      "runs": 30,
-      "wickets": 2,
-      "catches": 1,
-      "fours": 4,
-      "sixes": 1
-    }
-  ]
-}`}
+                placeholder={SCORE_JSON_SCHEMA_TEMPLATE}
                 onClear={() => setUploadPayloadText('')}
                 clearDisabled={!uploadPayloadText.trim()}
               />
@@ -860,7 +929,7 @@ function UploadPanel({
         description="Built from saved Playing XI/XII for this match. Copy it, update with AI, then paste into JSON Upload."
         jsonLabel="JSON Template"
         jsonText={generatedScoreJsonText}
-        jsonFallback={'{\n  "playerStats": []\n}'}
+        jsonFallback={SCORE_JSON_FALLBACK}
         onCopyJson={onCopyGeneratedJson}
         copyJsonLabel={copyButtonLabel}
         disableCopyJson={isSavingScores || !generatedScoreJsonText}
@@ -887,7 +956,7 @@ function UploadPanel({
         description="Built from current squads and selected Playing XI/XII. Copy it, update with AI if needed, then paste into JSON Upload."
         jsonLabel="JSON Template"
         jsonText={generatedLineupJsonText}
-        jsonFallback={'{\n  "lineups": {},\n  "meta": {}\n}'}
+        jsonFallback={LINEUP_JSON_FALLBACK}
         onCopyJson={onCopyGeneratedLineupJson}
         copyJsonLabel={lineupCopyButtonLabel}
         disableCopyJson={isSavingScores || !generatedLineupJsonText}
@@ -914,7 +983,28 @@ function UploadPanel({
         description="Review this normalized lineup payload. Confirm save to write it to the database."
         jsonLabel="Processed JSON"
         jsonText={lineupPreviewJsonText}
-        jsonFallback={'{\n  "lineups": {}\n}'}
+        jsonFallback={LINEUP_JSON_FALLBACK}
+        jsonPreviewContent={
+          <div className="processed-lineup-grid">
+            {processedLineupPreviewTeams.map((team) => (
+              <section key={team.name} className="processed-lineup-card">
+                <header className="processed-lineup-card-head">
+                  <h5>{team.name}</h5>
+                  <span>{`${team.players.length} selected`}</span>
+                </header>
+                {team.players.length ? (
+                  <ol className="processed-lineup-list">
+                    {team.players.map((playerName, index) => (
+                      <li key={`${team.name}-${playerName}-${index}`}>{playerName}</li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="team-note">No Playing XI found.</p>
+                )}
+              </section>
+            ))}
+          </div>
+        }
         onCopyJson={onCopyLineupPreviewJson}
         copyJsonLabel={lineupPreviewCopyButtonLabel}
         disableCopyJson={isSavingScores}

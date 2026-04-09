@@ -2,7 +2,33 @@
 
 This file tracks active items only. Completed historical tasks are validated in tests/docs.
 
-## Current Priorities
+- [x] Audit API call duplication and caching
+- [x] Design event-driven Context store
+- [x] Map backend endpoints for participant data
+
+> **Analysis:**
+>
+> - The above items represent completed design and analysis work, not implementation.
+> - "Map backend endpoints for participant data" means identifying all backend API endpoints that provide the data needed for the participant manager and related features. This ensures:
+>   - You know exactly which APIs supply participants, picks, team pools, and related info.
+>   - You can design the global store structure and selectors to fetch/cache only what’s needed.
+>   - You avoid duplicate or unnecessary API calls by centralizing data access.
+> - The following APIs have been identified as required for the global store:
+>   - GET /api/tournaments
+>   - GET /api/contests (with tournament filter)
+>   - GET /api/matches (with tournament filter)
+>   - GET /api/participants (per contest or match)
+>   - GET /api/picks (per user/contest)
+>   - GET /api/team-pools (per contest)
+>   - (Optional) GET /api/player-pick-insights (for participant manager grid)
+> - Event-driven Context store design (Redux-style, no polling, explicit cache invalidation) is finalized.
+> - Participant manager requirements and data flows are fully specified.
+> - Implementation of the store, selectors, and UI is pending.
+
+- [ ] Draft action list and reducer contract for Context store
+- [ ] Implement Context-based store and selectors
+- [ ] Build participant manager grid UI
+- [ ] Add backend endpoint for player pick insights (if needed)
 
 - [ ] Real API environment validation in DB mode for release-critical flows
   - Tournament JSON import

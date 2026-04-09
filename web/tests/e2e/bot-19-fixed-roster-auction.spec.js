@@ -542,7 +542,6 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
       const teamAPlayers = pool?.teams?.teamA?.players || []
       const teamBPlayers = pool?.teams?.teamB?.players || []
       const allPlayers = [...teamAPlayers, ...teamBPlayers]
-      const pickByName = (name) => allPlayers.find((player) => player.name === name)
       const scoringPlayers = allPlayers.slice(0, 3)
       const scoringIds = scoringPlayers.map((player) => player.id).filter(Boolean)
       const fillerIds = allPlayers

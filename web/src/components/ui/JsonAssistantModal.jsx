@@ -18,6 +18,7 @@ function JsonAssistantModal({
   onCopyPrompt,
   copyPromptLabel = 'Copy AI Prompt',
   disableCopyPrompt = false,
+  jsonPreviewContent = null,
   footerActions = [],
   onClose = null,
 }) {
@@ -72,11 +73,15 @@ function JsonAssistantModal({
               </Button>
             )}
           </div>
-          <textarea
-            className="score-preview-textarea"
-            value={jsonText || jsonFallback}
-            readOnly
-          />
+          {jsonPreviewContent ? (
+            <div className="score-preview-custom-content">{jsonPreviewContent}</div>
+          ) : (
+            <textarea
+              className="score-preview-textarea"
+              value={jsonText || jsonFallback}
+              readOnly
+            />
+          )}
         </section>
 
         {promptText ? (

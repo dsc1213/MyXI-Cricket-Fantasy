@@ -1,7 +1,6 @@
 import { createRepositoryFactory } from '../repositories/repository.factory.js'
 import { dbQuery } from '../db.js'
 import { resolveEffectiveSelection } from '../scoring.js'
-import { normalizeMatchStatus } from './tournamentImport.service.js'
 
 const factory = createRepositoryFactory()
 
@@ -44,23 +43,9 @@ class MatchService {
   // Updates match status and auto-applies backup replacements when a match starts.
   async updateMatchStatus(id, status) {
     const repo = await factory.getMatchRepository()
-    const previous = await repo.findById(id)
     const updated = await repo.updateStatus(id, status)
     if (!updated) return updated
-
-    const movedToInProgress =
-      normalizeMatchStatus(previous?.status) === 'notstarted' &&
-      normalizeMatchStatus(updated?.status) === 'inprogress'
-
-    if (!movedToInProgress) {
-      return updated
-    }
-
-    const replacement = await this.applyBackupReplacementOnMatchStart(updated)
-    return {
-      ...updated,
-      autoReplacement: replacement,
-    }
+    return updated
   }
 
   // Manually triggers backup replacement for all team selections in a match.

@@ -10,6 +10,7 @@ import {
   deleteAdminPlayersBulk,
   fetchPlayers,
   importAdminPlayers,
+  updateAdminPlayer,
 } from '../../lib/api.js'
 import { getStoredUser } from '../../lib/auth.js'
 import { parseNormalizedJsonInput } from '../../lib/jsonInput.js'
@@ -104,6 +105,7 @@ function PlayerManagerPanel() {
   const [importJson, setImportJson] = useState('')
   const [generatedImportJson, setGeneratedImportJson] = useState('')
   const [selectedPlayerIds, setSelectedPlayerIds] = useState([])
+  const [editingRows, setEditingRows] = useState({})
   const [form, setForm] = useState({
     name: '',
     country: '',
@@ -117,6 +119,7 @@ function PlayerManagerPanel() {
       setErrorText('')
       const rows = await fetchPlayers()
       setPlayers(Array.isArray(rows) ? rows : [])
+      setEditingRows({})
     } catch (error) {
       setErrorText(error.message || 'Failed to load players')
     } finally {
@@ -137,7 +140,94 @@ function PlayerManagerPanel() {
     if (isEditMode) return
     setSelectedPlayerIds([])
     setShowDeleteModal(false)
+    setEditingRows({})
   }, [isEditMode])
+
+  useEffect(() => {
+    if (!isEditMode) return
+    setEditingRows(
+      Object.fromEntries(
+        (players || []).map((row) => [
+          String(row.id),
+          {
+            id: row.id,
+            name: (row.displayName || row.name || '').toString(),
+            country: resolvePlayerCountry(row).toString().toLowerCase(),
+            role: (row.role || '').toString().toUpperCase(),
+            imageUrl: (row.imageUrl || '').toString(),
+          },
+        ]),
+      ),
+    )
+  }, [isEditMode, players])
+
+  const startEditingRow = (row) => {
+    const key = String(row.id)
+    setEditingRows((prev) => ({
+      ...prev,
+      [key]: {
+        id: row.id,
+        name: (row.displayName || row.name || '').toString(),
+        country: resolvePlayerCountry(row).toString().toLowerCase(),
+        role: (row.role || '').toString().toUpperCase(),
+        imageUrl: (row.imageUrl || '').toString(),
+      },
+    }))
+  }
+
+  const updateEditingRow = (id, field, value) => {
+    const key = String(id)
+    setEditingRows((prev) => ({
+      ...prev,
+      [key]: {
+        ...(prev[key] || {}),
+        [field]: value,
+      },
+    }))
+  }
+
+  const cancelEditingRow = (id) => {
+    const key = String(id)
+    setEditingRows((prev) => {
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+  }
+
+  const onSavePlayerRow = async (id) => {
+    const draft = editingRows[String(id)] || null
+    if (!draft) return
+    const name = draft.name.toString().trim()
+    const country = draft.country.toString().trim()
+    const role = draft.role.toString().trim().toUpperCase()
+    if (!name || !country || !role) {
+      setFormErrorText('Name, country, and role are required.')
+      setErrorText('')
+      setNotice('')
+      return
+    }
+    try {
+      setIsSaving(true)
+      setErrorText('')
+      setNotice('')
+      setFormErrorText('')
+      await updateAdminPlayer({
+        id,
+        actorUserId,
+        name,
+        country,
+        role,
+        imageUrl: draft.imageUrl || '',
+      })
+      setNotice('Player updated')
+      await loadPlayers()
+    } catch (error) {
+      setErrorText(error.message || 'Failed to update player')
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const filteredPlayers = useMemo(() => {
     const q = filterText.toString().trim().toLowerCase()
@@ -344,20 +434,49 @@ function PlayerManagerPanel() {
       key: 'player',
       label: 'Player',
       sortValue: (row) => row.displayName || row.name || '',
-      render: (row) => (
-        <PlayerIdentity
-          name={row.displayName || row.name || ''}
-          imageUrl={row.imageUrl || ''}
-          size="xs"
-          dense
-        />
-      ),
+      render: (row) => {
+        const draft = editingRows[String(row.id)] || null
+        if (isEditMode && draft) {
+          return (
+            <input
+              className="dashboard-text-input"
+              type="text"
+              value={draft.name}
+              onChange={(event) =>
+                updateEditingRow(row.id, 'name', event.target.value)
+              }
+              aria-label={`Player name ${row.displayName || row.name || row.id}`}
+            />
+          )
+        }
+        return (
+          <PlayerIdentity
+            name={row.displayName || row.name || ''}
+            imageUrl={row.imageUrl || ''}
+            size="xs"
+            dense
+          />
+        )
+      },
     },
     {
       key: 'country',
       label: 'Country',
       sortValue: (row) => resolvePlayerCountry(row),
       render: (row) => {
+        const draft = editingRows[String(row.id)] || null
+        if (isEditMode && draft) {
+          return (
+            <SelectField
+              className="dashboard-text-input"
+              value={draft.country}
+              onChange={(event) =>
+                updateEditingRow(row.id, 'country', event.target.value)
+              }
+              options={countryOptions}
+            />
+          )
+        }
         const country = resolvePlayerCountry(row)
         return country ? formatCountryLabel(country) : '—'
       },
@@ -365,7 +484,102 @@ function PlayerManagerPanel() {
     {
       key: 'role',
       label: 'Role',
+      render: (row) => {
+        const draft = editingRows[String(row.id)] || null
+        if (isEditMode && draft) {
+          return (
+            <SelectField
+              className="dashboard-text-input"
+              value={draft.role}
+              onChange={(event) => updateEditingRow(row.id, 'role', event.target.value)}
+              options={PLAYER_ROLE_OPTIONS.map((item) => ({
+                value: item,
+                label: item || 'Select role',
+              }))}
+            />
+          )
+        }
+        return row.role || '—'
+      },
     },
+    ...(isEditMode
+      ? [
+          {
+            key: 'imageUrl',
+            label: 'Image URL',
+            sortable: false,
+            render: (row) => {
+              const draft = editingRows[String(row.id)] || null
+              if (!draft) {
+                return (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="small"
+                    onClick={() => startEditingRow(row)}
+                  >
+                    Edit row
+                  </Button>
+                )
+              }
+              return (
+                <input
+                  className="dashboard-text-input"
+                  type="url"
+                  value={draft.imageUrl}
+                  onChange={(event) =>
+                    updateEditingRow(row.id, 'imageUrl', event.target.value)
+                  }
+                  placeholder="https://..."
+                  aria-label={`Player image URL ${row.displayName || row.name || row.id}`}
+                />
+              )
+            },
+          },
+          {
+            key: 'actions',
+            label: 'Actions',
+            sortable: false,
+            render: (row) => {
+              const draft = editingRows[String(row.id)] || null
+              if (!draft) {
+                return (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="small"
+                    onClick={() => startEditingRow(row)}
+                  >
+                    Edit row
+                  </Button>
+                )
+              }
+              return (
+                <div className="player-manager-row-actions">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="small"
+                    onClick={() => onSavePlayerRow(row.id)}
+                    disabled={isSaving}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="small"
+                    onClick={() => cancelEditingRow(row.id)}
+                    disabled={isSaving}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )
+            },
+          },
+        ]
+      : []),
   ]
 
   return (
