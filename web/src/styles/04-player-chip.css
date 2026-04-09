@@ -18,8 +18,8 @@
 
 .backups-card .player-chip.slot-chip.compact,
 .backup-chip.empty {
-  background: #e7ebf3;
-  border-color: rgba(15, 23, 42, 0.06);
+  /* background: #e7ebf3; */
+  border: 1px solid rgba(15, 23, 42, 0.06);
 }
 
 .player-chip.slot-chip.compact span {
