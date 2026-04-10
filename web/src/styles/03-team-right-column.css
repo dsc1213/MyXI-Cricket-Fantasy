@@ -60,7 +60,7 @@
 
 .player-chip.slot-chip.compact .lineup-status-light {
   position: absolute;
-  left: 0.38rem;
+  left: 0.24rem;
   top: 50%;
   transform: translateY(-50%);
   width: 9px;
@@ -72,7 +72,7 @@
 
 .myxi-card .player-chip.slot-chip.compact,
 .backups-card .player-chip.slot-chip.compact {
-  padding-left: 0.9rem;
+  padding-left: 1.22rem;
 }
 
 .player-chip.slot-chip.compact.clickable {
@@ -138,6 +138,14 @@
   font-size: 0.56rem;
   font-weight: 700;
   letter-spacing: 0.04em;
+}
+
+.player-team-tag {
+  color: #86efac;
+  font-style: normal;
+  font-size: 0.5rem;
+  font-weight: 600;
+  opacity: 0.9;
 }
 
 .tile-actions {

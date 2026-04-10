@@ -150,13 +150,14 @@ class MatchService {
         viceCaptainId: row.viceCaptainId,
       })
 
-      const nextPlayingXi = (resolved.effectivePlayerIds || [])
+      const nextPlayingXi = (resolved.nextPlayingXi || currentPlayingXi)
         .map((value) => Number(value))
         .filter(Boolean)
-
-      const nextPlayingSet = new Set(nextPlayingXi)
-      const nextBackups = currentBackups.filter(
-        (value) => !nextPlayingSet.has(Number(value)),
+      const nextBackups = (resolved.nextBackups || currentBackups)
+        .map((value) => Number(value))
+        .filter(Boolean)
+      const promotedBackupIdSet = new Set(
+        (resolved.promotedBackupIds || []).map((value) => Number(value)),
       )
 
       const isSamePlayingXi =
@@ -195,7 +196,7 @@ class MatchService {
           const values = []
           const placeholders = nextPlayingXi
             .map((playerId, index) => {
-              const offset = index * 5
+              const offset = index * 6
               values.push(
                 tournamentId,
                 row.contestId,
@@ -203,7 +204,11 @@ class MatchService {
                 row.userId,
                 Number(playerId),
               )
-              return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, 'selection-auto-swap', now(), now())`
+              const source = promotedBackupIdSet.has(Number(playerId))
+                ? 'selection-auto-swap'
+                : 'selection'
+              values.push(source)
+              return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, now(), now())`
             })
             .join(', ')
 

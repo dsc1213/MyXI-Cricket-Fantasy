@@ -1049,6 +1049,9 @@ const createDbService = (dependencies) => {
           req.body?.contestId || null,
           req.body?.captainId || null,
           req.body?.viceCaptainId || null,
+          {
+            allowLockedEdit: isMasterAdmin && !isSelfWrite,
+          },
         )
         return res.json({
           selection: result,
@@ -1087,6 +1090,9 @@ const createDbService = (dependencies) => {
           req.body?.contestId || null,
           req.body?.captainId || null,
           req.body?.viceCaptainId || null,
+          {
+            allowLockedEdit: isMasterAdmin && !isSelfWrite,
+          },
         )
         return res.json({
           selection: result,

@@ -25,12 +25,14 @@ class TeamSelectionService {
     contestId = null,
     captainId = null,
     viceCaptainId = null,
+    options = {},
   ) {
     // Validate match exists
     const match = await matchService.getMatch(matchId)
     if (!match) throw new Error('Match not found')
     const resolvedMatch = mapMatchWithDerivedStatus(match)
-    if (resolvedMatch.status !== 'notstarted') {
+    const allowLockedEdit = Boolean(options?.allowLockedEdit)
+    if (resolvedMatch.status !== 'notstarted' && !allowLockedEdit) {
       throw new Error('Match locked')
     }
 

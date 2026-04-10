@@ -17,9 +17,11 @@ function PlayerLabel({
   title = '',
   roleControls = null,
   lineupStatus = '',
+  showTeam = false,
 }) {
   const name = normalizePlayerName(player)
   const role = (player.role || '').toString().trim() || 'BAT'
+  const teamCode = (player.team || player.teamCode || '').toString().trim().toUpperCase()
   const imageUrl = (player.imageUrl || '').toString().trim()
   const badge = player.badge || ''
   const isInteractive = typeof onClick === 'function'
@@ -91,6 +93,9 @@ function PlayerLabel({
           className="dense player-chip-identity"
           nameSuffix={
             <>
+              {showTeam && teamCode ? (
+                <em className="player-team-tag">{` (${teamCode})`}</em>
+              ) : null}
               {!!badge && <em className="player-badge">{badge}</em>}
             </>
           }

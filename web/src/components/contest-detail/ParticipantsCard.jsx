@@ -77,7 +77,7 @@ function ParticipantsCard({
   const hasNotes =
     showFixedRosterNote || showPrestartNote || showNoRowsNote || showLoadingNote
   const canViewTeams = participants.some((player) => canViewPlayerTeam(player))
-  const canEditTeams = !isFixedRosterContest && isNotStarted
+  const canEditTeams = !isFixedRosterContest && (isNotStarted || canEditFullTeams)
   const columns = [
     {
       key: 'name',
@@ -93,46 +93,49 @@ function ParticipantsCard({
     {
       key: 'team',
       label: 'Team',
-      render: (player) => (
-        <div className="top-actions">
-          {!isFixedRosterContest && canEditFullTeams && (
+      render: (player) => {
+        const targetIdentity = (player?.userId || player?.gameName || '').toString().trim()
+        return (
+          <div className="top-actions">
+            {!isFixedRosterContest && canEditFullTeams && (
+              <Button
+                variant="ghost"
+                size="small"
+                className="icon-edit-btn match-action-icon-btn"
+                disabled={!canEditTeams || !isLoggedIn || !targetIdentity}
+                to={`/fantasy/select?contest=${contestId}&match=${activeMatch?.id || ''}&mode=edit&userId=${encodeURIComponent(targetIdentity)}`}
+                aria-label={`Edit ${player.name} team`}
+                title={
+                  !isLoggedIn
+                    ? 'Login required to edit team'
+                    : canEditTeams
+                      ? `Edit ${player.name} team`
+                      : 'Team can only be edited before match starts'
+                }
+              >
+                <EditActionIcon />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="small"
-              className="icon-edit-btn match-action-icon-btn"
-              disabled={!canEditTeams || !isLoggedIn}
-              to={`/fantasy/select?contest=${contestId}&match=${activeMatch?.id || ''}&mode=edit&userId=${encodeURIComponent(player.userId || '')}`}
-              aria-label={`Edit ${player.name} team`}
+              className="icon-eye-btn match-action-icon-btn"
+              disabled={!canViewPlayerTeam(player) || !isLoggedIn}
+              onClick={() => onPreviewPlayer(player)}
+              aria-label={`View ${player.name} team`}
               title={
                 !isLoggedIn
-                  ? 'Login required to edit team'
-                  : canEditTeams
-                    ? `Edit ${player.name} team`
-                    : 'Team can only be edited before match starts'
+                  ? 'Login required to view team'
+                  : canViewPlayerTeam(player)
+                    ? `View ${player.name} team`
+                    : 'Player teams are disabled until this match starts.'
               }
             >
-              <EditActionIcon />
+              <ViewActionIcon />
             </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="small"
-            className="icon-eye-btn match-action-icon-btn"
-            disabled={!canViewPlayerTeam(player) || !isLoggedIn}
-            onClick={() => onPreviewPlayer(player)}
-            aria-label={`View ${player.name} team`}
-            title={
-              !isLoggedIn
-                ? 'Login required to view team'
-                : canViewPlayerTeam(player)
-                  ? `View ${player.name} team`
-                  : 'Player teams are disabled until this match starts.'
-            }
-          >
-            <ViewActionIcon />
-          </Button>
-        </div>
-      ),
+          </div>
+        )
+      },
     },
   ]
 

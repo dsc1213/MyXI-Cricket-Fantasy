@@ -1,6 +1,13 @@
 import { getCountryFlag } from '../components/ui/countryFlagUtils.js'
 
 export const formatCompactMatchLabel = (item = {}) => {
+  const statusDot = (() => {
+    const status = String(item?.status || '').trim().toLowerCase()
+    if (status === 'completed') return '🟢'
+    if (status === 'inprogress' || status === 'in_progress') return '🟡'
+    if (status === 'notstarted' || status === 'not_started') return '⚪'
+    return ''
+  })()
   const rawLabel = String(item?.label || item?.name || '').trim()
   const normalized = rawLabel.includes(':')
     ? rawLabel.split(':').slice(1).join(':').trim()
@@ -19,7 +26,7 @@ export const formatCompactMatchLabel = (item = {}) => {
   const matchNumber = item?.matchNo ? `M${item.matchNo}` : ''
 
   if (split.length !== 2) {
-    return [matchNumber, shortDate, rawLabel].filter(Boolean).join(' • ')
+    return [statusDot, matchNumber, shortDate, rawLabel].filter(Boolean).join(' ')
   }
 
   const left = split[0].trim()
@@ -27,5 +34,5 @@ export const formatCompactMatchLabel = (item = {}) => {
   const leftFlag = getCountryFlag(left)
   const rightFlag = getCountryFlag(right)
   const matchup = `${left}${leftFlag ? ` ${leftFlag}` : ''} vs ${right}${rightFlag ? ` ${rightFlag}` : ''}`
-  return [matchNumber, shortDate, matchup].filter(Boolean).join(' • ')
+  return [statusDot, matchNumber, shortDate, matchup].filter(Boolean).join(' • ')
 }

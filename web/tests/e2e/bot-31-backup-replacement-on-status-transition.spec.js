@@ -220,6 +220,17 @@ test('backup players replace non-playing XI picks when playing XI is announced',
 
     expect(backupNames).not.toContain(backupsToPromote[0].name)
     expect(backupNames).not.toContain(backupsToPromote[1].name)
+
+    expect((picksAfterTransition?.picksDetailed || []).length).toBe(11)
+    expect((picksAfterTransition?.backupsDetailed || []).length).toBe(2)
+
+    const autoSwappedRows = (picksAfterTransition?.picksDetailed || []).filter(
+      (row) => row?.autoSwapped,
+    )
+    expect(autoSwappedRows).toHaveLength(2)
+    expect(autoSwappedRows.map((row) => row.name).sort()).toEqual(
+      backupsToPromote.map((player) => player.name).sort(),
+    )
   } finally {
     if (authedRequest) {
       await deleteContestIfPresent(authedRequest, contestId, 'master')

@@ -395,7 +395,11 @@ const resolveEffectiveSelection = ({
   )
   if (!activeSet.size) {
     return {
+      nextPlayingXi: normalizedPlayingXi,
+      nextBackups: normalizedBackups,
       effectivePlayerIds: normalizedPlayingXi,
+      promotedBackupIds: [],
+      benchedPlayerIds: [],
       captainApplies: normalizedPlayingXi
         .map(normalizeId)
         .includes(normalizeId(captainId)),
@@ -409,12 +413,22 @@ const resolveEffectiveSelection = ({
   const backupQueue = normalizedBackups.filter((playerId) =>
     activeSet.has(normalizeId(playerId)),
   )
+  const remainingBackups = [...normalizedBackups]
   const effectivePlayerIds = []
+  const nextPlayingXi = []
+  const promotedBackupIds = []
+  const benchedPlayerIds = []
 
   const pullReplacement = () => {
     while (backupQueue.length) {
       const candidate = backupQueue.shift()
-      if (!used.has(normalizeId(candidate))) return candidate
+      const candidateKey = normalizeId(candidate)
+      if (used.has(candidateKey)) continue
+      const remainingIndex = remainingBackups.findIndex(
+        (value) => normalizeId(value) === candidateKey,
+      )
+      if (remainingIndex >= 0) remainingBackups.splice(remainingIndex, 1)
+      return candidate
     }
     return null
   }
@@ -423,13 +437,26 @@ const resolveEffectiveSelection = ({
     const playerKey = normalizeId(playerId)
     if (activeSet.has(playerKey) && !used.has(playerKey)) {
       effectivePlayerIds.push(playerId)
+      nextPlayingXi.push(playerId)
       used.add(playerKey)
       continue
     }
     const replacement = pullReplacement()
     if (replacement != null) {
       effectivePlayerIds.push(replacement)
+      nextPlayingXi.push(replacement)
       used.add(normalizeId(replacement))
+      promotedBackupIds.push(replacement)
+      benchedPlayerIds.push(playerId)
+      continue
+    }
+    nextPlayingXi.push(playerId)
+  }
+
+  for (const benchedPlayerId of benchedPlayerIds) {
+    const benchedKey = normalizeId(benchedPlayerId)
+    if (!remainingBackups.some((value) => normalizeId(value) === benchedKey)) {
+      remainingBackups.push(benchedPlayerId)
     }
   }
 
@@ -437,7 +464,11 @@ const resolveEffectiveSelection = ({
   const normalizedCaptainKey = normalizeId(captainId)
   const normalizedViceKey = normalizeId(viceCaptainId)
   return {
+    nextPlayingXi,
+    nextBackups: remainingBackups,
     effectivePlayerIds,
+    promotedBackupIds,
+    benchedPlayerIds,
     captainApplies:
       !!normalizedCaptainKey &&
       normalizedPlayingXi.map(normalizeId).includes(normalizedCaptainKey) &&

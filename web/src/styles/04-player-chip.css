@@ -31,3 +31,7 @@ body.dark-theme .player-badge {
   background: rgba(110, 231, 255, 0.16);
   color: #b7f3ff;
 }
+
+body.dark-theme .player-team-tag {
+  color: #86efac;
+}

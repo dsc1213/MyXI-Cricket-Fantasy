@@ -304,11 +304,12 @@ const registerMockProviderRoutes = (router, ctx) => {
         viceCaptainId: selection?.viceCaptainId || null,
       })
 
-      const nextPlayingXi = (resolved.effectivePlayerIds || [])
+      const nextPlayingXi = (resolved.nextPlayingXi || currentPlayingXi)
         .map((value) => value?.toString?.() ?? '')
         .filter((value) => value !== '')
-      const nextSet = new Set(nextPlayingXi)
-      const nextBackups = currentBackups.filter((value) => !nextSet.has(value))
+      const nextBackups = (resolved.nextBackups || currentBackups)
+        .map((value) => value?.toString?.() ?? '')
+        .filter((value) => value !== '')
 
       const samePlayingXi =
         nextPlayingXi.length === currentPlayingXi.length &&

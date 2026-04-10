@@ -27,6 +27,7 @@ function TeamPreviewDrawer({
   activeMatch,
   previewXI,
   previewBackups,
+  showTeam = false,
   isLoading = false,
   onClose,
 }) {
@@ -104,6 +105,32 @@ function TeamPreviewDrawer({
 
   const toggleExpanded = (key) => {
     setExpandedRows((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const renderPlayerMeta = (entry, name) => {
+    const teamCode =
+      typeof entry === 'object' ? normalizeTeamCode(entry?.team || entry?.teamCode || '') : ''
+    const autoSwapped = typeof entry === 'object' ? Boolean(entry?.autoSwapped) : false
+    return (
+      <div className="team-preview-copy">
+        <div className="team-preview-copy-main">
+          <strong>{name}</strong>
+          {showTeam && teamCode ? (
+            <span className="team-preview-team-tag">{`(${teamCode})`}</span>
+          ) : null}
+          {entry?.roleTag ? (
+            <span
+              className={`team-preview-role-badge team-preview-role-badge-${entry.roleTag.toString().trim().toLowerCase()}`.trim()}
+            >
+              {entry.roleTag}
+            </span>
+          ) : null}
+        </div>
+        {autoSwapped ? (
+          <span className="team-preview-meta-note">Backup replacement</span>
+        ) : null}
+      </div>
+    )
   }
 
   const renderPointCell = (entry, key) => {
@@ -241,10 +268,7 @@ function TeamPreviewDrawer({
                               }
                             />
                           )}
-                          <strong>{name}</strong>
-                          {entry?.roleTag ? (
-                            <span className="team-preview-role-badge">{entry.roleTag}</span>
-                          ) : null}
+                          {renderPlayerMeta(entry, name)}
                         </div>
                         {renderPointCell(entry, rowKey)}
                       </div>
@@ -291,10 +315,7 @@ function TeamPreviewDrawer({
                               }
                             />
                           )}
-                          <strong>{name}</strong>
-                          {entry?.roleTag ? (
-                            <span className="team-preview-role-badge">{entry.roleTag}</span>
-                          ) : null}
+                          {renderPlayerMeta(entry, name)}
                         </div>
                         {renderPointCell(entry, rowKey)}
                       </div>

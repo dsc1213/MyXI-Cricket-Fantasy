@@ -836,7 +836,6 @@ class PlayerService {
         typeof row.rawStats === 'string' ? JSON.parse(row.rawStats) : row.rawStats || {},
       ]),
     )
-
     if (isFixedRoster) {
       const fixedRosterResult = await dbQuery(
         `SELECT player_ids as "playerIds"
@@ -922,6 +921,9 @@ class PlayerService {
       captainId: selection?.captainId || null,
       viceCaptainId: selection?.viceCaptainId || null,
     })
+    const promotedBackupIdSet = new Set(
+      (resolvedSelection.promotedBackupIds || []).map((id) => Number(id)),
+    )
     const buildPreviewEntry = (id, { forcePlainMultiplier = false } = {}) => {
       const baseEntry = playerById.get(String(id))
       if (!baseEntry) return null
@@ -954,21 +956,19 @@ class PlayerService {
         multiplier,
         points: basePoints * multiplier,
         roleTag,
+        selectionSource: promotedBackupIdSet.has(numericId)
+          ? 'selection-auto-swap'
+          : 'selection',
+        autoSwapped: promotedBackupIdSet.has(numericId),
         rawStats: stats,
         pointBreakdown: stats ? calculateFantasyPointBreakdown(stats, ruleSet) : [],
       }
     }
 
-    const effectiveIdKeys = new Set(
-      (resolvedSelection.effectivePlayerIds || []).map((id) => String(id)),
-    )
-    const picksDetailedRaw = (resolvedSelection.effectivePlayerIds || [])
+    const picksDetailedRaw = (resolvedSelection.nextPlayingXi || selection?.playingXi || [])
       .map((id) => buildPreviewEntry(id))
       .filter(Boolean)
-    const backupsDetailedRaw = [
-      ...(selection?.playingXi || []).filter((id) => !effectiveIdKeys.has(String(id))),
-      ...(selection?.backups || []).filter((id) => !effectiveIdKeys.has(String(id))),
-    ]
+    const backupsDetailedRaw = (resolvedSelection.nextBackups || selection?.backups || [])
       .map((id) => buildPreviewEntry(id, { forcePlainMultiplier: true }))
       .filter(Boolean)
     const picksDetailed = await decorateWithLineupStatus(picksDetailedRaw)

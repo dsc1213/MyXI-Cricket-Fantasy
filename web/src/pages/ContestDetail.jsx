@@ -427,6 +427,7 @@ function ContestDetail() {
         activeMatch={activeSortedMatch}
         previewXI={previewXI}
         previewBackups={previewBackups}
+        showTeam
         isLoading={isLoadingPreview}
         onClose={() => {
           setPreviewPlayer(null)

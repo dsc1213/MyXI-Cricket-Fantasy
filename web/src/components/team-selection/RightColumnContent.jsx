@@ -134,6 +134,7 @@ function RightColumnContent({
                       player={player}
                       lineupStatus={player.lineupStatus || ''}
                       className="myxi-role-chip"
+                      showTeam
                     />
                   ))}
                 </div>
@@ -157,6 +158,7 @@ function RightColumnContent({
                 player={player}
                 className="backup-chip"
                 lineupStatus={player.lineupStatus || ''}
+                showTeam
               />
             ) : (
               <div className="backup-chip empty" key={`bb-${index}`}>
