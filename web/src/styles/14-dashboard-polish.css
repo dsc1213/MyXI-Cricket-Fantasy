@@ -3515,29 +3515,71 @@ body.dark-theme .fantasy-hub-main {
   }
 
   .points-editor-card {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
     width: 100%;
     min-width: 0;
     overflow-x: hidden;
+    overflow-y: visible;
+    gap: 0.75rem;
   }
 
   .points-group {
     min-width: 0;
   }
 
+  .points-group-card {
+    padding: 0.65rem;
+    max-height: none;
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .points-group-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .points-group-head .badge {
+    align-self: flex-start;
+  }
+
+  .points-group-card .player-list {
+    display: grid;
+    gap: 0.3rem;
+    height: auto;
+    overflow: visible;
+    max-height: none;
+    min-height: auto;
+    padding-right: 0;
+  }
+
   .points-input-row {
-    grid-template-columns: minmax(0, 1fr) minmax(64px, 84px);
+    grid-template-columns: minmax(0, 1fr) 72px;
     gap: 0.34rem;
   }
 
   .points-input-row span {
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     letter-spacing: 0.04em;
   }
 
   .points-input-row input {
     padding: 0.28rem 0.4rem;
-    font-size: 0.76rem;
+    font-size: 0.72rem;
+  }
+
+  .points-editor-card .top-actions {
+    justify-content: center;
+  }
+
+  .points-group h4 {
+    font-size: 0.9rem;
+  }
+
+  .points-group-head .team-note {
+    max-width: none;
+    font-size: 0.68rem;
   }
 }
 

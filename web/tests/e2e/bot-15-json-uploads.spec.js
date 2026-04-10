@@ -3550,6 +3550,246 @@ test.describe('15) JSON uploads and UI validation', () => {
     }
   })
 
+  test('expanded scoring rules apply screenshot-backed milestone and rate bonuses', async ({
+    request,
+    page,
+  }) => {
+    const tag = Date.now()
+    const tournamentId = `json-expanded-rules-tour-${tag}`
+    let contestId = ''
+    let previousRules = null
+
+    try {
+      await apiCall(
+        request,
+        'POST',
+        '/admin/tournaments',
+        {
+          actorUserId: 'master',
+          tournamentId,
+          name: `JSON Expanded Rules Tournament ${tag}`,
+          season: '2026',
+          source: 'json',
+          tournamentType: 'international',
+          selectedTeams: ['IND', 'AUS'],
+          matches: [
+            {
+              id: 'm1',
+              matchNo: 1,
+              home: 'IND',
+              away: 'AUS',
+              startAt: '2099-03-10T14:00:00.000Z',
+              timezone: 'UTC',
+              venue: 'Melbourne',
+            },
+          ],
+        },
+        201,
+      )
+
+      const pageLoad = await apiCall(request, 'GET', '/page-load-data', undefined, 200)
+      previousRules = JSON.parse(
+        JSON.stringify(pageLoad?.pointsRuleTemplate || {}),
+      )
+
+      await apiCall(
+        request,
+        'POST',
+        '/scoring-rules/save',
+        {
+          actorUserId: 'master',
+          rules: {
+            batting: [
+              { id: 'run', label: 'Each Run', value: 1 },
+              { id: 'four', label: 'Each Four', value: 1 },
+              { id: 'six', label: 'Each Six', value: 2 },
+              { id: 'thirty', label: '30 Runs Bonus', value: 3 },
+              { id: 'fifty', label: '50 Runs Bonus', value: 5 },
+              { id: 'seventyFive', label: '75 Runs Bonus', value: 7 },
+              { id: 'century', label: '100 Runs Bonus', value: 10 },
+              { id: 'oneFifty', label: '150 Runs Bonus', value: 15 },
+              { id: 'twoHundred', label: '200+ Runs Bonus', value: 20 },
+              { id: 'duck', label: 'Duck Out', value: -5 },
+              { id: 'strikeRate150', label: 'Strike Rate 150+', value: 5 },
+              { id: 'strikeRate200', label: 'Strike Rate 200+', value: 10 },
+              { id: 'strikeRate250', label: 'Strike Rate 250+', value: 15 },
+              { id: 'strikeRateBelow80', label: 'Strike Rate Below 80', value: -5 },
+            ],
+            bowling: [
+              { id: 'wicket', label: 'Each Wicket', value: 20 },
+              { id: 'maiden', label: 'Maiden Over', value: 8 },
+              { id: 'threew', label: '3-Wicket Bonus', value: 5 },
+              { id: 'fourw', label: '4-Wicket Bonus', value: 10 },
+              { id: 'fivew', label: '5-Wicket Bonus', value: 15 },
+              { id: 'wide', label: 'Wide / No-ball', value: -1 },
+              { id: 'economyBelow3', label: 'Economy 3 or Less', value: 15 },
+              { id: 'economyBelow5', label: 'Economy 5 or Less', value: 10 },
+              { id: 'economyBelow6', label: 'Economy 6 or Less', value: 5 },
+              { id: 'economyAbove10', label: 'Economy 10+', value: -3 },
+              { id: 'economyAbove12', label: 'Economy 12+', value: -5 },
+              { id: 'hatTrick', label: 'Hat-trick Bonus', value: 10 },
+            ],
+            fielding: [
+              { id: 'catch', label: 'Each Catch', value: 5 },
+              { id: 'threeCatch', label: '3+ Catches Bonus', value: 5 },
+              { id: 'stumping', label: 'Stumping', value: 12 },
+              { id: 'twoStumping', label: '2+ Stumpings Bonus', value: 5 },
+              { id: 'runout-direct', label: 'Runout (Direct Hit)', value: 12 },
+              { id: 'runout-indirect', label: 'Runout (Assist)', value: 6 },
+            ],
+          },
+        },
+        200,
+      )
+
+      const contest = await apiCall(
+        request,
+        'POST',
+        '/admin/contests',
+        {
+          name: `JSON Expanded Rules Contest ${tag}`,
+          tournamentId,
+          game: 'Fantasy',
+          teams: 25,
+          status: 'Open',
+          createdBy: 'master',
+          matchIds: ['m1'],
+        },
+        201,
+      )
+      contestId = contest.id
+
+      await loginUi(page, 'player')
+      await page.evaluate(
+        async ({ innerContestId }) => {
+          const api = await import('/src/lib/api.js')
+          return api.joinContest({ contestId: innerContestId, userId: 'player' })
+        },
+        { innerContestId: contestId },
+      )
+
+      const pool = await page.evaluate(
+        async ({ innerContestId }) => {
+          const api = await import('/src/lib/api.js')
+          return api.fetchTeamPool({
+            contestId: innerContestId,
+            matchId: 'm1',
+            userId: 'player',
+          })
+        },
+        { innerContestId: contestId },
+      )
+      const playingXi = buildValidPlayingXi(
+        pool?.teams?.teamA?.players || [],
+        pool?.teams?.teamB?.players || [],
+      )
+      const allPlayers = [
+        ...(pool?.teams?.teamA?.players || []),
+        ...(pool?.teams?.teamB?.players || []),
+      ]
+      const playerById = new Map(allPlayers.map((player) => [player.id, player]))
+      const captain = playerById.get(playingXi[0])
+
+      await apiCall(
+        request,
+        'POST',
+        '/team-selection/save',
+        {
+          contestId,
+          matchId: 'm1',
+          userId: 'player',
+          playingXi,
+          backups: [],
+          captainId: captain.id,
+          viceCaptainId: playingXi[1],
+        },
+        200,
+      )
+
+      await apiCall(
+        request,
+        'POST',
+        '/admin/match-scores/upsert',
+        {
+          tournamentId,
+          matchId: 'm1',
+          userId: 'master',
+          playerStats: [
+            {
+              playerId: captain.id,
+              playerName: captain.name,
+              runs: 80,
+              ballsFaced: 32,
+              fours: 6,
+              sixes: 4,
+              wickets: 3,
+              overs: 4,
+              maidens: 1,
+              runsConceded: 10,
+              noBalls: 0,
+              wides: 0,
+              catches: 3,
+              stumpings: 2,
+              runoutDirect: 0,
+              runoutIndirect: 0,
+              hatTrick: 1,
+              dismissed: true,
+            },
+          ],
+        },
+        200,
+      )
+
+      const picks = await page.evaluate(
+        async ({ innerContestId }) => {
+          const api = await import('/src/lib/api.js')
+          return api.fetchUserPicks({
+            userId: 'player',
+            contestId: innerContestId,
+            matchId: 'm1',
+          })
+        },
+        { innerContestId: contestId },
+      )
+
+      const captainRow = (picks?.picksDetailed || []).find((row) => row.id === captain.id)
+      const labels = (captainRow?.pointBreakdown || []).map((row) => row.label)
+      expect(labels).toEqual(
+        expect.arrayContaining([
+          '75 bonus',
+          'Strike rate 250+',
+          'Hat-trick',
+          'Three wicket bonus',
+          'Economy 3 or less',
+          '3+ catches bonus',
+          '2+ stumpings bonus',
+        ]),
+      )
+      expect(Number(captainRow?.basePoints || 0)).toBe(263)
+      expect(Number(captainRow?.points || 0)).toBe(526)
+    } finally {
+      if (previousRules) {
+        await request.fetch('http://127.0.0.1:4000/scoring-rules/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          data: { actorUserId: 'master', rules: previousRules },
+        })
+      }
+      if (contestId) {
+        await request.fetch(`http://127.0.0.1:4000/admin/contests/${contestId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          data: { actorUserId: 'master' },
+        })
+      }
+      await request.fetch(`http://127.0.0.1:4000/admin/tournaments/${tournamentId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        data: { actorUserId: 'master' },
+      })
+    }
+  })
+
   test('captain and vice captain are chosen in MyXI Picks and required before saving', async ({
     page,
     request,

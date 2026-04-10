@@ -20,4 +20,27 @@ try {
 
 const cloneDefaultPointsRules = () => JSON.parse(JSON.stringify(defaultPointsRulesJson))
 
-export { defaultPointsRulesJson, cloneDefaultPointsRules }
+const mergeRuleSection = (defaults = [], incoming = []) => {
+  const incomingRows = Array.isArray(incoming) ? incoming : []
+  const merged = defaults.map((row) => {
+    const incomingRow = incomingRows.find((candidate) => candidate?.id === row.id)
+    return incomingRow ? { ...row, ...incomingRow } : { ...row }
+  })
+  incomingRows.forEach((row) => {
+    if (!row?.id || merged.some((candidate) => candidate.id === row.id)) return
+    merged.push({ ...row })
+  })
+  return merged
+}
+
+const normalizePointsRuleTemplate = (value) => {
+  const template = value && typeof value === 'object' ? value : {}
+  const defaults = cloneDefaultPointsRules()
+  return {
+    batting: mergeRuleSection(defaults.batting, template.batting),
+    bowling: mergeRuleSection(defaults.bowling, template.bowling),
+    fielding: mergeRuleSection(defaults.fielding, template.fielding),
+  }
+}
+
+export { defaultPointsRulesJson, cloneDefaultPointsRules, normalizePointsRuleTemplate }

@@ -1,50 +1,45 @@
+import { cloneDefaultPointsRules } from '../lib/defaultPointsRules.js'
+
+const sectionDescriptions = {
+  batting: 'Runs, milestones, duck, and strike-rate slabs sourced from scorecard batting tables.',
+  bowling: 'Wickets, maidens, wides/no-balls, and economy slabs sourced from bowling figures.',
+  fielding: 'Catches, stumpings, and runout credits sourced from dismissal details only.',
+}
+
 function ScoringRules() {
+  const pointsRules = cloneDefaultPointsRules()
+
   return (
     <section className="admin">
       <div className="admin-header">
         <div>
           <p className="eyebrow">Admin</p>
-          <h2>Scoring rules</h2>
-          <p className="lead">Set points for runs, wickets, catches.</p>
+          <h2>Scoring Rules</h2>
+          <p className="lead">
+            Read-only reference of the shared scoring template used by the app.
+          </p>
         </div>
-        <button type="button" className="cta">
-          Save rules
-        </button>
       </div>
-      <div className="admin-grid">
-        <div className="admin-card">
-          <label>
-            Runs (per run)
-            <input type="number" defaultValue="1" />
-          </label>
-          <label>
-            Wickets
-            <input type="number" defaultValue="20" />
-          </label>
-          <label>
-            Catches
-            <input type="number" defaultValue="10" />
-          </label>
-          <label>
-            Fours
-            <input type="number" defaultValue="1" />
-          </label>
-          <label>
-            Sixes
-            <input type="number" defaultValue="2" />
-          </label>
-        </div>
-        <div className="admin-card admin-side-note">
-          <h3>Notes</h3>
-          <p>Rules apply to the selected tournament.</p>
-          <div className="select-row">
-            <span>Active tournament</span>
-            <select>
-              <option>T20 World Cup 2026</option>
-              <option>IPL 2026</option>
-            </select>
-          </div>
-        </div>
+      <div className="admin-grid points-reference-grid">
+        {Object.entries(pointsRules).map(([section, rows]) => (
+          <article className="admin-card points-reference-card" key={section}>
+            <div className="points-reference-head">
+              <div>
+                <h3>{section}</h3>
+                <p>{sectionDescriptions[section] || 'Shared scoring rules.'}</p>
+              </div>
+              <span className="badge light">{`${rows.length} rules`}</span>
+            </div>
+            <div className="points-reference-list">
+              {rows.map((row) => (
+                <div className="points-input-row points-reference-row" key={row.id}>
+                  <span>{row.label}</span>
+                  <input type="number" value={row.value} readOnly disabled />
+                </div>
+              ))}
+            </div>
+          </article>
+        ))}
       </div>
     </section>
   )

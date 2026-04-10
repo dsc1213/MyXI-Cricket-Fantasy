@@ -172,7 +172,12 @@ function TeamPreviewDrawer({
           <ul className="team-preview-breakdown-list">
             {breakdown.map((row, index) => (
               <li key={`${key}-row-${index}`}>
-                <span>{row.label}</span>
+                <span>
+                  <strong>{row.label}</strong>
+                  {row.count != null && row.valuePerUnit != null ? (
+                    <small>{`${row.count} x ${row.valuePerUnit}`}</small>
+                  ) : null}
+                </span>
                 <span>{row.points}</span>
               </li>
             ))}

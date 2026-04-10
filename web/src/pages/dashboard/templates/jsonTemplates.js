@@ -6,7 +6,18 @@ export const SCORE_JSON_SCHEMA_TEMPLATE = `{
       "ballsFaced": 20,
       "fours": 4,
       "sixes": 1,
-      "wickets": 2
+      "wickets": 2,
+      "overs": 4,
+      "maidens": 0,
+      "runsConceded": 28,
+      "noBalls": 0,
+      "wides": 1,
+      "catches": 1,
+      "stumpings": 0,
+      "runoutDirect": 0,
+      "runoutIndirect": 0,
+      "hatTrick": 0,
+      "dismissed": true
     }
   ]
 }`
@@ -38,8 +49,10 @@ export const SCORE_AI_PROMPT_TEXT = [
   '- Include only players present in the template.',
   '- Names are validated by the app against DB players for the selected match.',
   '- Missing numeric fields should be 0. dismissed should be false when not out/DNB.',
+  '- ballsFaced is required for duck and strike-rate rules when the batter faced the ball.',
+  '- overs and runsConceded are required for economy rules when the player bowled.',
   '',
-  'Score fields: runs, ballsFaced, fours, sixes, wickets, overs, maidens, runsConceded, noBalls, wides, catches, stumpings, runoutDirect, runoutIndirect, dismissed.',
+  'Score fields: runs, ballsFaced, fours, sixes, wickets, overs, maidens, runsConceded, noBalls, wides, catches, stumpings, runoutDirect, runoutIndirect, hatTrick, dismissed.',
   '',
   'Scorecard JSON:',
   'PASTE_SCORECARD_JSON_HERE',

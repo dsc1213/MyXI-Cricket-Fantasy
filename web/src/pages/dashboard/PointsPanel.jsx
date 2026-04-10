@@ -9,6 +9,11 @@ function PointsPanel({
   onSaveRules,
 }) {
   const isEditable = canEditRules && isEditMode
+  const sectionDescriptions = {
+    batting: 'Runs, milestones, duck, and strike-rate bonuses.',
+    bowling: 'Wickets, maidens, wides/no-balls, and economy slabs.',
+    fielding: 'Catches, stumpings, and runout scoring from scorecard text.',
+  }
 
   return (
     <section className="dashboard-section">
@@ -29,8 +34,14 @@ function PointsPanel({
           )}
         </div>
         {Object.entries(pointsRules).map(([section, rows]) => (
-          <div className="points-group" key={section}>
-            <h4>{section}</h4>
+          <div className="points-group points-group-card" key={section}>
+            <div className="points-group-head">
+              <div>
+                <h4>{section}</h4>
+                <p className="team-note">{sectionDescriptions[section] || 'Shared scoring rules'}</p>
+              </div>
+              <span className="badge light">{`${rows.length} rules`}</span>
+            </div>
             <div className="player-list">
               {rows.map((row) => (
                 <label className="points-input-row" key={row.id}>

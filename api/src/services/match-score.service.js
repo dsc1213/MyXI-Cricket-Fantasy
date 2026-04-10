@@ -129,6 +129,7 @@ class MatchScoreService {
         'stumpings',
         'runoutDirect',
         'runoutIndirect',
+        'hatTrick',
         'ballsFaced',
         'oversBowled',
         'runsConceded',

@@ -112,6 +112,7 @@ function UploadPanel({
       { key: 'noBalls', label: 'NB' },
       { key: 'wides', label: 'WD' },
       { key: 'economy', label: 'ECO', derived: true },
+      { key: 'hatTrick', label: 'HT' },
     ],
     fielding: [
       { key: 'catches', label: 'Catches' },
@@ -251,16 +252,31 @@ function UploadPanel({
       six: getRuleValue(pointsRules?.batting, 'six', 2),
       thirty: getRuleValue(pointsRules?.batting, 'thirty', 0),
       fifty: getRuleValue(pointsRules?.batting, 'fifty', 0),
+      seventyFive: getRuleValue(pointsRules?.batting, 'seventyFive', 0),
       century: getRuleValue(pointsRules?.batting, 'century', 0),
+      oneFifty: getRuleValue(pointsRules?.batting, 'oneFifty', 0),
+      twoHundred: getRuleValue(pointsRules?.batting, 'twoHundred', 0),
       duck: getRuleValue(pointsRules?.batting, 'duck', 0),
+      strikeRate150: getRuleValue(pointsRules?.batting, 'strikeRate150', 0),
+      strikeRate200: getRuleValue(pointsRules?.batting, 'strikeRate200', 0),
+      strikeRate250: getRuleValue(pointsRules?.batting, 'strikeRate250', 0),
+      strikeRateBelow80: getRuleValue(pointsRules?.batting, 'strikeRateBelow80', 0),
       wicket: getRuleValue(pointsRules?.bowling, 'wicket', 20),
       maiden: getRuleValue(pointsRules?.bowling, 'maiden', 0),
       threew: getRuleValue(pointsRules?.bowling, 'threew', 0),
       fourw: getRuleValue(pointsRules?.bowling, 'fourw', 0),
       fivew: getRuleValue(pointsRules?.bowling, 'fivew', 0),
       wide: getRuleValue(pointsRules?.bowling, 'wide', 0),
+      economyBelow3: getRuleValue(pointsRules?.bowling, 'economyBelow3', 0),
+      economyBelow5: getRuleValue(pointsRules?.bowling, 'economyBelow5', 0),
+      economyBelow6: getRuleValue(pointsRules?.bowling, 'economyBelow6', 0),
+      economyAbove10: getRuleValue(pointsRules?.bowling, 'economyAbove10', 0),
+      economyAbove12: getRuleValue(pointsRules?.bowling, 'economyAbove12', 0),
+      hatTrick: getRuleValue(pointsRules?.bowling, 'hatTrick', 0),
       catch: getRuleValue(pointsRules?.fielding, 'catch', 10),
+      threeCatch: getRuleValue(pointsRules?.fielding, 'threeCatch', 0),
       stumping: getRuleValue(pointsRules?.fielding, 'stumping', 0),
+      twoStumping: getRuleValue(pointsRules?.fielding, 'twoStumping', 0),
       runoutDirect: getRuleValue(pointsRules?.fielding, 'runout-direct', 0),
       runoutIndirect: getRuleValue(pointsRules?.fielding, 'runout-indirect', 0),
     }
@@ -270,12 +286,16 @@ function UploadPanel({
     const catches = Number(stats?.catches || 0)
     const fours = Number(stats?.fours || 0)
     const sixes = Number(stats?.sixes || 0)
+    const ballsFaced = Number(stats?.ballsFaced || 0)
+    const overs = Number(stats?.overs || 0)
+    const runsConceded = Number(stats?.runsConceded || 0)
     const maidens = Number(stats?.maidens || 0)
     const wides = Number(stats?.wides || 0)
     const noBalls = Number(stats?.noBalls || 0)
     const stumpings = Number(stats?.stumpings || 0)
     const runoutDirect = Number(stats?.runoutDirect || 0)
     const runoutIndirect = Number(stats?.runoutIndirect || 0)
+    const hatTrick = Number(stats?.hatTrick || 0)
 
     let total = 0
     total += runs * rules.run
@@ -288,15 +308,36 @@ function UploadPanel({
     total += stumpings * rules.stumping
     total += runoutDirect * rules.runoutDirect
     total += runoutIndirect * rules.runoutIndirect
+    total += hatTrick * rules.hatTrick
 
-    if (runs >= 100) total += rules.century
+    if (runs >= 200) total += rules.twoHundred
+    else if (runs >= 150) total += rules.oneFifty
+    else if (runs >= 100) total += rules.century
+    else if (runs >= 75) total += rules.seventyFive
     else if (runs >= 50) total += rules.fifty
     else if (runs >= 30) total += rules.thirty
 
-    if (runs === 0 && stats?.dismissed === true) total += rules.duck
+    if (runs === 0 && ballsFaced > 0 && stats?.dismissed === true) total += rules.duck
     if (wickets >= 5) total += rules.fivew
     else if (wickets >= 4) total += rules.fourw
     else if (wickets >= 3) total += rules.threew
+    if (catches >= 3) total += rules.threeCatch
+    if (stumpings >= 2) total += rules.twoStumping
+    if (ballsFaced >= 15) {
+      const strikeRate = (runs / ballsFaced) * 100
+      if (strikeRate >= 250) total += rules.strikeRate250
+      else if (strikeRate >= 200) total += rules.strikeRate200
+      else if (strikeRate >= 150) total += rules.strikeRate150
+      else if (strikeRate < 80) total += rules.strikeRateBelow80
+    }
+    if (overs >= 2) {
+      const economy = runsConceded / overs
+      if (economy <= 3) total += rules.economyBelow3
+      else if (economy <= 5) total += rules.economyBelow5
+      else if (economy <= 6) total += rules.economyBelow6
+      else if (economy >= 12) total += rules.economyAbove12
+      else if (economy >= 10) total += rules.economyAbove10
+    }
 
     return total
   }

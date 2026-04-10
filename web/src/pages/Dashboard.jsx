@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import ApiFailureTile from '../components/ui/ApiFailureTile.jsx'
 import {
@@ -103,12 +103,15 @@ function Dashboard({ defaultPanel = 'joined' }) {
     activePanel === '__all-pages__' || activePanel === '__all-apis__'
       ? defaultPanel
       : activePanel
-  const panelAliases = {
-    admin: 'userManager',
-    createTournament: 'tournamentManager',
-    approvals: 'userManager',
-    upload: 'scoreManager',
-  }
+  const panelAliases = useMemo(
+    () => ({
+      admin: 'userManager',
+      createTournament: 'tournamentManager',
+      approvals: 'userManager',
+      upload: 'scoreManager',
+    }),
+    [],
+  )
   const panelsWithGlobalSaveNotice = new Set([
     'points',
     'playingXiManager',
@@ -189,7 +192,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
       ? manualTeamPool?.teamAPlayers || []
       : manualTeamPool?.teamBPlayers || []
 
-  const selectPanel = (nextPanel) => {
+  const selectPanel = useCallback((nextPanel) => {
     if (nextPanel === '__all-pages__') {
       navigate('/all-pages')
       return
@@ -207,7 +210,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
       },
       { replace: false },
     )
-  }
+  }, [location.pathname, location.search, navigate])
 
   const applyManualStatsFromSavedScore = ({
     teamAPlayers = [],
@@ -247,7 +250,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
     if (aliasedPanel) {
       selectPanel(aliasedPanel)
     }
-  }, [activePanel])
+  }, [activePanel, panelAliases, selectPanel])
 
   useEffect(() => {
     // Clear shared banner state when switching dashboard panels.
@@ -582,7 +585,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
     if (!validPanelKeys.has(activePanel)) {
       selectPanel('joined')
     }
-  }, [activePanel, validPanelKeys])
+  }, [activePanel, selectPanel, validPanelKeys])
 
   const updateRuleValue = (section, id, value) => {
     setPointsRules((prev) => ({
@@ -812,6 +815,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
       stumpings: 0,
       runoutDirect: 0,
       runoutIndirect: 0,
+      hatTrick: 0,
       dismissed: false,
     })
 

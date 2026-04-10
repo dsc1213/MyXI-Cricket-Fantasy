@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Button from '../../components/ui/Button.jsx'
 import StickyTable from '../../components/ui/StickyTable.jsx'
@@ -20,7 +20,7 @@ function PendingApprovalsPanel({ compact = false }) {
   const [users, setUsers] = useState([])
   const [isSavingId, setIsSavingId] = useState(null)
 
-  const loadPending = async () => {
+  const loadPending = useCallback(async () => {
     try {
       setIsLoading(true)
       setErrorText('')
@@ -31,11 +31,11 @@ function PendingApprovalsPanel({ compact = false }) {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     void loadPending()
-  }, [])
+  }, [loadPending])
 
   const pendingUsers = useMemo(
     () => (users || []).filter((row) => row.status === 'pending'),
@@ -51,7 +51,8 @@ function PendingApprovalsPanel({ compact = false }) {
         id: row.id,
         payload: {
           status,
-          actorUserId: currentUser?.userId || currentUser?.gameName || currentUser?.email || '',
+          actorUserId:
+            currentUser?.userId || currentUser?.gameName || currentUser?.email || '',
         },
       })
       await loadPending()
@@ -73,7 +74,11 @@ function PendingApprovalsPanel({ compact = false }) {
         </Link>
       ),
     },
-    { key: 'userId', label: 'User ID', render: (row) => row.userId || row.gameName || '-' },
+    {
+      key: 'userId',
+      label: 'User ID',
+      render: (row) => row.userId || row.gameName || '-',
+    },
     { key: 'email', label: 'Email', render: (row) => row.email || '-' },
     { key: 'phone', label: 'Phone', render: (row) => row.phone || '-' },
     { key: 'location', label: 'Location', render: (row) => row.location || '-' },
@@ -115,8 +120,12 @@ function PendingApprovalsPanel({ compact = false }) {
   ]
 
   return (
-    <section className={`dashboard-section ${compact ? 'pending-approvals-section compact' : 'pending-approvals-section'}`.trim()}>
-      <div className={`admin-card dashboard-panel-card ${compact ? 'pending-approvals-panel compact' : 'pending-approvals-panel'}`.trim()}>
+    <section
+      className={`dashboard-section ${compact ? 'pending-approvals-section compact' : 'pending-approvals-section'}`.trim()}
+    >
+      <div
+        className={`admin-card dashboard-panel-card ${compact ? 'pending-approvals-panel compact' : 'pending-approvals-panel'}`.trim()}
+      >
         <div className="contest-section-head">
           <h3>{`Pending users (${pendingUsers.length})`}</h3>
           <div className="top-actions">

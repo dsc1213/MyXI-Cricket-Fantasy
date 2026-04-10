@@ -27,5 +27,6 @@ export const buildDefaultManualStatsRow = () => ({
   stumpings: 0,
   runoutDirect: 0,
   runoutIndirect: 0,
+  hatTrick: 0,
   dismissed: false,
 })

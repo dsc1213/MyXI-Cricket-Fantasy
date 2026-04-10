@@ -19,16 +19,31 @@ const getRuleSetForTournament = ({
       six: findRuleRowValue(rules.batting, 'six', 2),
       thirty: findRuleRowValue(rules.batting, 'thirty', 0),
       fifty: findRuleRowValue(rules.batting, 'fifty', 0),
+      seventyFive: findRuleRowValue(rules.batting, 'seventyFive', 0),
       century: findRuleRowValue(rules.batting, 'century', 0),
+      oneFifty: findRuleRowValue(rules.batting, 'oneFifty', 0),
+      twoHundred: findRuleRowValue(rules.batting, 'twoHundred', 0),
       duck: findRuleRowValue(rules.batting, 'duck', 0),
+      strikeRate150: findRuleRowValue(rules.batting, 'strikeRate150', 0),
+      strikeRate200: findRuleRowValue(rules.batting, 'strikeRate200', 0),
+      strikeRate250: findRuleRowValue(rules.batting, 'strikeRate250', 0),
+      strikeRateBelow80: findRuleRowValue(rules.batting, 'strikeRateBelow80', 0),
       wicket: findRuleRowValue(rules.bowling, 'wicket', 20),
       maiden: findRuleRowValue(rules.bowling, 'maiden', 0),
       threew: findRuleRowValue(rules.bowling, 'threew', 0),
       fourw: findRuleRowValue(rules.bowling, 'fourw', 0),
       fivew: findRuleRowValue(rules.bowling, 'fivew', 0),
       wide: findRuleRowValue(rules.bowling, 'wide', 0),
+      economyBelow3: findRuleRowValue(rules.bowling, 'economyBelow3', 0),
+      economyBelow5: findRuleRowValue(rules.bowling, 'economyBelow5', 0),
+      economyBelow6: findRuleRowValue(rules.bowling, 'economyBelow6', 0),
+      economyAbove10: findRuleRowValue(rules.bowling, 'economyAbove10', 0),
+      economyAbove12: findRuleRowValue(rules.bowling, 'economyAbove12', 0),
+      hatTrick: findRuleRowValue(rules.bowling, 'hatTrick', 0),
       catch: findRuleRowValue(rules.fielding, 'catch', 10),
+      threeCatch: findRuleRowValue(rules.fielding, 'threeCatch', 0),
       stumping: findRuleRowValue(rules.fielding, 'stumping', 0),
+      twoStumping: findRuleRowValue(rules.fielding, 'twoStumping', 0),
       runoutDirect: findRuleRowValue(rules.fielding, 'runout-direct', 0),
       runoutIndirect: findRuleRowValue(rules.fielding, 'runout-indirect', 0),
     }
@@ -40,19 +55,48 @@ const getRuleSetForTournament = ({
     six: Number(rules.six ?? 2),
     thirty: Number(rules.thirty ?? 0),
     fifty: Number(rules.fifty ?? 0),
+    seventyFive: Number(rules.seventyFive ?? 0),
     century: Number(rules.century ?? 0),
+    oneFifty: Number(rules.oneFifty ?? 0),
+    twoHundred: Number(rules.twoHundred ?? 0),
     duck: Number(rules.duck ?? 0),
+    strikeRate150: Number(rules.strikeRate150 ?? 0),
+    strikeRate200: Number(rules.strikeRate200 ?? 0),
+    strikeRate250: Number(rules.strikeRate250 ?? 0),
+    strikeRateBelow80: Number(rules.strikeRateBelow80 ?? 0),
     wicket: Number(rules.wicket ?? 20),
     maiden: Number(rules.maiden ?? 0),
     threew: Number(rules.threew ?? 0),
     fourw: Number(rules.fourw ?? 0),
     fivew: Number(rules.fivew ?? 0),
     wide: Number(rules.wide ?? 0),
+    economyBelow3: Number(rules.economyBelow3 ?? 0),
+    economyBelow5: Number(rules.economyBelow5 ?? 0),
+    economyBelow6: Number(rules.economyBelow6 ?? 0),
+    economyAbove10: Number(rules.economyAbove10 ?? 0),
+    economyAbove12: Number(rules.economyAbove12 ?? 0),
+    hatTrick: Number(rules.hatTrick ?? 0),
     catch: Number(rules.catch ?? 10),
+    threeCatch: Number(rules.threeCatch ?? 0),
     stumping: Number(rules.stumping ?? 0),
+    twoStumping: Number(rules.twoStumping ?? 0),
     runoutDirect: Number(rules.runoutDirect ?? 0),
     runoutIndirect: Number(rules.runoutIndirect ?? 0),
   }
+}
+
+const getStrikeRateValue = (runs = 0, ballsFaced = 0) => {
+  const numericRuns = Number(runs || 0)
+  const numericBalls = Number(ballsFaced || 0)
+  if (!numericBalls) return 0
+  return (numericRuns / numericBalls) * 100
+}
+
+const getEconomyValue = (overs = 0, runsConceded = 0) => {
+  const numericOvers = Number(overs || 0)
+  const numericRunsConceded = Number(runsConceded || 0)
+  if (!numericOvers) return 0
+  return numericRunsConceded / numericOvers
 }
 
 const calculateFantasyPoints = (stats, ruleSet) => {
@@ -61,12 +105,16 @@ const calculateFantasyPoints = (stats, ruleSet) => {
   const catches = Number(stats?.catches || 0)
   const fours = Number(stats?.fours || 0)
   const sixes = Number(stats?.sixes || 0)
+  const ballsFaced = Number(stats?.ballsFaced || 0)
+  const overs = Number(stats?.overs || stats?.oversBowled || 0)
+  const runsConceded = Number(stats?.runsConceded || 0)
   const maidens = Number(stats?.maidens || 0)
   const wides = Number(stats?.wides || 0)
   const noBalls = Number(stats?.noBalls || 0)
   const stumpings = Number(stats?.stumpings || 0)
   const runoutDirect = Number(stats?.runoutDirect || 0)
   const runoutIndirect = Number(stats?.runoutIndirect || 0)
+  const hatTrick = Number(stats?.hatTrick || 0)
 
   let total = 0
   total += runs * ruleSet.run
@@ -79,18 +127,42 @@ const calculateFantasyPoints = (stats, ruleSet) => {
   total += stumpings * ruleSet.stumping
   total += runoutDirect * ruleSet.runoutDirect
   total += runoutIndirect * ruleSet.runoutIndirect
+  total += hatTrick * ruleSet.hatTrick
 
-  if (runs >= 100) total += ruleSet.century
+  if (runs >= 200) total += ruleSet.twoHundred
+  else if (runs >= 150) total += ruleSet.oneFifty
+  else if (runs >= 100) total += ruleSet.century
+  else if (runs >= 75) total += ruleSet.seventyFive
   else if (runs >= 50) total += ruleSet.fifty
   else if (runs >= 30) total += ruleSet.thirty
 
-  if (runs === 0 && stats?.dismissed === true) {
+  if (runs === 0 && ballsFaced > 0 && stats?.dismissed === true) {
     total += ruleSet.duck
   }
 
   if (wickets >= 5) total += ruleSet.fivew
   else if (wickets >= 4) total += ruleSet.fourw
   else if (wickets >= 3) total += ruleSet.threew
+
+  if (catches >= 3) total += ruleSet.threeCatch
+  if (stumpings >= 2) total += ruleSet.twoStumping
+
+  if (ballsFaced >= 15) {
+    const strikeRate = getStrikeRateValue(runs, ballsFaced)
+    if (strikeRate >= 250) total += ruleSet.strikeRate250
+    else if (strikeRate >= 200) total += ruleSet.strikeRate200
+    else if (strikeRate >= 150) total += ruleSet.strikeRate150
+    else if (strikeRate < 80) total += ruleSet.strikeRateBelow80
+  }
+
+  if (overs >= 2) {
+    const economy = getEconomyValue(overs, runsConceded)
+    if (economy <= 3) total += ruleSet.economyBelow3
+    else if (economy <= 5) total += ruleSet.economyBelow5
+    else if (economy <= 6) total += ruleSet.economyBelow6
+    else if (economy >= 12) total += ruleSet.economyAbove12
+    else if (economy >= 10) total += ruleSet.economyAbove10
+  }
 
   return total
 }
@@ -114,12 +186,16 @@ const calculateFantasyPointBreakdown = (stats, ruleSet) => {
   const catches = Number(stats?.catches || 0)
   const fours = Number(stats?.fours || 0)
   const sixes = Number(stats?.sixes || 0)
+  const ballsFaced = Number(stats?.ballsFaced || 0)
+  const overs = Number(stats?.overs || stats?.oversBowled || 0)
+  const runsConceded = Number(stats?.runsConceded || 0)
   const maidens = Number(stats?.maidens || 0)
   const wides = Number(stats?.wides || 0)
   const noBalls = Number(stats?.noBalls || 0)
   const stumpings = Number(stats?.stumpings || 0)
   const runoutDirect = Number(stats?.runoutDirect || 0)
   const runoutIndirect = Number(stats?.runoutIndirect || 0)
+  const hatTrick = Number(stats?.hatTrick || 0)
 
   push('Runs', runs, ruleSet.run)
   push('Fours', fours, ruleSet.four)
@@ -131,16 +207,23 @@ const calculateFantasyPointBreakdown = (stats, ruleSet) => {
   push('Stumpings', stumpings, ruleSet.stumping)
   push('Run-out direct', runoutDirect, ruleSet.runoutDirect)
   push('Run-out assist', runoutIndirect, ruleSet.runoutIndirect)
+  push('Hat-trick', hatTrick, ruleSet.hatTrick)
 
-  if (runs >= 100 && Number(ruleSet.century || 0)) {
+  if (runs >= 200 && Number(ruleSet.twoHundred || 0)) {
+    rows.push({ label: '200+ bonus', count: 1, valuePerUnit: ruleSet.twoHundred, points: Number(ruleSet.twoHundred || 0) })
+  } else if (runs >= 150 && Number(ruleSet.oneFifty || 0)) {
+    rows.push({ label: '150 bonus', count: 1, valuePerUnit: ruleSet.oneFifty, points: Number(ruleSet.oneFifty || 0) })
+  } else if (runs >= 100 && Number(ruleSet.century || 0)) {
     rows.push({ label: 'Century bonus', count: 1, valuePerUnit: ruleSet.century, points: Number(ruleSet.century || 0) })
+  } else if (runs >= 75 && Number(ruleSet.seventyFive || 0)) {
+    rows.push({ label: '75 bonus', count: 1, valuePerUnit: ruleSet.seventyFive, points: Number(ruleSet.seventyFive || 0) })
   } else if (runs >= 50 && Number(ruleSet.fifty || 0)) {
     rows.push({ label: 'Fifty bonus', count: 1, valuePerUnit: ruleSet.fifty, points: Number(ruleSet.fifty || 0) })
   } else if (runs >= 30 && Number(ruleSet.thirty || 0)) {
     rows.push({ label: 'Thirty bonus', count: 1, valuePerUnit: ruleSet.thirty, points: Number(ruleSet.thirty || 0) })
   }
 
-  if (runs === 0 && stats?.dismissed === true && Number(ruleSet.duck || 0)) {
+  if (runs === 0 && ballsFaced > 0 && stats?.dismissed === true && Number(ruleSet.duck || 0)) {
     rows.push({ label: 'Duck', count: 1, valuePerUnit: ruleSet.duck, points: Number(ruleSet.duck || 0) })
   }
 
@@ -150,6 +233,42 @@ const calculateFantasyPointBreakdown = (stats, ruleSet) => {
     rows.push({ label: 'Four wicket bonus', count: 1, valuePerUnit: ruleSet.fourw, points: Number(ruleSet.fourw || 0) })
   } else if (wickets >= 3 && Number(ruleSet.threew || 0)) {
     rows.push({ label: 'Three wicket bonus', count: 1, valuePerUnit: ruleSet.threew, points: Number(ruleSet.threew || 0) })
+  }
+
+  if (catches >= 3 && Number(ruleSet.threeCatch || 0)) {
+    rows.push({ label: '3+ catches bonus', count: 1, valuePerUnit: ruleSet.threeCatch, points: Number(ruleSet.threeCatch || 0) })
+  }
+
+  if (stumpings >= 2 && Number(ruleSet.twoStumping || 0)) {
+    rows.push({ label: '2+ stumpings bonus', count: 1, valuePerUnit: ruleSet.twoStumping, points: Number(ruleSet.twoStumping || 0) })
+  }
+
+  if (ballsFaced >= 15) {
+    const strikeRate = getStrikeRateValue(runs, ballsFaced)
+    if (strikeRate >= 250 && Number(ruleSet.strikeRate250 || 0)) {
+      rows.push({ label: 'Strike rate 250+', count: 1, valuePerUnit: ruleSet.strikeRate250, points: Number(ruleSet.strikeRate250 || 0) })
+    } else if (strikeRate >= 200 && Number(ruleSet.strikeRate200 || 0)) {
+      rows.push({ label: 'Strike rate 200+', count: 1, valuePerUnit: ruleSet.strikeRate200, points: Number(ruleSet.strikeRate200 || 0) })
+    } else if (strikeRate >= 150 && Number(ruleSet.strikeRate150 || 0)) {
+      rows.push({ label: 'Strike rate 150+', count: 1, valuePerUnit: ruleSet.strikeRate150, points: Number(ruleSet.strikeRate150 || 0) })
+    } else if (strikeRate < 80 && Number(ruleSet.strikeRateBelow80 || 0)) {
+      rows.push({ label: 'Strike rate below 80', count: 1, valuePerUnit: ruleSet.strikeRateBelow80, points: Number(ruleSet.strikeRateBelow80 || 0) })
+    }
+  }
+
+  if (overs >= 2) {
+    const economy = getEconomyValue(overs, runsConceded)
+    if (economy <= 3 && Number(ruleSet.economyBelow3 || 0)) {
+      rows.push({ label: 'Economy 3 or less', count: 1, valuePerUnit: ruleSet.economyBelow3, points: Number(ruleSet.economyBelow3 || 0) })
+    } else if (economy <= 5 && Number(ruleSet.economyBelow5 || 0)) {
+      rows.push({ label: 'Economy 5 or less', count: 1, valuePerUnit: ruleSet.economyBelow5, points: Number(ruleSet.economyBelow5 || 0) })
+    } else if (economy <= 6 && Number(ruleSet.economyBelow6 || 0)) {
+      rows.push({ label: 'Economy 6 or less', count: 1, valuePerUnit: ruleSet.economyBelow6, points: Number(ruleSet.economyBelow6 || 0) })
+    } else if (economy >= 12 && Number(ruleSet.economyAbove12 || 0)) {
+      rows.push({ label: 'Economy 12+', count: 1, valuePerUnit: ruleSet.economyAbove12, points: Number(ruleSet.economyAbove12 || 0) })
+    } else if (economy >= 10 && Number(ruleSet.economyAbove10 || 0)) {
+      rows.push({ label: 'Economy 10+', count: 1, valuePerUnit: ruleSet.economyAbove10, points: Number(ruleSet.economyAbove10 || 0) })
+    }
   }
 
   return rows
@@ -296,6 +415,7 @@ const normalizePlayerStatRows = (rows, players) => {
         stumpings: Number(row.stumpings || 0),
         runoutDirect: Number(row.runoutDirect || 0),
         runoutIndirect: Number(row.runoutIndirect || 0),
+        hatTrick: Number(row.hatTrick || 0),
         fours: Number(row.fours || 0),
         sixes: Number(row.sixes || 0),
         overs: Number(row.overs || 0),
