@@ -15,18 +15,30 @@ const ApiStatusDot = forwardRef(function ApiStatusDot(
 
   const checkHealth = useCallback(async () => {
     setStatus('pending')
+    const normalizedBase = (apiBase || '').replace(/\/$/, '')
+    const normalizedCheckUrl = checkUrl.startsWith('/') ? checkUrl : `/${checkUrl}`
+    const candidates = [`${normalizedBase}${normalizedCheckUrl}`]
+    if (!normalizedCheckUrl.startsWith('/api/')) {
+      candidates.push(`${normalizedBase}/api${normalizedCheckUrl}`)
+    }
     try {
-      const res = await fetch(`${apiBase}${checkUrl}`, {
-        method: 'GET',
-        credentials: 'omit',
-      })
-      if (res.ok) {
-        setStatus('ok')
-        onStatus?.('ok')
-      } else {
-        setStatus('fail')
-        onStatus?.('fail')
+      for (const url of candidates) {
+        try {
+          const res = await fetch(url, {
+            method: 'GET',
+            credentials: 'omit',
+          })
+          if (res.ok) {
+            setStatus('ok')
+            onStatus?.('ok')
+            return
+          }
+        } catch {
+          // Try the next candidate before failing the health check.
+        }
       }
+      setStatus('fail')
+      onStatus?.('fail')
     } catch {
       setStatus('fail')
       onStatus?.('fail')

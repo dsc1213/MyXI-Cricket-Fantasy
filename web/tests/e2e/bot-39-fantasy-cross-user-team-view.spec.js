@@ -11,7 +11,7 @@ import {
 } from './helpers/mock-e2e.js'
 
 test.describe('39) Fantasy cross-user team visibility', () => {
-  test('before match start, joined users can only view own team and non-joined users cannot view any team', async ({
+  test('before match start, any logged-in user can view participant teams in public contests', async ({
     page,
     request,
   }) => {
@@ -94,8 +94,11 @@ test.describe('39) Fantasy cross-user team visibility', () => {
 
       await expect(
         hunterRow.getByRole('button', { name: 'View HunterCherryXI team' }),
-      ).toBeDisabled()
+      ).toBeEnabled()
       await expect(drakerRow.getByRole('button', { name: /View .* team/i })).toBeEnabled()
+
+      await hunterRow.getByRole('button', { name: 'View HunterCherryXI team' }).click()
+      await expect(page.locator('.team-preview-drawer.open')).toBeVisible()
 
       await drakerRow.getByRole('button', { name: /View .* team/i }).click()
       await expect(page.locator('.team-preview-drawer.open')).toBeVisible()
@@ -112,10 +115,13 @@ test.describe('39) Fantasy cross-user team visibility', () => {
         .first()
       await expect(
         outsiderHunterRow.getByRole('button', { name: 'View HunterCherryXI team' }),
-      ).toBeDisabled()
+      ).toBeEnabled()
       await expect(
         outsiderDrakerRow.getByRole('button', { name: /View .* team/i }),
-      ).toBeDisabled()
+      ).toBeEnabled()
+
+      await outsiderHunterRow.getByRole('button', { name: 'View HunterCherryXI team' }).click()
+      await expect(page.locator('.team-preview-drawer.open')).toBeVisible()
     } finally {
       await deleteContestIfPresent(request, contestId, 'master')
       await request.fetch(`http://127.0.0.1:4000/admin/tournaments/${tournamentId}`, {

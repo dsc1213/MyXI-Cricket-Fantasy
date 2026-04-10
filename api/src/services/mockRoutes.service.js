@@ -303,6 +303,12 @@ const registerMockProviderRoutes = (router, ctx) => {
         captainId: selection?.captainId || null,
         viceCaptainId: selection?.viceCaptainId || null,
       })
+      const replacementMap = new Map(
+        (resolved.replacementPairs || []).map((pair) => [
+          String(pair?.promotedBackupId ?? ''),
+          String(pair?.benchedPlayerId ?? ''),
+        ]),
+      )
 
       const nextPlayingXi = (resolved.nextPlayingXi || currentPlayingXi)
         .map((value) => value?.toString?.() ?? '')
@@ -327,6 +333,17 @@ const registerMockProviderRoutes = (router, ctx) => {
         ...selection,
         playingXi: nextPlayingXi,
         backups: nextBackups,
+        replacementSources: Object.fromEntries(
+          nextPlayingXi.map((playerId) => {
+            const replacedPlayerId = replacementMap.get(String(playerId))
+            return [
+              String(playerId),
+              replacedPlayerId
+                ? `selection-auto-swap:${replacedPlayerId}`
+                : 'selection',
+            ]
+          }),
+        ),
         updatedAt: new Date().toISOString(),
       }
       mockTeamSelections.delete(key)

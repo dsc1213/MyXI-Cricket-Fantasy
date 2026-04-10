@@ -35,12 +35,6 @@ const canReadOtherUserContestTeam = async ({ actor, targetUser, contestId }) => 
   const contest = await contestService.getContestById(normalizedContestId)
   if (!contest) return false
 
-  const lifecycle = buildContestView(contest)
-  const hasStarted =
-    lifecycle.hasStarted ||
-    ['In Progress', 'Locked', 'Completed'].includes(lifecycle.status)
-  if (!hasStarted) return false
-
   const participantResult = await dbQuery(
     (contest.mode || '').toString().trim().toLowerCase() === 'fixed_roster'
       ? `WITH participant_ids AS (
@@ -63,7 +57,7 @@ const canReadOtherUserContestTeam = async ({ actor, targetUser, contestId }) => 
     (participantResult.rows || []).map((row) => Number(row.userId)).filter(Number.isFinite),
   )
 
-  return participantIds.has(Number(actor.id)) && participantIds.has(Number(targetUser.id))
+  return participantIds.has(Number(targetUser.id))
 }
 
 // Handler registry for provider routes

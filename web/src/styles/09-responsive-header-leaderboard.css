@@ -34,6 +34,10 @@
   margin-left: 8px;
 }
 
+.topbar-refresh-trigger {
+  min-width: 78px;
+}
+
 .topbar-api-status-label {
   font-size: 13px;
   color: #888;
@@ -92,6 +96,11 @@
 
   .topbar.compact .nav-actions {
     margin-left: 0;
+  }
+
+  .topbar-refresh-trigger {
+    min-width: 0;
+    padding-inline: 0.6rem;
   }
 
   .topbar.compact.landing .topbar-api-status {
@@ -162,6 +171,11 @@
   display: grid;
   align-content: start;
   gap: 0.55rem;
+}
+
+.mobile-refresh-btn {
+  width: 100%;
+  justify-content: center;
 }
 
 .mobile-user-theme-toggle {

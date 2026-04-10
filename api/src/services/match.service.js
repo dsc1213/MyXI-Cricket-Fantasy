@@ -159,6 +159,12 @@ class MatchService {
       const promotedBackupIdSet = new Set(
         (resolved.promotedBackupIds || []).map((value) => Number(value)),
       )
+      const replacementMap = new Map(
+        (resolved.replacementPairs || []).map((pair) => [
+          Number(pair?.promotedBackupId),
+          Number(pair?.benchedPlayerId),
+        ]),
+      )
 
       const isSamePlayingXi =
         nextPlayingXi.length === currentPlayingXi.length &&
@@ -204,9 +210,12 @@ class MatchService {
                 row.userId,
                 Number(playerId),
               )
-              const source = promotedBackupIdSet.has(Number(playerId))
-                ? 'selection-auto-swap'
-                : 'selection'
+              const numericPlayerId = Number(playerId)
+              const replacedPlayerId = replacementMap.get(numericPlayerId)
+              const source =
+                promotedBackupIdSet.has(numericPlayerId) && replacedPlayerId
+                  ? `selection-auto-swap:${replacedPlayerId}`
+                  : 'selection'
               values.push(source)
               return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, now(), now())`
             })

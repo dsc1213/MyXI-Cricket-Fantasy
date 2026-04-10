@@ -538,6 +538,7 @@ const resolveEffectiveSelection = ({
   const nextPlayingXi = []
   const promotedBackupIds = []
   const benchedPlayerIds = []
+  const replacementPairs = []
 
   const pullReplacement = () => {
     while (backupQueue.length) {
@@ -568,6 +569,10 @@ const resolveEffectiveSelection = ({
       used.add(normalizeId(replacement))
       promotedBackupIds.push(replacement)
       benchedPlayerIds.push(playerId)
+      replacementPairs.push({
+        promotedBackupId: replacement,
+        benchedPlayerId: playerId,
+      })
       continue
     }
     nextPlayingXi.push(playerId)
@@ -589,6 +594,7 @@ const resolveEffectiveSelection = ({
     effectivePlayerIds,
     promotedBackupIds,
     benchedPlayerIds,
+    replacementPairs,
     captainApplies:
       !!normalizedCaptainKey &&
       normalizedPlayingXi.map(normalizeId).includes(normalizedCaptainKey) &&

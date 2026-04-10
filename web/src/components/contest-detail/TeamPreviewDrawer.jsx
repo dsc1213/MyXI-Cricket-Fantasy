@@ -33,6 +33,7 @@ function TeamPreviewDrawer({
 }) {
   const isFixedRosterContest = contestMode === 'fixed_roster'
   const [expandedRows, setExpandedRows] = useState({})
+  const [openMetaInfoKey, setOpenMetaInfoKey] = useState('')
   useEffect(() => {
     document.body.classList.toggle('team-preview-open', !!previewPlayer)
     return () => document.body.classList.remove('team-preview-open')
@@ -107,10 +108,53 @@ function TeamPreviewDrawer({
     setExpandedRows((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
-  const renderPlayerMeta = (entry, name) => {
+  const toggleMetaInfo = (key) => {
+    setOpenMetaInfoKey((prev) => (prev === key ? '' : key))
+  }
+
+  const renderInfoHint = ({
+    label = '',
+    title,
+    className = '',
+    infoKey = '',
+    dialogText = '',
+    showIcon = false,
+    iconOnly = false,
+  }) => (
+    <span className={`team-preview-info-wrap ${className}`.trim()}>
+      <button
+        type="button"
+        className="team-preview-info-hint"
+        title={title}
+        aria-label={title}
+        aria-expanded={infoKey ? openMetaInfoKey === infoKey : undefined}
+        onClick={infoKey ? () => toggleMetaInfo(infoKey) : undefined}
+      >
+        {label ? <span>{label}</span> : null}
+        {showIcon ? (
+          <span
+            className={`team-preview-info-icon ${iconOnly ? 'icon-only' : ''}`.trim()}
+            aria-hidden="true"
+          >
+            i
+          </span>
+        ) : null}
+      </button>
+      {infoKey && openMetaInfoKey === infoKey && dialogText ? (
+        <div className="team-preview-inline-tooltip" role="note">
+          {dialogText}
+        </div>
+      ) : null}
+    </span>
+  )
+
+  const renderPlayerMeta = (entry, name, rowKey) => {
     const teamCode =
       typeof entry === 'object' ? normalizeTeamCode(entry?.team || entry?.teamCode || '') : ''
     const autoSwapped = typeof entry === 'object' ? Boolean(entry?.autoSwapped) : false
+    const replacementInfoText =
+      entry?.replacementInfo ||
+      'Promoted from backups because a picked XI player was not in the announced playing XI.'
     return (
       <div className="team-preview-copy">
         <div className="team-preview-copy-main">
@@ -127,7 +171,15 @@ function TeamPreviewDrawer({
           ) : null}
         </div>
         {autoSwapped ? (
-          <span className="team-preview-meta-note">Backup replacement</span>
+          renderInfoHint(
+            {
+              label: 'Backup replacement',
+              title: replacementInfoText,
+              className: 'team-preview-meta-note',
+              infoKey: `replacement:${rowKey}`,
+              dialogText: replacementInfoText,
+            },
+          )
         ) : null}
       </div>
     )
@@ -273,7 +325,7 @@ function TeamPreviewDrawer({
                               }
                             />
                           )}
-                          {renderPlayerMeta(entry, name)}
+                          {renderPlayerMeta(entry, name, rowKey)}
                         </div>
                         {renderPointCell(entry, rowKey)}
                       </div>
@@ -285,7 +337,24 @@ function TeamPreviewDrawer({
           </section>
           {!isLoading && !!sortedPreviewBackups?.length && (
             <section className="team-preview-section team-preview-section-backups">
-              <h4>{isFixedRosterContest ? 'Other owned players' : 'Backups'}</h4>
+              <div className="team-preview-section-head">
+                <h4>
+                  {isFixedRosterContest ? 'Other owned players' : 'Backup Replacements'}
+                </h4>
+                {!isFixedRosterContest &&
+                  renderInfoHint(
+                    {
+                      title:
+                        'Reserve players are used when a picked XI player is not in the announced lineup. Promoted backups move into XI and replaced players move here.',
+                      className: 'team-preview-section-info',
+                      infoKey: 'backup-section-info',
+                      dialogText:
+                        'Reserve players are used when a picked XI player is not in the announced lineup. Promoted backups move into XI and replaced players move here.',
+                      showIcon: true,
+                      iconOnly: true,
+                    },
+                  )}
+              </div>
               <div className="team-preview-list">
                 {sortedPreviewBackups.map((entry, index) => {
                   const name =
@@ -320,7 +389,7 @@ function TeamPreviewDrawer({
                               }
                             />
                           )}
-                          {renderPlayerMeta(entry, name)}
+                          {renderPlayerMeta(entry, name, rowKey)}
                         </div>
                         {renderPointCell(entry, rowKey)}
                       </div>

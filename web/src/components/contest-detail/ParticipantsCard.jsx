@@ -54,7 +54,7 @@ function ParticipantsCard({
   const hasNoRows = participants.length === 0
   const isFixedRosterContest = contestMode === 'fixed_roster'
   const isNotStarted = normalizeMatchStatus(activeMatch?.status) === 'notstarted'
-  const canViewAllTeams = isFixedRosterContest || !isNotStarted
+  const canViewAllTeams = isLoggedIn
   const normalizeIdentity = (value) => (value || '').toString().trim().toLowerCase()
   const viewerIdentity = normalizeIdentity(viewerUserId)
   const isViewerRow = (player) => {
@@ -166,9 +166,9 @@ function ParticipantsCard({
             <p className="team-note participants-subnote">
               {isFixedRosterContest
                 ? 'Auction teams are locked, so all participant teams are visible before match starts.'
-                : viewerJoined
-                  ? 'Player teams are disabled until this match starts. You can view only your own team.'
-                  : 'Player teams are disabled until this match starts. Join this contest to view your own team.'}
+                : isLoggedIn
+                  ? 'All logged-in users can view participant teams. Editing still follows contest lock rules.'
+                  : 'Login to view participant teams.'}
             </p>
           )}
           {showNoRowsNote && (

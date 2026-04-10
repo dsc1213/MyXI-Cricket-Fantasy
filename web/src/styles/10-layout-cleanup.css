@@ -730,7 +730,7 @@ body.dark-theme .team-preview-panel.solid {
 .team-preview-row span {
   text-transform: none;
   letter-spacing: normal;
-  font-size: 0.82rem;
+  font-size: 0.5rem;
   font-weight: 700;
   color: var(--text-primary);
 }
@@ -776,6 +776,10 @@ body.dark-theme .team-preview-panel.solid {
   line-height: 1;
 }
 
+.team-preview-points-link span {
+  font-size: inherit;
+}
+
 .team-preview-row .player-row-main {
   display: flex;
   align-items: center;
@@ -784,7 +788,7 @@ body.dark-theme .team-preview-panel.solid {
 }
 
 .team-preview-role-badge {
-  display: inline-flex;
+  display: flex !important;
   align-items: center;
   justify-content: center;
   align-self: center;
@@ -815,17 +819,87 @@ body.dark-theme .team-preview-panel.solid {
 }
 
 .team-preview-team-tag {
-  color: #86efac;
+  color: rgba(134, 239, 172, 0.82);
   font-size: 0.5rem;
   font-weight: 600;
   opacity: 0.9;
 }
 
 .team-preview-meta-note {
-  color: rgba(226, 232, 240, 0.72);
+  justify-self: flex-start;
+}
+
+.team-preview-info-wrap {
+  display: grid;
+  gap: 0.16rem;
+  justify-items: flex-start;
+}
+
+.team-preview-info-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(147, 197, 253, 0.78);
+  font: inherit;
   font-size: 0.5rem;
   font-weight: 600;
   line-height: 1.2;
+  cursor: pointer;
+  text-align: left;
+}
+
+.team-preview-info-hint span:first-child {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 0.14em;
+}
+
+.team-preview-info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: rgba(226, 232, 240, 0.82);
+  font-size: 0.42rem;
+  font-weight: 700;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.team-preview-info-icon.icon-only {
+  margin-left: 0;
+}
+
+.team-preview-inline-tooltip {
+  max-width: 22rem;
+  padding: 0.32rem 0.42rem;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.55);
+  color: rgba(226, 232, 240, 0.84);
+  font-size: 0.54rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.team-preview-section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.team-preview-section-head h4 {
+  margin: 0;
+}
+
+.team-preview-section-info {
+  color: rgba(226, 232, 240, 0.64);
 }
 
 .team-preview-breakdown {

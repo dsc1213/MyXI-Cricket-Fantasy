@@ -913,6 +913,28 @@ class PlayerService {
       matchId && userId
         ? await teamSelectionRepo.findByMatchAndUser(matchId, userId, contest?.id || null)
         : null
+    const selectionSourceRows =
+      matchId && contest?.id && userId
+        ? await dbQuery(
+            `SELECT player_id as "playerId", source
+             FROM contest_match_players
+             WHERE contest_id = $1 AND match_id = $2 AND user_id = $3`,
+            [contest.id, matchId, userId],
+          )
+        : { rows: [] }
+    const savedAutoSwapPlayerIdSet = new Set()
+    const savedReplacementMap = new Map()
+    for (const row of selectionSourceRows.rows || []) {
+      const numericPlayerId = Number(row?.playerId)
+      const source = String(row?.source || '').trim()
+      if (!numericPlayerId || !source.startsWith('selection-auto-swap')) continue
+      savedAutoSwapPlayerIdSet.add(numericPlayerId)
+      const [, replacedIdRaw = ''] = source.split(':')
+      const replacedPlayerId = Number(replacedIdRaw)
+      if (replacedPlayerId) {
+        savedReplacementMap.set(numericPlayerId, replacedPlayerId)
+      }
+    }
     const activePlayerIds = Array.from(pointsByPlayerId.keys())
     const resolvedSelection = resolveEffectiveSelection({
       playingXi: selection?.playingXi || [],
@@ -924,6 +946,12 @@ class PlayerService {
     const promotedBackupIdSet = new Set(
       (resolvedSelection.promotedBackupIds || []).map((id) => Number(id)),
     )
+    const liveReplacementMap = new Map(
+      (resolvedSelection.replacementPairs || []).map((pair) => [
+        Number(pair?.promotedBackupId),
+        Number(pair?.benchedPlayerId),
+      ]),
+    )
     const buildPreviewEntry = (id, { forcePlainMultiplier = false } = {}) => {
       const baseEntry = playerById.get(String(id))
       if (!baseEntry) return null
@@ -931,6 +959,16 @@ class PlayerService {
       const numericId = Number(id)
       const basePoints = Number(pointsByPlayerId.get(numericId) || 0)
       const stats = statsByPlayerId.get(numericId) || null
+      const isAutoSwapped =
+        promotedBackupIdSet.has(numericId) || savedAutoSwapPlayerIdSet.has(numericId)
+      const replacedPlayerId =
+        liveReplacementMap.get(numericId) || savedReplacementMap.get(numericId) || null
+      const replacedPlayer = replacedPlayerId
+        ? playerById.get(String(replacedPlayerId))
+        : null
+      const replacementInfo = replacedPlayer?.name
+        ? `Promoted from backups because ${replacedPlayer.name} was not in the announced playing XI.`
+        : 'Promoted from backups because a picked XI player was not in the announced playing XI.'
 
       let multiplier = 1
       let roleTag = ''
@@ -956,10 +994,9 @@ class PlayerService {
         multiplier,
         points: basePoints * multiplier,
         roleTag,
-        selectionSource: promotedBackupIdSet.has(numericId)
-          ? 'selection-auto-swap'
-          : 'selection',
-        autoSwapped: promotedBackupIdSet.has(numericId),
+        selectionSource: isAutoSwapped ? 'selection-auto-swap' : 'selection',
+        autoSwapped: isAutoSwapped,
+        replacementInfo,
         rawStats: stats,
         pointBreakdown: stats ? calculateFantasyPointBreakdown(stats, ruleSet) : [],
       }

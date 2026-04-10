@@ -44,7 +44,7 @@ function Leaderboard() {
     currentUser?.userId || currentUser?.gameName || currentUser?.email || ''
   const [isLoading, setIsLoading] = useState(true)
   const [errorText, setErrorText] = useState('')
-  const [allJoinedContests, setAllJoinedContests] = useState([])
+  const [allVisibleContests, setAllVisibleContests] = useState([])
   const [routeContest, setRouteContest] = useState(null)
   const [selectedTournamentId, setSelectedTournamentId] = useState(tournamentId || '')
   const [tournamentNameMap, setTournamentNameMap] = useState({})
@@ -66,7 +66,7 @@ function Leaderboard() {
     const loadContests = async () => {
       try {
         const [data, tournaments, routeContestData] = await Promise.all([
-          fetchContests({ joined: true, userId: currentUserId }),
+          fetchContests({ userId: currentUserId }),
           fetchTournaments(),
           routeContestId
             ? fetchContest(routeContestId).catch(() => null)
@@ -77,7 +77,7 @@ function Leaderboard() {
           acc[item.id] = item.name
           return acc
         }, {})
-        setAllJoinedContests(data || [])
+        setAllVisibleContests(data || [])
         setRouteContest(routeContestData || null)
         setTournamentNameMap(nameMap)
       } catch (error) {
@@ -100,8 +100,8 @@ function Leaderboard() {
 
   const joinedContestOptions = useMemo(() => {
     const base = !selectedTournamentId
-      ? allJoinedContests
-      : allJoinedContests.filter((item) => item.tournamentId === selectedTournamentId)
+      ? allVisibleContests
+      : allVisibleContests.filter((item) => item.tournamentId === selectedTournamentId)
     if (
       routeContest &&
       (!selectedTournamentId || routeContest.tournamentId === selectedTournamentId) &&
@@ -110,7 +110,7 @@ function Leaderboard() {
       return [...base, routeContest]
     }
     return base
-  }, [allJoinedContests, selectedTournamentId, routeContest])
+  }, [allVisibleContests, selectedTournamentId, routeContest])
 
   useEffect(() => {
     if (routeContestId) setSelectedContestId(routeContestId)

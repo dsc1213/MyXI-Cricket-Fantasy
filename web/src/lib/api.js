@@ -1,4 +1,9 @@
 import { updateStoredSession } from './auth.js'
+import {
+  clearAllAppQueryCache,
+  fetchCachedQuery,
+  invalidateAppQueryCache,
+} from './appQueryCache.js'
 
 export const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 const inFlightGetRequests = new Map()
@@ -66,7 +71,22 @@ const clearStoredAuth = () => {
   if (typeof window === 'undefined') return
   window.localStorage.removeItem('myxi-user')
   window.localStorage.removeItem('myxi-token')
+  clearAllAppQueryCache()
 }
+
+const clearAppDataCache = () => {
+  clearAllAppQueryCache()
+}
+
+const withSortedParams = (params) => {
+  const next = new URLSearchParams()
+  Array.from(params.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .forEach(([key, value]) => next.append(key, value))
+  return next.toString()
+}
+
+const cachedGet = (key, loader) => fetchCachedQuery({ key, loader })
 
 const rawApiRequest = async (path, options = {}) => {
   const normalizedPath = path
@@ -228,14 +248,16 @@ async function request(path, options = {}) {
   return pending
 }
 
-const login = ({ userId, password }) => {
+const login = async ({ userId, password }) => {
   // If userId looks like an email, send as email; else as userId
   const isEmail = typeof userId === 'string' && userId.includes('@')
   const payload = isEmail ? { email: userId, password } : { userId, password }
-  return request('/auth/login', {
+  const data = await request('/auth/login', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
+  clearAllAppQueryCache()
+  return data
 }
 
 const register = ({
@@ -290,27 +312,35 @@ const refreshSession = () =>
     skipAuthHeader: true,
   })
 
-const logout = () =>
-  request('/auth/logout', {
+const logout = async () => {
+  const data = await request('/auth/logout', {
     method: 'POST',
   })
-
-const fetchDashboardPageLoadData = async () => {
-  try {
-    return await request('/page-load-data')
-  } catch (error) {
-    if ((error?.message || '').includes('404')) {
-      return request('/bootstrap')
-    }
-    throw error
-  }
+  clearAllAppQueryCache()
+  return data
 }
 
-const saveScoringRules = ({ rules, actorUserId }) =>
-  request('/scoring-rules/save', {
+const fetchDashboardPageLoadData = async () => {
+  return cachedGet('dashboardPageLoadData', async () => {
+    try {
+      return await request('/page-load-data')
+    } catch (error) {
+      if ((error?.message || '').includes('404')) {
+        return request('/bootstrap')
+      }
+      throw error
+    }
+  })
+}
+
+const saveScoringRules = async ({ rules, actorUserId }) => {
+  const data = await request('/scoring-rules/save', {
     method: 'POST',
     body: JSON.stringify({ rules, ...(actorUserId ? { actorUserId } : {}) }),
   })
+  invalidateAppQueryCache('dashboardPageLoadData')
+  return data
+}
 
 const processExcelMatchScores = ({ fileName }) =>
   request('/match-scores/process-excel', {
@@ -344,9 +374,20 @@ const saveMatchScores = ({
       userId,
       teamScore,
     }),
+  }).finally(() => {
+    invalidateAppQueryCache((key) =>
+      key === 'dashboardPageLoadData' ||
+      key.startsWith('contestLeaderboard:') ||
+      key.startsWith('contestParticipants:') ||
+      key.startsWith('contestMatches:') ||
+      key.startsWith('contestUserMatchScores:') ||
+      key.startsWith('matchLineups:') ||
+      key.startsWith('teamPool:') ||
+      key.startsWith('userPicks:'),
+    )
   })
 
-const fetchTournaments = () => request('/tournaments')
+const fetchTournaments = () => cachedGet('tournaments', () => request('/tournaments'))
 
 const fetchContests = ({ game, tournamentId, joined, userId } = {}) => {
   const params = new URLSearchParams()
@@ -354,58 +395,89 @@ const fetchContests = ({ game, tournamentId, joined, userId } = {}) => {
   if (tournamentId) params.set('tournamentId', tournamentId)
   if (typeof joined === 'boolean') params.set('joined', String(joined))
   if (userId) params.set('userId', userId)
-  const query = params.toString()
-  return request(`/contests${query ? `?${query}` : ''}`)
+  const query = withSortedParams(params)
+  return cachedGet(`contests:${query || 'all'}`, () =>
+    request(`/contests${query ? `?${query}` : ''}`),
+  )
 }
 
-const joinContest = ({ contestId, userId }) =>
-  request(`/contests/${contestId}/join`, {
+const joinContest = async ({ contestId, userId }) => {
+  const data = await request(`/contests/${contestId}/join`, {
     method: 'POST',
     body: JSON.stringify({ userId }),
   })
+  invalidateAppQueryCache(
+    (key) =>
+      key.startsWith('contests:') ||
+      key.startsWith(`contestParticipants:${contestId}:`) ||
+      key === `contest:${contestId}` ||
+      key === 'dashboardPageLoadData',
+  )
+  return data
+}
 
-const leaveContest = ({ contestId, userId }) =>
-  request(`/contests/${contestId}/leave`, {
+const leaveContest = async ({ contestId, userId }) => {
+  const data = await request(`/contests/${contestId}/leave`, {
     method: 'POST',
     body: JSON.stringify({ userId }),
   })
+  invalidateAppQueryCache(
+    (key) =>
+      key.startsWith('contests:') ||
+      key.startsWith(`contestParticipants:${contestId}:`) ||
+      key === `contest:${contestId}` ||
+      key === 'dashboardPageLoadData',
+  )
+  return data
+}
 
-const fetchContest = (contestId) => request(`/contests/${contestId}`)
+const fetchContest = (contestId) =>
+  cachedGet(`contest:${contestId}`, () => request(`/contests/${contestId}`))
 
 const fetchContestMatches = ({ contestId, status, team, userId } = {}) => {
   const params = new URLSearchParams()
   if (status) params.set('status', status)
   if (team) params.set('team', team)
   if (userId) params.set('userId', userId)
-  const query = params.toString()
-  return request(`/contests/${contestId}/matches${query ? `?${query}` : ''}`)
+  const query = withSortedParams(params)
+  return cachedGet(`contestMatches:${contestId}:${query || 'all'}`, () =>
+    request(`/contests/${contestId}/matches${query ? `?${query}` : ''}`),
+  )
 }
 
 const fetchContestParticipants = ({ contestId, matchId, userId } = {}) => {
   const params = new URLSearchParams()
   if (matchId) params.set('matchId', matchId)
   if (userId) params.set('userId', userId)
-  const query = params.toString()
-  return request(`/contests/${contestId}/participants${query ? `?${query}` : ''}`)
+  const query = withSortedParams(params)
+  return cachedGet(`contestParticipants:${contestId}:${query || 'all'}`, () =>
+    request(`/contests/${contestId}/participants${query ? `?${query}` : ''}`),
+  )
 }
 
 const fetchContestLeaderboard = async (contestId) => {
-  const data = await request(`/contests/${contestId}/leaderboard`)
-  if (Array.isArray(data)) {
-    return { rows: data }
-  }
-  if (data && Array.isArray(data.rows)) {
-    return data
-  }
-  return { rows: [] }
+  return cachedGet(`contestLeaderboard:${contestId}`, async () => {
+    const data = await request(`/contests/${contestId}/leaderboard`)
+    if (Array.isArray(data)) {
+      return { rows: data }
+    }
+    if (data && Array.isArray(data.rows)) {
+      return data
+    }
+    return { rows: [] }
+  })
 }
 
 const fetchContestUserMatchScores = ({ contestId, userId, compareUserId } = {}) => {
   const params = new URLSearchParams()
   if (compareUserId) params.set('compareUserId', compareUserId)
-  const query = params.toString()
-  return request(
-    `/contests/${contestId}/users/${userId}/match-scores${query ? `?${query}` : ''}`,
+  const query = withSortedParams(params)
+  return cachedGet(
+    `contestUserMatchScores:${contestId}:${userId}:${query || 'all'}`,
+    () =>
+      request(
+        `/contests/${contestId}/users/${userId}/match-scores${query ? `?${query}` : ''}`,
+      ),
   )
 }
 
@@ -422,11 +494,13 @@ const fetchTeamPool = ({
   if (matchId) params.set('matchId', matchId)
   if (userId) params.set('userId', userId)
   if (actorUserId) params.set('actorUserId', actorUserId)
-  const query = params.toString()
-  return request(`/team-pool${query ? `?${query}` : ''}`)
+  const query = withSortedParams(params)
+  return cachedGet(`teamPool:${query || 'all'}`, () =>
+    request(`/team-pool${query ? `?${query}` : ''}`),
+  )
 }
 
-const saveTeamSelection = ({
+const saveTeamSelection = async ({
   contestId,
   matchId,
   userId,
@@ -435,8 +509,8 @@ const saveTeamSelection = ({
   backups,
   captainId,
   viceCaptainId,
-}) =>
-  request('/team-selection/save', {
+}) => {
+  const data = await request('/team-selection/save', {
     method: 'POST',
     body: JSON.stringify({
       contestId,
@@ -449,56 +523,81 @@ const saveTeamSelection = ({
       viceCaptainId,
     }),
   })
+  invalidateAppQueryCache((key) =>
+    key.startsWith('teamPool:') ||
+    key.startsWith('userPicks:') ||
+    key.startsWith(`contestParticipants:${contestId}:`) ||
+    key === `contest:${contestId}`,
+  )
+  return data
+}
 
 const fetchUserPicks = ({ userId, tournamentId, contestId, matchId } = {}) => {
   const params = new URLSearchParams()
   if (tournamentId) params.set('tournamentId', tournamentId)
   if (contestId) params.set('contestId', contestId)
   if (matchId) params.set('matchId', matchId)
-  const query = params.toString()
-  return request(`/users/${userId}/picks${query ? `?${query}` : ''}`)
+  const query = withSortedParams(params)
+  return cachedGet(`userPicks:${userId}:${query || 'all'}`, () =>
+    request(`/users/${userId}/picks${query ? `?${query}` : ''}`),
+  )
 }
 
-const fetchPlayers = () => request('/players')
+const fetchPlayers = () => cachedGet('players', () => request('/players'))
 const createAdminPlayer = (payload) =>
   request('/admin/players', {
     method: 'POST',
     body: JSON.stringify(payload || {}),
+  }).finally(() => {
+    invalidateAppQueryCache((key) => key === 'players' || key.startsWith('playerStats:'))
   })
 const updateAdminPlayer = ({ id, ...payload }) =>
   request(`/admin/players/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload || {}),
+  }).finally(() => {
+    invalidateAppQueryCache((key) => key === 'players' || key.startsWith('playerStats:'))
   })
 const importAdminPlayers = (payload) =>
   request('/admin/players', {
     method: 'POST',
     body: JSON.stringify(payload || {}),
+  }).finally(() => {
+    invalidateAppQueryCache((key) => key === 'players' || key.startsWith('playerStats:'))
   })
 const deleteAdminPlayer = ({ id, actorUserId }) =>
   request(`/admin/players/${id}`, {
     method: 'DELETE',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
+  }).finally(() => {
+    invalidateAppQueryCache((key) => key === 'players' || key.startsWith('playerStats:'))
   })
 const deleteAdminPlayersBulk = ({ ids, actorUserId }) =>
   request('/admin/players/bulk-delete', {
     method: 'POST',
     body: JSON.stringify({ ids: Array.isArray(ids) ? ids : [], actorUserId }),
+  }).finally(() => {
+    invalidateAppQueryCache((key) => key === 'players' || key.startsWith('playerStats:'))
   })
 const fetchPlayerStats = ({ tournamentId } = {}) => {
   const params = new URLSearchParams()
   if (tournamentId) params.set('tournamentId', tournamentId)
-  const query = params.toString()
-  return request(`/player-stats${query ? `?${query}` : ''}`)
+  const query = withSortedParams(params)
+  return cachedGet(`playerStats:${query || 'all'}`, () =>
+    request(`/player-stats${query ? `?${query}` : ''}`),
+  )
 }
-const fetchMatchOptions = () => request('/match-options')
-const fetchPrettyTournaments = () => request('/tournaments/pretty')
+const fetchMatchOptions = () => cachedGet('matchOptions', () => request('/match-options'))
+const fetchPrettyTournaments = () =>
+  cachedGet('prettyTournaments', () => request('/tournaments/pretty'))
 const fetchPlayerOverrideContext = ({ contestId, matchId } = {}) => {
   const params = new URLSearchParams()
   if (contestId) params.set('contestId', contestId)
   if (matchId) params.set('matchId', matchId)
-  const query = params.toString()
-  return request(`/admin/player-overrides/context${query ? `?${query}` : ''}`)
+  const query = withSortedParams(params)
+  return cachedGet(`playerOverrideContext:${query || 'all'}`, () =>
+    request(`/admin/player-overrides/context${query ? `?${query}` : ''}`),
+  )
 }
 const savePlayerOverride = ({
   userId,
@@ -518,24 +617,32 @@ const savePlayerOverride = ({
       matchId,
       actorUserId,
     }),
+  }).finally(() => {
+    invalidateAppQueryCache((key) =>
+      key.startsWith('playerOverrideContext:') || key.startsWith('teamPool:'),
+    )
   })
 const fetchManualScoreContext = ({ tournamentId } = {}) => {
   const params = new URLSearchParams()
   if (tournamentId) params.set('tournamentId', tournamentId)
-  const query = params.toString()
-  return request(`/admin/match-score-context${query ? `?${query}` : ''}`)
+  const query = withSortedParams(params)
+  return cachedGet(`manualScoreContext:${query || 'all'}`, () =>
+    request(`/admin/match-score-context${query ? `?${query}` : ''}`),
+  )
 }
 const fetchAdminMatchScores = ({ tournamentId, matchId } = {}) =>
-  request(`/admin/match-scores/${tournamentId}/${matchId}`)
+  cachedGet(`adminMatchScores:${tournamentId}:${matchId}`, () =>
+    request(`/admin/match-scores/${tournamentId}/${matchId}`),
+  )
 const fetchMatchLineups = ({ tournamentId, matchId, contestId } = {}) => {
   const params = new URLSearchParams()
   if (contestId) params.set('contestId', contestId)
-  const query = params.toString()
-  return request(
-    `/admin/match-lineups/${tournamentId}/${matchId}${query ? `?${query}` : ''}`,
+  const query = withSortedParams(params)
+  return cachedGet(`matchLineups:${tournamentId}:${matchId}:${query || 'all'}`, () =>
+    request(`/admin/match-lineups/${tournamentId}/${matchId}${query ? `?${query}` : ''}`),
   )
 }
-const upsertMatchLineups = ({
+const upsertMatchLineups = async ({
   tournamentId,
   matchId,
   contestId,
@@ -545,8 +652,8 @@ const upsertMatchLineups = ({
   strictSquad,
   lineups,
   meta,
-} = {}) =>
-  request('/admin/match-lineups/upsert', {
+} = {}) => {
+  const data = await request('/admin/match-lineups/upsert', {
     method: 'POST',
     body: JSON.stringify({
       tournamentId,
@@ -560,15 +667,25 @@ const upsertMatchLineups = ({
       meta,
     }),
   })
-const upsertManualMatchScores = ({
+  if (!dryRun) {
+    invalidateAppQueryCache((key) =>
+      key.startsWith(`matchLineups:${tournamentId}:${matchId}:`) ||
+      key.startsWith('teamPool:') ||
+      key.startsWith('contestParticipants:') ||
+      key.startsWith('userPicks:'),
+    )
+  }
+  return data
+}
+const upsertManualMatchScores = async ({
   tournamentId,
   contestId,
   matchId,
   userId,
   teamScore,
   playerStats,
-}) =>
-  request('/admin/match-scores/upsert', {
+}) => {
+  const data = await request('/admin/match-scores/upsert', {
     method: 'POST',
     body: JSON.stringify({
       tournamentId,
@@ -579,59 +696,119 @@ const upsertManualMatchScores = ({
       playerStats,
     }),
   })
-const resetManualMatchScores = ({ tournamentId, matchId, userId }) =>
-  request('/admin/match-scores/reset', {
+  invalidateAppQueryCache((key) =>
+    key === `adminMatchScores:${tournamentId}:${matchId}` ||
+    key.startsWith('dashboardPageLoadData') ||
+    key.startsWith('contestLeaderboard:') ||
+    key.startsWith('contestUserMatchScores:') ||
+    key.startsWith('userPicks:'),
+  )
+  return data
+}
+const resetManualMatchScores = async ({ tournamentId, matchId, userId }) => {
+  const data = await request('/admin/match-scores/reset', {
     method: 'POST',
     body: JSON.stringify({ tournamentId, matchId, userId }),
   })
-const fetchAdminUsers = () => request('/admin/users')
-const updateAdminUser = ({ id, payload }) =>
-  request(`/admin/users/${id}`, {
+  invalidateAppQueryCache((key) =>
+    key === `adminMatchScores:${tournamentId}:${matchId}` ||
+    key.startsWith('contestLeaderboard:') ||
+    key.startsWith('contestUserMatchScores:') ||
+    key.startsWith('userPicks:'),
+  )
+  return data
+}
+const fetchAdminUsers = () => cachedGet('adminUsers', () => request('/admin/users'))
+const updateAdminUser = async ({ id, payload }) => {
+  const data = await request(`/admin/users/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(payload || {}),
   })
-const deleteAdminUser = ({ id, actorUserId }) =>
-  request(`/admin/users/${id}`, {
+  invalidateAppQueryCache('adminUsers')
+  return data
+}
+const deleteAdminUser = async ({ id, actorUserId }) => {
+  const data = await request(`/admin/users/${id}`, {
     method: 'DELETE',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
-const fetchTournamentCatalog = () => request('/admin/tournaments/catalog')
+  invalidateAppQueryCache('adminUsers')
+  return data
+}
+const fetchTournamentCatalog = () =>
+  cachedGet('tournamentCatalog', () => request('/admin/tournaments/catalog'))
 const fetchTournamentMatches = (tournamentId = '') =>
-  request(`/tournaments/${encodeURIComponent(tournamentId)}/matches`)
-const enableTournaments = (ids = [], actorUserId = '') =>
-  request('/admin/tournaments/enable', {
+  cachedGet(`tournamentMatches:${tournamentId}`, () =>
+    request(`/tournaments/${encodeURIComponent(tournamentId)}/matches`),
+  )
+const enableTournaments = async (ids = [], actorUserId = '') => {
+  const data = await request('/admin/tournaments/enable', {
     method: 'POST',
     body: JSON.stringify({ ids, ...(actorUserId ? { actorUserId } : {}) }),
   })
-const disableTournaments = (ids = [], actorUserId = '') =>
-  request('/admin/tournaments/disable', {
+  invalidateAppQueryCache((key) =>
+    key === 'tournaments' || key === 'prettyTournaments' || key === 'tournamentCatalog',
+  )
+  return data
+}
+const disableTournaments = async (ids = [], actorUserId = '') => {
+  const data = await request('/admin/tournaments/disable', {
     method: 'POST',
     body: JSON.stringify({ ids, ...(actorUserId ? { actorUserId } : {}) }),
   })
-const createAdminTournament = (payload) =>
-  request('/admin/tournaments', {
+  invalidateAppQueryCache((key) =>
+    key === 'tournaments' || key === 'prettyTournaments' || key === 'tournamentCatalog',
+  )
+  return data
+}
+const createAdminTournament = async (payload) => {
+  const data = await request('/admin/tournaments', {
     method: 'POST',
     body: JSON.stringify(payload || {}),
   })
+  invalidateAppQueryCache((key) =>
+    key === 'tournaments' || key === 'prettyTournaments' || key === 'tournamentCatalog',
+  )
+  return data
+}
 const createAdminAuctionImport = (payload) =>
   request('/admin/auctions/import', {
     method: 'POST',
     body: JSON.stringify(payload || {}),
   })
-const deleteAdminTournament = ({ id, actorUserId }) =>
-  request(`/admin/tournaments/${id}`, {
+const deleteAdminTournament = async ({ id, actorUserId }) => {
+  const data = await request(`/admin/tournaments/${id}`, {
     method: 'DELETE',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
-const updateAdminMatchStatus = ({ id, status }) =>
-  request(`/admin/matches/${id}/status`, {
+  invalidateAppQueryCache((key) =>
+    key === 'tournaments' || key === 'prettyTournaments' || key === 'tournamentCatalog',
+  )
+  return data
+}
+const updateAdminMatchStatus = async ({ id, status }) => {
+  const data = await request(`/admin/matches/${id}/status`, {
     method: 'POST',
     body: JSON.stringify({ status }),
   })
-const replaceAdminMatchBackups = ({ id }) =>
-  request(`/admin/matches/${id}/replace-backups`, {
+  invalidateAppQueryCache((key) =>
+    key.startsWith('tournamentMatches:') || key.startsWith('contestMatches:'),
+  )
+  return data
+}
+const replaceAdminMatchBackups = async ({ id }) => {
+  const data = await request(`/admin/matches/${id}/replace-backups`, {
     method: 'POST',
   })
+  invalidateAppQueryCache(
+    (key) =>
+      key.startsWith('contestParticipants:') ||
+      key.startsWith('contestLeaderboard:') ||
+      key.startsWith('contestUserMatchScores:') ||
+      key.startsWith('userPicks:'),
+  )
+  return data
+}
 const fetchAdminTeamSquads = (args = '') => {
   const teamCode =
     typeof args === 'string' ? args : (args?.teamCode || '').toString().trim()
@@ -640,49 +817,77 @@ const fetchAdminTeamSquads = (args = '') => {
   const params = new URLSearchParams()
   if (teamCode) params.set('teamCode', teamCode)
   if (tournamentId) params.set('tournamentId', tournamentId)
-  const query = params.toString()
-  return request(`/admin/team-squads${query ? `?${query}` : ''}`)
+  const query = withSortedParams(params)
+  return cachedGet(`adminTeamSquads:${query || 'all'}`, () =>
+    request(`/admin/team-squads${query ? `?${query}` : ''}`),
+  )
 }
-const upsertAdminTeamSquad = (payload) =>
-  request('/admin/team-squads', {
+const upsertAdminTeamSquad = async (payload) => {
+  const data = await request('/admin/team-squads', {
     method: 'POST',
     body: JSON.stringify(payload || {}),
   })
+  invalidateAppQueryCache('adminTeamSquads')
+  return data
+}
 const deleteAdminTeamSquad = ({ teamCode, actorUserId, tournamentId }) => {
   const params = new URLSearchParams()
   if (tournamentId) params.set('tournamentId', tournamentId)
-  const query = params.toString()
+  const query = withSortedParams(params)
   return request(`/admin/team-squads/${teamCode}${query ? `?${query}` : ''}`, {
     method: 'DELETE',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
+  }).finally(() => {
+    invalidateAppQueryCache('adminTeamSquads')
   })
 }
-const createAdminContest = (payload) =>
-  request('/admin/contests', {
+const createAdminContest = async (payload) => {
+  const data = await request('/admin/contests', {
     method: 'POST',
     body: JSON.stringify(payload || {}),
   })
-const startAdminContest = (contestId, actorUserId = '') =>
-  request(`/admin/contests/${contestId}/start`, {
+  invalidateAppQueryCache((key) => key.startsWith('contestCatalog:') || key.startsWith('contests:'))
+  return data
+}
+const startAdminContest = async (contestId, actorUserId = '') => {
+  const data = await request(`/admin/contests/${contestId}/start`, {
     method: 'POST',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
+  invalidateAppQueryCache((key) =>
+    key.startsWith('contestCatalog:') ||
+    key.startsWith('contests:') ||
+    key === `contest:${contestId}`,
+  )
+  return data
+}
 const fetchContestMatchOptions = (tournamentId = '') => {
   const params = new URLSearchParams()
   if (tournamentId) params.set('tournamentId', tournamentId)
-  const query = params.toString()
-  return request(`/admin/contest-match-options${query ? `?${query}` : ''}`)
+  const query = withSortedParams(params)
+  return cachedGet(`contestMatchOptions:${query || 'all'}`, () =>
+    request(`/admin/contest-match-options${query ? `?${query}` : ''}`),
+  )
 }
-const deleteAdminContest = (contestId, actorUserId = '') =>
-  request(`/admin/contests/${contestId}`, {
+const deleteAdminContest = async (contestId, actorUserId = '') => {
+  const data = await request(`/admin/contests/${contestId}`, {
     method: 'DELETE',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
+  invalidateAppQueryCache((key) =>
+    key.startsWith('contestCatalog:') ||
+    key.startsWith('contests:') ||
+    key === `contest:${contestId}`,
+  )
+  return data
+}
 const fetchContestCatalog = (tournamentId = '') => {
   const params = new URLSearchParams()
   if (tournamentId) params.set('tournamentId', tournamentId)
-  const query = params.toString()
-  return request(`/admin/contests/catalog${query ? `?${query}` : ''}`)
+  const query = withSortedParams(params)
+  return cachedGet(`contestCatalog:${query || 'all'}`, () =>
+    request(`/admin/contests/catalog${query ? `?${query}` : ''}`),
+  )
 }
 const syncContestSelections = ({ tournamentId, enabledIds }) =>
   request('/admin/contests/sync', {
@@ -717,6 +922,7 @@ const updateUserProfile = ({ id, payload }) =>
 export {
   subscribeApiActivity,
   clearStoredAuth,
+  clearAppDataCache,
   login,
   refreshSession,
   logout,

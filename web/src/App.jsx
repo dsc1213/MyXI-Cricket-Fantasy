@@ -34,6 +34,7 @@ import PickemHub from './pages/PickemHub.jsx'
 import ChangePassword from './pages/ChangePassword.jsx'
 import CricketerStats from './pages/CricketerStats.jsx'
 import {
+  clearAppDataCache,
   logout,
   prefetchAppData,
   refreshSession,
@@ -141,6 +142,7 @@ function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [isApiLoading, setIsApiLoading] = useState(false)
+  const [isRefreshingAppData, setIsRefreshingAppData] = useState(false)
   const [sessionWarningSeconds, setSessionWarningSeconds] = useState(null)
   const [isRefreshingSession, setIsRefreshingSession] = useState(false)
   const prefetchKeyRef = useRef('')
@@ -265,6 +267,23 @@ function App() {
       setIsRefreshingSession(false)
     }
   }, [onLogout])
+
+  const onRefreshAppData = useCallback(async () => {
+    if (isRefreshingAppData) return
+    setIsRefreshingAppData(true)
+    setUserMenuOpen(false)
+    setMobileMenuOpen(false)
+    clearAppDataCache()
+    try {
+      await checkApi()
+    } catch {
+      // Reloading after cache clear is still the safest recovery path.
+    } finally {
+      if (typeof window !== 'undefined') {
+        window.location.reload()
+      }
+    }
+  }, [checkApi, isRefreshingAppData])
 
   useEffect(() => {
     if (!userMenuOpen) return undefined
@@ -395,6 +414,18 @@ function App() {
                 ≡
               </button>
             )}
+            {!!currentUser && !isLanding && !isAuthPage && (
+              <button
+                type="button"
+                className="ghost small topbar-refresh-trigger"
+                onClick={onRefreshAppData}
+                disabled={isRefreshingAppData}
+                aria-label="Refresh app data"
+                title="Refresh app data"
+              >
+                {isRefreshingAppData ? 'Refreshing...' : 'Refresh'}
+              </button>
+            )}
             {showAuthLinks && (
               <>
                 <Link to="/login" className="ghost small">
@@ -473,6 +504,16 @@ function App() {
             </button>
           </div>
           <div className="mobile-nav-links">
+            {!!currentUser && (
+              <button
+                type="button"
+                className="leaderboard-link mobile-refresh-btn"
+                onClick={onRefreshAppData}
+                disabled={isRefreshingAppData}
+              >
+                {isRefreshingAppData ? 'Refreshing...' : 'Refresh data'}
+              </button>
+            )}
             <div className="mobile-nav-section">
               <div className="mobile-nav-section-links">
                 <NavLink

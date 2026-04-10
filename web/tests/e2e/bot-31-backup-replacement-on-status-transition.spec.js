@@ -231,6 +231,15 @@ test('backup players replace non-playing XI picks when playing XI is announced',
     expect(autoSwappedRows.map((row) => row.name).sort()).toEqual(
       backupsToPromote.map((player) => player.name).sort(),
     )
+    const replacementInfoByName = new Map(
+      autoSwappedRows.map((row) => [row.name, row.replacementInfo || '']),
+    )
+    expect(replacementInfoByName.get(backupsToPromote[0].name)).toContain(
+      excludedA[0].name,
+    )
+    expect(replacementInfoByName.get(backupsToPromote[1].name)).toContain(
+      excludedA[1].name,
+    )
   } finally {
     if (authedRequest) {
       await deleteContestIfPresent(authedRequest, contestId, 'master')
