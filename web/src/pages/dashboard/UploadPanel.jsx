@@ -689,7 +689,7 @@ function UploadPanel({
                   onClick={onSaveLineupsFromJson}
                   disabled={isSavingScores || !manualTournamentId || !manualMatchId}
                 >
-                  {isSavingScores ? 'Processing...' : 'Save Playing XI JSON'}
+                  {isSavingScores ? 'Processing...' : 'Save'}
                 </Button>
               </div>
             )}

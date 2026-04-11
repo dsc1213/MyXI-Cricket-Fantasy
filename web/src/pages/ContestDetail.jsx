@@ -75,13 +75,8 @@ const sortContestMatches = (rows = []) =>
       return leftBucket - rightBucket
     }
 
-    if (leftBucket === 2) {
-      const timeDiff = rightStart - leftStart
-      if (timeDiff !== 0) return timeDiff
-    } else {
-      const timeDiff = leftStart - rightStart
-      if (timeDiff !== 0) return timeDiff
-    }
+    const timeDiff = leftStart - rightStart
+    if (timeDiff !== 0) return timeDiff
 
     return String(left?.matchNo || left?.id || '').localeCompare(
       String(right?.matchNo || right?.id || ''),

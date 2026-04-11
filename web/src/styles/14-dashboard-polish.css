@@ -480,8 +480,13 @@ select.dashboard-text-input {
 }
 
 .admin-manager-panel .catalog-table tbody tr.active {
-  background: rgba(60, 125, 255, 0.12);
-  box-shadow: inset 3px 0 0 rgba(96, 165, 250, 0.9);
+  background: rgba(251, 191, 36, 0.16);
+  box-shadow: inset 3px 0 0 rgba(245, 158, 11, 0.96);
+}
+
+body.dark-theme .admin-manager-panel .catalog-table tbody tr.active {
+  background: rgba(20, 184, 166, 0.18);
+  box-shadow: inset 3px 0 0 rgba(45, 212, 191, 0.96);
 }
 
 .admin-manager-panel .catalog-table tbody tr:hover {
@@ -489,7 +494,11 @@ select.dashboard-text-input {
 }
 
 .admin-manager-panel .catalog-table tbody tr.active:hover {
-  background: rgba(60, 125, 255, 0.16);
+  background: rgba(251, 191, 36, 0.22);
+}
+
+body.dark-theme .admin-manager-panel .catalog-table tbody tr.active:hover {
+  background: rgba(20, 184, 166, 0.24);
 }
 
 .admin-manager-panel .catalog-table-wrap {
@@ -1646,7 +1655,11 @@ body.dark-theme .squad-manager-success {
 }
 
 .manual-lineup-table tbody tr.active {
-  background: rgba(16, 185, 129, 0.08);
+  background: rgba(251, 191, 36, 0.14);
+}
+
+body.dark-theme .manual-lineup-table tbody tr.active {
+  background: rgba(20, 184, 166, 0.16);
 }
 
 .manual-lineup-table input[type='checkbox'] {
@@ -3088,21 +3101,32 @@ body.dark-theme .fantasy-hub-main {
 .upload-sub-actions {
   margin-top: 0.1rem;
   justify-content: flex-start;
-  align-items: stretch;
+  align-items: center;
   gap: 0.45rem;
 }
 
+.upload-sub-actions.is-json-actions {
+  display: inline-flex;
+  flex-wrap: nowrap;
+}
+
 .upload-sub-btn {
-  border-radius: 12px;
-  min-height: 36px;
-  padding: 0.36rem 0.74rem;
-  font-size: 0.76rem;
+  border-radius: 999px;
+  min-height: 42px;
+  padding: 0.42rem 0.92rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
+  line-height: 1;
 }
 
 .upload-sub-btn-primary {
-  min-width: 170px;
+  min-width: 0;
+}
+
+.upload-sub-actions .upload-sub-btn,
+.upload-sub-actions .upload-sub-btn-primary {
+  align-self: center;
 }
 
 .btn {
