@@ -2,6 +2,7 @@ import Button from './Button.jsx'
 
 function JsonTextareaField({
   label,
+  labelAction = null,
   value,
   onChange,
   rows = 12,
@@ -14,7 +15,10 @@ function JsonTextareaField({
 }) {
   return (
     <label className={wrapperClassName || undefined}>
-      {label}
+      <span className="json-textarea-label-row">
+        <span>{label}</span>
+        {labelAction}
+      </span>
       <textarea
         className={textareaClassName}
         rows={rows}

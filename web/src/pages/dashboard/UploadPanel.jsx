@@ -3,6 +3,7 @@ import Button from '../../components/ui/Button.jsx'
 import { CountryText } from '../../components/ui/CountryFlag.jsx'
 import JsonAssistantModal from '../../components/ui/JsonAssistantModal.jsx'
 import JsonTextareaField from '../../components/ui/JsonTextareaField.jsx'
+import Modal from '../../components/ui/Modal.jsx'
 import PlayerIdentity from '../../components/ui/PlayerIdentity.jsx'
 import PlayingXiModalLink from '../../components/ui/PlayingXiModalLink.jsx'
 import SelectField from '../../components/ui/SelectField.jsx'
@@ -75,6 +76,7 @@ function UploadPanel({
     useState('Copy AI Prompt')
   const [lineupPreviewCopyButtonLabel, setLineupPreviewCopyButtonLabel] =
     useState('Copy JSON')
+  const [jsonGuideType, setJsonGuideType] = useState('')
 
   useEffect(() => {
     if (!forcedMatchOpsTab) return
@@ -230,6 +232,73 @@ function UploadPanel({
     () => JSON.stringify({ lineups: lineupPreviewPayload || {} }, null, 2),
     [lineupPreviewPayload],
   )
+  const jsonGuideContent = useMemo(() => {
+    if (jsonGuideType === 'lineup') {
+      return {
+        title: 'Playing XI JSON Guide',
+        sections: [
+          {
+            title: 'Option 1: Use AI',
+            steps: [
+              'First select the correct Tournament and Match on this page.',
+              'Click Generate JSON. A sample Playing XI JSON will open.',
+              'In that popup, click Copy AI Prompt.',
+              'Paste that prompt into your AI tool along with the sample JSON.',
+              'Ask the AI to return only valid Playing XI JSON. No explanation text.',
+              'Copy the AI response and paste it into this JSON box.',
+              'Click Save.',
+            ],
+          },
+          {
+            title: 'Option 2: Upload Manually',
+            steps: [
+              'Build a JSON object with the top-level key lineups.',
+              'Inside lineups, add one object for each team in the selected match.',
+              'Inside each team object, add only playingXI.',
+              'Put 11 or 12 player names inside playingXI.',
+              'Use player names exactly as they appear in the selected match squads.',
+              'Paste that JSON into this box.',
+              'Click Save.',
+              'If any player name does not match, the save will stop and show suggestions.',
+            ],
+          },
+        ],
+      }
+    }
+    if (jsonGuideType === 'score') {
+      return {
+        title: 'Scorecard JSON Guide',
+        sections: [
+          {
+            title: 'Option 1: Use AI',
+            steps: [
+              'First select the correct Tournament and Match on this page.',
+              'Make sure Playing XI is already saved for that match.',
+              'Click Generate JSON. A sample scorecard JSON will open.',
+              'In that popup, click Copy AI Prompt.',
+              'Paste that prompt into your AI tool along with the sample JSON.',
+              'Ask the AI to return only valid scorecard JSON. No explanation text.',
+              'Copy the AI response and paste it into this JSON box.',
+              'Click Save.',
+            ],
+          },
+          {
+            title: 'Option 2: Upload Manually',
+            steps: [
+              'Build a JSON object with the top-level key playerStats.',
+              'Inside playerStats, add one row for each player score.',
+              'Each row should contain only score fields. Do not paste Playing XI lineups here.',
+              'Use player names exactly as they appear in the selected match teams.',
+              'Paste that JSON into this box.',
+              'Click Save.',
+              'If any player name does not match, the save will stop and show suggestions.',
+            ],
+          },
+        ],
+      }
+    }
+    return null
+  }, [jsonGuideType])
 
   const processedLineupPreviewTeams = useMemo(
     () =>
@@ -618,7 +687,7 @@ function UploadPanel({
                         className={`upload-tab-btn ${lineupUploadTab === 'json' ? 'active' : ''}`.trim()}
                         onClick={() => setLineupUploadTab('json')}
                       >
-                        JSON Upload
+                        Playing XI JSON
                       </Button>
                     </>
                   ) : (
@@ -639,7 +708,7 @@ function UploadPanel({
                         className={`upload-tab-btn ${uploadTab === 'json' ? 'active' : ''}`.trim()}
                         onClick={() => setUploadTab('json')}
                       >
-                        JSON Upload
+                        Scorecard JSON
                       </Button>
                     </>
                   )}
@@ -847,7 +916,16 @@ function UploadPanel({
               <div className="match-upload-grid json-mode lineup-json-mode">
                 <JsonTextareaField
                   wrapperClassName="match-upload-json"
-                  label="Lineup JSON schema"
+                  label="Playing XI JSON"
+                  labelAction={
+                    <button
+                      type="button"
+                      className="json-help-trigger"
+                      onClick={() => setJsonGuideType('lineup')}
+                    >
+                      View steps
+                    </button>
+                  }
                   rows={10}
                   value={lineupPayloadText}
                   onChange={(event) => setLineupPayloadText(event.target.value)}
@@ -917,7 +995,16 @@ function UploadPanel({
             <div className="match-upload-grid json-mode">
               <JsonTextareaField
                 wrapperClassName="match-upload-json"
-                label="JSON schema"
+                label="Scorecard JSON"
+                labelAction={
+                  <button
+                    type="button"
+                    className="json-help-trigger"
+                    onClick={() => setJsonGuideType('score')}
+                  >
+                    View steps
+                  </button>
+                }
                 rows={10}
                 value={uploadPayloadText}
                 onChange={(event) => setUploadPayloadText(event.target.value)}
@@ -988,6 +1075,31 @@ function UploadPanel({
           },
         ]}
       />
+
+      <Modal
+        open={Boolean(jsonGuideContent)}
+        title={jsonGuideContent?.title || 'JSON Guide'}
+        onClose={() => setJsonGuideType('')}
+        size="md"
+        footer={
+          <Button type="button" variant="secondary" size="small" onClick={() => setJsonGuideType('')}>
+            Close
+          </Button>
+        }
+      >
+        <div className="json-guide-modal">
+          {(jsonGuideContent?.sections || []).map((section) => (
+            <section key={section.title} className="json-guide-section">
+              <h5>{section.title}</h5>
+              <ol>
+                {(section.steps || []).map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ol>
+            </section>
+          ))}
+        </div>
+      </Modal>
 
       <JsonAssistantModal
         open={isGeneratedLineupJsonOpen}

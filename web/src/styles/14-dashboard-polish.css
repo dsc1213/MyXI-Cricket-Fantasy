@@ -912,6 +912,96 @@ body.dark-theme .admin-manager-panel .catalog-table tbody tr.active:hover {
   gap: 0.6rem;
 }
 
+.json-textarea-label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  flex-wrap: wrap;
+}
+
+.json-help-trigger {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(148, 197, 255, 0.95);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: underline;
+  text-underline-offset: 0.14rem;
+  cursor: pointer;
+}
+
+.json-help-trigger:hover,
+.json-help-trigger:focus-visible {
+  color: #cfe6ff;
+}
+
+.json-guide-modal {
+  display: grid;
+  gap: 1rem;
+}
+
+.json-guide-section {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 0.95rem;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(20, 29, 48, 0.42);
+}
+
+.json-guide-section:nth-of-type(1) {
+  border-color: rgba(109, 240, 169, 0.2);
+  background: linear-gradient(
+    180deg,
+    rgba(41, 84, 63, 0.34),
+    rgba(20, 29, 48, 0.4)
+  );
+}
+
+.json-guide-section:nth-of-type(2) {
+  border-color: rgba(255, 194, 102, 0.2);
+  background: linear-gradient(
+    180deg,
+    rgba(92, 63, 26, 0.34),
+    rgba(20, 29, 48, 0.4)
+  );
+}
+
+.json-guide-section h5 {
+  margin: 0;
+  color: rgba(241, 245, 249, 0.98);
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.json-guide-modal ol {
+  margin: 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: 0.72rem;
+}
+
+.json-guide-modal li {
+  color: rgba(236, 242, 248, 0.96);
+  font-size: 0.92rem;
+  line-height: 1.7;
+  letter-spacing: 0.002em;
+}
+
+.json-guide-note {
+  margin: 0;
+  padding: 0.78rem 0.92rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.42);
+  color: rgba(214, 223, 234, 0.96);
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
 .upload-tab-row {
   display: inline-flex;
   gap: 0.32rem;

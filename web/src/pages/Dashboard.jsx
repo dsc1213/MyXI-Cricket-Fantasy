@@ -625,6 +625,16 @@ function Dashboard({ defaultPanel = 'joined' }) {
       const { parsed, normalizedText } = parseNormalizedJsonInput(
         uploadPayloadText || '{}',
       )
+      const hasScorePayload =
+        Array.isArray(parsed?.playerStats) || Array.isArray(parsed?.scores)
+      const hasLineupPayload =
+        !!parsed?.lineups && typeof parsed.lineups === 'object' && !Array.isArray(parsed.lineups)
+      if (!hasScorePayload && hasLineupPayload) {
+        setErrorText(
+          'This looks like Playing XI JSON. Switch to Scorecards > Scorecard JSON and retry.',
+        )
+        return
+      }
       const playerStats = Array.isArray(parsed?.playerStats) ? parsed.playerStats : []
       const knownPlayers = [
         ...(manualTeamPool?.teamAPlayers || []),
@@ -942,6 +952,16 @@ function Dashboard({ defaultPanel = 'joined' }) {
       const { parsed, normalizedText } = parseNormalizedJsonInput(
         lineupPayloadText || '{}',
       )
+      const hasScorePayload =
+        Array.isArray(parsed?.playerStats) || Array.isArray(parsed?.scores)
+      const hasLineupPayload =
+        !!parsed?.lineups && typeof parsed.lineups === 'object' && !Array.isArray(parsed.lineups)
+      if (hasScorePayload && !hasLineupPayload) {
+        setErrorText(
+          'This looks like Scorecard JSON. Switch to Playing XI > Playing XI JSON and retry.',
+        )
+        return
+      }
       if (normalizedText !== lineupPayloadText) {
         setLineupPayloadText(JSON.stringify(parsed, null, 2))
       }
