@@ -3,6 +3,7 @@ import {
   clearAllAppQueryCache,
   fetchCachedQuery,
   invalidateAppQueryCache,
+  primeAppQueryCache,
 } from './appQueryCache.js'
 
 export const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
@@ -87,6 +88,74 @@ const withSortedParams = (params) => {
 }
 
 const cachedGet = (key, loader) => fetchCachedQuery({ key, loader })
+
+const primeCachedGet = async (key, loader) => {
+  const data = await loader()
+  primeAppQueryCache(key, data)
+  return data
+}
+
+const refreshContestScopedData = async ({ contestId, matchId, userId } = {}) => {
+  const tasks = []
+  if (contestId) {
+    tasks.push(
+      primeCachedGet(`contest:${contestId}`, () => request(`/contests/${contestId}`)),
+      primeCachedGet(`contestMatches:${contestId}:all`, () =>
+        request(`/contests/${contestId}/matches`),
+      ),
+      primeCachedGet(`contestParticipants:${contestId}:all`, () =>
+        request(`/contests/${contestId}/participants`),
+      ),
+      primeCachedGet(`contestLeaderboard:${contestId}`, async () => {
+        const data = await request(`/contests/${contestId}/leaderboard`)
+        if (Array.isArray(data)) return { rows: data }
+        if (data && Array.isArray(data.rows)) return data
+        return { rows: [] }
+      }),
+    )
+    if (matchId) {
+      tasks.push(
+        primeCachedGet(`contestParticipants:${contestId}:matchId=${matchId}`, () =>
+          request(`/contests/${contestId}/participants?matchId=${encodeURIComponent(matchId)}`),
+        ),
+      )
+    }
+  }
+  if (userId && contestId) {
+    tasks.push(
+      primeCachedGet(`userPicks:${userId}:contestId=${contestId}&matchId=${matchId || ''}`, () => {
+        const params = new URLSearchParams()
+        params.set('contestId', contestId)
+        if (matchId) params.set('matchId', matchId)
+        return request(`/users/${userId}/picks?${withSortedParams(params)}`)
+      }),
+    )
+  }
+  await Promise.allSettled(tasks)
+}
+
+const refreshMatchAdminData = async ({ tournamentId, matchId, contestId } = {}) => {
+  const tasks = []
+  if (tournamentId && matchId) {
+    tasks.push(
+      primeCachedGet(`adminMatchScores:${tournamentId}:${matchId}`, () =>
+        request(`/admin/match-scores/${tournamentId}/${matchId}`),
+      ),
+      primeCachedGet(`matchLineups:${tournamentId}:${matchId}:all`, () =>
+        request(`/admin/match-lineups/${tournamentId}/${matchId}`),
+      ),
+    )
+    const params = new URLSearchParams()
+    params.set('tournamentId', tournamentId)
+    params.set('matchId', matchId)
+    if (contestId) params.set('contestId', contestId)
+    const query = withSortedParams(params)
+    tasks.push(
+      primeCachedGet(`teamPool:${query}`, () => request(`/team-pool?${query}`)),
+    )
+  }
+  await Promise.allSettled(tasks)
+}
 
 const rawApiRequest = async (path, options = {}) => {
   const normalizedPath = path
@@ -339,6 +408,7 @@ const saveScoringRules = async ({ rules, actorUserId }) => {
     body: JSON.stringify({ rules, ...(actorUserId ? { actorUserId } : {}) }),
   })
   invalidateAppQueryCache('dashboardPageLoadData')
+  await Promise.allSettled([primeCachedGet('dashboardPageLoadData', () => request('/page-load-data'))])
   return data
 }
 
@@ -386,6 +456,25 @@ const saveMatchScores = ({
       key.startsWith('userPicks:'),
     )
   })
+
+const saveMatchScoresAndRefresh = async (payload) => {
+  const data = await saveMatchScores(payload)
+  if (!payload?.dryRun) {
+    await Promise.allSettled([
+      refreshMatchAdminData({
+        tournamentId: payload?.tournamentId,
+        matchId: payload?.matchId,
+        contestId: payload?.contestId,
+      }),
+      refreshContestScopedData({
+        contestId: payload?.contestId,
+        matchId: payload?.matchId,
+        userId: payload?.userId,
+      }),
+    ])
+  }
+  return data
+}
 
 const fetchTournaments = () => cachedGet('tournaments', () => request('/tournaments'))
 
@@ -527,8 +616,18 @@ const saveTeamSelection = async ({
     key.startsWith('teamPool:') ||
     key.startsWith('userPicks:') ||
     key.startsWith(`contestParticipants:${contestId}:`) ||
-    key === `contest:${contestId}`,
+      key === `contest:${contestId}`,
   )
+  await Promise.allSettled([
+    refreshContestScopedData({ contestId, matchId, userId }),
+    primeCachedGet(
+      `teamPool:contestId=${contestId}&matchId=${matchId}&userId=${userId}`,
+      () =>
+        request(
+          `/team-pool?contestId=${encodeURIComponent(contestId)}&matchId=${encodeURIComponent(matchId)}&userId=${encodeURIComponent(userId)}`,
+        ),
+    ),
+  ])
   return data
 }
 
@@ -672,8 +771,16 @@ const upsertMatchLineups = async ({
       key.startsWith(`matchLineups:${tournamentId}:${matchId}:`) ||
       key.startsWith('teamPool:') ||
       key.startsWith('contestParticipants:') ||
-      key.startsWith('userPicks:'),
+        key.startsWith('userPicks:'),
     )
+    await Promise.allSettled([
+      refreshMatchAdminData({ tournamentId, matchId, contestId }),
+      refreshContestScopedData({
+        contestId,
+        matchId,
+        userId: updatedBy,
+      }),
+    ])
   }
   return data
 }
@@ -703,6 +810,10 @@ const upsertManualMatchScores = async ({
     key.startsWith('contestUserMatchScores:') ||
     key.startsWith('userPicks:'),
   )
+  await Promise.allSettled([
+    refreshMatchAdminData({ tournamentId, matchId, contestId }),
+    refreshContestScopedData({ contestId, matchId, userId }),
+  ])
   return data
 }
 const resetManualMatchScores = async ({ tournamentId, matchId, userId }) => {
@@ -716,6 +827,10 @@ const resetManualMatchScores = async ({ tournamentId, matchId, userId }) => {
     key.startsWith('contestUserMatchScores:') ||
     key.startsWith('userPicks:'),
   )
+  await Promise.allSettled([
+    refreshMatchAdminData({ tournamentId, matchId }),
+    refreshContestScopedData({ contestId: '', matchId, userId }),
+  ])
   return data
 }
 const fetchAdminUsers = () => cachedGet('adminUsers', () => request('/admin/users'))
@@ -807,6 +922,9 @@ const replaceAdminMatchBackups = async ({ id }) => {
       key.startsWith('contestUserMatchScores:') ||
       key.startsWith('userPicks:'),
   )
+  await Promise.allSettled([
+    primeCachedGet('dashboardPageLoadData', () => request('/page-load-data')),
+  ])
   return data
 }
 const fetchAdminTeamSquads = (args = '') => {
@@ -934,7 +1052,7 @@ export {
   fetchDashboardPageLoadData,
   processExcelMatchScores,
   saveScoringRules,
-  saveMatchScores,
+  saveMatchScoresAndRefresh as saveMatchScores,
   fetchTournaments,
   fetchContests,
   joinContest,

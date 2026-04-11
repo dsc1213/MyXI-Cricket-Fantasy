@@ -68,6 +68,18 @@ const setEntry = (key, patch) => {
   return next
 }
 
+const primeAppQueryCache = (key, data, status = 'success') => {
+  if (!ENABLE_APP_QUERY_CACHE || !key) return data
+  setEntry(key, {
+    status,
+    data,
+    error: null,
+    promise: null,
+    updatedAt: Date.now(),
+  })
+  return data
+}
+
 const clearAllAppQueryCache = () => {
   if (!entries.size) return
   entries.clear()
@@ -137,5 +149,6 @@ export {
   getEntry as getAppQueryCacheEntry,
   getSnapshot as getAppQueryCacheSnapshot,
   invalidateAppQueryCache,
+  primeAppQueryCache,
   subscribe as subscribeAppQueryCache,
 }

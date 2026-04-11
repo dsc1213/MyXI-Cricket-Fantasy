@@ -59,7 +59,7 @@ function PlayerLabel({
         <div className="player-chip-role-controls">
           <button
             type="button"
-            className={`player-role-btn ${roleControls?.captainActive ? 'active' : ''}`.trim()}
+            className={`player-role-btn captain-btn ${roleControls?.captainActive ? 'active' : ''}`.trim()}
             onClick={(event) => {
               event.stopPropagation()
               roleControls.onCaptainClick?.()
@@ -71,7 +71,7 @@ function PlayerLabel({
           </button>
           <button
             type="button"
-            className={`player-role-btn ${roleControls?.viceCaptainActive ? 'active' : ''}`.trim()}
+            className={`player-role-btn vice-captain-btn ${roleControls?.viceCaptainActive ? 'active' : ''}`.trim()}
             onClick={(event) => {
               event.stopPropagation()
               roleControls.onViceCaptainClick?.()

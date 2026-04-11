@@ -1,5 +1,4 @@
 import PlayerLabel from './PlayerLabel.jsx'
-import SelectField from '../ui/SelectField.jsx'
 
 const ROLE_LANES = ['WK', 'BAT', 'AR', 'BOWL']
 
@@ -24,6 +23,19 @@ function formatRolePickLabel(name = '') {
   return `${initials} ${last}`.trim()
 }
 
+function buildTeamCounts(selected = []) {
+  const counts = new Map()
+  selected.forEach((player) => {
+    const teamCode = (player?.team || player?.teamCode || '').toString().trim().toUpperCase()
+    if (!teamCode) return
+    counts.set(teamCode, (counts.get(teamCode) || 0) + 1)
+  })
+  return Array.from(counts.entries()).sort((a, b) => {
+    if (b[1] !== a[1]) return b[1] - a[1]
+    return a[0].localeCompare(b[0])
+  })
+}
+
 function RightColumnContent({
   selected,
   counts,
@@ -35,10 +47,6 @@ function RightColumnContent({
   validationMessage = '',
   disabled = false,
 }) {
-  const selectedOptions = selected.map((player) => ({
-    value: String(player.id),
-    label: formatRolePickLabel(player.name),
-  }))
   const groupedSelected = selected.reduce(
     (acc, player) => {
       const lane = normalizePlayerRole(player?.role)
@@ -52,6 +60,9 @@ function RightColumnContent({
       BOWL: [],
     },
   )
+  const teamCounts = buildTeamCounts(selected)
+  const captainPlayer = selected.find((player) => String(player.id) === String(captainId))
+  const viceCaptainPlayer = selected.find((player) => String(player.id) === String(viceCaptainId))
 
   return (
     <>
@@ -67,52 +78,23 @@ function RightColumnContent({
             <span>WK: {counts.WK}</span>
             <span>ALL: {counts.AR}</span>
           </div>
-          <div className="myxi-role-selectors">
-            <label className="myxi-role-field">
-              <span>C</span>
-              <SelectField
-                value={captainId == null ? '' : String(captainId)}
-                onChange={(event) => onCaptainChange?.(event.target.value || null)}
-                disabled={disabled || selected.length === 0}
-                className="myxi-role-select"
-              >
-                <option value="">Select C</option>
-                {selectedOptions.map((option) => (
-                  <option
-                    key={`captain-${option.value}`}
-                    value={option.value}
-                    disabled={
-                      viceCaptainId != null &&
-                      String(viceCaptainId) === String(option.value)
-                    }
-                  >
-                    {option.label}
-                  </option>
-                ))}
-              </SelectField>
-            </label>
-            <label className="myxi-role-field">
-              <span>VC</span>
-              <SelectField
-                value={viceCaptainId == null ? '' : String(viceCaptainId)}
-                onChange={(event) => onViceCaptainChange?.(event.target.value || null)}
-                disabled={disabled || selected.length === 0}
-                className="myxi-role-select"
-              >
-                <option value="">Select VC</option>
-                {selectedOptions.map((option) => (
-                  <option
-                    key={`vice-${option.value}`}
-                    value={option.value}
-                    disabled={
-                      captainId != null && String(captainId) === String(option.value)
-                    }
-                  >
-                    {option.label}
-                  </option>
-                ))}
-              </SelectField>
-            </label>
+          {!!teamCounts.length && (
+            <div className="myxi-team-meta">
+              {teamCounts.map(([teamCode, total]) => (
+                <span key={teamCode}>{`${teamCode} ${total}`}</span>
+              ))}
+            </div>
+          )}
+          <div className="myxi-role-selectors is-inline-actions">
+            <div className="myxi-role-summary">
+              <span className="myxi-role-summary-pill captain">
+                {`C 2x: ${captainPlayer ? formatRolePickLabel(captainPlayer.name) : 'Not set'}`}
+              </span>
+              <span className="myxi-role-summary-pill vice-captain">
+                {`VC 1.5x: ${viceCaptainPlayer ? formatRolePickLabel(viceCaptainPlayer.name) : 'Not set'}`}
+              </span>
+            </div>
+            <p className="myxi-role-hint">Tap C or VC on a player card to assign roles.</p>
           </div>
           {!!validationMessage && <p className="myxi-validation">{validationMessage}</p>}
         </div>
@@ -135,6 +117,26 @@ function RightColumnContent({
                       lineupStatus={player.lineupStatus || ''}
                       className="myxi-role-chip"
                       showTeam
+                      roleControls={{
+                        captainActive: String(player.id) === String(captainId),
+                        viceCaptainActive: String(player.id) === String(viceCaptainId),
+                        onCaptainClick: disabled
+                          ? null
+                          : () =>
+                              onCaptainChange?.(
+                                String(player.id) === String(captainId)
+                                  ? null
+                                  : String(player.id),
+                              ),
+                        onViceCaptainClick: disabled
+                          ? null
+                          : () =>
+                              onViceCaptainChange?.(
+                                String(player.id) === String(viceCaptainId)
+                                  ? null
+                                  : String(player.id),
+                              ),
+                      }}
                     />
                   ))}
                 </div>

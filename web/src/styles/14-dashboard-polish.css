@@ -3499,6 +3499,45 @@ body.dark-theme .fantasy-hub-main {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .ui-modal-body .myxi-card .player-chip.slot-chip.compact .player-chip-copy,
+  .ui-modal-body .backups-card .player-chip.slot-chip.compact .player-chip-copy {
+    overflow: visible;
+  }
+
+  .ui-modal-body
+    .myxi-card
+    .player-chip.slot-chip.compact
+    .player-chip-identity
+    .player-identity-copy,
+  .ui-modal-body
+    .backups-card
+    .player-chip.slot-chip.compact
+    .player-chip-identity
+    .player-identity-copy {
+    overflow: visible;
+    align-content: start;
+  }
+
+  .ui-modal-body
+    .myxi-card
+    .player-chip.slot-chip.compact
+    .player-chip-identity
+    .player-identity-name,
+  .ui-modal-body
+    .backups-card
+    .player-chip.slot-chip.compact
+    .player-chip-identity
+    .player-identity-name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+    line-height: 1.12;
+  }
+
   .ui-modal-body .backups-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

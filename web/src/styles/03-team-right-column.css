@@ -72,7 +72,7 @@
 
 .myxi-card .player-chip.slot-chip.compact,
 .backups-card .player-chip.slot-chip.compact {
-  padding-left: 1.22rem;
+  padding-left: 0.3rem;
 }
 
 .player-chip.slot-chip.compact.clickable {
@@ -117,12 +117,12 @@
 }
 
 .player-chip.slot-chip.compact .player-chip-identity .player-identity-copy {
-  justify-items: center;
+  justify-items: stretch;
 }
 
 .player-chip.slot-chip.compact .player-chip-identity .player-identity-name,
 .player-chip.slot-chip.compact .player-chip-identity .player-identity-subtitle {
-  text-align: center;
+  text-align: left;
 }
 
 .player-badge {
@@ -158,59 +158,64 @@
 
 .myxi-role-selectors {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.22rem;
-  align-items: center;
+  gap: 0.3rem;
+  align-items: start;
   align-self: start;
-  min-height: 30px;
+  min-height: 0;
   margin-top: 0.1rem;
-}
-
-.myxi-role-field {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.28rem;
-  align-items: center;
-  min-width: 0;
-}
-
-.myxi-role-field > span {
-  font-size: 0.64rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  width: 1.5rem;
-  text-align: center;
-}
-
-.myxi-role-select {
   width: 100%;
-  min-width: 0;
-  height: 30px;
-  appearance: none;
-  -webkit-appearance: none;
-  border-radius: 10px;
-  border: 1px solid var(--input-border);
-  background:
-    linear-gradient(45deg, transparent 50%, rgba(235, 241, 255, 0.92) 50%)
-      calc(100% - 14px) calc(50% - 2px) / 6px 6px no-repeat,
-    linear-gradient(135deg, rgba(235, 241, 255, 0.92) 50%, transparent 50%)
-      calc(100% - 10px) calc(50% - 2px) / 6px 6px no-repeat,
-    rgba(11, 29, 35, 0.28);
-  color: #f8fbff;
-  -webkit-text-fill-color: #f8fbff;
-  padding: 0 1.5rem 0 0.6rem;
-  font-size: 0.72rem;
-  font-weight: 600;
-  line-height: 1.1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow: hidden;
 }
 
-.myxi-role-select option {
-  color: #0f172a;
+.myxi-role-selectors.is-inline-actions {
+  grid-template-columns: 1fr;
+}
+
+.myxi-role-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.myxi-role-summary-pill {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border-radius: 999px;
+  padding: 0.28rem 0.58rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  background: rgba(13, 27, 42, 0.18);
+  color: #eef6ff;
+}
+
+.myxi-role-summary-pill.captain {
+  background: rgba(209, 172, 74, 0.24);
+  color: #ffecb3;
+}
+
+.myxi-role-summary-pill.vice-captain {
+  background: rgba(108, 92, 231, 0.22);
+  color: #e2ddff;
+}
+
+.myxi-role-hint {
+  margin: 0;
+  font-size: 0.58rem;
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
+.myxi-team-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.45rem;
+  margin-top: 0.05rem;
+  color: #d9f99d;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .myxi-validation {
@@ -253,12 +258,47 @@
 }
 
 .myxi-role-chip.player-chip.slot-chip.compact {
-  min-height: 36px;
+  min-height: 46px;
   max-width: none;
   border: 1px solid rgba(8, 22, 32, 0.26);
   box-shadow:
     0 2px 8px rgba(8, 18, 30, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  gap: 0.28rem;
+}
+
+.player-chip-role-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  flex: 0 0 auto;
+  margin-right: -0.04rem;
+}
+
+.player-role-btn {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(10, 23, 36, 0.22);
+  color: #d7ebff;
+  border-radius: 999px;
+  min-width: 1.55rem;
+  height: 1rem;
+  padding: 0 0.2rem;
+  font-size: 0.48rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.player-role-btn.captain-btn.active {
+  background: rgba(209, 172, 74, 0.24);
+  border-color: rgba(255, 236, 179, 0.28);
+  color: #ffecb3;
+}
+
+.player-role-btn.vice-captain-btn.active {
+  background: rgba(108, 92, 231, 0.22);
+  border-color: rgba(226, 221, 255, 0.26);
+  color: #e2ddff;
 }
 
 body.dark-theme .myxi-role-chip.player-chip.slot-chip.compact {
@@ -280,33 +320,30 @@ body.dark-theme .myxi-role-chip.player-chip.slot-chip.compact {
 
 @media (max-width: 900px) {
   .myxi-role-selectors {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.26rem;
+    gap: 0.24rem;
   }
 
-  .myxi-role-field {
-    gap: 0.2rem;
+  .myxi-role-summary {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
-  .myxi-role-field > span {
-    width: 1.3rem;
-    font-size: 0.6rem;
+  .myxi-role-summary-pill {
+    font-size: 0.58rem;
   }
 
-  .myxi-role-select {
-    height: 28px;
-    padding: 0 0.5rem;
-    font-size: 0.68rem;
+  .myxi-team-meta {
+    font-size: 0.56rem;
+  }
+
+  .player-role-btn {
+    min-width: 1.45rem;
+    font-size: 0.46rem;
   }
 }
 
 @media (max-width: 1320px) and (min-width: 901px) {
   .myxi-role-selectors {
-    grid-template-columns: 1fr;
     gap: 0.2rem;
-  }
-
-  .myxi-role-field {
-    grid-template-columns: 1.5rem minmax(0, 1fr);
   }
 }

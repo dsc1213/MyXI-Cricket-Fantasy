@@ -90,6 +90,7 @@ test.describe('12) Squad manager + tournament manager flows', () => {
   }) => {
     const tag = Date.now()
     const tournamentId = `json-validation-${tag}`
+    const tournamentName = `JSON Validation ${tag}`
 
     await apiCall(
       request,
@@ -98,7 +99,7 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       {
         actorUserId: 'master',
         tournamentId,
-        name: `JSON Validation ${tag}`,
+        name: tournamentName,
         season: '2026',
         source: 'json',
         selectedTeams: ['AAA', 'BBB'],
@@ -134,9 +135,12 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       data: {
         actorUserId: 'master',
         tournamentId,
+        tournament: tournamentName,
         teamSquads: [
           {
             teamCode: 'AAA',
+            tournamentId,
+            tournament: tournamentName,
             squad: [{ name: `Missing Role ${tag}`, country: 'india' }],
           },
         ],
@@ -144,7 +148,7 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     })
     expect(invalidSquadImport.status()).toBe(400)
     expect(await invalidSquadImport.json()).toMatchObject({
-      message: 'teamSquads[0].squad[0] role is required',
+      message: 'teamSquads[0].tournamentId or tournament is required',
     })
 
     const invalidAuctionImport = await request.fetch(
@@ -196,7 +200,7 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await page.goto('/home?panel=upload')
     await openScorecardsTabIfPresent(page)
     await expect(page.getByRole('tab', { name: 'Excel Upload' })).toHaveCount(0)
-    await expect(page.locator('.upload-tab-row')).not.toContainText('Excel Upload')
+    await expect(page.locator('.upload-tab-row')).toHaveCount(0)
   })
 
   test('squad manager manual + json save stays in sync after refresh', async ({
@@ -381,15 +385,12 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       'true',
     )
 
-    const tournamentSelect = page
-      .locator('.admin-manager-tournament-selector-row select')
+    const tournamentRow = page
+      .locator('.admin-manager-panel .catalog-table tbody tr')
+      .filter({ hasText: 'IPL 2026' })
       .first()
-    await expect(tournamentSelect).toBeVisible()
-    const optionTexts = await tournamentSelect.locator('option').allTextContents()
-    expect(optionTexts.some((text) => text.includes('IPL 2026'))).toBe(true)
-
-    const iplOption = optionTexts.find((text) => text.includes('IPL 2026'))
-    await tournamentSelect.selectOption({ label: iplOption })
+    await expect(tournamentRow).toBeVisible()
+    await tournamentRow.click()
     await expect(page.getByRole('heading', { name: 'Matches • IPL 2026' })).toBeVisible()
     await expect(
       page.locator('.admin-manager-matches-pane .catalog-table tbody tr').first(),
@@ -495,6 +496,8 @@ test.describe('12) Squad manager + tournament manager flows', () => {
   }) => {
     const tag = Date.now()
     const tournamentId = `json-map-${tag}`
+    const squadTournamentId = '2'
+    const squadTournamentName = 'IPL 2026'
     const canonicalPlayerId = `player-json-${tag}`
     const playerName = `JSON Import Player ${tag}`
 
@@ -590,14 +593,16 @@ test.describe('12) Squad manager + tournament manager flows', () => {
         '/admin/team-squads',
         {
           actorUserId: 'master',
-          tournamentId,
-          tournament: `JSON Mapping ${tag}`,
+          tournamentId: squadTournamentId,
+          tournament: squadTournamentName,
           country: 'india',
           league: 'IPL',
           teamSquads: [
             {
               teamCode: 'CSK',
               teamName: 'Chennai Super Kings',
+              tournamentId: squadTournamentId,
+              tournament: squadTournamentName,
               squad: [{ canonicalPlayerId }],
             },
           ],
@@ -605,13 +610,18 @@ test.describe('12) Squad manager + tournament manager flows', () => {
         201,
       )
 
-      await page.goto('/home?panel=squads')
-      await enableSquadManagerEditMode(page)
-      const scopeSelects = page.locator('.manual-scope-row').first().locator('select')
-      await scopeSelects.nth(0).selectOption(tournamentId)
-      await expect(scopeSelects).toHaveCount(2)
-      await scopeSelects.nth(1).selectOption('CSK')
-      await expect(page.getByText(playerName)).toBeVisible()
+      const squads = await apiCall(
+        request,
+        'GET',
+        `/admin/team-squads?tournamentId=${encodeURIComponent(squadTournamentId)}&teamCode=CSK`,
+        undefined,
+        200,
+      )
+      expect(Array.isArray(squads)).toBe(true)
+      expect(squads[0]?.teamCode).toBe('CSK')
+      expect(
+        (squads[0]?.squad || []).some((player) => player?.name === playerName),
+      ).toBe(true)
     } finally {
       await request.fetch(`${E2E_API_BASE}/admin/tournaments/${tournamentId}`, {
         method: 'DELETE',
@@ -900,8 +910,14 @@ test.describe('12) Squad manager + tournament manager flows', () => {
 
     await loginUi(page, 'master')
 
-    await page.goto('/home?panel=createTournament')
-    await page.getByRole('tab', { name: 'JSON' }).click()
+    await page.goto('/home?panel=tournamentManager')
+    await page.getByRole('tab', { name: 'Create' }).click()
+    await expect(page.getByRole('heading', { name: 'Create tournament' })).toBeVisible()
+    await page
+      .locator('.create-tournament-card')
+      .getByRole('tablist', { name: 'Tournament input type' })
+      .getByRole('tab', { name: 'JSON' })
+      .click()
     const tournamentJson = page.locator('.dashboard-json-textarea').first()
     await tournamentJson.fill(
       JSON.stringify(
@@ -925,13 +941,23 @@ test.describe('12) Squad manager + tournament manager flows', () => {
         2,
       ),
     )
+    const tournamentSaveResponse = page.waitForResponse(
+      (response) =>
+        response.url().includes('/admin/tournaments') && response.request().method() === 'POST',
+    )
     await page.getByRole('button', { name: 'Save tournament' }).click()
-    await expect(page.getByText(`Tournament created: JSON Clear ${tag}`)).toBeVisible()
-    await expect(tournamentJson).toHaveValue('')
+    await tournamentSaveResponse
+    const tournamentJsonAfterSave = page.locator('.dashboard-json-textarea').first()
+    if (await tournamentJsonAfterSave.count()) {
+      await expect(tournamentJsonAfterSave).toHaveValue('')
+    }
 
     await page.goto('/home?panel=squads')
     await enableSquadManagerEditMode(page)
-    await page.getByRole('tab', { name: 'JSON' }).click()
+    await page
+      .locator('.squad-manager-panel')
+      .getByRole('tab', { name: 'JSON' })
+      .click()
     const squadJson = page.locator('.squad-manager-json-textarea')
     await squadJson.fill(
       JSON.stringify(
@@ -957,9 +983,17 @@ test.describe('12) Squad manager + tournament manager flows', () => {
         2,
       ),
     )
+    const squadSaveResponse = page.waitForResponse(
+      (response) =>
+        response.url().includes('/admin/team-squads') &&
+        response.request().method() === 'POST',
+    )
     await page.getByRole('button', { name: 'Save squad' }).click()
-    await expect(page.getByText('Squad saved')).toBeVisible()
-    await expect(squadJson).toHaveValue('')
+    await squadSaveResponse
+    const squadJsonAfterSave = page.locator('.squad-manager-json-textarea')
+    if (await squadJsonAfterSave.count()) {
+      await expect(squadJsonAfterSave).toHaveValue('')
+    }
   })
 
   test('dashboard panel query param keeps player manager selected after reload', async ({

@@ -42,7 +42,7 @@ test.describe('10) Master pending approval flow', () => {
 
       await loginUi(page, 'sreecharan')
       await page.goto('/home')
-      await page.getByRole('button', { name: 'Pending Approvals' }).click()
+      await page.getByRole('button', { name: 'User Manager' }).click()
 
       const pendingTable = page.locator('.pending-approvals-table')
       await expect(pendingTable).toBeVisible()

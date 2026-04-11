@@ -77,8 +77,8 @@ test.describe('Role and navigation flow', () => {
     await expect(page.getByRole('button', { name: 'Score Manager' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Audit Logs' })).toBeVisible()
 
-    await expect(page.getByRole('link', { name: 'All Pages' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'All APIs' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'All Pages', exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'All APIs', exact: true })).toBeVisible()
   })
 })
 
@@ -309,7 +309,7 @@ test.describe('Admin master scenarios', () => {
     await expect(editableRow).toBeVisible()
     await editableRow.getByLabel(/Edit team|Add team/).click()
     await expect(page).toHaveURL(/\/fantasy\/select/)
-    await expect(page.getByRole('button', { name: 'Save' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible()
 
     await page.goto('/tournaments/t20wc-2026/contests/huntercherry')
     await page.getByRole('button', { name: 'Preview leaderboard' }).click()

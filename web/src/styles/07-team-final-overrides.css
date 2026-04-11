@@ -336,9 +336,11 @@ body.dark-theme
 }
 
 .myxi-slots .player-chip.slot-chip.compact .player-chip-identity .player-identity-name {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  line-height: 1.12;
 }
 
 .app.app-team
@@ -420,10 +422,15 @@ body.dark-theme
   .player-chip.slot-chip.compact
   .player-chip-identity
   .player-identity-subtitle {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
   text-align: left;
+}
+
+.backups-card .player-chip.slot-chip.compact .player-chip-identity .player-identity-name {
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  line-height: 1.12;
 }
 
 .backups-card
@@ -484,6 +491,7 @@ body.dark-theme
 .app.app-team .myxi-card .player-chip.slot-chip.compact {
   justify-content: flex-start;
   text-align: left;
+  padding-inline: 0.24rem 0.32rem;
 }
 
 .app.app-team .myxi-card .player-chip.slot-chip.compact .player-chip-copy {
