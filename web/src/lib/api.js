@@ -451,6 +451,8 @@ const saveMatchScores = ({
       key.startsWith('contestParticipants:') ||
       key.startsWith('contestMatches:') ||
       key.startsWith('contestUserMatchScores:') ||
+      key.startsWith('tournamentMatches:') ||
+      key.startsWith('contestUserPlayerBreakdown:') ||
       key.startsWith('matchLineups:') ||
       key.startsWith('teamPool:') ||
       key.startsWith('userPicks:'),
@@ -569,6 +571,11 @@ const fetchContestUserMatchScores = ({ contestId, userId, compareUserId } = {}) 
       ),
   )
 }
+
+const fetchContestUserPlayerBreakdown = ({ contestId, userId } = {}) =>
+  cachedGet(`contestUserPlayerBreakdown:${contestId}:${userId}`, () =>
+    request(`/contests/${contestId}/users/${userId}/player-breakdown`),
+  )
 
 const fetchTeamPool = ({
   contestId,
@@ -768,12 +775,14 @@ const upsertMatchLineups = async ({
   })
   if (!dryRun) {
     invalidateAppQueryCache((key) =>
+      key === 'dashboardPageLoadData' ||
       key.startsWith(`matchLineups:${tournamentId}:${matchId}:`) ||
       key.startsWith('teamPool:') ||
       key.startsWith('contestParticipants:') ||
         key.startsWith('userPicks:'),
     )
     await Promise.allSettled([
+      primeCachedGet('dashboardPageLoadData', () => request('/page-load-data')),
       refreshMatchAdminData({ tournamentId, matchId, contestId }),
       refreshContestScopedData({
         contestId,
@@ -808,6 +817,8 @@ const upsertManualMatchScores = async ({
     key.startsWith('dashboardPageLoadData') ||
     key.startsWith('contestLeaderboard:') ||
     key.startsWith('contestUserMatchScores:') ||
+    key.startsWith('tournamentMatches:') ||
+    key.startsWith('contestUserPlayerBreakdown:') ||
     key.startsWith('userPicks:'),
   )
   await Promise.allSettled([
@@ -825,6 +836,8 @@ const resetManualMatchScores = async ({ tournamentId, matchId, userId }) => {
     key === `adminMatchScores:${tournamentId}:${matchId}` ||
     key.startsWith('contestLeaderboard:') ||
     key.startsWith('contestUserMatchScores:') ||
+    key.startsWith('tournamentMatches:') ||
+    key.startsWith('contestUserPlayerBreakdown:') ||
     key.startsWith('userPicks:'),
   )
   await Promise.allSettled([
@@ -920,6 +933,7 @@ const replaceAdminMatchBackups = async ({ id }) => {
       key.startsWith('contestParticipants:') ||
       key.startsWith('contestLeaderboard:') ||
       key.startsWith('contestUserMatchScores:') ||
+      key.startsWith('contestUserPlayerBreakdown:') ||
       key.startsWith('userPicks:'),
   )
   await Promise.allSettled([
@@ -1062,6 +1076,7 @@ export {
   fetchContestParticipants,
   fetchContestLeaderboard,
   fetchContestUserMatchScores,
+  fetchContestUserPlayerBreakdown,
   fetchTeamPool,
   saveTeamSelection,
   fetchUserPicks,

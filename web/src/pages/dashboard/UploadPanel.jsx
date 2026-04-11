@@ -57,12 +57,17 @@ function UploadPanel({
   onManualStatChange,
   onSaveManualScores,
   onResetManualScores,
+  onMarkSelectedMatchComplete,
   isLoadingManualPool,
   onSaveScores,
   onGenerateScoreJson,
   isGeneratedScoreJsonOpen,
   generatedScoreJsonText,
   onCloseGeneratedScoreJson,
+  isScorePreviewOpen,
+  scorePreviewPayload,
+  onCloseScorePreview,
+  onConfirmScorePreviewSave,
   isSavingScores,
 }) {
   const [activeMatchOpsTab, setActiveMatchOpsTab] = useState(
@@ -71,6 +76,8 @@ function UploadPanel({
   const [lineupUploadTab, setLineupUploadTab] = useState('manual')
   const [copyButtonLabel, setCopyButtonLabel] = useState('Copy JSON')
   const [copyAiPromptLabel, setCopyAiPromptLabel] = useState('Copy AI Prompt')
+  const [scorePreviewCopyButtonLabel, setScorePreviewCopyButtonLabel] =
+    useState('Copy JSON')
   const [lineupCopyButtonLabel, setLineupCopyButtonLabel] = useState('Copy JSON')
   const [lineupPromptCopyButtonLabel, setLineupPromptCopyButtonLabel] =
     useState('Copy AI Prompt')
@@ -114,7 +121,7 @@ function UploadPanel({
       { key: 'noBalls', label: 'NB' },
       { key: 'wides', label: 'WD' },
       { key: 'economy', label: 'ECO', derived: true },
-      { key: 'hatTrick', label: 'HT' },
+      { key: 'hatTrick', label: 'H', type: 'checkbox' },
     ],
     fielding: [
       { key: 'catches', label: 'Catches' },
@@ -176,6 +183,20 @@ function UploadPanel({
     (isManualScorecards && isLoadingManualPool)
   const [activeManualCategory, setActiveManualCategory] = useState('batting')
   const activeColumns = categoryColumns[activeManualCategory] || categoryColumns.batting
+  const selectedMatchMeta = useMemo(
+    () =>
+      (manualScoreContext?.matches || []).find(
+        (row) => String(row?.id) === String(manualMatchId),
+      ) || null,
+    [manualMatchId, manualScoreContext],
+  )
+  const canMarkSelectedMatchComplete = Boolean(
+    isScorecardsTab &&
+      manualTournamentId &&
+      manualMatchId &&
+      selectedMatchMeta?.scoresUpdated &&
+      String(selectedMatchMeta?.status || '').trim().toLowerCase() !== 'completed',
+  )
   const onCopyGeneratedJson = async () => {
     if (!generatedScoreJsonText) return
     try {
@@ -254,7 +275,7 @@ function UploadPanel({
             steps: [
               'Build a JSON object with the top-level key lineups.',
               'Inside lineups, add one object for each team in the selected match.',
-              'Inside each team object, add only playingXI.',
+              'Inside each team object, add playingXI and add impactPlayers only if they are explicitly announced.',
               'Put 11 or 12 player names inside playingXI.',
               'Use player names exactly as they appear in the selected match squads.',
               'Paste that JSON into this box.',
@@ -308,6 +329,47 @@ function UploadPanel({
       })),
     [lineupPreviewPayload],
   )
+  const scorePreviewJsonText = useMemo(
+    () => JSON.stringify(scorePreviewPayload || { playerStats: [] }, null, 2),
+    [scorePreviewPayload],
+  )
+  const processedScorePreviewTeams = useMemo(() => {
+    const playerStats = Array.isArray(scorePreviewPayload?.playerStats)
+      ? scorePreviewPayload.playerStats
+      : []
+    const teamPlayers = [
+      {
+        name: manualTeamPool?.teamAName || 'Team A',
+        keys: new Set(
+          (manualTeamPool?.teamAPlayers || []).map((player) =>
+            normalizeLooseKey(player?.name || ''),
+          ),
+        ),
+      },
+      {
+        name: manualTeamPool?.teamBName || 'Team B',
+        keys: new Set(
+          (manualTeamPool?.teamBPlayers || []).map((player) =>
+            normalizeLooseKey(player?.name || ''),
+          ),
+        ),
+      },
+    ]
+    const groups = teamPlayers.map((team) => ({
+      name: team.name,
+      rows: playerStats.filter((row) =>
+        team.keys.has(normalizeLooseKey(row?.playerName || row?.name || '')),
+      ),
+    }))
+    const unmatchedRows = playerStats.filter((row) => {
+      const key = normalizeLooseKey(row?.playerName || row?.name || '')
+      return !teamPlayers.some((team) => team.keys.has(key))
+    })
+    if (unmatchedRows.length) {
+      groups.push({ name: 'Other', rows: unmatchedRows })
+    }
+    return groups.filter((group) => group.rows.length)
+  }, [manualTeamPool, scorePreviewPayload])
 
   const getRuleValue = (rows = [], id, fallback = 0) => {
     const entry = (Array.isArray(rows) ? rows : []).find((item) => item?.id === id)
@@ -426,6 +488,18 @@ function UploadPanel({
     } catch {
       setLineupPreviewCopyButtonLabel('Copy failed')
       window.setTimeout(() => setLineupPreviewCopyButtonLabel('Copy JSON'), 1600)
+    }
+  }
+
+  const onCopyScorePreviewJson = async () => {
+    if (!scorePreviewJsonText) return
+    try {
+      await navigator.clipboard.writeText(scorePreviewJsonText)
+      setScorePreviewCopyButtonLabel('Copied')
+      window.setTimeout(() => setScorePreviewCopyButtonLabel('Copy JSON'), 1200)
+    } catch {
+      setScorePreviewCopyButtonLabel('Copy failed')
+      window.setTimeout(() => setScorePreviewCopyButtonLabel('Copy JSON'), 1600)
     }
   }
 
@@ -801,6 +875,21 @@ function UploadPanel({
                       ? 'Save'
                       : 'Save'}
                 </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="small"
+                  className="upload-action-btn"
+                  onClick={onMarkSelectedMatchComplete}
+                  disabled={isSavingScores || !canMarkSelectedMatchComplete}
+                  title={
+                    selectedMatchMeta?.scoresUpdated
+                      ? 'Mark this match as completed'
+                      : 'Save scores first, then mark this match as completed'
+                  }
+                >
+                  Mark as Complete
+                </Button>
               </div>
             )}
           </div>
@@ -1048,6 +1137,74 @@ function UploadPanel({
           )}
         </div>
       </div>
+
+      <JsonAssistantModal
+        open={isScorePreviewOpen}
+        onClose={onCloseScorePreview}
+        ariaLabel="Processed scorecard JSON preview"
+        title="Processed Scorecard JSON"
+        description="Review this normalized score payload. Confirm save to write it to the database."
+        jsonLabel="Processed JSON"
+        jsonText={scorePreviewJsonText}
+        jsonFallback={SCORE_JSON_FALLBACK}
+        jsonPreviewContent={
+          <div className="processed-lineup-grid processed-score-grid">
+            {processedScorePreviewTeams.map((team) => (
+              <section key={team.name} className="processed-lineup-card processed-score-card">
+                <header className="processed-lineup-card-head">
+                  <h5>{team.name}</h5>
+                  <span>{`${team.rows.length} rows`}</span>
+                </header>
+                <div className="processed-score-table-wrap">
+                  <table className="processed-score-table">
+                    <thead>
+                      <tr>
+                        <th>Player</th>
+                        <th>R</th>
+                        <th>Wkts</th>
+                        <th>C</th>
+                        <th>St</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {team.rows.map((row, index) => (
+                        <tr
+                          key={`${team.name}-${row?.playerId || row?.playerName || row?.name || index}`}
+                        >
+                          <td>{row?.playerName || row?.name || '-'}</td>
+                          <td>{Number(row?.runs || 0)}</td>
+                          <td>{Number(row?.wickets || 0)}</td>
+                          <td>{Number(row?.catches || 0)}</td>
+                          <td>{Number(row?.stumpings || 0)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            ))}
+          </div>
+        }
+        onCopyJson={onCopyScorePreviewJson}
+        copyJsonLabel={scorePreviewCopyButtonLabel}
+        disableCopyJson={isSavingScores}
+        promptText=""
+        footerActions={[
+          {
+            label: 'Cancel',
+            variant: 'secondary',
+            onClick: onCloseScorePreview,
+            disabled: isSavingScores,
+          },
+          {
+            label: isSavingScores ? 'Saving...' : 'Confirm Save',
+            variant: 'primary',
+            className: 'upload-action-btn',
+            onClick: onConfirmScorePreviewSave,
+            disabled: isSavingScores,
+          },
+        ]}
+      />
 
       <JsonAssistantModal
         open={isGeneratedScoreJsonOpen}

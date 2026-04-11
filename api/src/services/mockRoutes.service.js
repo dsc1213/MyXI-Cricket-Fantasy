@@ -2204,9 +2204,20 @@ const registerMockProviderRoutes = (router, ctx) => {
       mockTournaments[0]?.id ||
       ''
     ).toString()
+    const activeScoreMatchIds = new Set(
+      matchScores
+        .filter(
+          (row) =>
+            row.active &&
+            row.tournamentId?.toString() === tournamentId &&
+            row.matchId != null,
+        )
+        .map((row) => String(row.matchId)),
+    )
     const matches = buildMatches(30, tournamentId).map((match) => ({
       ...match,
       tournamentId,
+      scoresUpdated: activeScoreMatchIds.has(String(match.id)),
     }))
     return res.json({
       tournaments: mockTournaments,

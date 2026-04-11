@@ -10,6 +10,7 @@ import {
   fetchContest,
   fetchContestLeaderboard,
   fetchContestUserMatchScores,
+  fetchContestUserPlayerBreakdown,
   fetchContests,
   fetchTournaments,
 } from '../lib/api.js'
@@ -59,6 +60,17 @@ function Leaderboard() {
   })
   const [isLoadingUserBreakdown, setIsLoadingUserBreakdown] = useState(false)
   const [userBreakdownError, setUserBreakdownError] = useState('')
+  const [selectedContributionRow, setSelectedContributionRow] = useState(null)
+  const [playerContributionRows, setPlayerContributionRows] = useState([])
+  const [playerContributionMeta, setPlayerContributionMeta] = useState({
+    totalPoints: 0,
+    countedPlayers: null,
+    rosterSize: null,
+    note: '',
+    mode: '',
+  })
+  const [isLoadingPlayerBreakdown, setIsLoadingPlayerBreakdown] = useState(false)
+  const [playerBreakdownError, setPlayerBreakdownError] = useState('')
 
   useEffect(() => {
     let active = true
@@ -220,6 +232,38 @@ function Leaderboard() {
     }
   }
 
+  const onOpenPlayerBreakdown = async (row) => {
+    try {
+      setSelectedContributionRow(row)
+      setPlayerBreakdownError('')
+      setPlayerContributionRows([])
+      setPlayerContributionMeta({
+        totalPoints: Number(row?.points || 0),
+        countedPlayers: row?.countedPlayers || null,
+        rosterSize: row?.rosterSize || null,
+        note: '',
+        mode: selectedContest?.mode || '',
+      })
+      setIsLoadingPlayerBreakdown(true)
+      const data = await fetchContestUserPlayerBreakdown({
+        contestId: selectedContestId,
+        userId: row.userId || row.id,
+      })
+      setPlayerContributionRows(data?.rows || [])
+      setPlayerContributionMeta({
+        totalPoints: Number(data?.totalPoints || 0),
+        countedPlayers: data?.countedPlayers ?? null,
+        rosterSize: data?.rosterSize ?? null,
+        note: data?.note || '',
+        mode: data?.mode || selectedContest?.mode || '',
+      })
+    } catch (error) {
+      setPlayerBreakdownError(error.message || 'Failed to load player contributions')
+    } finally {
+      setIsLoadingPlayerBreakdown(false)
+    }
+  }
+
   const userBreakdownColumns = useMemo(
     () => [
       {
@@ -259,8 +303,44 @@ function Leaderboard() {
         </button>
       ),
     },
-    { key: 'points', label: 'Points' },
+    {
+      key: 'points',
+      label: 'Points',
+      render: (row) => (
+        <button
+          type="button"
+          className="leaderboard-link button-link"
+          onClick={() => onOpenPlayerBreakdown(row)}
+        >
+          {Number(row.points || 0)}
+        </button>
+      ),
+    },
   ]
+  const playerContributionColumns = useMemo(
+    () => [
+      { key: 'name', label: 'Player' },
+      { key: 'team', label: 'Team' },
+      { key: 'role', label: 'Role' },
+      {
+        key: 'selectedMatches',
+        label:
+          playerContributionMeta.mode === 'fixed_roster' ? 'Counted In' : 'Matches',
+        render: (row) =>
+          Number(
+            row?.countedMatches ??
+              row?.selectedMatches ??
+              0,
+          ),
+      },
+      {
+        key: 'points',
+        label: 'Points',
+        render: (row) => Number(row?.points || 0),
+      },
+    ],
+    [playerContributionMeta.mode],
+  )
 
   return (
     <section className="leaderboard leaderboard-page">
@@ -359,6 +439,56 @@ function Leaderboard() {
               rows={userBreakdownRows}
               rowKey={(row) => row.matchId}
               emptyText="No match scores found"
+              wrapperClassName="leaderboard-preview-table-wrap"
+              tableClassName="leaderboard-table"
+            />
+          </>
+        )}
+      </Modal>
+
+      <Modal
+        open={!!selectedContributionRow}
+        onClose={() => setSelectedContributionRow(null)}
+        title={
+          selectedContributionRow
+            ? `${selectedContributionRow.name} player contributions`
+            : 'Player contribution breakdown'
+        }
+        size="md"
+        footer={
+          <Button
+            variant="ghost"
+            size="small"
+            onClick={() => setSelectedContributionRow(null)}
+          >
+            Close
+          </Button>
+        }
+      >
+        {isLoadingPlayerBreakdown && <p className="team-note">Loading player contributions...</p>}
+        {!!playerBreakdownError && <p className="error-text">{playerBreakdownError}</p>}
+        {!isLoadingPlayerBreakdown && !playerBreakdownError && (
+          <>
+            <div className="leaderboard-compare-summary">
+              <div className="leaderboard-compare-card">
+                <small>Total</small>
+                <strong>{Number(playerContributionMeta.totalPoints || 0)}</strong>
+              </div>
+              {playerContributionMeta.mode === 'fixed_roster' && (
+                <div className="leaderboard-compare-card">
+                  <small>Rule</small>
+                  <strong>{`${Number(playerContributionMeta.countedPlayers || 11)}/${Number(playerContributionMeta.rosterSize || 15)}`}</strong>
+                </div>
+              )}
+            </div>
+            {!!playerContributionMeta.note && (
+              <p className="team-note">{playerContributionMeta.note}</p>
+            )}
+            <StickyTable
+              columns={playerContributionColumns}
+              rows={playerContributionRows}
+              rowKey={(row) => row.id || row.name}
+              emptyText="No player contributions found"
               wrapperClassName="leaderboard-preview-table-wrap"
               tableClassName="leaderboard-table"
             />

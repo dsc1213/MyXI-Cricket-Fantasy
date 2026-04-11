@@ -3020,8 +3020,16 @@ test.describe('15) JSON uploads and UI validation', () => {
       await page
         .locator('.match-upload-json textarea')
         .fill(JSON.stringify(payload, null, 2))
+      await expect(page.getByRole('button', { name: 'Mark as Complete' })).toBeDisabled()
       await page.getByRole('button', { name: 'Upload JSON' }).click()
+      await expect(
+        page.getByRole('dialog', { name: 'Processed scorecard JSON preview' }),
+      ).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Processed Scorecard JSON' })).toBeVisible()
+      await expect(page.getByRole('cell', { name: targetPlayer.name })).toBeVisible()
+      await page.getByRole('button', { name: 'Confirm Save' }).click()
       await expect(page.getByText(/payload saved/i)).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Mark as Complete' })).toBeEnabled()
 
       await page.getByRole('tab', { name: 'Manual Entry' }).click()
       await page.getByRole('tab', { name: 'Bat' }).click()

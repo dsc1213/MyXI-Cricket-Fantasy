@@ -29,10 +29,12 @@ export const LINEUP_JSON_FALLBACK = '{\n  "lineups": {}\n}'
 export const buildLineupJsonSchemaTemplate = (teamAName, teamBName) => `{
   "lineups": {
     "${teamAName}": {
-      "playingXI": ["Player 1", "Player 2"]
+      "playingXI": ["Player 1", "Player 2"],
+      "impactPlayers": ["Impact Player 1"]
     },
     "${teamBName}": {
-      "playingXI": ["Player A", "Player B"]
+      "playingXI": ["Player A", "Player B"],
+      "impactPlayers": ["Impact Player A"]
     }
   }
 }`
@@ -66,13 +68,14 @@ export const LINEUP_AI_PROMPT_TEXT = [
   '- No markdown or explanations.',
   '- Keep top-level shape as {"lineups": {...}}.',
   '- Use the team keys exactly as shown in the template.',
-  '- For each team include only playingXI.',
+  '- For each team include playingXI and include impactPlayers only if impact players are explicitly announced.',
   '- Each playingXI must contain 11 or 12 unique players.',
+  '- impactPlayers is optional and can be empty or omitted when not announced.',
   '- Use player names from the selected squads only.',
   '- Names are validated by the app against DB players for the selected match.',
   '',
   'Format:',
-  '{"lineups":{"TEAM_A":{"playingXI":["Player 1"]},"TEAM_B":{"playingXI":["Player 2"]}}}',
+  '{"lineups":{"TEAM_A":{"playingXI":["Player 1"],"impactPlayers":["Impact Player 1"]},"TEAM_B":{"playingXI":["Player 2"]}}}',
   '',
   'Source lineup notes:',
   'PASTE_LINEUP_SOURCE_HERE',

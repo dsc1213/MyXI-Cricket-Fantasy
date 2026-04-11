@@ -4,6 +4,7 @@ import scoringRuleService from './scoring-rule.service.js'
 import contestService, { buildContestView } from './contest.service.js'
 import { cloneDefaultPointsRules } from '../default-points-rules.js'
 import userRepository from '../repositories/user.repository.js'
+import auditLogService from './audit-log.service.js'
 
 const factory = createRepositoryFactory()
 const emptyPointsRuleTemplate = cloneDefaultPointsRules()
@@ -54,6 +55,10 @@ class PageLoadService {
     const joinedRows = (allContests || []).filter((contest) =>
       joinedContestIds.has(String(contest.id)),
     )
+    const viewerStatsByContest = await contestService.getContestViewerStatsMap(
+      joinedRows.map((contest) => contest.id),
+      userId,
+    )
 
     const joinedContests = await Promise.all(
       joinedRows.map(async (contest) => {
@@ -71,6 +76,7 @@ class PageLoadService {
           joined: true,
           joinedCount,
           participants: joinedCount,
+          ...(viewerStatsByContest.get(String(contest.id)) || {}),
           ...scoreMeta,
         })
       }),
@@ -101,8 +107,7 @@ class PageLoadService {
         matches: { total: 0, completed: 0 },
       }
 
-      // Get audit logs
-      const auditLogs = []
+      const auditLogs = await auditLogService.listRecent()
 
       return {
         tournaments,

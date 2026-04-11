@@ -2,6 +2,7 @@ import { createRepositoryFactory } from '../repositories/repository.factory.js'
 import { dbQuery } from '../db.js'
 import { mapMatchWithDerivedStatus } from './tournamentImport.service.js'
 import teamSelectionService from './team-selection.service.js'
+import { resolveEffectiveSelection } from '../scoring.js'
 
 const factory = createRepositoryFactory()
 const STARTING_SOON_WINDOW_MS = 6 * 60 * 60 * 1000
@@ -163,6 +164,60 @@ const buildFixedRosterScoredEntries = ({
 }
 
 class ContestService {
+  async getContestViewerStatsMap(contestIds = [], userId = null) {
+    const normalizedContestIds = (Array.isArray(contestIds) ? contestIds : [])
+      .map((value) => String(value || '').trim())
+      .filter(Boolean)
+    const viewerId = Number(userId || 0)
+    if (!normalizedContestIds.length || !viewerId) return new Map()
+
+    const result = await dbQuery(
+      `WITH participant_ids AS (
+         SELECT contest_id::text as contest_id, user_id
+         FROM contest_joins
+         WHERE contest_id::text = ANY($1::text[])
+         UNION
+         SELECT contest_id::text as contest_id, user_id
+         FROM contest_fixed_rosters
+         WHERE contest_id::text = ANY($1::text[])
+       ),
+       participant_totals AS (
+         SELECT p.contest_id,
+                p.user_id,
+                COALESCE(SUM(cs.points), 0) as points
+         FROM participant_ids p
+         LEFT JOIN contest_scores cs
+           ON cs.contest_id::text = p.contest_id
+          AND cs.user_id = p.user_id
+         GROUP BY p.contest_id, p.user_id
+       ),
+       ranked AS (
+         SELECT contest_id,
+                user_id,
+                points,
+                DENSE_RANK() OVER (
+                  PARTITION BY contest_id
+                  ORDER BY points DESC, user_id ASC
+                ) as rank
+         FROM participant_totals
+       )
+       SELECT contest_id as "contestId", points, rank
+       FROM ranked
+       WHERE user_id = $2`,
+      [normalizedContestIds, viewerId],
+    )
+
+    return new Map(
+      (result.rows || []).map((row) => [
+        String(row.contestId),
+        {
+          points: Number(row.points || 0),
+          rank: Number(row.rank || 0) || '-',
+        },
+      ]),
+    )
+  }
+
   // Returns latest score upload metadata for matches tied to a contest.
   async getContestLastScoreMeta(contest = {}) {
     const tournamentId = contest?.tournamentId
@@ -170,11 +225,59 @@ class ContestService {
       ? contest.matchIds.map((value) => String(value || '').trim()).filter(Boolean)
       : []
     if (!tournamentId || !contestMatchIds.length) {
-      return { lastScoreUpdatedAt: null, lastScoreUpdatedBy: null }
+      return {
+        lastScoreUpdatedAt: null,
+        lastScoreUpdatedBy: null,
+        lastUpdatedAt: null,
+        lastUpdatedBy: null,
+        lastUpdatedContext: null,
+      }
+    }
+
+    const auditResult = await dbQuery(
+      `SELECT al.created_at as "lastUpdatedAt",
+              al.resource_type as "resourceType",
+              m.team_a_key as "teamAKey",
+              m.team_a as "teamA",
+              m.team_b_key as "teamBKey",
+              m.team_b as "teamB",
+              COALESCE(
+                NULLIF(u.game_name, ''),
+                NULLIF(u.name, ''),
+                NULLIF(u.user_id, '')
+              ) as "lastUpdatedBy"
+       FROM audit_logs al
+       LEFT JOIN users u ON u.id = al.performed_by
+       LEFT JOIN matches m ON m.id::text = al.resource_id
+       WHERE COALESCE(al.changes->>'tournamentId', $1::text) = $1::text
+         AND al.resource_id = ANY($2::text[])
+         AND al.resource_type IN ('match-score', 'match-lineup')
+       ORDER BY al.created_at DESC
+       LIMIT 1`,
+      [tournamentId, contestMatchIds],
+    )
+    const latestAudit = auditResult.rows?.[0] || null
+    if (latestAudit?.lastUpdatedAt) {
+      const teamA = latestAudit.teamAKey || latestAudit.teamA || 'Team A'
+      const teamB = latestAudit.teamBKey || latestAudit.teamB || 'Team B'
+      const kind =
+        latestAudit.resourceType === 'match-lineup' ? 'playing xi' : 'score'
+      const context = `${teamA} vs ${teamB} ${kind}`
+      return {
+        lastScoreUpdatedAt: latestAudit.lastUpdatedAt,
+        lastScoreUpdatedBy: latestAudit.lastUpdatedBy || null,
+        lastUpdatedAt: latestAudit.lastUpdatedAt,
+        lastUpdatedBy: latestAudit.lastUpdatedBy || null,
+        lastUpdatedContext: context,
+      }
     }
 
     const result = await dbQuery(
       `SELECT ms.created_at as "lastScoreUpdatedAt",
+              m.team_a_key as "teamAKey",
+              m.team_a as "teamA",
+              m.team_b_key as "teamBKey",
+              m.team_b as "teamB",
               COALESCE(
                 NULLIF(u.game_name, ''),
                 NULLIF(u.name, ''),
@@ -183,6 +286,7 @@ class ContestService {
               ) as "lastScoreUpdatedBy"
        FROM match_scores ms
        LEFT JOIN users u ON u.id = ms.uploaded_by
+       LEFT JOIN matches m ON m.id = ms.match_id
        WHERE ms.active = true
          AND ms.tournament_id = $1
          AND ms.match_id::text = ANY($2::text[])
@@ -192,9 +296,14 @@ class ContestService {
     )
 
     const latest = result.rows?.[0] || null
+    const teamA = latest?.teamAKey || latest?.teamA || 'Team A'
+    const teamB = latest?.teamBKey || latest?.teamB || 'Team B'
     return {
       lastScoreUpdatedAt: latest?.lastScoreUpdatedAt || null,
       lastScoreUpdatedBy: latest?.lastScoreUpdatedBy || null,
+      lastUpdatedAt: latest?.lastScoreUpdatedAt || null,
+      lastUpdatedBy: latest?.lastScoreUpdatedBy || null,
+      lastUpdatedContext: latest?.lastScoreUpdatedAt ? `${teamA} vs ${teamB} score` : null,
     }
   }
 
@@ -810,6 +919,257 @@ class ContestService {
         comparePoints: totals.comparePoints,
         delta: totals.userPoints - totals.comparePoints,
       },
+      rows,
+    }
+  }
+
+  // Returns per-player contribution totals for a user within a contest.
+  async getContestUserPlayerBreakdown(contestId, userId) {
+    const contest = await this.getContestById(contestId)
+    if (!contest) {
+      return {
+        contestId,
+        userId,
+        tournamentId: null,
+        mode: '',
+        totalPoints: 0,
+        countedPlayers: null,
+        rosterSize: null,
+        note: '',
+        rows: [],
+      }
+    }
+
+    const matches = await this.getContestMatches(contestId)
+    const matchIds = (matches || []).map((match) => String(match.id || '').trim()).filter(Boolean)
+    if (!matchIds.length) {
+      return {
+        contestId,
+        userId,
+        tournamentId: contest.tournamentId,
+        mode: contest.mode || '',
+        totalPoints: 0,
+        countedPlayers:
+          (contest.mode || '').toString().trim().toLowerCase() === 'fixed_roster'
+            ? FIXED_ROSTER_COUNTED_SIZE
+            : null,
+        rosterSize:
+          (contest.mode || '').toString().trim().toLowerCase() === 'fixed_roster'
+            ? 15
+            : null,
+        note: '',
+        rows: [],
+      }
+    }
+
+    const playerRepo = await factory.getPlayerRepository()
+    const tournamentPlayers =
+      contest.tournamentId != null
+        ? await playerRepo.findByTournament(contest.tournamentId)
+        : await playerRepo.findAll()
+    const playerById = new Map(
+      (tournamentPlayers || []).map((player) => [
+        Number(player.id),
+        {
+          id: player.id,
+          name:
+            player.displayName ||
+            [player.firstName, player.lastName].filter(Boolean).join(' ').trim(),
+          role: player.role || '-',
+          team: player.teamKey || player.team || '-',
+          imageUrl: player.imageUrl || '',
+        },
+      ]),
+    )
+
+    const isFixedRoster =
+      (contest.mode || '').toString().trim().toLowerCase() === 'fixed_roster'
+
+    if (isFixedRoster) {
+      const fixedRosterResult = await dbQuery(
+        `SELECT player_ids as "playerIds"
+         FROM contest_fixed_rosters
+         WHERE contest_id = $1 AND user_id = $2
+         LIMIT 1`,
+        [contestId, userId],
+      )
+      const playerIds = Array.isArray(fixedRosterResult.rows[0]?.playerIds)
+        ? fixedRosterResult.rows[0].playerIds.map((value) => Number(value)).filter(Boolean)
+        : []
+      if (!playerIds.length) {
+        return {
+          contestId,
+          userId,
+          tournamentId: contest.tournamentId,
+          mode: contest.mode || '',
+          totalPoints: 0,
+          countedPlayers: FIXED_ROSTER_COUNTED_SIZE,
+          rosterSize: 15,
+          note: 'Auction totals count the top 11 scoring roster players from each match.',
+          rows: [],
+        }
+      }
+
+      const matchScoreResult = await dbQuery(
+        `SELECT match_id as "matchId", player_id as "playerId", fantasy_points as "fantasyPoints"
+         FROM player_match_scores
+         WHERE tournament_id = $1
+           AND match_id::text = ANY($2::text[])
+           AND player_id = ANY($3::bigint[])`,
+        [contest.tournamentId, matchIds, playerIds],
+      )
+      const pointsByMatchPlayer = new Map()
+      for (const row of matchScoreResult.rows || []) {
+        pointsByMatchPlayer.set(
+          `${row.matchId}:${row.playerId}`,
+          Number(row.fantasyPoints || 0),
+        )
+      }
+      const contributionByPlayerId = new Map()
+      const countedMatchesByPlayerId = new Map()
+      for (const matchId of matchIds) {
+        const sorted = playerIds
+          .map((playerId) => ({
+            playerId,
+            points: Number(pointsByMatchPlayer.get(`${matchId}:${playerId}`) || 0),
+          }))
+          .sort((left, right) => {
+            if (right.points !== left.points) return right.points - left.points
+            return left.playerId - right.playerId
+          })
+        for (const row of sorted.slice(0, FIXED_ROSTER_COUNTED_SIZE)) {
+          contributionByPlayerId.set(
+            row.playerId,
+            Number(contributionByPlayerId.get(row.playerId) || 0) + Number(row.points || 0),
+          )
+          countedMatchesByPlayerId.set(
+            row.playerId,
+            Number(countedMatchesByPlayerId.get(row.playerId) || 0) + 1,
+          )
+        }
+      }
+
+      const rows = playerIds
+        .map((playerId) => {
+          const player = playerById.get(Number(playerId))
+          if (!player) return null
+          return {
+            ...player,
+            points: Number(contributionByPlayerId.get(Number(playerId)) || 0),
+            countedMatches: Number(countedMatchesByPlayerId.get(Number(playerId)) || 0),
+          }
+        })
+        .filter(Boolean)
+        .sort((left, right) => {
+          if (right.points !== left.points) return right.points - left.points
+          return String(left.name || '').localeCompare(String(right.name || ''))
+        })
+
+      return {
+        contestId,
+        userId,
+        tournamentId: contest.tournamentId,
+        mode: contest.mode || '',
+        totalPoints: rows.reduce((sum, row) => sum + Number(row.points || 0), 0),
+        countedPlayers: FIXED_ROSTER_COUNTED_SIZE,
+        rosterSize: playerIds.length,
+        note: 'Auction totals count only the top 11 scoring roster players from each match.',
+        rows,
+      }
+    }
+
+    const matchScoreResult = await dbQuery(
+      `SELECT match_id as "matchId", player_id as "playerId", fantasy_points as "fantasyPoints"
+       FROM player_match_scores
+       WHERE tournament_id = $1
+         AND match_id::text = ANY($2::text[])`,
+      [contest.tournamentId, matchIds],
+    )
+    const activePlayerIdsByMatch = new Map()
+    const pointsByMatchPlayer = new Map()
+    for (const row of matchScoreResult.rows || []) {
+      const key = String(row.matchId || '')
+      const list = activePlayerIdsByMatch.get(key) || []
+      list.push(Number(row.playerId))
+      activePlayerIdsByMatch.set(key, list)
+      pointsByMatchPlayer.set(`${row.matchId}:${row.playerId}`, Number(row.fantasyPoints || 0))
+    }
+
+    const selections = await dbQuery(
+      `SELECT match_id as "matchId",
+              captain_id as "captainId",
+              vice_captain_id as "viceCaptainId",
+              playing_xi as "playingXi",
+              backups
+       FROM team_selections
+       WHERE contest_id = $1
+         AND user_id = $2
+         AND match_id::text = ANY($3::text[])`,
+      [contestId, userId, matchIds],
+    )
+
+    const contributionByPlayerId = new Map()
+    const selectedMatchCountByPlayerId = new Map()
+    for (const row of selections.rows || []) {
+      const playingXi =
+        typeof row.playingXi === 'string' ? JSON.parse(row.playingXi) : row.playingXi || []
+      const backups =
+        typeof row.backups === 'string' ? JSON.parse(row.backups) : row.backups || []
+      const resolved = resolveEffectiveSelection({
+        playingXi,
+        backups,
+        activePlayerIds: activePlayerIdsByMatch.get(String(row.matchId || '')) || [],
+        captainId: row.captainId,
+        viceCaptainId: row.viceCaptainId,
+      })
+      for (const playerId of resolved.effectivePlayerIds || []) {
+        const numericPlayerId = Number(playerId)
+        const base = Number(pointsByMatchPlayer.get(`${row.matchId}:${numericPlayerId}`) || 0)
+        let multiplier = 1
+        if (resolved.captainApplies && Number(row.captainId) === numericPlayerId) {
+          multiplier = 2
+        } else if (
+          resolved.viceCaptainApplies &&
+          Number(row.viceCaptainId) === numericPlayerId
+        ) {
+          multiplier = 1.5
+        }
+        contributionByPlayerId.set(
+          numericPlayerId,
+          Number(contributionByPlayerId.get(numericPlayerId) || 0) + base * multiplier,
+        )
+        selectedMatchCountByPlayerId.set(
+          numericPlayerId,
+          Number(selectedMatchCountByPlayerId.get(numericPlayerId) || 0) + 1,
+        )
+      }
+    }
+
+    const rows = Array.from(contributionByPlayerId.entries())
+      .map(([playerId, points]) => {
+        const player = playerById.get(Number(playerId))
+        if (!player) return null
+        return {
+          ...player,
+          points: Number(points || 0),
+          selectedMatches: Number(selectedMatchCountByPlayerId.get(Number(playerId)) || 0),
+        }
+      })
+      .filter(Boolean)
+      .sort((left, right) => {
+        if (right.points !== left.points) return right.points - left.points
+        return String(left.name || '').localeCompare(String(right.name || ''))
+      })
+
+    return {
+      contestId,
+      userId,
+      tournamentId: contest.tournamentId,
+      mode: contest.mode || '',
+      totalPoints: rows.reduce((sum, row) => sum + Number(row.points || 0), 0),
+      countedPlayers: null,
+      rosterSize: null,
+      note: 'Rows below show how each selected player contributed to this contest total.',
       rows,
     }
   }

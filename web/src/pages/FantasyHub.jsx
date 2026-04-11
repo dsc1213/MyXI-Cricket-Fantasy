@@ -256,14 +256,21 @@ function FantasyHub() {
     )
     return rows.reduce(
       (latest, contest) => {
-        const raw = (contest?.lastScoreUpdatedAt || '').toString().trim()
+        const raw = (contest?.lastUpdatedAt || contest?.lastScoreUpdatedAt || '')
+          .toString()
+          .trim()
         if (!raw) return latest
         const parsed = new Date(raw)
         const time = parsed.getTime()
         if (Number.isNaN(time) || time <= latest.time) return latest
-        return { time, at: raw, by: contest?.lastScoreUpdatedBy || '' }
+        return {
+          time,
+          at: raw,
+          by: contest?.lastUpdatedBy || contest?.lastScoreUpdatedBy || '',
+          context: contest?.lastUpdatedContext || '',
+        }
       },
-      { time: Number.NEGATIVE_INFINITY, at: '', by: '' },
+      { time: Number.NEGATIVE_INFINITY, at: '', by: '', context: '' },
     )
   }, [contests, selectedTournament])
   const showApiFailureTile =
@@ -452,6 +459,7 @@ function FantasyHub() {
             <LastScoreMeta
               lastScoreUpdatedAt={selectedTournamentLastScore.at}
               lastScoreUpdatedBy={selectedTournamentLastScore.by}
+              lastUpdatedContext={selectedTournamentLastScore.context}
               compact
             />
             {tournaments.length === 0 && !isLoading ? (
@@ -564,6 +572,14 @@ function FantasyHub() {
                         const maxPlayers = Number(
                           contest.maxPlayers ?? contest.teams ?? 0,
                         )
+                        const points =
+                          contest?.points == null || contest?.points === ''
+                            ? '-'
+                            : contest.points
+                        const rank =
+                          contest?.rank == null || contest?.rank === ''
+                            ? '-'
+                            : contest.rank
                         return (
                           <ContestTileCard
                             contest={contest}
@@ -573,6 +589,8 @@ function FantasyHub() {
                               tournamentColorMap[contest.tournamentId] || '#2f66e9'
                             }
                             participantsText={`Participants ${joinedCount}${maxPlayers > 0 ? ` / ${maxPlayers}` : ''}`}
+                            statsLeftText={`Points ${points}`}
+                            statsRightText={`Rank #${rank}`}
                             openTo={`/tournaments/${contest.tournamentId}/contests/${contest.id}`}
                             leaderboardTo={`/tournaments/${contest.tournamentId}/contests/${contest.id}/leaderboard`}
                           />

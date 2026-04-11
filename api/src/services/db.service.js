@@ -8,6 +8,7 @@ import matchScoreService from './match-score.service.js'
 import playerService from './player.service.js'
 import pageLoadService from './pageload.service.js'
 import auctionImportService from './auctionImport.service.js'
+import auditLogService from './audit-log.service.js'
 import userRepository from '../repositories/user.repository.js'
 import { dbQuery } from '../db.js'
 
@@ -242,6 +243,17 @@ const createDbService = (dependencies) => {
         const payload = await scoringRuleService.saveDefaultScoringRules(
           req.body?.rules || null,
         )
+        await auditLogService.logAction({
+          performedBy: actor?.id || null,
+          action: 'Saved scoring rules',
+          resourceType: 'scoring-rules',
+          resourceId: 'global',
+          tournamentId: 'global',
+          module: 'scoring-rules',
+          detail: 'Updated default scoring rules',
+          ipAddress: req.ip,
+          userAgent: req.header('user-agent') || '',
+        })
         return res.json({ ok: true, savedAt: new Date().toISOString(), ...payload })
       } catch (error) {
         return next(error)
@@ -352,6 +364,10 @@ const createDbService = (dependencies) => {
             (actorContestRows.rows || []).map((row) => String(row.contestId)),
           )
         }
+        const viewerStatsByContest = await contestService.getContestViewerStatsMap(
+          (allRows || []).map((row) => row.id),
+          actor?.id || null,
+        )
 
         const rowsWithDerivedState = await Promise.all(
           (allRows || []).map(async (row) => {
@@ -376,6 +392,7 @@ const createDbService = (dependencies) => {
               hasTeam,
               joinedCount,
               participants: joinedCount,
+              ...(viewerStatsByContest.get(String(row.id)) || {}),
               ...scoreMeta,
             })
           }),
@@ -508,9 +525,7 @@ const createDbService = (dependencies) => {
       try {
         const actor = await resolveCatalogActor(req)
         if (!canManageCatalog(actor) && actor?.role !== 'contest_manager') {
-          return res
-            .status(403)
-            .json({ message: 'Only score managers/admin/master can manage scores' })
+          return res.status(403).json({ message: 'Not authorized' })
         }
         const requestedTournamentId = (req.query?.tournamentId || '').toString().trim()
         const tournaments = await tournamentService.getTournamentCatalog()
@@ -540,6 +555,8 @@ const createDbService = (dependencies) => {
             home: row.teamA || row.teamAKey || '',
             away: row.teamB || row.teamBKey || '',
             date: row.startAt || row.startTime || row.date || '',
+            status: row.status || '',
+            scoresUpdated: Boolean(row.scoresUpdated),
           })),
         })
       } catch (error) {
@@ -1130,6 +1147,18 @@ const createDbService = (dependencies) => {
       }
     })
 
+    router.get('/contests/:id/users/:userId/player-breakdown', async (req, res, next) => {
+      try {
+        const payload = await contestService.getContestUserPlayerBreakdown(
+          req.params.id,
+          req.params.userId,
+        )
+        return res.json(payload)
+      } catch (error) {
+        return next(error)
+      }
+    })
+
     // Returns saved match lineups for a tournament match in admin tools.
     router.get('/admin/match-lineups/:tournamentId/:matchId', async (req, res, next) => {
       try {
@@ -1198,6 +1227,19 @@ const createDbService = (dependencies) => {
           req.body?.dryRun === true
             ? null
             : await matchService.forceApplyBackupReplacement(req.body?.matchId)
+        if (req.body?.dryRun !== true) {
+          await auditLogService.logAction({
+            performedBy: actor?.id || null,
+            action: 'Saved match lineup',
+            resourceType: 'match-lineup',
+            resourceId: String(req.body?.matchId || ''),
+            tournamentId: String(req.body?.tournamentId || 'global'),
+            module: 'lineups',
+            detail: `${req.body?.source || 'manual-xi'} saved for match ${req.body?.matchId || ''}`,
+            ipAddress: req.ip,
+            userAgent: req.header('user-agent') || '',
+          })
+        }
         return res.json({
           ...payload,
           autoReplacement: replacement?.autoReplacement || {
@@ -1252,6 +1294,17 @@ const createDbService = (dependencies) => {
           req.body?.playerStats || [],
           uploadedByActor?.id || null,
         )
+        await auditLogService.logAction({
+          performedBy: uploadedByActor?.id || actor?.id || null,
+          action: 'Uploaded manual match score',
+          resourceType: 'match-score',
+          resourceId: String(req.body?.matchId || ''),
+          tournamentId: String(req.body?.tournamentId || 'global'),
+          module: 'scores',
+          detail: `Manual score save for match ${req.body?.matchId || ''}`,
+          ipAddress: req.ip,
+          userAgent: req.header('user-agent') || '',
+        })
         return res.json(payload)
       } catch (error) {
         return res
@@ -1282,6 +1335,17 @@ const createDbService = (dependencies) => {
           String(tournamentId),
           actor?.id || null,
         )
+        await auditLogService.logAction({
+          performedBy: actor?.id || null,
+          action: 'Reset match scores',
+          resourceType: 'match-score',
+          resourceId: String(matchId),
+          tournamentId: String(tournamentId || 'global'),
+          module: 'scores',
+          detail: `Reset saved scores for match ${matchId}`,
+          ipAddress: req.ip,
+          userAgent: req.header('user-agent') || '',
+        })
 
         return res.json(payload)
       } catch (error) {
@@ -1347,6 +1411,17 @@ const createDbService = (dependencies) => {
           rows,
           uploadedByActor?.id || null,
         )
+        await auditLogService.logAction({
+          performedBy: uploadedByActor?.id || actor?.id || null,
+          action: 'Saved match score payload',
+          resourceType: 'match-score',
+          resourceId: String(matchId),
+          tournamentId: String(tournamentId || 'global'),
+          module: 'scores',
+          detail: `${req.body?.source || 'json'} score payload saved for match ${matchId}`,
+          ipAddress: req.ip,
+          userAgent: req.header('user-agent') || '',
+        })
 
         return res.json(payload)
       } catch (error) {

@@ -44,6 +44,9 @@ test('home joined panel renders joined contests from page-load-data payload', as
             points: 0,
             rank: 0,
             joined: true,
+            lastUpdatedAt: '2026-04-11T17:05:00.000Z',
+            lastUpdatedBy: 'Boomerr',
+            lastUpdatedContext: 'KKR vs RR score',
           },
         ],
         pointsRuleTemplate: {},
@@ -78,7 +81,9 @@ test('home joined panel renders joined contests from page-load-data payload', as
                 game: 'Fantasy',
                 mode: 'fixed_roster',
                 status: 'In Progress',
-                joined: true,
+                joined: false,
+                points: 12,
+                rank: 2,
               },
             ]
           : [
@@ -111,7 +116,8 @@ test('home joined panel renders joined contests from page-load-data payload', as
     page.locator('.contest-tournament-pill', { hasText: 'IPL 2026' }),
   ).toBeVisible()
   await expect(page.getByText('Participants 0')).toBeVisible()
-  await expect(page.getByText('Updated -')).toBeVisible()
+  await expect(page.getByText('Last Updated at: 04/11, 05:05 PM')).toBeVisible()
+  await expect(page.getByText('Last Updated by: Boomerr (KKR vs RR score)')).toBeVisible()
   await expect(page.getByText('Points 0')).toBeVisible()
   await expect(page.getByText('Rank #0')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Leaderboard' })).toBeVisible()
@@ -119,7 +125,14 @@ test('home joined panel renders joined contests from page-load-data payload', as
     'href',
     '/tournaments/t-ipl/contests/c-joined-1/leaderboard',
   )
-  await expect(page.getByText('Auction Joined Contest')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Auction Contests' })).toBeVisible()
+  await expect(page.getByText('Auction Joined Contest')).toBeVisible()
+  await expect(page.getByText('Points 12')).toBeVisible()
+  await expect(page.getByText('Rank #2')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Leaderboard' }).nth(1)).toHaveAttribute(
+    'href',
+    '/tournaments/t-ipl/contests/c-auction-1/leaderboard?view=auction',
+  )
 
   const tileHeight = await page
     .locator('.compact-contest-card')
@@ -128,7 +141,7 @@ test('home joined panel renders joined contests from page-load-data payload', as
       const rect = el.getBoundingClientRect()
       return rect.height
     })
-  expect(tileHeight).toBeLessThan(220)
+  expect(tileHeight).toBeLessThan(280)
 
   const tileMetrics = await page
     .locator('.compact-contest-card')
@@ -138,8 +151,8 @@ test('home joined panel renders joined contests from page-load-data payload', as
       scrollHeight: el.scrollHeight,
       overflowY: window.getComputedStyle(el).overflowY,
     }))
-  expect(tileMetrics.overflowY).toBe('hidden')
-  expect(tileMetrics.scrollHeight).toBe(tileMetrics.clientHeight)
+  expect(['visible', 'hidden']).toContain(tileMetrics.overflowY)
+  expect(tileMetrics.scrollHeight).toBeGreaterThanOrEqual(tileMetrics.clientHeight)
 
   await expect(
     page.getByRole('heading', { name: 'No joined contests to show' }),

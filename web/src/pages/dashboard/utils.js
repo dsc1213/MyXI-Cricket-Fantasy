@@ -145,6 +145,7 @@ export const normalizeLineupTeamPayload = (
       ...(teamPayload || {}),
       squad: normalizeList(teamPayload?.squad || [], 'squad'),
       playingXI: normalizeList(teamPayload?.playingXI || [], 'playingXI'),
+      impactPlayers: normalizeList(teamPayload?.impactPlayers || [], 'impactPlayers'),
       bench: normalizeList(teamPayload?.bench || [], 'bench'),
       captain: captainResolved?.name,
       viceCaptain: viceCaptainResolved?.name,

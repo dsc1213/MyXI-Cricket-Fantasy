@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { getStatusClassName } from '../ui/status.js'
-import { formatLastScoreMeta } from '../../lib/lastScoreMeta.js'
+import LastScoreMeta from '../ui/LastScoreMeta.jsx'
 
 function ContestTileCard({
   contest,
@@ -28,16 +28,9 @@ function ContestTileCard({
     .filter(Boolean)
     .slice(0, 2)
   const supplementalLines = [
-    ...(showLastScore
-      ? [
-          formatLastScoreMeta({
-            lastScoreUpdatedAt: contest?.lastScoreUpdatedAt,
-            lastScoreUpdatedBy: contest?.lastScoreUpdatedBy,
-          }),
-        ]
-      : []),
     ...(extraNotes || []).filter(Boolean).slice(0, 1),
   ].slice(0, 1)
+  const showLastScoreMeta = Boolean(showLastScore)
   const showStatsRow = Boolean(statsLeftText || statsRightText)
 
   return (
@@ -63,6 +56,15 @@ function ContestTileCard({
         </p>
       ))}
 
+      {showLastScoreMeta ? (
+        <LastScoreMeta
+          className="team-note"
+          lastScoreUpdatedAt={contest?.lastUpdatedAt || contest?.lastScoreUpdatedAt}
+          lastScoreUpdatedBy={contest?.lastUpdatedBy || contest?.lastScoreUpdatedBy}
+          lastUpdatedContext={contest?.lastUpdatedContext || ''}
+          compact
+        />
+      ) : null}
       {supplementalLines.map((line) => (
         <p className="team-note" key={`${contest.id}-${line}`}>
           {line}
@@ -71,8 +73,12 @@ function ContestTileCard({
 
       {showStatsRow ? (
         <div className="contest-card-stats" aria-label="contest-stats-row">
-          <span>{statsLeftText || ''}</span>
-          <span>{statsRightText || ''}</span>
+          <span className="contest-card-stat contest-card-stat-points">
+            {statsLeftText || ''}
+          </span>
+          <span className="contest-card-stat contest-card-stat-rank">
+            {statsRightText || ''}
+          </span>
         </div>
       ) : null}
 

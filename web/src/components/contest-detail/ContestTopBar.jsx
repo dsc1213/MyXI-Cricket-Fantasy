@@ -7,6 +7,7 @@ function ContestTopBar({
   tournamentName,
   lastScoreUpdatedAt = '',
   lastScoreUpdatedBy = '',
+  lastUpdatedContext = '',
   isLoading,
   errorText,
   tournamentId,
@@ -38,6 +39,7 @@ function ContestTopBar({
         <LastScoreMeta
           lastScoreUpdatedAt={lastScoreUpdatedAt}
           lastScoreUpdatedBy={lastScoreUpdatedBy}
+          lastUpdatedContext={lastUpdatedContext}
           compact
         />
         <LoadingNote loading={isLoading} errorText={errorText} />

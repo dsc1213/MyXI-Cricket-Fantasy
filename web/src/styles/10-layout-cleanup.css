@@ -57,6 +57,16 @@
   margin: 0;
 }
 
+.last-score-meta {
+  display: grid;
+  gap: 0.08rem;
+}
+
+.last-score-meta span {
+  display: block;
+  line-height: 1.35;
+}
+
 .menu-backdrop {
   position: fixed;
   inset: 0;

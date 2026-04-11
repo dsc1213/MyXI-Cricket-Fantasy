@@ -41,7 +41,7 @@ function JoinedPanel({
       {hasContests ? (
         groupedEntries.map(([game, contestList]) => (
           <section className="dashboard-section" key={game}>
-            <h3>{`My ${game} Contests`}</h3>
+            <h3>{game === 'Auction' ? 'Auction Contests' : `My ${game} Contests`}</h3>
             <div className="compact-card-grid joined-contest-grid">
               {contestList.map((contest) => {
                 const tournamentName = tournamentNameMap[contest.tournamentId] || '-'
@@ -53,17 +53,19 @@ function JoinedPanel({
                   contest?.points == null || contest?.points === '' ? '-' : contest.points
                 const rank =
                   contest?.rank == null || contest?.rank === '' ? '-' : contest.rank
+                const isAuction =
+                  (contest?.mode || '').toString().toLowerCase() === 'fixed_roster'
                 return (
                   <ContestTileCard
                     key={`${game}-${contest.id}`}
                     contest={contest}
-                    className={gameClassMap[contest.game] || ''}
+                    className={isAuction ? 'fantasy auction-contest-card' : gameClassMap[contest.game] || ''}
                     tournamentName={tournamentName}
                     participantsText={`Participants ${joinedCount}${maxPlayers > 0 ? ` / ${maxPlayers}` : ''}`}
                     statsLeftText={`Points ${points}`}
                     statsRightText={`Rank #${rank}`}
-                    openTo={`/tournaments/${contest.tournamentId}/contests/${contest.id}`}
-                    leaderboardTo={`/tournaments/${contest.tournamentId}/contests/${contest.id}/leaderboard`}
+                    openTo={`/tournaments/${contest.tournamentId}/contests/${contest.id}${isAuction ? '?view=auction' : ''}`}
+                    leaderboardTo={`/tournaments/${contest.tournamentId}/contests/${contest.id}/leaderboard${isAuction ? '?view=auction' : ''}`}
                   />
                 )
               })}

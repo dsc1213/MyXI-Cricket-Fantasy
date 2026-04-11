@@ -618,6 +618,13 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
       const firstPoints = await leaderboardRows.nth(0).locator('td').last().textContent()
       const secondPoints = await leaderboardRows.nth(1).locator('td').last().textContent()
       expect(Number(firstPoints || 0)).toBeGreaterThan(Number(secondPoints || 0))
+
+      await leaderboardRows.nth(0).locator('td').last().getByRole('button').click()
+      await expect(
+        page.getByRole('heading', { name: /player contributions/i }),
+      ).toBeVisible()
+      await expect(page.getByText(/top 11 scoring roster players from each match/i)).toBeVisible()
+      await expect(page.locator('.leaderboard-preview-table-wrap tbody tr').first()).toBeVisible()
     } finally {
       await deleteContestIfPresent(request, contestId)
     }

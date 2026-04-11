@@ -11,6 +11,7 @@ import {
   saveMatchScores,
   saveScoringRules,
   resetManualMatchScores,
+  updateAdminMatchStatus,
   upsertMatchLineups,
   upsertManualMatchScores,
 } from '../lib/api.js'
@@ -82,6 +83,8 @@ function Dashboard({ defaultPanel = 'joined' }) {
   const [lineupJsonUnmatchedDetails, setLineupJsonUnmatchedDetails] = useState([])
   const [isGeneratedScoreJsonOpen, setIsGeneratedScoreJsonOpen] = useState(false)
   const [generatedScoreJsonText, setGeneratedScoreJsonText] = useState('')
+  const [isScorePreviewOpen, setIsScorePreviewOpen] = useState(false)
+  const [scorePreviewPayload, setScorePreviewPayload] = useState(null)
   const [lineupPayloadText, setLineupPayloadText] = useState('')
   const [isGeneratedLineupJsonOpen, setIsGeneratedLineupJsonOpen] = useState(false)
   const [generatedLineupJsonText, setGeneratedLineupJsonText] = useState('')
@@ -285,11 +288,20 @@ function Dashboard({ defaultPanel = 'joined' }) {
           ...joinedPageLoadById.get(String(contest.id)),
           ...contest,
         }))
-        const toJoinedDashboardContests = (rows = []) =>
-          (rows || []).filter(
-            (contest) =>
-              (contest?.mode || '').toString().toLowerCase() !== 'fixed_roster',
-          )
+        const fixedRosterPublicContests = (allContestsRes || []).filter(
+          (contest) => (contest?.mode || '').toString().toLowerCase() === 'fixed_roster',
+        )
+        const toDashboardContests = (joinedRows = [], publicAuctionRows = []) => {
+          const byId = new Map()
+          ;(joinedRows || []).forEach((contest) => {
+            byId.set(String(contest.id), contest)
+          })
+          ;(publicAuctionRows || []).forEach((contest) => {
+            const id = String(contest.id)
+            byId.set(id, { ...contest, ...(byId.get(id) || {}) })
+          })
+          return Array.from(byId.values())
+        }
         const joinedFromAll = (allContestsRes || []).filter(
           (contest) => contest?.joined || contest?.hasTeam,
         )
@@ -297,8 +309,8 @@ function Dashboard({ defaultPanel = 'joined' }) {
           tournaments: data?.tournaments || [],
           joinedContests:
             mergedJoinedFromEndpoint.length > 0
-              ? toJoinedDashboardContests(mergedJoinedFromEndpoint)
-              : toJoinedDashboardContests(joinedFromAll),
+              ? toDashboardContests(mergedJoinedFromEndpoint, fixedRosterPublicContests)
+              : toDashboardContests(joinedFromAll, fixedRosterPublicContests),
           pointsRuleTemplate: normalizePointsRuleTemplate(data?.pointsRuleTemplate),
           adminManager: data?.adminManager || [],
           masterConsole: data?.masterConsole || [],
@@ -494,8 +506,12 @@ function Dashboard({ defaultPanel = 'joined' }) {
   const groupedJoined = useMemo(
     () =>
       filteredJoined.reduce((acc, contest) => {
-        if (!acc[contest.game]) acc[contest.game] = []
-        acc[contest.game].push(contest)
+        const groupKey =
+          (contest?.mode || '').toString().toLowerCase() === 'fixed_roster'
+            ? 'Auction'
+            : contest.game || 'Fantasy'
+        if (!acc[groupKey]) acc[groupKey] = []
+        acc[groupKey].push(contest)
         return acc
       }, {}),
     [filteredJoined],
@@ -694,6 +710,47 @@ function Dashboard({ defaultPanel = 'joined' }) {
         setUploadPayloadText(formattedPayloadText)
       }
 
+      const effectiveContestId =
+        manualContestId ||
+        filteredManualContests.find((item) => item.tournamentId === manualTournamentId)
+          ?.id ||
+        ''
+      setIsSavingScores(true)
+      const response = await saveMatchScores({
+        payloadText: formattedPayloadText,
+        fileName: '',
+        processedPayload: null,
+        dryRun: true,
+        source: 'json',
+        tournamentId: manualTournamentId,
+        contestId: effectiveContestId,
+        matchId: manualMatchId,
+        userId: currentUser?.id || currentUser?.userId || '',
+      })
+      setScorePreviewPayload(response?.processedPayload || { playerStats: resolvedPlayerStats })
+      setIsScorePreviewOpen(true)
+    } catch (error) {
+      const details = Array.isArray(error?.data?.unmatchedDetails)
+        ? error.data.unmatchedDetails
+        : []
+      setScoreJsonUnmatchedDetails(details)
+      setErrorText(error.message || 'Failed to save match scores')
+    } finally {
+      setIsSavingScores(false)
+    }
+  }
+
+  const onCloseScorePreview = () => {
+    if (isSavingScores) return
+    setIsScorePreviewOpen(false)
+    setScorePreviewPayload(null)
+  }
+
+  const onConfirmScorePreviewSave = async () => {
+    try {
+      if (!manualTournamentId || !manualMatchId || !scorePreviewPayload) return
+      setSaveNotice('')
+      setErrorText('')
       setIsSavingScores(true)
       const effectiveContestId =
         manualContestId ||
@@ -701,15 +758,15 @@ function Dashboard({ defaultPanel = 'joined' }) {
           ?.id ||
         ''
       const response = await saveMatchScores({
-        payloadText: formattedPayloadText,
+        payloadText: JSON.stringify(scorePreviewPayload, null, 2),
         fileName: '',
-        processedPayload: null,
+        processedPayload: scorePreviewPayload,
         dryRun: false,
         source: 'json',
         tournamentId: manualTournamentId,
         contestId: effectiveContestId,
         matchId: manualMatchId,
-        userId: currentUser?.gameName || currentUser?.email || currentUser?.id || '',
+        userId: currentUser?.id || currentUser?.userId || '',
       })
       const impacted = Number(response?.impactedContests || 0)
       const updatedAt = response?.lastScoreUpdatedAt
@@ -725,14 +782,15 @@ function Dashboard({ defaultPanel = 'joined' }) {
           savedScore: response.savedScore,
         })
       }
-
-      // Always fetch latest persisted stats so manual entry reflects the saved payload reliably.
+      const refreshedMatches = await fetchTournamentMatches(manualTournamentId)
+      setManualScoreContext((prev) => ({ ...prev, matches: refreshedMatches || [] }))
       await refreshManualStatsState({
         teamAPlayers: manualTeamPool.teamAPlayers,
         teamBPlayers: manualTeamPool.teamBPlayers,
       })
-
       setUploadPayloadText('')
+      setIsScorePreviewOpen(false)
+      setScorePreviewPayload(null)
     } catch (error) {
       const details = Array.isArray(error?.data?.unmatchedDetails)
         ? error.data.unmatchedDetails
@@ -1169,7 +1227,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
         tournamentId: manualTournamentId,
         contestId: effectiveContestId,
         matchId: manualMatchId,
-        userId: currentUser?.gameName || currentUser?.email || currentUser?.id || '',
+        userId: currentUser?.id || currentUser?.userId || '',
         playerStats: rows,
         teamScore: {},
       })
@@ -1190,6 +1248,8 @@ function Dashboard({ defaultPanel = 'joined' }) {
           teamBPlayers: manualTeamPool.teamBPlayers,
         })
       }
+      const refreshedMatches = await fetchTournamentMatches(manualTournamentId)
+      setManualScoreContext((prev) => ({ ...prev, matches: refreshedMatches || [] }))
     } catch (error) {
       setErrorText(error.message || 'Failed to save manual scores')
     } finally {
@@ -1212,18 +1272,44 @@ function Dashboard({ defaultPanel = 'joined' }) {
       const response = await resetManualMatchScores({
         tournamentId: manualTournamentId,
         matchId: manualMatchId,
-        userId: currentUser?.gameName || currentUser?.email || currentUser?.id || '',
+        userId: currentUser?.id || currentUser?.userId || '',
       })
 
       const impacted = Number(response?.impactedContests || 0)
       setSaveNotice(`Match scores reset • ${impacted} contests updated`)
 
+      const refreshedMatches = await fetchTournamentMatches(manualTournamentId)
+      setManualScoreContext((prev) => ({ ...prev, matches: refreshedMatches || [] }))
       await refreshManualStatsState({
         teamAPlayers: manualTeamPool.teamAPlayers,
         teamBPlayers: manualTeamPool.teamBPlayers,
       })
     } catch (error) {
       setErrorText(error.message || 'Failed to reset match scores')
+    } finally {
+      setIsSavingScores(false)
+    }
+  }
+
+  const onMarkSelectedMatchComplete = async () => {
+    try {
+      if (!manualMatchId) return
+      const selectedMatch = (manualScoreContext.matches || []).find(
+        (row) => String(row.id) === String(manualMatchId),
+      )
+      if (!selectedMatch?.scoresUpdated) {
+        setErrorText('Save match scores first, then mark this match as complete.')
+        return
+      }
+      setSaveNotice('')
+      setErrorText('')
+      setIsSavingScores(true)
+      await updateAdminMatchStatus({ id: manualMatchId, status: 'completed' })
+      const refreshedMatches = await fetchTournamentMatches(manualTournamentId)
+      setManualScoreContext((prev) => ({ ...prev, matches: refreshedMatches || [] }))
+      setSaveNotice('Match marked as completed')
+    } catch (error) {
+      setErrorText(error.message || 'Failed to mark match as complete')
     } finally {
       setIsSavingScores(false)
     }
@@ -1305,12 +1391,17 @@ function Dashboard({ defaultPanel = 'joined' }) {
         onManualStatChange={onManualStatChange}
         onSaveManualScores={onSaveManualScores}
         onResetManualScores={onResetManualScores}
+        onMarkSelectedMatchComplete={onMarkSelectedMatchComplete}
         isLoadingManualPool={isLoadingManualPool}
         onSaveScores={onSaveScores}
         onGenerateScoreJson={onGenerateScoreJson}
         isGeneratedScoreJsonOpen={isGeneratedScoreJsonOpen}
         generatedScoreJsonText={generatedScoreJsonText}
         onCloseGeneratedScoreJson={onCloseGeneratedScoreJson}
+        isScorePreviewOpen={isScorePreviewOpen}
+        scorePreviewPayload={scorePreviewPayload}
+        onCloseScorePreview={onCloseScorePreview}
+        onConfirmScorePreviewSave={onConfirmScorePreviewSave}
         isSavingScores={isSavingScores}
       />
     ),
@@ -1348,12 +1439,17 @@ function Dashboard({ defaultPanel = 'joined' }) {
         onManualStatChange={onManualStatChange}
         onSaveManualScores={onSaveManualScores}
         onResetManualScores={onResetManualScores}
+        onMarkSelectedMatchComplete={onMarkSelectedMatchComplete}
         isLoadingManualPool={isLoadingManualPool}
         onSaveScores={onSaveScores}
         onGenerateScoreJson={onGenerateScoreJson}
         isGeneratedScoreJsonOpen={isGeneratedScoreJsonOpen}
         generatedScoreJsonText={generatedScoreJsonText}
         onCloseGeneratedScoreJson={onCloseGeneratedScoreJson}
+        isScorePreviewOpen={isScorePreviewOpen}
+        scorePreviewPayload={scorePreviewPayload}
+        onCloseScorePreview={onCloseScorePreview}
+        onConfirmScorePreviewSave={onConfirmScorePreviewSave}
         isSavingScores={isSavingScores}
       />
     ),

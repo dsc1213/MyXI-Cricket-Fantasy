@@ -2677,6 +2677,7 @@ body.dark-theme .fantasy-hub-main {
   box-shadow: 0 24px 60px rgba(2, 6, 23, 0.34);
   padding: 0.85rem;
   pointer-events: auto;
+  overflow: hidden;
 }
 
 .score-preview-modal-head h4 {
@@ -2717,6 +2718,11 @@ body.dark-theme .fantasy-hub-main {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+  position: sticky;
+  bottom: 0;
+  background: var(--panel-bg);
+  padding-top: 0.45rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
 }
 
 .score-preview-block {
@@ -2725,6 +2731,8 @@ body.dark-theme .fantasy-hub-main {
   border: 1px solid var(--panel-border);
   border-radius: 12px;
   padding: 0.52rem;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .score-preview-block-json {
@@ -3499,6 +3507,19 @@ body.dark-theme .fantasy-hub-main {
   .ui-modal-card {
     width: min(100%, 100vw - 1.4rem);
     max-height: calc(100dvh - 1.4rem);
+  }
+
+  .score-preview-modal {
+    padding: 0.72rem;
+    gap: 0.55rem;
+  }
+
+  .score-preview-custom-content {
+    max-height: calc(100dvh - 20rem);
+  }
+
+  .score-preview-modal-actions {
+    padding-top: 0.4rem;
   }
 }
 
@@ -5223,6 +5244,10 @@ body.dark-theme .app.app-lower-content select {
 
 .score-preview-custom-content {
   min-height: 240px;
+  max-height: min(52vh, calc(100dvh - 17rem));
+  overflow: auto;
+  padding-right: 0.15rem;
+  -webkit-overflow-scrolling: touch;
 }
 
 .processed-lineup-grid {
@@ -5265,6 +5290,38 @@ body.dark-theme .app.app-lower-content select {
 
 .processed-lineup-list li {
   color: #e5e7eb;
+}
+
+.processed-score-table-wrap {
+  overflow-x: auto;
+}
+
+.processed-score-table {
+  border-collapse: collapse;
+  min-width: 100%;
+  width: 100%;
+}
+
+.processed-score-table th,
+.processed-score-table td {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  font-size: 0.84rem;
+  padding: 8px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.processed-score-table th:first-child,
+.processed-score-table td:first-child {
+  white-space: normal;
+  width: 100%;
+}
+
+.processed-score-table th {
+  color: #94a3b8;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 @media (max-width: 800px) {

@@ -127,14 +127,21 @@ function AuctionHub() {
     )
     return rows.reduce(
       (latest, contest) => {
-        const raw = (contest?.lastScoreUpdatedAt || '').toString().trim()
+        const raw = (contest?.lastUpdatedAt || contest?.lastScoreUpdatedAt || '')
+          .toString()
+          .trim()
         if (!raw) return latest
         const parsed = new Date(raw)
         const time = parsed.getTime()
         if (Number.isNaN(time) || time <= latest.time) return latest
-        return { time, at: raw, by: contest?.lastScoreUpdatedBy || '' }
+        return {
+          time,
+          at: raw,
+          by: contest?.lastUpdatedBy || contest?.lastScoreUpdatedBy || '',
+          context: contest?.lastUpdatedContext || '',
+        }
       },
-      { time: Number.NEGATIVE_INFINITY, at: '', by: '' },
+      { time: Number.NEGATIVE_INFINITY, at: '', by: '', context: '' },
     )
   }, [contests, selectedTournament])
   const showApiFailureTile =
@@ -251,6 +258,7 @@ function AuctionHub() {
             <LastScoreMeta
               lastScoreUpdatedAt={selectedTournamentLastScore.at}
               lastScoreUpdatedBy={selectedTournamentLastScore.by}
+              lastUpdatedContext={selectedTournamentLastScore.context}
               compact
             />
             {tournaments.length === 0 && !isLoading ? (
@@ -285,6 +293,14 @@ function AuctionHub() {
                         contest.joinedCount ?? contest.participants ?? contest.teams ?? 0,
                       )
                       const rosterSize = Number(contest.teamSize ?? 15)
+                      const points =
+                        contest?.points == null || contest?.points === ''
+                          ? '-'
+                          : contest.points
+                      const rank =
+                        contest?.rank == null || contest?.rank === ''
+                          ? '-'
+                          : contest.rank
                       return (
                         <ContestTileCard
                           key={contest.id}
@@ -293,6 +309,8 @@ function AuctionHub() {
                           tournamentName={tournamentNameMap[contest.tournamentId]}
                           tournamentColor={tournamentColorMap[contest.tournamentId]}
                           participantsText={`Participants ${participantCount}`}
+                          statsLeftText={`Points ${points}`}
+                          statsRightText={`Rank #${rank}`}
                           extraNotes={[
                             `Fixed ${rosterSize}-player tournament rosters`,
                             'Leaderboard counts top 11 scoring players',

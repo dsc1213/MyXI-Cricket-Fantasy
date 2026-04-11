@@ -103,6 +103,7 @@ function ContestDetail() {
   const [tournamentName, setTournamentName] = useState(tournamentId)
   const [lastScoreUpdatedAt, setLastScoreUpdatedAt] = useState('')
   const [lastScoreUpdatedBy, setLastScoreUpdatedBy] = useState('')
+  const [lastUpdatedContext, setLastUpdatedContext] = useState('')
   const [matches, setMatches] = useState([])
   const [selectedMatchId, setSelectedMatchId] = useState('')
   const [matchFilter, setMatchFilter] = useState('all')
@@ -135,8 +136,9 @@ function ContestDetail() {
         if (!active) return
         setContestTitle(contest.name)
         setContestMode(contest.mode || '')
-        setLastScoreUpdatedAt(contest.lastScoreUpdatedAt || '')
-        setLastScoreUpdatedBy(contest.lastScoreUpdatedBy || '')
+        setLastScoreUpdatedAt(contest.lastUpdatedAt || contest.lastScoreUpdatedAt || '')
+        setLastScoreUpdatedBy(contest.lastUpdatedBy || contest.lastScoreUpdatedBy || '')
+        setLastUpdatedContext(contest.lastUpdatedContext || '')
         const tournament = tournaments.find((item) => item.id === tournamentId)
         setTournamentName(tournament?.name || tournamentId)
       } catch (error) {
@@ -363,6 +365,7 @@ function ContestDetail() {
         tournamentName={tournamentName}
         lastScoreUpdatedAt={lastScoreUpdatedAt}
         lastScoreUpdatedBy={lastScoreUpdatedBy}
+        lastUpdatedContext={lastUpdatedContext}
         isLoading={isLoading}
         errorText={errorText}
         tournamentId={tournamentId}

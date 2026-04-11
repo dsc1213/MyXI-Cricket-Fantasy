@@ -174,6 +174,7 @@ class PlayerService {
     )
     const submittedPlayingXI = Array.isArray(payload.playingXI) ? payload.playingXI : []
     const playingXI = this.dedupeLineupNames(payload.playingXI)
+    const impactPlayers = this.dedupeLineupNames(payload.impactPlayers)
     const bench = this.dedupeLineupNames(payload.bench)
 
     if (strictSquad && !providedSquad.length) {
@@ -209,6 +210,14 @@ class PlayerService {
     if (normalizedSquad.length < 11) {
       throw new Error(`lineups.${teamCode}.squad must contain at least 11 unique players`)
     }
+    const impactOutside = impactPlayers.filter(
+      (name) => !squadKeySet.has(this.normalizeLineupNameKey(name)),
+    )
+    if (impactOutside.length) {
+      throw new Error(
+        `lineups.${teamCode}.impactPlayers player "${impactOutside[0]}" is not in squad`,
+      )
+    }
 
     const captain = this.normalizeLineupName(payload.captain || '')
     const viceCaptain = this.normalizeLineupName(payload.viceCaptain || '')
@@ -236,6 +245,7 @@ class PlayerService {
     return {
       squad: normalizedSquad,
       playingXI,
+      impactPlayers,
       bench: bench.filter(
         (name) => !playingXIKeys.has(this.normalizeLineupNameKey(name)),
       ),
@@ -272,6 +282,9 @@ class PlayerService {
             typeof row.playingXI === 'string'
               ? JSON.parse(row.playingXI)
               : row.playingXI || [],
+          impactPlayers:
+            (typeof row.meta === 'string' ? JSON.parse(row.meta || '{}') : row.meta || {})
+              ?.impactPlayers || [],
           bench: typeof row.bench === 'string' ? JSON.parse(row.bench) : row.bench || [],
           captain: row.captain || null,
           viceCaptain: row.viceCaptain || null,
@@ -1360,7 +1373,10 @@ class PlayerService {
           normalizedLineups[teamCode].viceCaptain,
           (meta?.source || 'manual-xi').toString(),
           (meta?.updatedBy || 'admin').toString(),
-          JSON.stringify(meta?.meta || {}),
+          JSON.stringify({
+            ...(meta?.meta || {}),
+            impactPlayers: normalizedLineups[teamCode].impactPlayers || [],
+          }),
         ],
       )
     }
