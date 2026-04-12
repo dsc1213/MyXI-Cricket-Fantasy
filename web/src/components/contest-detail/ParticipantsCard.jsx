@@ -54,8 +54,13 @@ function ParticipantsCard({
 }) {
   const hasNoRows = participants.length === 0
   const isFixedRosterContest = contestMode === 'fixed_roster'
-  const isNotStarted = normalizeMatchStatus(activeMatch?.status) === 'notstarted'
-  const canViewAllTeams = isLoggedIn
+  const normalizedStatus = normalizeMatchStatus(activeMatch?.status)
+  const isNotStarted = normalizedStatus === 'notstarted'
+  const canViewAllTeams =
+    isLoggedIn &&
+    (normalizedStatus === 'inprogress' ||
+      normalizedStatus === 'completed' ||
+      isFixedRosterContest)
   const normalizeIdentity = (value) => (value || '').toString().trim().toLowerCase()
   const viewerIdentity = normalizeIdentity(viewerUserId)
   const isViewerRow = (player) => {
@@ -72,7 +77,7 @@ function ParticipantsCard({
     return isViewerRow(player)
   }
   const showFixedRosterNote = isFixedRosterContest
-  const showPrestartNote = Boolean(activeMatch) && isNotStarted
+  const showPrestartNote = Boolean(activeMatch) && isNotStarted && !isFixedRosterContest
   const showNoRowsNote = Number(joinedCount || 0) > 0 && participants.length === 0
   const showLoadingNote = isLoading
   const hasNotes =
@@ -95,7 +100,9 @@ function ParticipantsCard({
       key: 'team',
       label: 'Team',
       render: (player) => {
-        const targetIdentity = (player?.userId || player?.gameName || '').toString().trim()
+        const targetIdentity = (player?.userId || player?.gameName || '')
+          .toString()
+          .trim()
         return (
           <div className="top-actions">
             {!isFixedRosterContest && canEditFullTeams && (
@@ -165,11 +172,9 @@ function ParticipantsCard({
           )}
           {showPrestartNote && (
             <p className="team-note participants-subnote">
-              {isFixedRosterContest
-                ? 'Auction teams are locked, so all participant teams are visible before match starts.'
-                : isLoggedIn
-                  ? 'All logged-in users can view participant teams. Editing still follows contest lock rules.'
-                  : 'Login to view participant teams.'}
+              {
+                'Participant teams will be visible to all users once the match is in progress.'
+              }
             </p>
           )}
           {showNoRowsNote && (
@@ -179,7 +184,9 @@ function ParticipantsCard({
                 : 'Joined users have not submitted teams for this match yet.'}
             </p>
           )}
-          {showLoadingNote && <LoadingNote loading loadingText="Loading participant teams..." />}
+          {showLoadingNote && (
+            <LoadingNote loading loadingText="Loading participant teams..." />
+          )}
         </div>
       )}
       <StickyTable
