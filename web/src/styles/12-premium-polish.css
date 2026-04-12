@@ -133,6 +133,14 @@
   color: #fcd34d;
 }
 
+body:not(.dark-theme) .contest-card-stat-points {
+  color: #0f6ad6;
+}
+
+body:not(.dark-theme) .contest-card-stat-rank {
+  color: #c26a00;
+}
+
 .contest-card-bottom .ghost.small {
   padding: 0.26rem 0.7rem;
 }

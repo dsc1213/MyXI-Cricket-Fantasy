@@ -402,6 +402,21 @@ const fetchDashboardPageLoadData = async () => {
   })
 }
 
+const deleteAuditLogs = async ({ ids, actorUserId }) => {
+  const data = await request('/admin/audit-logs', {
+    method: 'DELETE',
+    body: JSON.stringify({
+      ids: Array.isArray(ids) ? ids : [],
+      ...(actorUserId ? { actorUserId } : {}),
+    }),
+  })
+  invalidateAppQueryCache('dashboardPageLoadData')
+  await Promise.allSettled([
+    primeCachedGet('dashboardPageLoadData', () => request('/page-load-data')),
+  ])
+  return data
+}
+
 const saveScoringRules = async ({ rules, actorUserId }) => {
   const data = await request('/scoring-rules/save', {
     method: 'POST',
@@ -910,8 +925,12 @@ const deleteAdminTournament = async ({ id, actorUserId }) => {
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
   invalidateAppQueryCache((key) =>
-    key === 'tournaments' || key === 'prettyTournaments' || key === 'tournamentCatalog',
+    key === 'tournaments' ||
+    key === 'prettyTournaments' ||
+    key === 'tournamentCatalog' ||
+    key === 'dashboardPageLoadData',
   )
+  await Promise.allSettled([primeCachedGet('dashboardPageLoadData', () => request('/page-load-data'))])
   return data
 }
 const updateAdminMatchStatus = async ({ id, status }) => {
@@ -1064,6 +1083,7 @@ export {
   resetPassword,
   changePassword,
   fetchDashboardPageLoadData,
+  deleteAuditLogs,
   processExcelMatchScores,
   saveScoringRules,
   saveMatchScoresAndRefresh as saveMatchScores,

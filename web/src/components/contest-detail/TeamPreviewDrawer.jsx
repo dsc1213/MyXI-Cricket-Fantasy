@@ -55,6 +55,52 @@ function TeamPreviewDrawer({
     return sortPlayersByDisplayRole(objectEntries)
   }, [previewBackups])
 
+  const fixedRosterDisplayGroups = useMemo(() => {
+    if (!isFixedRosterContest) {
+      return {
+        primary: sortedPreviewXI,
+        secondary: sortedPreviewBackups,
+      }
+    }
+    const matchTeamCodes = new Set(
+      [activeMatch?.home, activeMatch?.away, activeMatch?.teamA, activeMatch?.teamB]
+        .map((value) => normalizeTeamCode(value))
+        .filter(Boolean),
+    )
+    const allOwnedPlayers = [...sortedPreviewXI, ...sortedPreviewBackups]
+    if (!matchTeamCodes.size) {
+      return {
+        primary: allOwnedPlayers,
+        secondary: [],
+      }
+    }
+    return {
+      primary: allOwnedPlayers.filter((entry) =>
+        matchTeamCodes.has(
+          normalizeTeamCode(
+            typeof entry === 'object' ? entry?.team || entry?.teamCode || '' : '',
+          ),
+        ),
+      ),
+      secondary: allOwnedPlayers.filter(
+        (entry) =>
+          !matchTeamCodes.has(
+            normalizeTeamCode(
+              typeof entry === 'object' ? entry?.team || entry?.teamCode || '' : '',
+            ),
+          ),
+      ),
+    }
+  }, [
+    activeMatch?.away,
+    activeMatch?.home,
+    activeMatch?.teamA,
+    activeMatch?.teamB,
+    isFixedRosterContest,
+    sortedPreviewBackups,
+    sortedPreviewXI,
+  ])
+
   const announcedLineup = useMemo(() => {
     const teamASet = toNameSet(
       activeMatch?.playingXiA ||
@@ -274,7 +320,7 @@ function TeamPreviewDrawer({
             )}
             {previewPlayer && <p>{`Points: ${previewPlayer.points}`}</p>}
             {isFixedRosterContest && (
-              <p>Leaderboard counts the top 11 scoring roster players.</p>
+              <p>Leaderboard counts the top 11 roster players by overall contest points.</p>
             )}
           </div>
           <button type="button" className="ghost small" onClick={onClose}>
@@ -285,14 +331,17 @@ function TeamPreviewDrawer({
           <section className="team-preview-section team-preview-section-primary">
             <div className="team-preview-list">
               {isLoading && <p className="team-note">Loading team preview...</p>}
-              {!isLoading && isFixedRosterContest && !sortedPreviewXI.length && (
+              {!isLoading && isFixedRosterContest && !fixedRosterDisplayGroups.primary.length && (
                 <p className="team-note">No owned players are involved in this match.</p>
               )}
               {!isLoading && !isFixedRosterContest && !sortedPreviewXI.length && (
                 <p className="team-note">No saved lineup found for this match.</p>
               )}
               {!isLoading &&
-                sortedPreviewXI.map((entry, index) => {
+                (isFixedRosterContest
+                  ? fixedRosterDisplayGroups.primary
+                  : sortedPreviewXI
+                ).map((entry, index) => {
                   const name =
                     typeof entry === 'string'
                       ? entry
@@ -335,7 +384,11 @@ function TeamPreviewDrawer({
                 })}
             </div>
           </section>
-          {!isLoading && !!sortedPreviewBackups?.length && (
+          {!isLoading &&
+            !!(isFixedRosterContest
+              ? fixedRosterDisplayGroups.secondary
+              : sortedPreviewBackups
+            )?.length && (
             <section className="team-preview-section team-preview-section-backups">
               <div className="team-preview-section-head">
                 <h4>
@@ -356,7 +409,10 @@ function TeamPreviewDrawer({
                   )}
               </div>
               <div className="team-preview-list">
-                {sortedPreviewBackups.map((entry, index) => {
+                {(isFixedRosterContest
+                  ? fixedRosterDisplayGroups.secondary
+                  : sortedPreviewBackups
+                ).map((entry, index) => {
                   const name =
                     typeof entry === 'string'
                       ? entry

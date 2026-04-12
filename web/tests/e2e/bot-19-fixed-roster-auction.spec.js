@@ -623,8 +623,14 @@ test.describe('19) Fixed-roster IPL auction contest', () => {
       await expect(
         page.getByRole('heading', { name: /player contributions/i }),
       ).toBeVisible()
-      await expect(page.getByText(/top 11 scoring roster players from each match/i)).toBeVisible()
-      await expect(page.locator('.leaderboard-preview-table-wrap tbody tr').first()).toBeVisible()
+      await expect(
+        page.getByText(/top 11 roster players by overall contest points/i),
+      ).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Playing XI' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Bench' })).toBeVisible()
+      await expect(
+        page.locator('.leaderboard-breakdown-section').first().locator('tbody tr').first(),
+      ).toBeVisible()
     } finally {
       await deleteContestIfPresent(request, contestId)
     }

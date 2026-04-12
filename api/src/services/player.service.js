@@ -860,21 +860,36 @@ class PlayerService {
       const playerIds = Array.isArray(fixedRosterResult.rows[0]?.playerIds)
         ? fixedRosterResult.rows[0].playerIds
         : []
-      const matchRecord =
-        matchId && matchRepo.findById ? await matchRepo.findById(matchId) : null
-      const activeTeamKeys = [
-        matchRecord?.teamAKey || matchRecord?.teamA,
-        matchRecord?.teamBKey || matchRecord?.teamB,
-      ]
-        .map((value) =>
-          String(value || '')
-            .trim()
-            .toUpperCase(),
-        )
-        .filter(Boolean)
-      const activeTeamSet = new Set(activeTeamKeys)
+      const contestMatchIds = Array.isArray(contest?.matchIds)
+        ? contest.matchIds.map((value) => String(value || '').trim()).filter(Boolean)
+        : []
+      const aggregateResult =
+        contestMatchIds.length && playerIds.length
+          ? await dbQuery(
+              `SELECT player_id as "playerId", SUM(fantasy_points)::float as "totalPoints"
+               FROM player_match_scores
+               WHERE tournament_id = $1
+                 AND match_id::text = ANY($2::text[])
+                 AND player_id = ANY($3::bigint[])
+               GROUP BY player_id`,
+              [resolvedTournamentId, contestMatchIds, playerIds],
+            )
+          : { rows: [] }
+      const totalPointsByPlayerId = new Map(
+        (aggregateResult.rows || []).map((row) => [
+          Number(row.playerId),
+          Number(row.totalPoints || 0),
+        ]),
+      )
       const rosterDetailed = playerIds
-        .map((id) => playerById.get(String(id)))
+        .map((id, index) => {
+          const base = playerById.get(String(id))
+          if (!base) return null
+          return {
+            ...base,
+            rosterSlot: index + 1,
+          }
+        })
         .filter(Boolean)
         .map((entry) => {
           const stats = statsByPlayerId.get(Number(entry.id)) || null
@@ -884,30 +899,20 @@ class PlayerService {
             basePoints,
             multiplier: 1,
             points: basePoints,
+            totalPoints: Number(totalPointsByPlayerId.get(Number(entry.id)) || 0),
             roleTag: '',
             rawStats: stats,
             pointBreakdown: stats ? calculateFantasyPointBreakdown(stats, ruleSet) : [],
           }
         })
-      const picksDetailed = activeTeamSet.size
-        ? rosterDetailed.filter((entry) =>
-            activeTeamSet.has(
-              String(entry.team || '')
-                .trim()
-                .toUpperCase(),
-            ),
-          )
-        : rosterDetailed.slice(0, 11)
-      const backupsDetailed = activeTeamSet.size
-        ? rosterDetailed.filter(
-            (entry) =>
-              !activeTeamSet.has(
-                String(entry.team || '')
-                  .trim()
-                  .toUpperCase(),
-              ),
-          )
-        : rosterDetailed.slice(11)
+      const rankedRoster = [...rosterDetailed].sort((left, right) => {
+        if (Number(right.totalPoints || 0) !== Number(left.totalPoints || 0)) {
+          return Number(right.totalPoints || 0) - Number(left.totalPoints || 0)
+        }
+        return Number(left.rosterSlot || 0) - Number(right.rosterSlot || 0)
+      })
+      const picksDetailed = rankedRoster.slice(0, 11)
+      const backupsDetailed = rankedRoster.slice(11)
       const picksWithStatus = await decorateWithLineupStatus(picksDetailed)
       const backupsWithStatus = await decorateWithLineupStatus(backupsDetailed)
       return {

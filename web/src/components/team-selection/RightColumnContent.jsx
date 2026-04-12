@@ -64,6 +64,24 @@ function RightColumnContent({
   const captainPlayer = selected.find((player) => String(player.id) === String(captainId))
   const viceCaptainPlayer = selected.find((player) => String(player.id) === String(viceCaptainId))
 
+  const assignCaptain = (playerId) => {
+    const normalizedPlayerId = String(playerId)
+    const isActiveCaptain = normalizedPlayerId === String(captainId || '')
+    if (!isActiveCaptain && normalizedPlayerId === String(viceCaptainId || '')) {
+      onViceCaptainChange?.(null)
+    }
+    onCaptainChange?.(isActiveCaptain ? null : normalizedPlayerId)
+  }
+
+  const assignViceCaptain = (playerId) => {
+    const normalizedPlayerId = String(playerId)
+    const isActiveViceCaptain = normalizedPlayerId === String(viceCaptainId || '')
+    if (!isActiveViceCaptain && normalizedPlayerId === String(captainId || '')) {
+      onCaptainChange?.(null)
+    }
+    onViceCaptainChange?.(isActiveViceCaptain ? null : normalizedPlayerId)
+  }
+
   return (
     <>
       <aside className="myxi-card">
@@ -122,20 +140,10 @@ function RightColumnContent({
                         viceCaptainActive: String(player.id) === String(viceCaptainId),
                         onCaptainClick: disabled
                           ? null
-                          : () =>
-                              onCaptainChange?.(
-                                String(player.id) === String(captainId)
-                                  ? null
-                                  : String(player.id),
-                              ),
+                          : () => assignCaptain(player.id),
                         onViceCaptainClick: disabled
                           ? null
-                          : () =>
-                              onViceCaptainChange?.(
-                                String(player.id) === String(viceCaptainId)
-                                  ? null
-                                  : String(player.id),
-                              ),
+                          : () => assignViceCaptain(player.id),
                       }}
                     />
                   ))}

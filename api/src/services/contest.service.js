@@ -112,58 +112,173 @@ const buildPreviewEntries = (selectionIds = [], playerById = new Map()) =>
     .map((id) => playerById.get(String(id)))
     .filter(Boolean)
 
-const buildFixedRosterScoredEntries = ({
-  orderedPlayerIds = [],
-  playerById = new Map(),
-  pointsByPlayerId = new Map(),
-  activeTeamKeys = [],
-}) => {
-  const activeTeams = new Set(
-    (Array.isArray(activeTeamKeys) ? activeTeamKeys : [])
-      .map((value) =>
-        String(value || '')
-          .trim()
-          .toUpperCase(),
-      )
-      .filter(Boolean),
-  )
-  const roster = (Array.isArray(orderedPlayerIds) ? orderedPlayerIds : [])
-    .map((id) => {
-      const base = playerById.get(String(id))
-      if (!base) return null
-      return {
-        ...base,
-        points: Number(pointsByPlayerId.get(Number(id)) || 0),
-      }
-    })
-    .filter(Boolean)
-
-  if (!activeTeams.size) {
-    return {
-      involved: roster.slice(0, FIXED_ROSTER_COUNTED_SIZE),
-      rest: roster.slice(FIXED_ROSTER_COUNTED_SIZE),
+const sortFixedRosterByTotalPoints = (rows = []) =>
+  [...rows].sort((left, right) => {
+    if (Number(right.points || 0) !== Number(left.points || 0)) {
+      return Number(right.points || 0) - Number(left.points || 0)
     }
-  }
+    return Number(left.rosterSlot || 0) - Number(right.rosterSlot || 0)
+  })
 
-  const involved = roster.filter((entry) =>
-    activeTeams.has(
-      String(entry.team || entry.teamKey || '')
-        .trim()
-        .toUpperCase(),
-    ),
-  )
-  const rest = roster.filter(
-    (entry) =>
-      !activeTeams.has(
-        String(entry.team || entry.teamKey || '')
-          .trim()
-          .toUpperCase(),
-      ),
-  )
-  return { involved, rest }
+const assignDenseRanks = (rows = [], pointsSelector = (row) => Number(row?.points || 0)) => {
+  let lastPoints = null
+  let currentRank = 0
+  return rows.map((row, index) => {
+    const points = Number(pointsSelector(row) || 0)
+    if (index === 0 || points !== lastPoints) {
+      currentRank = index + 1
+      lastPoints = points
+    }
+    return {
+      ...row,
+      rank: currentRank,
+    }
+  })
 }
 
 class ContestService {
+  async getFixedRosterAggregateIndex(contest, { userIds = [] } = {}) {
+    const contestId = contest?.id
+    const tournamentId = contest?.tournamentId
+    const matchIds = Array.isArray(contest?.matchIds)
+      ? contest.matchIds.map((value) => String(value || '').trim()).filter(Boolean)
+      : []
+    if (!contestId || !tournamentId || !matchIds.length) return new Map()
+
+    const normalizedUserIds = (Array.isArray(userIds) ? userIds : [])
+      .map((value) => Number(value))
+      .filter(Boolean)
+    const playerRepo = await factory.getPlayerRepository()
+    const [rosterResult, tournamentPlayers] = await Promise.all([
+      normalizedUserIds.length
+        ? dbQuery(
+            `SELECT fr.user_id as "userId",
+                    fr.player_ids as "playerIds",
+                    u.name,
+                    u.game_name as "gameName"
+             FROM contest_fixed_rosters fr
+             JOIN users u ON u.id = fr.user_id
+             WHERE fr.contest_id = $1
+               AND fr.user_id = ANY($2::bigint[])`,
+            [contestId, normalizedUserIds],
+          )
+        : dbQuery(
+            `SELECT fr.user_id as "userId",
+                    fr.player_ids as "playerIds",
+                    u.name,
+                    u.game_name as "gameName"
+             FROM contest_fixed_rosters fr
+             JOIN users u ON u.id = fr.user_id
+             WHERE fr.contest_id = $1`,
+            [contestId],
+          ),
+      playerRepo.findByTournament(tournamentId),
+    ])
+
+    const rosterRows = rosterResult.rows || []
+    if (!rosterRows.length) return new Map()
+
+    const allPlayerIds = [
+      ...new Set(
+        rosterRows.flatMap((row) =>
+          (Array.isArray(row.playerIds) ? row.playerIds : [])
+            .map((value) => Number(value))
+            .filter(Boolean),
+        ),
+      ),
+    ]
+    const matchScoreResult = allPlayerIds.length
+      ? await dbQuery(
+          `SELECT match_id as "matchId", player_id as "playerId", fantasy_points as "fantasyPoints"
+           FROM player_match_scores
+           WHERE tournament_id = $1
+             AND match_id::text = ANY($2::text[])
+             AND player_id = ANY($3::bigint[])`,
+          [tournamentId, matchIds, allPlayerIds],
+        )
+      : { rows: [] }
+
+    const playerById = new Map(
+      (tournamentPlayers || []).map((player) => [
+        Number(player.id),
+        {
+          id: player.id,
+          name:
+            player.displayName ||
+            [player.firstName, player.lastName].filter(Boolean).join(' ').trim(),
+          role: player.role || '-',
+          team: player.teamKey || player.team || '-',
+          imageUrl: player.imageUrl || '',
+        },
+      ]),
+    )
+
+    const pointsByMatchPlayer = new Map()
+    const totalPointsByPlayerId = new Map()
+    for (const row of matchScoreResult.rows || []) {
+      const numericPlayerId = Number(row.playerId)
+      const numericPoints = Number(row.fantasyPoints || 0)
+      pointsByMatchPlayer.set(`${row.matchId}:${numericPlayerId}`, numericPoints)
+      totalPointsByPlayerId.set(
+        numericPlayerId,
+        Number(totalPointsByPlayerId.get(numericPlayerId) || 0) + numericPoints,
+      )
+    }
+
+    return new Map(
+      rosterRows.map((row) => {
+        const orderedPlayerIds = (Array.isArray(row.playerIds) ? row.playerIds : [])
+          .map((value) => Number(value))
+          .filter(Boolean)
+        const unsortedRows = orderedPlayerIds
+          .map((playerId, index) => {
+            const player = playerById.get(playerId)
+            if (!player) return null
+            return {
+              ...player,
+              points: Number(totalPointsByPlayerId.get(playerId) || 0),
+              rosterSlot: index + 1,
+            }
+          })
+          .filter(Boolean)
+        const rankedRows = sortFixedRosterByTotalPoints(unsortedRows).map((entry, index) => ({
+          ...entry,
+          counted: index < FIXED_ROSTER_COUNTED_SIZE,
+          lineupBucket: index < FIXED_ROSTER_COUNTED_SIZE ? 'playing' : 'bench',
+        }))
+        const countedPlayerIds = rankedRows
+          .filter((entry) => entry.counted)
+          .map((entry) => Number(entry.id))
+        const matchTotals = new Map(
+          matchIds.map((matchId) => [
+            String(matchId),
+            countedPlayerIds.reduce(
+              (sum, playerId) =>
+                sum + Number(pointsByMatchPlayer.get(`${matchId}:${playerId}`) || 0),
+              0,
+            ),
+          ]),
+        )
+        return [
+          String(row.userId),
+          {
+            userId: row.userId,
+            name: row.name || row.gameName || '',
+            gameName: row.gameName || row.name || '',
+            rows: rankedRows,
+            countedPlayerIds,
+            totalPoints: rankedRows.reduce(
+              (sum, entry) => sum + (entry.counted ? Number(entry.points || 0) : 0),
+              0,
+            ),
+            rosterSize: rankedRows.length,
+            matchTotals,
+          },
+        ]
+      }),
+    )
+  }
+
   async getContestViewerStatsMap(contestIds = [], userId = null) {
     const normalizedContestIds = (Array.isArray(contestIds) ? contestIds : [])
       .map((value) => String(value || '').trim())
@@ -171,51 +286,88 @@ class ContestService {
     const viewerId = Number(userId || 0)
     if (!normalizedContestIds.length || !viewerId) return new Map()
 
-    const result = await dbQuery(
-      `WITH participant_ids AS (
-         SELECT contest_id::text as contest_id, user_id
-         FROM contest_joins
-         WHERE contest_id::text = ANY($1::text[])
-         UNION
-         SELECT contest_id::text as contest_id, user_id
-         FROM contest_fixed_rosters
-         WHERE contest_id::text = ANY($1::text[])
-       ),
-       participant_totals AS (
-         SELECT p.contest_id,
-                p.user_id,
-                COALESCE(SUM(cs.points), 0) as points
-         FROM participant_ids p
-         LEFT JOIN contest_scores cs
-           ON cs.contest_id::text = p.contest_id
-          AND cs.user_id = p.user_id
-         GROUP BY p.contest_id, p.user_id
-       ),
-       ranked AS (
-         SELECT contest_id,
-                user_id,
-                points,
-                DENSE_RANK() OVER (
-                  PARTITION BY contest_id
-                  ORDER BY points DESC, user_id ASC
-                ) as rank
-         FROM participant_totals
-       )
-       SELECT contest_id as "contestId", points, rank
-       FROM ranked
-       WHERE user_id = $2`,
-      [normalizedContestIds, viewerId],
+    const contestRepo = await factory.getContestRepository()
+    const contests = await Promise.all(
+      normalizedContestIds.map((contestId) => contestRepo.findById(contestId)),
     )
+    const fixedRosterContests = (contests || []).filter(
+      (contest) =>
+        contest &&
+        (contest.mode || '').toString().trim().toLowerCase() === 'fixed_roster',
+    )
+    const standardContestIds = (contests || [])
+      .filter(
+        (contest) =>
+          contest &&
+          (contest.mode || '').toString().trim().toLowerCase() !== 'fixed_roster',
+      )
+      .map((contest) => String(contest.id))
 
-    return new Map(
-      (result.rows || []).map((row) => [
-        String(row.contestId),
-        {
+    const statsMap = new Map()
+
+    if (standardContestIds.length) {
+      const result = await dbQuery(
+        `WITH participant_ids AS (
+           SELECT contest_id::text as contest_id, user_id
+           FROM contest_joins
+           WHERE contest_id::text = ANY($1::text[])
+           UNION
+           SELECT contest_id::text as contest_id, user_id
+           FROM contest_fixed_rosters
+           WHERE contest_id::text = ANY($1::text[])
+         ),
+         participant_totals AS (
+           SELECT p.contest_id,
+                  p.user_id,
+                  COALESCE(SUM(cs.points), 0) as points
+           FROM participant_ids p
+           LEFT JOIN contest_scores cs
+             ON cs.contest_id::text = p.contest_id
+            AND cs.user_id = p.user_id
+           GROUP BY p.contest_id, p.user_id
+         ),
+         ranked AS (
+           SELECT contest_id,
+                  user_id,
+                  points,
+                  DENSE_RANK() OVER (
+                    PARTITION BY contest_id
+                    ORDER BY points DESC, user_id ASC
+                  ) as rank
+           FROM participant_totals
+         )
+         SELECT contest_id as "contestId", points, rank
+         FROM ranked
+         WHERE user_id = $2`,
+        [standardContestIds, viewerId],
+      )
+      for (const row of result.rows || []) {
+        statsMap.set(String(row.contestId), {
           points: Number(row.points || 0),
           rank: Number(row.rank || 0) || '-',
-        },
-      ]),
-    )
+        })
+      }
+    }
+
+    for (const contest of fixedRosterContests) {
+      const index = await this.getFixedRosterAggregateIndex(contest)
+      const rankedRows = assignDenseRanks(
+        [...index.values()].sort((left, right) => {
+          if (right.totalPoints !== left.totalPoints) return right.totalPoints - left.totalPoints
+          return String(left.gameName || '').localeCompare(String(right.gameName || ''))
+        }),
+        (row) => row.totalPoints,
+      )
+      const viewerRow = rankedRows.find((row) => Number(row.userId) === viewerId)
+      if (viewerRow) {
+        statsMap.set(String(contest.id), {
+          points: Number(viewerRow.totalPoints || 0),
+          rank: Number(viewerRow.rank || 0) || '-',
+        })
+      }
+    }
+
+    return statsMap
   }
 
   // Returns latest score upload metadata for matches tied to a contest.
@@ -557,63 +709,12 @@ class ContestService {
     let previewXI = []
     let previewBackups = []
     if (matchId && viewerUserId && (contest.mode || '').toString() === 'fixed_roster') {
-      const [playerRepo, matchRepo] = await Promise.all([
-        factory.getPlayerRepository(),
-        factory.getMatchRepository(),
-      ])
-      const [fixedRosterResult, tournamentPlayers, matchRecord, matchPointsResult] =
-        await Promise.all([
-          dbQuery(
-            `SELECT player_ids as "playerIds"
-             FROM contest_fixed_rosters
-             WHERE contest_id = $1 AND user_id = $2
-             LIMIT 1`,
-            [contestId, viewerUserId],
-          ),
-          contest.tournamentId != null
-            ? playerRepo.findByTournament(contest.tournamentId)
-            : playerRepo.findAll(),
-          matchRepo.findById ? matchRepo.findById(matchId) : null,
-          contest.tournamentId != null
-            ? dbQuery(
-                `SELECT player_id as "playerId", fantasy_points as "fantasyPoints"
-                 FROM player_match_scores
-                 WHERE tournament_id = $1 AND match_id = $2`,
-                [contest.tournamentId, matchId],
-              )
-            : { rows: [] },
-        ])
-      const playerById = new Map(
-        (tournamentPlayers || []).map((player) => [
-          String(player.id),
-          {
-            id: player.id,
-            name:
-              player.displayName ||
-              [player.firstName, player.lastName].filter(Boolean).join(' ').trim(),
-            role: player.role || '-',
-            team: player.teamKey || player.team || '',
-            imageUrl: player.imageUrl || '',
-          },
-        ]),
-      )
-      const pointsByPlayerId = new Map(
-        (matchPointsResult?.rows || []).map((row) => [
-          Number(row.playerId),
-          Number(row.fantasyPoints || 0),
-        ]),
-      )
-      const split = buildFixedRosterScoredEntries({
-        orderedPlayerIds: fixedRosterResult.rows[0]?.playerIds || [],
-        playerById,
-        pointsByPlayerId,
-        activeTeamKeys: [
-          matchRecord?.teamAKey || matchRecord?.teamA,
-          matchRecord?.teamBKey || matchRecord?.teamB,
-        ],
+      const fixedRosterIndex = await this.getFixedRosterAggregateIndex(contest, {
+        userIds: [viewerUserId],
       })
-      previewXI = split.involved
-      previewBackups = split.rest
+      const viewerRoster = fixedRosterIndex.get(String(viewerUserId))
+      previewXI = (viewerRoster?.rows || []).filter((entry) => entry.counted)
+      previewBackups = (viewerRoster?.rows || []).filter((entry) => !entry.counted)
     } else if (
       matchId &&
       viewerUserId &&
@@ -658,20 +759,13 @@ class ContestService {
     }
 
     if ((contest.mode || '').toString() === 'fixed_roster') {
-      const pointsResult = await dbQuery(
-        `SELECT user_id as "userId", points
-         FROM contest_scores
-         WHERE contest_id = $1
-           AND match_id = $2`,
-        [contestId, matchId],
-      )
-      const pointsByUser = new Map(
-        pointsResult.rows.map((row) => [String(row.userId), Number(row.points || 0)]),
-      )
+      const fixedRosterIndex = await this.getFixedRosterAggregateIndex(contest)
       return {
         participants: joinedParticipants.map((row) => ({
           ...row,
-          points: Number(pointsByUser.get(String(row.id)) || 0),
+          points: Number(
+            fixedRosterIndex.get(String(row.id))?.matchTotals?.get(String(matchId)) || 0,
+          ),
         })),
         joinedCount,
         withTeamCount: joinedParticipants.length,
@@ -834,6 +928,24 @@ class ContestService {
     const contest = await this.getContestById(contestId)
     const isFixedRoster =
       (contest?.mode || '').toString().trim().toLowerCase() === 'fixed_roster'
+    if (isFixedRoster) {
+      const index = await this.getFixedRosterAggregateIndex(contest)
+      return assignDenseRanks(
+        [...index.values()].sort((left, right) => {
+          if (right.totalPoints !== left.totalPoints) return right.totalPoints - left.totalPoints
+          return String(left.gameName || '').localeCompare(String(right.gameName || ''))
+        }),
+        (row) => row.totalPoints,
+      ).map((row) => ({
+          userId: row.userId,
+          name: row.name,
+          gameName: row.gameName,
+          points: Number(row.totalPoints || 0),
+          countedPlayers: FIXED_ROSTER_COUNTED_SIZE,
+          rosterSize: row.rosterSize || 15,
+          rank: row.rank,
+        }))
+    }
     const result = await dbQuery(
       `WITH participant_ids AS (
          SELECT user_id
@@ -873,7 +985,49 @@ class ContestService {
         totals: { userPoints: 0, comparePoints: 0, delta: 0 },
         rows: [],
       }
+    const isFixedRoster =
+      (contest?.mode || '').toString().trim().toLowerCase() === 'fixed_roster'
     const matches = await this.getContestMatches(contestId)
+    if (isFixedRoster) {
+      const requestedUserIds = [Number(userId), ...(compareUserId ? [Number(compareUserId)] : [])]
+      const index = await this.getFixedRosterAggregateIndex(contest, {
+        userIds: requestedUserIds,
+      })
+      const rows = matches.map((match) => ({
+        matchId: match.id,
+        matchNo: null,
+        matchName: match.name,
+        date: match.startTime,
+        status: mapMatchWithDerivedStatus(match).status,
+        userPoints: Number(index.get(String(userId))?.matchTotals?.get(String(match.id)) || 0),
+        comparePoints: compareUserId
+          ? Number(index.get(String(compareUserId))?.matchTotals?.get(String(match.id)) || 0)
+          : 0,
+        delta:
+          Number(index.get(String(userId))?.matchTotals?.get(String(match.id)) || 0) -
+          Number(index.get(String(compareUserId))?.matchTotals?.get(String(match.id)) || 0),
+      }))
+      const totals = rows.reduce(
+        (acc, row) => {
+          acc.userPoints += Number(row.userPoints || 0)
+          acc.comparePoints += Number(row.comparePoints || 0)
+          return acc
+        },
+        { userPoints: 0, comparePoints: 0 },
+      )
+      return {
+        contestId,
+        tournamentId: contest.tournamentId,
+        userId,
+        compareUserId,
+        totals: {
+          userPoints: totals.userPoints,
+          comparePoints: totals.comparePoints,
+          delta: totals.userPoints - totals.comparePoints,
+        },
+        rows,
+      }
+    }
     const scoreResult = await dbQuery(
       `SELECT match_id as "matchId", user_id as "userId", points
        FROM contest_scores
@@ -1005,75 +1159,25 @@ class ContestService {
           totalPoints: 0,
           countedPlayers: FIXED_ROSTER_COUNTED_SIZE,
           rosterSize: 15,
-          note: 'Auction totals count the top 11 scoring roster players from each match.',
+          note: 'Auction totals count the top 11 roster players by overall contest points. The remaining 4 stay on the bench.',
           rows: [],
         }
       }
-
-      const matchScoreResult = await dbQuery(
-        `SELECT match_id as "matchId", player_id as "playerId", fantasy_points as "fantasyPoints"
-         FROM player_match_scores
-         WHERE tournament_id = $1
-           AND match_id::text = ANY($2::text[])
-           AND player_id = ANY($3::bigint[])`,
-        [contest.tournamentId, matchIds, playerIds],
-      )
-      const pointsByMatchPlayer = new Map()
-      for (const row of matchScoreResult.rows || []) {
-        pointsByMatchPlayer.set(
-          `${row.matchId}:${row.playerId}`,
-          Number(row.fantasyPoints || 0),
-        )
-      }
-      const contributionByPlayerId = new Map()
-      const countedMatchesByPlayerId = new Map()
-      for (const matchId of matchIds) {
-        const sorted = playerIds
-          .map((playerId) => ({
-            playerId,
-            points: Number(pointsByMatchPlayer.get(`${matchId}:${playerId}`) || 0),
-          }))
-          .sort((left, right) => {
-            if (right.points !== left.points) return right.points - left.points
-            return left.playerId - right.playerId
-          })
-        for (const row of sorted.slice(0, FIXED_ROSTER_COUNTED_SIZE)) {
-          contributionByPlayerId.set(
-            row.playerId,
-            Number(contributionByPlayerId.get(row.playerId) || 0) + Number(row.points || 0),
-          )
-          countedMatchesByPlayerId.set(
-            row.playerId,
-            Number(countedMatchesByPlayerId.get(row.playerId) || 0) + 1,
-          )
-        }
-      }
-
-      const rows = playerIds
-        .map((playerId) => {
-          const player = playerById.get(Number(playerId))
-          if (!player) return null
-          return {
-            ...player,
-            points: Number(contributionByPlayerId.get(Number(playerId)) || 0),
-            countedMatches: Number(countedMatchesByPlayerId.get(Number(playerId)) || 0),
-          }
-        })
-        .filter(Boolean)
-        .sort((left, right) => {
-          if (right.points !== left.points) return right.points - left.points
-          return String(left.name || '').localeCompare(String(right.name || ''))
-        })
+      const index = await this.getFixedRosterAggregateIndex(contest, {
+        userIds: [userId],
+      })
+      const aggregateRow = index.get(String(userId))
+      const rows = aggregateRow?.rows || []
 
       return {
         contestId,
         userId,
         tournamentId: contest.tournamentId,
         mode: contest.mode || '',
-        totalPoints: rows.reduce((sum, row) => sum + Number(row.points || 0), 0),
+        totalPoints: Number(aggregateRow?.totalPoints || 0),
         countedPlayers: FIXED_ROSTER_COUNTED_SIZE,
-        rosterSize: playerIds.length,
-        note: 'Auction totals count only the top 11 scoring roster players from each match.',
+        rosterSize: aggregateRow?.rosterSize || playerIds.length,
+        note: 'Auction totals count the top 11 roster players by overall contest points. The remaining 4 stay on the bench.',
         rows,
       }
     }

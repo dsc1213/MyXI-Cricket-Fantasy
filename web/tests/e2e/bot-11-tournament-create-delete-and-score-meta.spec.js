@@ -127,6 +127,50 @@ test.describe('11) Tournament CRUD and score metadata', () => {
       )
       expect(deleteTournament.ok).toBe(true)
 
+      const pageLoadAfterDelete = await apiCall(
+        request,
+        'GET',
+        '/page-load-data?userId=master',
+        undefined,
+        200,
+      )
+      const deleteAuditRow = (pageLoadAfterDelete?.auditLogs || []).find(
+        (row) =>
+          row.action === 'Deleted tournament' &&
+          row.target === tournamentId &&
+          row.module === 'tournaments',
+      )
+      expect(deleteAuditRow).toBeTruthy()
+
+      const deleteAuditLogs = await apiCall(
+        request,
+        'DELETE',
+        '/admin/audit-logs',
+        {
+          actorUserId: 'master',
+          ids: [deleteAuditRow.id],
+        },
+        200,
+      )
+      expect(deleteAuditLogs.ok).toBe(true)
+      expect(Number(deleteAuditLogs.deletedCount || 0)).toBe(1)
+
+      const pageLoadAfterAuditDelete = await apiCall(
+        request,
+        'GET',
+        '/page-load-data?userId=master',
+        undefined,
+        200,
+      )
+      expect(
+        (pageLoadAfterAuditDelete?.auditLogs || []).some((row) => row.id === deleteAuditRow.id),
+      ).toBe(false)
+      expect(
+        (pageLoadAfterAuditDelete?.auditLogs || []).some(
+          (row) => row.action === 'Deleted audit logs' && row.module === 'audit',
+        ),
+      ).toBe(true)
+
       const catalogAfter = await apiCall(
         request,
         'GET',

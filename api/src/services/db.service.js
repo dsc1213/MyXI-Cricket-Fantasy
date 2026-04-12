@@ -215,6 +215,47 @@ const createDbService = (dependencies) => {
       }
     })
 
+    router.delete('/admin/audit-logs', async (req, res, next) => {
+      try {
+        const actor =
+          (await resolveDbUser(
+            req.body?.actorUserId ||
+              req.currentUser?.id ||
+              req.currentUser?.userId ||
+              req.currentUser?.gameName,
+          )) || req.currentUser
+        if (actor?.role !== 'master_admin') {
+          return res.status(403).json({ message: 'Only master can manage audit logs' })
+        }
+        const ids = Array.isArray(req.body?.ids) ? req.body.ids : []
+        const normalizedIds = ids
+          .map((value) => Number(value))
+          .filter((value) => Number.isFinite(value) && value > 0)
+        if (!normalizedIds.length) {
+          return res.status(400).json({ message: 'Select at least one audit log to delete' })
+        }
+        const result = await auditLogService.deleteByIds(normalizedIds)
+        await auditLogService.logAction({
+          performedBy: actor?.id || null,
+          action: 'Deleted audit logs',
+          resourceType: 'audit-log',
+          resourceId: normalizedIds.join(','),
+          tournamentId: 'global',
+          module: 'audit',
+          detail: `Deleted ${result.deletedCount} audit log(s)`,
+          changes: {
+            deletedIds: normalizedIds,
+            deletedCount: result.deletedCount,
+          },
+          ipAddress: req.ip,
+          userAgent: req.header('user-agent') || '',
+        })
+        return res.json({ ok: true, ...result })
+      } catch (error) {
+        return next(error)
+      }
+    })
+
     // Returns common bootstrap data used to initialize the app.
     router.get('/bootstrap', async (req, res, next) => {
       try {
@@ -292,6 +333,18 @@ const createDbService = (dependencies) => {
         if (!result?.ok) {
           return res.status(404).json({ message: 'Tournament not found' })
         }
+        await auditLogService.logAction({
+          performedBy: actor?.id || null,
+          action: 'Deleted tournament',
+          resourceType: 'tournament',
+          resourceId: result.removedTournamentId || req.params.id,
+          tournamentId: result.removedTournamentId || req.params.id,
+          module: 'tournaments',
+          detail: `Removed ${Number(result.removedContests || 0)} contests`,
+          target: result.removedTournamentId || req.params.id,
+          ipAddress: req.ip,
+          userAgent: req.header('user-agent') || '',
+        })
         return res.json(result)
       } catch (error) {
         return next(error)

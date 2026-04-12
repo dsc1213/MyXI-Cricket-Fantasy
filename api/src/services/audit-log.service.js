@@ -78,6 +78,25 @@ class AuditLogService {
       }
     })
   }
+
+  async deleteByIds(ids = []) {
+    const normalizedIds = Array.from(
+      new Set(
+        (Array.isArray(ids) ? ids : [])
+          .map((value) => Number(value))
+          .filter((value) => Number.isFinite(value) && value > 0),
+      ),
+    )
+    if (!normalizedIds.length) {
+      return { deletedCount: 0 }
+    }
+    const result = await dbQuery(
+      `DELETE FROM audit_logs
+       WHERE id = ANY($1::bigint[])`,
+      [normalizedIds],
+    )
+    return { deletedCount: Number(result.rowCount || 0) }
+  }
 }
 
 export default new AuditLogService()

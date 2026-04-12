@@ -10,9 +10,11 @@ const adminMenuItems = [
   { key: 'squads', label: 'Squad Manager' },
   { key: 'playingXiManager', label: 'Playing XI Manager' },
   { key: 'scoreManager', label: 'Score Manager' },
+]
+const masterMenuItems = [
+  { key: 'userManager', label: 'User Manager' },
   { key: 'audit', label: 'Audit Logs' },
 ]
-const masterMenuItems = [{ key: 'userManager', label: 'User Manager' }]
 
 const menuItems = [...regularMenuItems, ...adminMenuItems]
 

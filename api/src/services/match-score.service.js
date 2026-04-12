@@ -44,13 +44,6 @@ const resolvePlayerWithNormalizedFallback = ({
   }
 }
 
-const sumTopFixedRosterPoints = (playerIds = [], fantasyPointsByPlayerId = new Map()) => {
-  const scored = (Array.isArray(playerIds) ? playerIds : [])
-    .map((playerId) => Number(fantasyPointsByPlayerId.get(Number(playerId)) || 0))
-    .sort((a, b) => b - a)
-  return scored.slice(0, FIXED_ROSTER_COUNTED_SIZE).reduce((sum, value) => sum + value, 0)
-}
-
 class MatchScoreService {
   // Resets active scores and derived score tables for a tournament match.
   async resetMatchScores(matchId, tournamentId, resetBy) {
@@ -537,10 +530,65 @@ class MatchScoreService {
            WHERE contest_id = $1`,
           [contest.id],
         )
-        rows = fixedRosterResult.rows.map((row) => ({
-          userId: row.userId,
-          points: sumTopFixedRosterPoints(row.playerIds, fantasyPointsByPlayerId),
-        }))
+        const contestMatchIds = scopedMatchIds.length ? scopedMatchIds : [String(matchId)]
+        const allPlayerIds = [
+          ...new Set(
+            (fixedRosterResult.rows || []).flatMap((row) =>
+              (Array.isArray(row.playerIds) ? row.playerIds : [])
+                .map((value) => Number(value))
+                .filter(Boolean),
+            ),
+          ),
+        ]
+        const aggregateScoreResult = allPlayerIds.length
+          ? await dbQuery(
+              `SELECT match_id as "matchId", player_id as "playerId", fantasy_points as "fantasyPoints"
+               FROM player_match_scores
+               WHERE tournament_id = $1
+                 AND match_id::text = ANY($2::text[])
+                 AND player_id = ANY($3::bigint[])`,
+              [tournamentId, contestMatchIds, allPlayerIds],
+            )
+          : { rows: [] }
+        const totalPointsByPlayerId = new Map()
+        const currentMatchPointsByPlayerId = new Map()
+        for (const scoreRow of aggregateScoreResult.rows || []) {
+          const numericPlayerId = Number(scoreRow.playerId)
+          const numericPoints = Number(scoreRow.fantasyPoints || 0)
+          totalPointsByPlayerId.set(
+            numericPlayerId,
+            Number(totalPointsByPlayerId.get(numericPlayerId) || 0) + numericPoints,
+          )
+          if (String(scoreRow.matchId) === String(matchId)) {
+            currentMatchPointsByPlayerId.set(numericPlayerId, numericPoints)
+          }
+        }
+        rows = (fixedRosterResult.rows || []).map((row) => {
+          const rankedRoster = (Array.isArray(row.playerIds) ? row.playerIds : [])
+            .map((value, index) => ({
+              playerId: Number(value),
+              rosterSlot: index + 1,
+              totalPoints: Number(totalPointsByPlayerId.get(Number(value)) || 0),
+            }))
+            .filter((entry) => entry.playerId)
+            .sort((left, right) => {
+              if (right.totalPoints !== left.totalPoints) {
+                return right.totalPoints - left.totalPoints
+              }
+              return left.rosterSlot - right.rosterSlot
+            })
+          const countedIds = rankedRoster
+            .slice(0, FIXED_ROSTER_COUNTED_SIZE)
+            .map((entry) => entry.playerId)
+          return {
+            userId: row.userId,
+            points: countedIds.reduce(
+              (sum, playerId) =>
+                sum + Number(currentMatchPointsByPlayerId.get(Number(playerId)) || 0),
+              0,
+            ),
+          }
+        })
       } else {
         const matchRecord =
           (matches || []).find((item) => String(item.id) === String(matchId)) || null

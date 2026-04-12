@@ -1400,12 +1400,12 @@ body.dark-theme .squad-manager-success {
 .squad-manager-player-identity .player-identity-name {
   font-size: 0.9rem;
   font-weight: 700;
-  color: #f8fafc;
+  color: var(--text-primary);
 }
 
 .squad-manager-player-identity .player-identity-subtitle {
   font-size: 0.8rem;
-  color: rgba(191, 219, 254, 0.88);
+  color: var(--text-muted);
 }
 
 .squad-manager-row-actions {
@@ -2894,6 +2894,27 @@ body.dark-theme .fantasy-hub-main {
   border-radius: 10px;
 }
 
+.cricketer-stats-sticky-wrap {
+  max-height: inherit;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.cricketer-stats-filters {
+  align-items: center;
+}
+
+.cricketer-stats-filters input[type='search'] {
+  width: min(320px, 100%);
+  border-radius: 10px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--input-text);
+  padding: 0.5rem 0.65rem;
+  font: inherit;
+  font-size: 0.84rem;
+}
+
 .cricketer-stats-table {
   width: 100%;
   border-collapse: collapse;
@@ -3759,8 +3780,8 @@ body.dark-theme .fantasy-hub-main {
 
 .leaderboard-preview-table-wrap {
   min-height: 0;
-  max-height: min(60vh, 520px);
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
   border: 1px solid var(--panel-border);
   border-radius: 12px;
   background: var(--panel-bg);
@@ -4222,6 +4243,15 @@ body.dark-theme .app.app-team .backups-card .player-chip.slot-chip.compact small
     min-height: 0;
     height: 100%;
     max-height: none;
+  }
+
+  .app.is-cricketer-stats-page .cricketer-stats-filters {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .app.is-cricketer-stats-page .cricketer-stats-filters input[type='search'] {
+    width: 100%;
   }
 
   .app.is-cricketer-stats-page .cricketer-stats-table {
@@ -5234,6 +5264,74 @@ body.dark-theme .app.app-lower-content select {
   line-height: 1;
   padding: 6px 9px;
   white-space: nowrap;
+}
+
+body:not(.dark-theme) .manual-lineup-count {
+  color: #64748b;
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.26);
+}
+
+body:not(.dark-theme) .manual-lineup-count.ready {
+  color: #166534;
+  background: rgba(187, 247, 208, 0.78);
+  border-color: rgba(74, 222, 128, 0.38);
+}
+
+body:not(.dark-theme) .catalog-table td,
+body:not(.dark-theme) .dashboard-shell.panel-squads .catalog-table td {
+  color: #1f2937;
+}
+
+body:not(.dark-theme) .catalog-table .player-identity-name,
+body:not(.dark-theme) .catalog-table .player-identity-subtitle,
+body:not(.dark-theme) .squad-manager-player-identity .player-identity-name,
+body:not(.dark-theme) .squad-manager-player-identity .player-identity-subtitle,
+body:not(.dark-theme) .squad-player-picker-name,
+body:not(.dark-theme) .squad-player-picker-meta {
+  color: inherit;
+}
+
+body:not(.dark-theme) .playing-xi-status-card {
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.94));
+  border-color: rgba(148, 163, 184, 0.26);
+}
+
+body:not(.dark-theme) .playing-xi-status-card-head span {
+  color: #64748b;
+}
+
+body:not(.dark-theme) .playing-xi-score-chip,
+body:not(.dark-theme) .playing-xi-status-card .playing-xi-score-chip {
+  color: #1d4ed8;
+  background: rgba(219, 234, 254, 0.92);
+  border-color: rgba(96, 165, 250, 0.42);
+}
+
+body:not(.dark-theme) .playing-xi-card {
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.95));
+  border-color: rgba(148, 163, 184, 0.26);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+body:not(.dark-theme) .playing-xi-card-head h4 {
+  color: #0f172a;
+}
+
+body:not(.dark-theme) .playing-xi-card-head span {
+  color: #64748b;
+}
+
+body:not(.dark-theme) .playing-xi-list li {
+  color: #1f2937;
+}
+
+body:not(.dark-theme) .playing-xi-card .player-identity-name {
+  color: #0f172a;
+}
+
+body:not(.dark-theme) .playing-xi-card .player-identity-subtitle {
+  color: #475569;
 }
 
 @media (max-width: 800px) {

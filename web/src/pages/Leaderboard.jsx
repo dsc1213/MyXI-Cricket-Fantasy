@@ -318,29 +318,49 @@ function Leaderboard() {
     },
   ]
   const playerContributionColumns = useMemo(
-    () => [
-      { key: 'name', label: 'Player' },
-      { key: 'team', label: 'Team' },
-      { key: 'role', label: 'Role' },
-      {
-        key: 'selectedMatches',
-        label:
-          playerContributionMeta.mode === 'fixed_roster' ? 'Counted In' : 'Matches',
-        render: (row) =>
-          Number(
-            row?.countedMatches ??
-              row?.selectedMatches ??
-              0,
-          ),
-      },
-      {
-        key: 'points',
-        label: 'Points',
-        render: (row) => Number(row?.points || 0),
-      },
-    ],
+    () =>
+      [
+        { key: 'name', label: 'Player' },
+        { key: 'team', label: 'Team' },
+        { key: 'role', label: 'Role' },
+        playerContributionMeta.mode === 'fixed_roster'
+          ? null
+          : {
+              key: 'lineupBucket',
+              label: 'Matches',
+              render: (row) => Number(row?.selectedMatches ?? 0),
+            },
+        {
+          key: 'points',
+          label: 'Points',
+          render: (row) => Number(row?.points || 0),
+        },
+      ].filter(Boolean),
     [playerContributionMeta.mode],
   )
+  const fixedRosterContributionSplit = useMemo(() => {
+    if (playerContributionMeta.mode !== 'fixed_roster') {
+      return { playingXiRows: [], benchRows: [] }
+    }
+    const explicitBenchRows = playerContributionRows.filter(
+      (row) => row?.lineupBucket === 'bench',
+    )
+    if (explicitBenchRows.length) {
+      return {
+        playingXiRows: playerContributionRows.filter((row) => row?.lineupBucket !== 'bench'),
+        benchRows: explicitBenchRows,
+      }
+    }
+    const countedPlayers = Number(playerContributionMeta.countedPlayers || 11)
+    return {
+      playingXiRows: playerContributionRows.slice(0, countedPlayers),
+      benchRows: playerContributionRows.slice(countedPlayers),
+    }
+  }, [
+    playerContributionMeta.countedPlayers,
+    playerContributionMeta.mode,
+    playerContributionRows,
+  ])
 
   return (
     <section className="leaderboard leaderboard-page">
@@ -484,14 +504,48 @@ function Leaderboard() {
             {!!playerContributionMeta.note && (
               <p className="team-note">{playerContributionMeta.note}</p>
             )}
-            <StickyTable
-              columns={playerContributionColumns}
-              rows={playerContributionRows}
-              rowKey={(row) => row.id || row.name}
-              emptyText="No player contributions found"
-              wrapperClassName="leaderboard-preview-table-wrap"
-              tableClassName="leaderboard-table"
-            />
+            {playerContributionMeta.mode === 'fixed_roster' ? (
+              <div className="leaderboard-breakdown-sections">
+                <section className="leaderboard-breakdown-section">
+                  <div className="leaderboard-breakdown-head">
+                    <h4>Playing XI</h4>
+                    <span>{`${fixedRosterContributionSplit.playingXiRows.length}/${Number(playerContributionMeta.countedPlayers || 11)}`}</span>
+                  </div>
+                  <StickyTable
+                    columns={playerContributionColumns}
+                    rows={fixedRosterContributionSplit.playingXiRows}
+                    rowKey={(row) => row.id || row.name}
+                    emptyText="No Playing XI players found"
+                    wrapperClassName="leaderboard-preview-table-wrap"
+                    tableClassName="leaderboard-table"
+                  />
+                </section>
+                <section className="leaderboard-breakdown-section">
+                  <div className="leaderboard-breakdown-head">
+                    <h4>Bench</h4>
+                    <span>{fixedRosterContributionSplit.benchRows.length}</span>
+                  </div>
+                  <StickyTable
+                    columns={playerContributionColumns}
+                    rows={fixedRosterContributionSplit.benchRows}
+                    rowKey={(row) => row.id || row.name}
+                    rowClassName={() => 'leaderboard-row-bench'}
+                    emptyText="No bench players found"
+                    wrapperClassName="leaderboard-preview-table-wrap"
+                    tableClassName="leaderboard-table"
+                  />
+                </section>
+              </div>
+            ) : (
+              <StickyTable
+                columns={playerContributionColumns}
+                rows={playerContributionRows}
+                rowKey={(row) => row.id || row.name}
+                emptyText="No player contributions found"
+                wrapperClassName="leaderboard-preview-table-wrap"
+                tableClassName="leaderboard-table"
+              />
+            )}
           </>
         )}
       </Modal>

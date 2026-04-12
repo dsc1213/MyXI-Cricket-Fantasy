@@ -13,6 +13,7 @@ function CricketerStats() {
   const [tournaments, setTournaments] = useState([])
   const [selectedTournamentId, setSelectedTournamentId] = useState(routeTournamentId || '')
   const [rows, setRows] = useState([])
+  const [searchText, setSearchText] = useState('')
 
   useEffect(() => {
     let active = true
@@ -60,9 +61,27 @@ function CricketerStats() {
     }
   }, [selectedTournamentId])
 
+  const filteredRows = useMemo(() => {
+    const query = searchText.trim().toLowerCase()
+    if (!query) return rows
+    return rows.filter((row) => {
+      const haystack = [
+        row.name,
+        row.teamCode,
+        row.team,
+        row.teamName,
+        row.role,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      return haystack.includes(query)
+    })
+  }, [rows, searchText])
+
   const sortedRows = useMemo(
-    () => [...rows].sort((a, b) => Number(b.points || 0) - Number(a.points || 0)),
-    [rows],
+    () => [...filteredRows].sort((a, b) => Number(b.points || 0) - Number(a.points || 0)),
+    [filteredRows],
   )
 
   const selectedTournament = tournaments.find((item) => item.id === selectedTournamentId)
@@ -157,7 +176,7 @@ function CricketerStats() {
         {!!errorText && <p className="error-text">{errorText}</p>}
       </div>
 
-      <div className="module-filters compact">
+      <div className="module-filters compact cricketer-stats-filters">
         <SelectField
           value={selectedTournamentId}
           onChange={(event) => setSelectedTournamentId(event.target.value)}
@@ -165,6 +184,13 @@ function CricketerStats() {
             value: item.id,
             label: item.name,
           }))}
+        />
+        <input
+          type="search"
+          value={searchText}
+          onChange={(event) => setSearchText(event.target.value)}
+          placeholder="Search player or team"
+          aria-label="Search player stats"
         />
       </div>
       {!!selectedTournamentId && <TournamentPageTabs tournamentId={selectedTournamentId} />}

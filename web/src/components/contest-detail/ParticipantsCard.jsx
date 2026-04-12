@@ -1,6 +1,7 @@
 import StickyTable from '../ui/StickyTable.jsx'
 import { MatchLabel } from '../ui/CountryFlag.jsx'
 import Button from '../ui/Button.jsx'
+import LoadingNote from '../ui/LoadingNote.jsx'
 
 function normalizeMatchStatus(value) {
   return (value || '').toString().trim().toLowerCase().replace(/\s+/g, '')
@@ -178,9 +179,7 @@ function ParticipantsCard({
                 : 'Joined users have not submitted teams for this match yet.'}
             </p>
           )}
-          {showLoadingNote && (
-            <p className="team-note participants-subnote">Loading participant teams...</p>
-          )}
+          {showLoadingNote && <LoadingNote loading loadingText="Loading participant teams..." />}
         </div>
       )}
       <StickyTable

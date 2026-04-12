@@ -313,7 +313,7 @@ function AuctionHub() {
                           statsRightText={`Rank #${rank}`}
                           extraNotes={[
                             `Fixed ${rosterSize}-player tournament rosters`,
-                            'Leaderboard counts top 11 scoring players',
+                            'Leaderboard counts the top 11 roster players by overall points',
                           ]}
                           openTo={`/tournaments/${contest.tournamentId}/contests/${contest.id}?view=auction`}
                           leaderboardTo={`/tournaments/${contest.tournamentId}/contests/${contest.id}/leaderboard?view=auction`}
