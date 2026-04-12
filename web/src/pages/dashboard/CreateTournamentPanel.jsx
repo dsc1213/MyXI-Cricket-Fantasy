@@ -85,6 +85,17 @@ function emptyMatchRow(matchNo = 1) {
   }
 }
 
+function parseCustomTeamCodes(value = '') {
+  return [
+    ...new Set(
+      String(value || '')
+        .split(/[\n,]+/)
+        .map((item) => item.trim().toUpperCase())
+        .filter(Boolean),
+    ),
+  ]
+}
+
 function CreateTournamentPanel({ onCreated }) {
   const currentUser = getStoredUser()
   const [inputType, setInputType] = useState('manual')
@@ -98,6 +109,8 @@ function CreateTournamentPanel({ onCreated }) {
   const [errorText, setErrorText] = useState('')
   const [notice, setNotice] = useState('')
   const [squadRows, setSquadRows] = useState([])
+  const [manualTeamSource, setManualTeamSource] = useState('saved')
+  const [customTeamsText, setCustomTeamsText] = useState('')
   const [tournamentType, setTournamentType] = useState('international')
   const [country, setCountry] = useState('')
   const [league, setLeague] = useState('')
@@ -151,7 +164,21 @@ function CreateTournamentPanel({ onCreated }) {
     [country],
   )
 
+  const customTeamRows = useMemo(
+    () =>
+      parseCustomTeamCodes(customTeamsText).map((teamCode) => ({
+        teamCode,
+        teamName: teamCode,
+        activePlayersCount: '-',
+        squad: [],
+      })),
+    [customTeamsText],
+  )
+
   const availableTeams = useMemo(() => {
+    if (manualTeamSource === 'custom') {
+      return customTeamRows
+    }
     return (squadRows || [])
       .filter((row) => {
         const rowType = (row.tournamentType || 'international').toLowerCase()
@@ -165,12 +192,18 @@ function CreateTournamentPanel({ onCreated }) {
         return true
       })
       .sort((a, b) => a.teamCode.localeCompare(b.teamCode))
-  }, [squadRows, tournamentType, country, league])
+  }, [customTeamRows, manualTeamSource, squadRows, tournamentType, country, league])
 
   useEffect(() => {
     const valid = new Set(availableTeams.map((row) => row.teamCode))
     setSelectedTeams((prev) => prev.filter((code) => valid.has(code)))
   }, [availableTeams])
+
+  useEffect(() => {
+    if (manualTeamSource !== 'custom') return
+    const customCodes = customTeamRows.map((row) => row.teamCode)
+    setSelectedTeams(customCodes)
+  }, [customTeamRows, manualTeamSource])
 
   const selectedTeamSet = useMemo(() => new Set(selectedTeams), [selectedTeams])
   const allVisibleTeamsSelected =
@@ -410,7 +443,7 @@ function CreateTournamentPanel({ onCreated }) {
           actorUserId,
         })
       } else {
-        const requestedId = `${name}-${season}`
+      const requestedId = `${name}-${season}`
           .toString()
           .trim()
           .toLowerCase()
@@ -439,9 +472,12 @@ function CreateTournamentPanel({ onCreated }) {
           name,
           season,
           source: 'manual',
-          tournamentType,
-          country: tournamentType === 'league' ? country : '',
-          league: tournamentType === 'league' ? league : '',
+          tournamentType:
+            manualTeamSource === 'custom' ? 'custom' : tournamentType,
+          country:
+            manualTeamSource === 'custom' ? '' : tournamentType === 'league' ? country : '',
+          league:
+            manualTeamSource === 'custom' ? '' : tournamentType === 'league' ? league : '',
           selectedTeams,
           matches,
           actorUserId,
@@ -776,10 +812,12 @@ function CreateTournamentPanel({ onCreated }) {
                         setCountry('')
                         setLeague('')
                         setSelectedTeams([])
+                        setManualTeamSource(next === 'custom' ? 'custom' : 'saved')
                       }}
                       options={[
                         { value: 'international', label: 'International' },
                         { value: 'league', label: 'League' },
+                        { value: 'custom', label: 'Custom / Test' },
                       ]}
                     />
                   </label>
@@ -842,17 +880,64 @@ function CreateTournamentPanel({ onCreated }) {
                   </div>
                 ) : null}
 
-                <div className="create-contest-field">
-                  <span>Available teams</span>
-                  <StickyTable
-                    columns={teamTableColumns}
-                    rows={availableTeams}
-                    rowKey={(row) => row.teamCode}
-                    emptyText="No teams available"
-                    wrapperClassName="catalog-table-wrap create-tournament-teams-table"
-                    tableClassName="catalog-table"
-                  />
+                <div
+                  className="create-tournament-input-tabs"
+                  role="tablist"
+                  aria-label="Manual team source"
+                >
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    role="tab"
+                    aria-selected={manualTeamSource === 'saved'}
+                    className={`create-tournament-input-tab ${manualTeamSource === 'saved' ? 'active' : ''}`.trim()}
+                    onClick={() => {
+                      setManualTeamSource('saved')
+                      setSelectedTeams([])
+                    }}
+                    disabled={tournamentType === 'custom'}
+                  >
+                    Saved squads
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    role="tab"
+                    aria-selected={manualTeamSource === 'custom'}
+                    className={`create-tournament-input-tab ${manualTeamSource === 'custom' ? 'active' : ''}`.trim()}
+                    onClick={() => setManualTeamSource('custom')}
+                  >
+                    Custom teams
+                  </Button>
                 </div>
+
+                {manualTeamSource === 'custom' ? (
+                  <label className="create-contest-field">
+                    <span>Team codes</span>
+                    <textarea
+                      className="dashboard-json-textarea"
+                      rows={5}
+                      placeholder={`A\nB\nC`}
+                      value={customTeamsText}
+                      onChange={(event) => setCustomTeamsText(event.target.value)}
+                    />
+                    <small className="field-help-text">
+                      Enter one team code per line or comma-separated. Example: A, B, C.
+                    </small>
+                  </label>
+                ) : (
+                  <div className="create-contest-field">
+                    <span>Available teams</span>
+                    <StickyTable
+                      columns={teamTableColumns}
+                      rows={availableTeams}
+                      rowKey={(row) => row.teamCode}
+                      emptyText="No teams available"
+                      wrapperClassName="catalog-table-wrap create-tournament-teams-table"
+                      tableClassName="catalog-table"
+                    />
+                  </div>
+                )}
                 <div className="top-actions">
                   <Button
                     variant="secondary"

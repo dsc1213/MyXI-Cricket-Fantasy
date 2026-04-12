@@ -3,6 +3,7 @@ import { dbQuery } from '../db.js'
 import { mapMatchWithDerivedStatus } from './tournamentImport.service.js'
 import teamSelectionService from './team-selection.service.js'
 import { resolveEffectiveSelection } from '../scoring.js'
+import auditLogService from './audit-log.service.js'
 
 const factory = createRepositoryFactory()
 const STARTING_SOON_WINDOW_MS = 6 * 60 * 60 * 1000
@@ -137,6 +138,32 @@ const assignDenseRanks = (rows = [], pointsSelector = (row) => Number(row?.point
 }
 
 class ContestService {
+  async getContestRemovalImpact(contestId) {
+    const repo = await factory.getContestRepository()
+    const contest = await repo.findByIdIncludingPending(contestId)
+    if (!contest) return null
+    const summaryResult = await dbQuery(
+      `SELECT
+         (SELECT COUNT(*)::int FROM contest_joins WHERE contest_id = $1) as "joinedCount",
+         (SELECT COUNT(*)::int FROM team_selections WHERE contest_id = $1) as "teamSelectionsCount",
+         (SELECT COUNT(*)::int FROM contest_fixed_rosters WHERE contest_id = $1) as "fixedRostersCount",
+         (SELECT COUNT(*)::int FROM contest_scores WHERE contest_id = $1) as "contestScoresCount"`,
+      [contestId],
+    )
+    const summary = summaryResult.rows[0] || {}
+    return {
+      contestId: String(contest.id),
+      contestName: contest.name,
+      tournamentId: String(contest.tournamentId || ''),
+      previousStatus: contest.status || 'Open',
+      matchCount: Array.isArray(contest.matchIds) ? contest.matchIds.length : 0,
+      joinedCount: Number(summary.joinedCount || 0),
+      teamSelectionsCount: Number(summary.teamSelectionsCount || 0),
+      fixedRostersCount: Number(summary.fixedRostersCount || 0),
+      contestScoresCount: Number(summary.contestScoresCount || 0),
+    }
+  }
+
   async getFixedRosterAggregateIndex(contest, { userIds = [] } = {}) {
     const contestId = contest?.id
     const tournamentId = contest?.tournamentId
@@ -567,10 +594,146 @@ class ContestService {
     return await repo.update(id, payload)
   }
 
+  async requestContestRemoval(id, { performedBy = null, ipAddress = '', userAgent = '' } = {}) {
+    const repo = await factory.getContestRepository()
+    const contest = await repo.findByIdIncludingPending(id)
+    if (!contest) return { ok: false, pending: false, contestId: null }
+    const impactSummary = await this.getContestRemovalImpact(id)
+    await repo.update(id, { status: 'pending_removal' })
+    await auditLogService.logAction({
+      performedBy,
+      action: 'Delete requested',
+      resourceType: 'contest',
+      resourceId: String(contest.id),
+      tournamentId: contest.tournamentId || 'global',
+      module: 'contests',
+      detail: `Requested removal for contest "${contest.name}"`,
+      target: contest.name,
+      changes: {
+        contestId: String(contest.id),
+        contestName: contest.name,
+        impactSummary,
+      },
+      ipAddress,
+      userAgent,
+    })
+    return {
+      ok: true,
+      pending: true,
+      contestId: String(contest.id),
+      contestName: contest.name,
+      tournamentId: contest.tournamentId || null,
+      requestedAt: new Date().toISOString(),
+      impactSummary,
+    }
+  }
+
+  async listPendingContestRemovals() {
+    const result = await dbQuery(
+      `SELECT c.id as "contestId",
+              c.name as "contestName",
+              c.tournament_id as "tournamentId",
+              t.name as "tournamentName",
+              c.updated_at as "requestedAt",
+              COALESCE(NULLIF(u.game_name, ''), NULLIF(u.name, ''), NULLIF(u.user_id, '')) as "requestedBy",
+              al.changes
+       FROM contests c
+       LEFT JOIN tournaments t ON t.id = c.tournament_id
+       LEFT JOIN LATERAL (
+         SELECT performed_by, changes
+         FROM audit_logs
+         WHERE resource_type = 'contest'
+           AND resource_id = c.id::text
+           AND action = 'Delete requested'
+         ORDER BY created_at DESC
+         LIMIT 1
+       ) al ON true
+       LEFT JOIN users u ON u.id = al.performed_by
+       WHERE COALESCE(lower(c.status), 'open') = 'pending_removal'
+       ORDER BY c.updated_at DESC`,
+    )
+    return (result.rows || []).map((row) => ({
+      ...row,
+      impactSummary: row.changes?.impactSummary || row.changes || {},
+      resourceType: 'contest',
+      id: `contest-${row.contestId}`,
+      resourceId: row.contestId,
+      resourceName: row.contestName,
+    }))
+  }
+
+  async rejectContestRemoval(id, { performedBy = null, ipAddress = '', userAgent = '' } = {}) {
+    const repo = await factory.getContestRepository()
+    const contest = await repo.findByIdIncludingPending(id)
+    if (!contest || String(contest.status || '').toLowerCase() !== 'pending_removal') {
+      return { ok: false, restored: false, contestId: null }
+    }
+    const auditResult = await dbQuery(
+      `SELECT changes
+       FROM audit_logs
+       WHERE resource_type = 'contest'
+         AND resource_id = $1::text
+         AND action = 'Delete requested'
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [id],
+    )
+    const previousStatus =
+      auditResult.rows?.[0]?.changes?.impactSummary?.previousStatus ||
+      auditResult.rows?.[0]?.changes?.previousStatus ||
+      'Open'
+    await repo.update(id, { status: previousStatus })
+    await auditLogService.logAction({
+      performedBy,
+      action: 'Delete rejected',
+      resourceType: 'contest',
+      resourceId: String(id),
+      tournamentId: contest.tournamentId || 'global',
+      module: 'contests',
+      detail: `Rejected removal for contest "${contest.name || id}"`,
+      target: contest.name || String(id),
+      changes: {
+        contestId: String(id),
+        contestName: contest.name || '',
+        previousStatus,
+      },
+      ipAddress,
+      userAgent,
+    })
+    return { ok: true, restored: true, contestId: String(id) }
+  }
+
+  async confirmContestRemoval(id, { performedBy = null, ipAddress = '', userAgent = '' } = {}) {
+    const contest = await this.getContestRemovalImpact(id)
+    if (!contest) {
+      return { ok: false, removedId: null, removedParticipants: 0 }
+    }
+    const result = await this.deleteContest(id)
+    if (!result?.ok) return result
+    await auditLogService.logAction({
+      performedBy,
+      action: 'Delete approved',
+      resourceType: 'contest',
+      resourceId: String(result.removedId || id),
+      tournamentId: result.tournamentId || 'global',
+      module: 'contests',
+      detail: `Approved permanent delete for contest "${contest.contestName || id}"`,
+      target: contest.contestName || String(id),
+      changes: {
+        contestId: String(result.removedId || id),
+        contestName: contest.contestName || '',
+        impactSummary: contest,
+      },
+      ipAddress,
+      userAgent,
+    })
+    return result
+  }
+
   // Deletes a contest and cleans dependent participation rows.
   async deleteContest(id) {
     const repo = await factory.getContestRepository()
-    const contest = await repo.findById(id)
+    const contest = await repo.findByIdIncludingPending(id)
     if (!contest) return { ok: false, removedId: null, removedParticipants: 0 }
     const participantResult = await dbQuery(
       `SELECT COUNT(*)::int AS count

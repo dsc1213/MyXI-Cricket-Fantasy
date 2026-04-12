@@ -7,6 +7,7 @@ class TournamentRepository {
               tournament_type as "tournamentType", country, league, selected_teams as "selectedTeams",
               created_at as "createdAt", updated_at as "updatedAt"
        FROM tournaments
+       WHERE COALESCE(lower(status), 'active') <> 'pending_removal'
        ORDER BY created_at DESC`,
     )
     return result.rows.map((row) => ({
@@ -22,7 +23,8 @@ class TournamentRepository {
               tournament_type as "tournamentType", country, league, selected_teams as "selectedTeams",
               created_at as "createdAt", updated_at as "updatedAt"
        FROM tournaments
-       WHERE id = $1`,
+       WHERE id = $1
+         AND COALESCE(lower(status), 'active') <> 'pending_removal'`,
       [id],
     )
     const row = result.rows[0]
@@ -40,7 +42,8 @@ class TournamentRepository {
               tournament_type as "tournamentType", country, league, selected_teams as "selectedTeams",
               created_at as "createdAt", updated_at as "updatedAt"
        FROM tournaments
-       WHERE source_key = $1`,
+       WHERE source_key = $1
+         AND COALESCE(lower(status), 'active') <> 'pending_removal'`,
       [sourceKey],
     )
     const row = result.rows[0]
@@ -159,6 +162,24 @@ class TournamentRepository {
       [id],
     )
     return result.rows.length > 0
+  }
+
+  async findByIdIncludingPending(id) {
+    const result = await dbQuery(
+      `SELECT id, name, season, status, source_key as "sourceKey", source,
+              tournament_type as "tournamentType", country, league, selected_teams as "selectedTeams",
+              created_at as "createdAt", updated_at as "updatedAt"
+       FROM tournaments
+       WHERE id = $1`,
+      [id],
+    )
+    const row = result.rows[0]
+    if (!row) return null
+    return {
+      ...row,
+      selectedTeams:
+        typeof row.selectedTeams === 'string' ? JSON.parse(row.selectedTeams) : row.selectedTeams,
+    }
   }
 }
 

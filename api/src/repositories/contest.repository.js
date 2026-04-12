@@ -9,6 +9,7 @@ class ContestRepository {
               start_at as "startAt", started_at as "startedAt",
               created_at as "createdAt", updated_at as "updatedAt"
        FROM contests
+       WHERE COALESCE(lower(status), 'open') <> 'pending_removal'
        ORDER BY created_at DESC`,
     )
     return result.rows.map((row) => ({
@@ -30,7 +31,8 @@ class ContestRepository {
               start_at as "startAt", started_at as "startedAt",
               created_at as "createdAt", updated_at as "updatedAt"
        FROM contests
-       WHERE id = $1`,
+       WHERE id = $1
+         AND COALESCE(lower(status), 'open') <> 'pending_removal'`,
       [id],
     )
     const row = result.rows[0]
@@ -55,6 +57,7 @@ class ContestRepository {
               created_at as "createdAt", updated_at as "updatedAt"
        FROM contests
        WHERE tournament_id = $1
+         AND COALESCE(lower(status), 'open') <> 'pending_removal'
        ORDER BY created_at DESC`,
       [tournamentId],
     )
@@ -207,6 +210,30 @@ class ContestRepository {
       [id],
     )
     return result.rows.length > 0
+  }
+
+  async findByIdIncludingPending(id) {
+    const result = await dbQuery(
+      `SELECT id, tournament_id as "tournamentId", name, match_ids as "matchIds", prize_structure as "prizeStructure",
+              game, mode, source_key as "sourceKey", status, entry_fee as "entryFee",
+              max_participants as "maxParticipants", participants_count as "participantsCount",
+              start_at as "startAt", started_at as "startedAt",
+              created_at as "createdAt", updated_at as "updatedAt"
+       FROM contests
+       WHERE id = $1`,
+      [id],
+    )
+    const row = result.rows[0]
+    if (!row) return null
+    return {
+      ...row,
+      matchIds:
+        typeof row.matchIds === 'string' ? JSON.parse(row.matchIds) : row.matchIds,
+      prizeStructure:
+        typeof row.prizeStructure === 'string'
+          ? JSON.parse(row.prizeStructure)
+          : row.prizeStructure,
+    }
   }
 
   async incrementParticipants(id) {

@@ -631,6 +631,46 @@ body.dark-theme .admin-manager-panel .catalog-table tbody tr.active:hover {
   max-height: min(22vh, 190px);
 }
 
+.pending-removals-panel {
+  gap: 0.4rem;
+  min-height: 0;
+  height: auto;
+  padding: 0.78rem 0.88rem;
+}
+
+.dashboard-panel-view .admin-card.dashboard-panel-card.pending-removals-panel {
+  min-height: 0;
+}
+
+.pending-removals-panel .contest-section-head {
+  margin: 0;
+  min-height: 0;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pending-removals-panel .contest-section-head .top-actions {
+  width: auto;
+  justify-content: flex-end;
+  gap: 0.38rem;
+}
+
+.pending-removals-panel .dashboard-text-input {
+  width: min(320px, 100%);
+}
+
+.pending-removals-panel .catalog-table-wrap {
+  max-height: min(40vh, 340px);
+  min-height: 0;
+  margin-top: 0.08rem;
+}
+
+.pending-removals-panel .team-note,
+.pending-removals-panel .success-text,
+.pending-removals-panel .error-text {
+  margin: 0;
+}
+
 @media (max-width: 900px) {
   .dashboard-shell.panel-userManager .dashboard-panel-view,
   .dashboard-shell.panel-admin .dashboard-panel-view {
@@ -653,6 +693,28 @@ body.dark-theme .admin-manager-panel .catalog-table tbody tr.active:hover {
   .pending-approvals-panel .catalog-table-wrap,
   .pending-approvals-panel.compact .catalog-table-wrap {
     max-height: min(52vh, 420px);
+  }
+
+  .pending-removals-panel {
+    padding: 0.68rem 0.72rem;
+  }
+
+  .pending-removals-panel .contest-section-head {
+    align-items: stretch;
+  }
+
+  .pending-removals-panel .contest-section-head .top-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .pending-removals-panel .dashboard-text-input {
+    width: 100%;
+  }
+
+  .pending-removals-panel .catalog-table-wrap {
+    max-height: min(46vh, 360px);
   }
 }
 
@@ -3785,6 +3847,40 @@ body.dark-theme .fantasy-hub-main {
   border: 1px solid var(--panel-border);
   border-radius: 12px;
   background: var(--panel-bg);
+}
+
+.remove-resource-modal {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.remove-resource-summary {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(122, 145, 183, 0.24);
+  border-radius: 16px;
+  background: rgba(65, 91, 136, 0.08);
+}
+
+.remove-resource-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.94rem;
+}
+
+.remove-resource-summary-row span {
+  color: var(--text-muted);
+}
+
+.remove-resource-confirm-field {
+  margin-top: 0.25rem;
+}
+
+.remove-resource-confirm-field span {
+  font-weight: 600;
 }
 
 .leaderboard-compare-summary {

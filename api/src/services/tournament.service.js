@@ -4,6 +4,7 @@ import {
   buildImportedTournamentPayload,
   mapMatchWithDerivedStatus,
 } from './tournamentImport.service.js'
+import auditLogService from './audit-log.service.js'
 
 const factory = createRepositoryFactory()
 
@@ -128,7 +129,7 @@ class TournamentService {
     const asNumber = Number(id)
     const tournament =
       Number.isFinite(asNumber) && asNumber > 0
-        ? await repo.findById(asNumber)
+        ? await repo.findByIdIncludingPending(asNumber)
         : await repo.findBySourceKey((id || '').toString().trim())
     if (!tournament) {
       return { ok: false, removedTournamentId: null, removedContests: 0 }
@@ -193,7 +194,8 @@ class TournamentService {
                false
              ) AS "hasActiveContests"
            FROM contests
-           WHERE tournament_id = $1`,
+           WHERE tournament_id = $1
+             AND COALESCE(lower(status), 'open') <> 'pending_removal'`,
           [tournament.id],
         )
         const contestSummary = contestSummaryResult.rows[0] || {}
@@ -223,6 +225,147 @@ class TournamentService {
       }),
     )
     return rows
+  }
+
+  async getTournamentRemovalImpact(id) {
+    const repo = await factory.getTournamentRepository()
+    const asNumber = Number(id)
+    const tournament = Number.isFinite(asNumber) && asNumber > 0
+      ? await repo.findByIdIncludingPending(asNumber)
+      : await repo.findBySourceKey((id || '').toString().trim())
+    if (!tournament) return null
+    const summaryResult = await dbQuery(
+      `SELECT
+         (SELECT COUNT(*)::int FROM matches WHERE tournament_id = $1) as "matchCount",
+         (SELECT COUNT(*)::int FROM contests WHERE tournament_id = $1 AND COALESCE(lower(status), 'open') <> 'pending_removal') as "contestCount",
+         (SELECT COUNT(*)::int FROM match_scores WHERE tournament_id = $1) as "scoreRowsCount",
+         (SELECT COUNT(*)::int FROM match_lineups WHERE tournament_id = $1) as "lineupsCount"`,
+      [tournament.id],
+    )
+    const summary = summaryResult.rows[0] || {}
+    return {
+      tournamentId: String(tournament.id),
+      tournamentName: tournament.name,
+      previousStatus: tournament.status || 'inactive',
+      matchCount: Number(summary.matchCount || 0),
+      contestCount: Number(summary.contestCount || 0),
+      scoreRowsCount: Number(summary.scoreRowsCount || 0),
+      lineupsCount: Number(summary.lineupsCount || 0),
+    }
+  }
+
+  async requestTournamentRemoval(id, { performedBy = null, ipAddress = '', userAgent = '' } = {}) {
+    const repo = await factory.getTournamentRepository()
+    const impact = await this.getTournamentRemovalImpact(id)
+    if (!impact) return { ok: false, tournamentId: null }
+    const updated = await repo.update(impact.tournamentId, { status: 'pending_removal' })
+    await auditLogService.logAction({
+      performedBy,
+      action: 'Delete requested',
+      resourceType: 'tournament',
+      resourceId: impact.tournamentId,
+      tournamentId: impact.tournamentId,
+      module: 'tournaments',
+      detail: `Remove requested for ${impact.tournamentName}`,
+      target: impact.tournamentName,
+      changes: impact,
+      ipAddress,
+      userAgent,
+    })
+    return { ok: Boolean(updated), tournamentId: impact.tournamentId, impact }
+  }
+
+  async listPendingTournamentRemovals() {
+    const result = await dbQuery(
+      `SELECT t.id as "tournamentId",
+              t.name as "tournamentName",
+              t.updated_at as "requestedAt",
+              COALESCE(NULLIF(u.game_name, ''), NULLIF(u.name, ''), NULLIF(u.user_id, '')) as "requestedBy",
+              al.changes
+       FROM tournaments t
+       LEFT JOIN LATERAL (
+         SELECT performed_by, changes
+         FROM audit_logs
+         WHERE resource_type = 'tournament'
+           AND resource_id = t.id::text
+           AND action = 'Delete requested'
+         ORDER BY created_at DESC
+         LIMIT 1
+       ) al ON true
+       LEFT JOIN users u ON u.id = al.performed_by
+       WHERE COALESCE(lower(t.status), 'active') = 'pending_removal'
+       ORDER BY t.updated_at DESC`,
+    )
+    return (result.rows || []).map((row) => ({
+      ...row,
+      impactSummary: row.changes || {},
+      resourceType: 'tournament',
+      id: `tournament-${row.tournamentId}`,
+      resourceId: row.tournamentId,
+      resourceName: row.tournamentName,
+    }))
+  }
+
+  async rejectTournamentRemoval(id, { performedBy = null, ipAddress = '', userAgent = '' } = {}) {
+    const repo = await factory.getTournamentRepository()
+    const tournament = await repo.findByIdIncludingPending(id)
+    if (!tournament || String(tournament.status || '').toLowerCase() !== 'pending_removal') {
+      return { ok: false, tournamentId: null }
+    }
+    const auditResult = await dbQuery(
+      `SELECT changes
+       FROM audit_logs
+       WHERE resource_type = 'tournament'
+         AND resource_id = $1::text
+         AND action = 'Delete requested'
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [id],
+    )
+    const previousStatus =
+      auditResult.rows?.[0]?.changes?.previousStatus ||
+      auditResult.rows?.[0]?.changes?.impact?.previousStatus ||
+      'inactive'
+    const restored = await repo.update(id, { status: previousStatus })
+    await auditLogService.logAction({
+      performedBy,
+      action: 'Delete rejected',
+      resourceType: 'tournament',
+      resourceId: String(id),
+      tournamentId: String(id),
+      module: 'tournaments',
+      detail: `Removal rejected for ${tournament.name}`,
+      target: tournament.name,
+      changes: {
+        tournamentId: String(id),
+        tournamentName: tournament.name || '',
+        previousStatus,
+      },
+      ipAddress,
+      userAgent,
+    })
+    return { ok: Boolean(restored), tournamentId: String(id) }
+  }
+
+  async confirmTournamentRemoval(id, { performedBy = null, ipAddress = '', userAgent = '' } = {}) {
+    const tournament = await this.getTournamentRemovalImpact(id)
+    if (!tournament) return { ok: false, tournamentId: null, removedContests: 0 }
+    const result = await this.deleteTournament(id)
+    if (!result?.ok) return result
+    await auditLogService.logAction({
+      performedBy,
+      action: 'Delete approved',
+      resourceType: 'tournament',
+      resourceId: result.removedTournamentId || String(id),
+      tournamentId: result.removedTournamentId || String(id),
+      module: 'tournaments',
+      detail: `Removed ${Number(result.removedContests || 0)} contests from ${tournament.tournamentName}`,
+      target: tournament.tournamentName,
+      changes: tournament,
+      ipAddress,
+      userAgent,
+    })
+    return result
   }
 
   // Computes leaderboard totals across all matches in a tournament.

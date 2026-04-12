@@ -919,9 +919,12 @@ const createAdminAuctionImport = (payload) =>
     method: 'POST',
     body: JSON.stringify(payload || {}),
   })
-const deleteAdminTournament = async ({ id, actorUserId }) => {
-  const data = await request(`/admin/tournaments/${id}`, {
-    method: 'DELETE',
+const fetchTournamentRemovalPreview = (tournamentId) =>
+  request(`/admin/tournaments/${tournamentId}/removal-preview`)
+
+const removeAdminTournament = async ({ id, actorUserId }) => {
+  const data = await request(`/admin/tournaments/${id}/remove`, {
+    method: 'POST',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
   invalidateAppQueryCache((key) =>
@@ -931,6 +934,36 @@ const deleteAdminTournament = async ({ id, actorUserId }) => {
     key === 'dashboardPageLoadData',
   )
   await Promise.allSettled([primeCachedGet('dashboardPageLoadData', () => request('/page-load-data'))])
+  return data
+}
+const fetchPendingTournamentRemovals = () =>
+  request('/admin/pending-removals/tournaments')
+
+const confirmPendingTournamentRemoval = async (tournamentId, actorUserId = '') => {
+  const data = await request(`/admin/pending-removals/tournaments/${tournamentId}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify(actorUserId ? { actorUserId } : {}),
+  })
+  invalidateAppQueryCache((key) =>
+    key === 'tournaments' ||
+    key === 'prettyTournaments' ||
+    key === 'tournamentCatalog' ||
+    key.startsWith('dashboardPageLoadData:'),
+  )
+  return data
+}
+
+const rejectPendingTournamentRemoval = async (tournamentId, actorUserId = '') => {
+  const data = await request(`/admin/pending-removals/tournaments/${tournamentId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify(actorUserId ? { actorUserId } : {}),
+  })
+  invalidateAppQueryCache((key) =>
+    key === 'tournaments' ||
+    key === 'prettyTournaments' ||
+    key === 'tournamentCatalog' ||
+    key.startsWith('dashboardPageLoadData:'),
+  )
   return data
 }
 const updateAdminMatchStatus = async ({ id, status }) => {
@@ -1020,14 +1053,49 @@ const fetchContestMatchOptions = (tournamentId = '') => {
     request(`/admin/contest-match-options${query ? `?${query}` : ''}`),
   )
 }
-const deleteAdminContest = async (contestId, actorUserId = '') => {
-  const data = await request(`/admin/contests/${contestId}`, {
-    method: 'DELETE',
+const fetchContestRemovalPreview = (contestId) =>
+  request(`/admin/contests/${contestId}/removal-preview`)
+
+const removeAdminContest = async (contestId, actorUserId = '') => {
+  const data = await request(`/admin/contests/${contestId}/remove`, {
+    method: 'POST',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
   invalidateAppQueryCache((key) =>
     key.startsWith('contestCatalog:') ||
     key.startsWith('contests:') ||
+    key === `contest:${contestId}` ||
+    key.startsWith('dashboardPageLoadData:'),
+  )
+  return data
+}
+
+const fetchPendingContestRemovals = () =>
+  request('/admin/pending-removals/contests')
+
+const confirmPendingContestRemoval = async (contestId, actorUserId = '') => {
+  const data = await request(`/admin/pending-removals/contests/${contestId}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify(actorUserId ? { actorUserId } : {}),
+  })
+  invalidateAppQueryCache((key) =>
+    key.startsWith('contestCatalog:') ||
+    key.startsWith('contests:') ||
+    key.startsWith('dashboardPageLoadData:') ||
+    key === `contest:${contestId}`,
+  )
+  return data
+}
+
+const rejectPendingContestRemoval = async (contestId, actorUserId = '') => {
+  const data = await request(`/admin/pending-removals/contests/${contestId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify(actorUserId ? { actorUserId } : {}),
+  })
+  invalidateAppQueryCache((key) =>
+    key.startsWith('contestCatalog:') ||
+    key.startsWith('contests:') ||
+    key.startsWith('dashboardPageLoadData:') ||
     key === `contest:${contestId}`,
   )
   return data
@@ -1126,7 +1194,11 @@ export {
   disableTournaments,
   createAdminTournament,
   createAdminAuctionImport,
-  deleteAdminTournament,
+  fetchTournamentRemovalPreview,
+  removeAdminTournament,
+  fetchPendingTournamentRemovals,
+  confirmPendingTournamentRemoval,
+  rejectPendingTournamentRemoval,
   updateAdminMatchStatus,
   replaceAdminMatchBackups,
   fetchAdminTeamSquads,
@@ -1135,7 +1207,11 @@ export {
   createAdminContest,
   startAdminContest,
   fetchContestMatchOptions,
-  deleteAdminContest,
+  fetchContestRemovalPreview,
+  removeAdminContest,
+  fetchPendingContestRemovals,
+  confirmPendingContestRemoval,
+  rejectPendingContestRemoval,
   fetchContestCatalog,
   syncContestSelections,
   prefetchAppData,

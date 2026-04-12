@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import ResourceRemovalModal from '../../components/admin/ResourceRemovalModal.jsx'
 import Button from '../../components/ui/Button.jsx'
 import JsonTextareaField from '../../components/ui/JsonTextareaField.jsx'
 import Modal from '../../components/ui/Modal.jsx'
 import StickyTable from '../../components/ui/StickyTable.jsx'
 import {
   createAdminTournament,
-  deleteAdminContest,
   deleteAdminUser,
-  deleteAdminTournament,
+  fetchContestRemovalPreview,
+  fetchTournamentRemovalPreview,
   fetchContestCatalog,
+  removeAdminContest,
+  removeAdminTournament,
   disableTournaments,
   enableTournaments,
   fetchAdminUsers,
@@ -55,6 +58,7 @@ function AdminManagerPanel({
   const currentUser = getStoredUser()
   const isMasterUser = currentUser?.role === 'master_admin'
   const canDeleteTournaments = ['admin', 'master_admin'].includes(currentUser?.role || '')
+  const canRemoveContests = ['admin', 'master_admin'].includes(currentUser?.role || '')
   const [tab, setTab] = useState(initialTab)
   const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [isLoadingTournaments, setIsLoadingTournaments] = useState(true)
@@ -76,6 +80,8 @@ function AdminManagerPanel({
   const [isSaving, setIsSaving] = useState(false)
   const [isSavingUserRoles, setIsSavingUserRoles] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [removalTarget, setRemovalTarget] = useState(null)
+  const [isRemovingResource, setIsRemovingResource] = useState(false)
   const [showCreateTournamentModal, setShowCreateTournamentModal] = useState(false)
   const [tournamentCreateMode, setTournamentCreateMode] = useState('manual')
   const [isCreatingTournament, setIsCreatingTournament] = useState(false)
@@ -384,35 +390,35 @@ function AdminManagerPanel({
 
   const onDeleteTournament = async (tournamentId) => {
     if (!canDeleteTournaments) {
-      setErrorText('Only admin/master can delete tournaments')
+      setErrorText('Only admin/master can remove tournaments')
       return
     }
     try {
       setErrorText('')
       setNotice('')
-      await deleteAdminTournament({
+      await removeAdminTournament({
         id: tournamentId,
         actorUserId: currentUser?.gameName || currentUser?.email || currentUser?.id || '',
       })
       await loadTournamentCatalog()
-      setNotice('Tournament deleted')
+      setNotice('Tournament removed and sent for master review')
     } catch (error) {
-      setErrorText(error.message || 'Failed to delete tournament')
+      setErrorText(error.message || 'Failed to remove tournament')
     }
   }
 
-  const onDeleteContest = async (contestId) => {
+  const onRemoveContest = async (contestId) => {
     try {
       setErrorText('')
       setNotice('')
-      await deleteAdminContest(
+      await removeAdminContest(
         contestId,
         currentUser?.gameName || currentUser?.email || currentUser?.id || '',
       )
       await loadContestCatalog(selectedContestTournamentId)
-      setNotice('Contest deleted')
+      setNotice('Contest removed and sent for master review')
     } catch (error) {
-      setErrorText(error.message || 'Failed to delete contest')
+      setErrorText(error.message || 'Failed to remove contest')
     }
   }
 
@@ -422,14 +428,6 @@ function AdminManagerPanel({
     setDeleteTarget(null)
     if (current.type === 'user') {
       await onDeleteUser(current.id)
-      return
-    }
-    if (current.type === 'tournament') {
-      await onDeleteTournament(current.id)
-      return
-    }
-    if (current.type === 'contest') {
-      await onDeleteContest(current.id)
     }
   }
 
@@ -443,16 +441,16 @@ function AdminManagerPanel({
       setErrorText('')
       setNotice('')
       for (const tournamentId of removableIds) {
-        await deleteAdminTournament({
+        await removeAdminTournament({
           id: tournamentId,
           actorUserId:
             currentUser?.gameName || currentUser?.email || currentUser?.id || '',
         })
       }
       await loadTournamentCatalog()
-      setNotice('Selected tournaments deleted')
+      setNotice('Selected tournaments removed and sent for master review')
     } catch (error) {
-      setErrorText(error.message || 'Failed to delete selected tournaments')
+      setErrorText(error.message || 'Failed to remove selected tournaments')
     } finally {
       setIsSaving(false)
     }
@@ -670,7 +668,7 @@ function AdminManagerPanel({
     },
     {
       key: 'delete',
-      label: 'Delete',
+      label: 'Remove',
       render: (row) => (
         <Button
           variant="danger"
@@ -678,15 +676,14 @@ function AdminManagerPanel({
           disabled={!canDeleteTournaments || isSaving}
           onClick={(event) => {
             event.stopPropagation()
-            setDeleteTarget({
+            setRemovalTarget({
               type: 'tournament',
               id: row.id,
               name: row.name,
-              detail: `Delete tournament "${row.name}"?`,
             })
           }}
         >
-          Delete
+          Remove
         </Button>
       ),
     },
@@ -866,23 +863,22 @@ function AdminManagerPanel({
     },
     {
       key: 'delete',
-      label: 'Delete',
+      label: 'Remove',
       render: (row) => (
         <Button
           variant="danger"
           size="small"
-          disabled={!isMasterUser}
+          disabled={!canRemoveContests}
           onClick={(event) => {
             event.stopPropagation()
-            setDeleteTarget({
+            setRemovalTarget({
               type: 'contest',
               id: row.id,
               name: row.name,
-              detail: `Delete contest "${row.name}"?`,
             })
           }}
         >
-          Delete
+          Remove
         </Button>
       ),
     },
@@ -1042,7 +1038,7 @@ function AdminManagerPanel({
                           disabled={!enabledSelectedCount || isSaving || !isMasterUser}
                           onClick={() => void onDeleteSelectedTournaments()}
                         >
-                          Delete selected
+                          Remove selected
                         </Button>
                       </div>
                     </div>
@@ -1321,13 +1317,7 @@ function AdminManagerPanel({
       <Modal
         open={Boolean(deleteTarget)}
         onClose={() => setDeleteTarget(null)}
-        title={
-          deleteTarget?.type === 'user'
-            ? 'Delete user'
-            : deleteTarget?.type === 'tournament'
-              ? 'Delete tournament'
-              : 'Delete contest'
-        }
+        title="Delete user"
         size="sm"
         footer={
           <>
@@ -1346,6 +1336,51 @@ function AdminManagerPanel({
       >
         <p className="team-note">{deleteTarget?.detail || ''}</p>
       </Modal>
+      <ResourceRemovalModal
+        key={`resource-remove-${removalTarget?.type || 'none'}-${removalTarget?.id || 'none'}`}
+        open={Boolean(removalTarget)}
+        resourceId={removalTarget?.id || ''}
+        resourceName={removalTarget?.name || ''}
+        resourceLabel={removalTarget?.type === 'tournament' ? 'tournament' : 'contest'}
+        impactLabel={removalTarget?.type === 'tournament' ? 'tournament impact' : 'contest impact'}
+        impactRows={
+          removalTarget?.type === 'tournament'
+            ? [
+                { key: 'matchCount', label: 'Matches' },
+                { key: 'contestCount', label: 'Contests' },
+                { key: 'scoreRowsCount', label: 'Score rows' },
+                { key: 'lineupsCount', label: 'Lineups' },
+              ]
+            : [
+                { key: 'matchCount', label: 'Matches' },
+                { key: 'joinedCount', label: 'Participants' },
+                { key: 'teamSelectionsCount', label: 'Team selections' },
+                { key: 'fixedRostersCount', label: 'Fixed rosters' },
+                { key: 'contestScoresCount', label: 'Contest scores' },
+              ]
+        }
+        loadPreview={
+          removalTarget?.type === 'tournament'
+            ? fetchTournamentRemovalPreview
+            : fetchContestRemovalPreview
+        }
+        isSubmitting={isRemovingResource}
+        onClose={() => setRemovalTarget(null)}
+        onConfirm={async () => {
+          if (!removalTarget?.id) return
+          try {
+            setIsRemovingResource(true)
+            if (removalTarget.type === 'tournament') {
+              await onDeleteTournament(removalTarget.id)
+            } else {
+              await onRemoveContest(removalTarget.id)
+            }
+            setRemovalTarget(null)
+          } finally {
+            setIsRemovingResource(false)
+          }
+        }}
+      />
     </section>
   )
 }

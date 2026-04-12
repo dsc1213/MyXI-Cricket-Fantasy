@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import ResourceRemovalModal from '../components/admin/ResourceRemovalModal.jsx'
 import ContestTopBar from '../components/contest-detail/ContestTopBar.jsx'
 import MatchesCard from '../components/contest-detail/MatchesCard.jsx'
 import ParticipantsCard from '../components/contest-detail/ParticipantsCard.jsx'
@@ -8,13 +9,14 @@ import Button from '../components/ui/Button.jsx'
 import Modal from '../components/ui/Modal.jsx'
 import StickyTable from '../components/ui/StickyTable.jsx'
 import {
-  deleteAdminContest,
   fetchContest,
   fetchContestLeaderboard,
   fetchContestMatches,
   fetchContestParticipants,
+  fetchContestRemovalPreview,
   fetchTournaments,
   fetchUserPicks,
+  removeAdminContest,
 } from '../lib/api.js'
 import { getStoredUser } from '../lib/auth.js'
 
@@ -120,7 +122,7 @@ function ContestDetail() {
   const [isLoadingLeaderboardPreview, setIsLoadingLeaderboardPreview] = useState(false)
   const [leaderboardPreviewError, setLeaderboardPreviewError] = useState('')
   const [showDeleteContestModal, setShowDeleteContestModal] = useState(false)
-  const [isDeletingContest, setIsDeletingContest] = useState(false)
+  const [isRemovingContest, setIsRemovingContest] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -380,7 +382,7 @@ function ContestDetail() {
                 setShowDeleteContestModal(true)
               }}
             >
-              Delete contest
+              Remove contest
             </Button>
           ) : null
         }
@@ -435,50 +437,40 @@ function ContestDetail() {
         }}
       />
 
-      <Modal
+      <ResourceRemovalModal
+        key={`contest-remove-${contestId}-${showDeleteContestModal ? 'open' : 'closed'}`}
         open={showDeleteContestModal}
         onClose={() => setShowDeleteContestModal(false)}
-        title="Delete contest"
-        size="sm"
-        footer={
-          <>
-            <Button
-              variant="ghost"
-              size="small"
-              onClick={() => setShowDeleteContestModal(false)}
-            >
-              No
-            </Button>
-            <Button
-              variant="danger"
-              size="small"
-              disabled={isDeletingContest}
-              onClick={async () => {
-                try {
-                  setIsDeletingContest(true)
-                  setErrorText('')
-                  await deleteAdminContest(
-                    contestId,
-                    currentUser?.gameName || currentUser?.email || '',
-                  )
-                  setShowDeleteContestModal(false)
-                  navigate('/fantasy')
-                } catch (error) {
-                  setErrorText(error.message || 'Failed to delete contest')
-                } finally {
-                  setIsDeletingContest(false)
-                }
-              }}
-            >
-              {isDeletingContest ? 'Deleting...' : 'Yes, delete'}
-            </Button>
-          </>
-        }
-      >
-        <p className="error-text">
-          This removes the contest and all join mappings for this contest. Continue?
-        </p>
-      </Modal>
+        resourceId={contestId}
+        resourceName={contestTitle}
+        resourceLabel="contest"
+        impactLabel="contest impact"
+        impactRows={[
+          { key: 'matchCount', label: 'Matches' },
+          { key: 'joinedCount', label: 'Participants' },
+          { key: 'teamSelectionsCount', label: 'Team selections' },
+          { key: 'fixedRostersCount', label: 'Fixed rosters' },
+          { key: 'contestScoresCount', label: 'Contest scores' },
+        ]}
+        loadPreview={fetchContestRemovalPreview}
+        isSubmitting={isRemovingContest}
+        onConfirm={async () => {
+          try {
+            setIsRemovingContest(true)
+            setErrorText('')
+            await removeAdminContest(
+              contestId,
+              currentUser?.gameName || currentUser?.email || '',
+            )
+            setShowDeleteContestModal(false)
+            navigate('/fantasy')
+          } catch (error) {
+            setErrorText(error.message || 'Failed to remove contest')
+          } finally {
+            setIsRemovingContest(false)
+          }
+        }}
+      />
 
       <Modal
         open={showLeaderboardPreview}

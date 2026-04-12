@@ -68,7 +68,7 @@ export const LINEUP_AI_PROMPT_TEXT = [
   '- No markdown or explanations.',
   '- Keep top-level shape as {"lineups": {...}}.',
   '- Use the team keys exactly as shown in the template.',
-  '- For each team include playingXI and include impactPlayers only if impact players are explicitly announced.',
+  '- For each team include playingXI and add the actual impact player only if they have played. Do not assume or add any substitute. Ensure players are unique.',
   '- Each playingXI must contain 11 or 12 unique players.',
   '- impactPlayers is optional and can be empty or omitted when not announced.',
   '- Use player names from the selected squads only.',

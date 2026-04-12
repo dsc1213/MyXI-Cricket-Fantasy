@@ -13,6 +13,7 @@ const adminMenuItems = [
 ]
 const masterMenuItems = [
   { key: 'userManager', label: 'User Manager' },
+  { key: 'pendingRemovals', label: 'Pending Removes' },
   { key: 'audit', label: 'Audit Logs' },
 ]
 
@@ -36,6 +37,7 @@ const sectionTitles = {
   playingXiManager: 'Playing XI Manager',
   scoreManager: 'Score Manager',
   audit: 'Audit Logs',
+  pendingRemovals: 'Pending Removes',
   admin: 'User Manager',
   createTournament: 'Tournament Manager',
   approvals: 'User Manager',

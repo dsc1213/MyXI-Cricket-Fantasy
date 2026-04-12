@@ -19,6 +19,7 @@ import AdminManagerPanel from './dashboard/AdminManagerPanel.jsx'
 import AuditLogsPanel from './dashboard/AuditLogsPanel.jsx'
 import CreateTournamentPanel from './dashboard/CreateTournamentPanel.jsx'
 import JoinedPanel from './dashboard/JoinedPanel.jsx'
+import PendingRemovalsPanel from './dashboard/PendingRemovalsPanel.jsx'
 import PointsPanel from './dashboard/PointsPanel.jsx'
 import PendingApprovalsPanel from './dashboard/PendingApprovalsPanel.jsx'
 import PlayerManagerPanel from './dashboard/PlayerManagerPanel.jsx'
@@ -1459,6 +1460,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
         tournaments={pageLoadData.tournaments}
       />
     ),
+    pendingRemovals: <PendingRemovalsPanel />,
     approvals: (
       <>
         <AdminManagerPanel initialTab="users" hideTabs />

@@ -1086,21 +1086,24 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       hasText: 'Huntercherry Contest',
     })
     await expect(contestRow).toBeVisible()
-    await expect(contestRow.getByRole('button', { name: 'Delete' })).toBeVisible()
-    await contestRow.getByRole('button', { name: 'Delete' }).click()
-    await expect(page.getByText('Delete contest "Huntercherry Contest"?')).toBeVisible()
+    await expect(contestRow.getByRole('button', { name: 'Remove' })).toBeVisible()
+    await contestRow.getByRole('button', { name: 'Remove' }).click()
+    await expect(page.getByText('Remove contest')).toBeVisible()
+    await expect(page.getByText('Type "Huntercherry Contest" to confirm')).toBeVisible()
     await page.getByRole('button', { name: 'Cancel' }).click()
-    await expect(page.getByText('Delete contest "Huntercherry Contest"?')).toHaveCount(0)
+    await expect(page.getByText('Remove contest')).toHaveCount(0)
 
     await page.getByRole('button', { name: 'Tournament Manager' }).click()
     const tournamentRow = page.locator('.catalog-table tbody tr', {
       hasText: 'T20 World Cup 2026',
     })
     await expect(tournamentRow).toBeVisible()
-    await expect(tournamentRow.getByRole('button', { name: 'Delete' })).toBeVisible()
+    await expect(tournamentRow.getByRole('button', { name: 'Remove' })).toBeVisible()
     await expect(tournamentRow.locator('input[type="checkbox"]')).toBeVisible()
     await expect(tournamentRow.getByRole('button', { name: 'Disable' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Delete selected' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Remove selected' })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Pending Removes' }).click()
+    await expect(page).toHaveURL(/\/home\?panel=pendingRemovals$/)
   })
 
   test('contest manager auto-selects a tournament with contests and shows existing contest rows', async ({
@@ -1668,7 +1671,8 @@ test.describe('12) Squad manager + tournament manager flows', () => {
             const rows = await api.fetchTournamentCatalog()
             const target = (rows || []).find((row) => row.sourceKey === nextTournamentId)
             if (target?.id) {
-              await api.deleteAdminTournament({ id: target.id, actorUserId: 'master' })
+              await api.removeAdminTournament({ id: target.id, actorUserId: 'master' })
+              await api.confirmPendingTournamentRemoval(target.id, 'master')
             }
           },
           { nextTournamentId: tournamentId },
@@ -2414,10 +2418,11 @@ test.describe('12) Squad manager + tournament manager flows', () => {
         await page.evaluate(
           async ({ nextTournamentId }) => {
             const api = await import('/src/lib/api.js')
-            await api.deleteAdminTournament({
+            await api.removeAdminTournament({
               id: nextTournamentId,
               actorUserId: 'master',
             })
+            await api.confirmPendingTournamentRemoval(nextTournamentId, 'master')
           },
           { nextTournamentId: tournamentId },
         )
