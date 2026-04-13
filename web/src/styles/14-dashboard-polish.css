@@ -3664,7 +3664,6 @@ body.dark-theme .fantasy-hub-main {
   .team-preview-modal .ui-modal-footer {
     position: sticky;
     bottom: 0;
-    background: var(--modal-bg, #1a2233);
     z-index: 2;
     box-shadow: 0 -2px 8px 0 rgba(0, 0, 0, 0.03);
   }

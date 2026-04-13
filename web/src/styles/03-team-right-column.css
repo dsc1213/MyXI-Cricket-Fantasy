@@ -1,3 +1,33 @@
+/* MyXI luxury role theme tokens */
+:root {
+  --lux-captain-light-bg: #f6e7be;
+  --lux-captain-light-border: #c89b2f;
+  --lux-captain-light-text: #6a4b12;
+  --lux-captain-light-solid: #b78a2e;
+  --lux-captain-light-solid-border: #a97b1f;
+
+  --lux-vice-light-bg: #eee8ff;
+  --lux-vice-light-border: #7c5dcc;
+  --lux-vice-light-text: #402a7a;
+  --lux-vice-light-solid: #6f56c9;
+  --lux-vice-light-solid-border: #5f47b7;
+
+  --lux-captain-dark-bg: #6b5a2a;
+  --lux-captain-dark-border: #c9a84e;
+  --lux-captain-dark-text: #f7e7b6;
+  --lux-captain-dark-solid: #b78a2e;
+  --lux-captain-dark-solid-border: #d9b45a;
+
+  --lux-vice-dark-bg: #3d315f;
+  --lux-vice-dark-border: #8b6fd6;
+  --lux-vice-dark-text: #e7ddfd;
+  --lux-vice-dark-solid: #6f56c9;
+  --lux-vice-dark-solid-border: #9277e8;
+
+  --lux-team-meta-light: #5b6b2f;
+  --lux-team-meta-dark: #d9e7a6;
+}
+
 /* Align right column height with team columns */
 .team-grid-2 {
   align-items: stretch;
@@ -141,7 +171,7 @@
 }
 
 .player-team-tag {
-  color: #86efac;
+  color: #d6c28a;
   font-style: normal;
   font-size: 0.5rem;
   font-weight: 600;
@@ -185,18 +215,24 @@
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.03em;
-  background: rgba(13, 27, 42, 0.18);
-  color: #eef6ff;
+  border: 1px solid rgba(56, 72, 110, 0.14);
+  background: rgba(13, 27, 42, 0.08);
+  color: #22304a;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 1px 2px rgba(15, 23, 42, 0.08);
 }
 
 .myxi-role-summary-pill.captain {
-  background: rgba(209, 172, 74, 0.24);
-  color: #ffecb3;
+  background: var(--lux-captain-light-bg);
+  border-color: var(--lux-captain-light-border);
+  color: var(--lux-captain-light-text);
 }
 
 .myxi-role-summary-pill.vice-captain {
-  background: rgba(108, 92, 231, 0.22);
-  color: #e2ddff;
+  background: var(--lux-vice-light-bg);
+  border-color: var(--lux-vice-light-border);
+  color: var(--lux-vice-light-text);
 }
 
 .myxi-role-hint {
@@ -211,7 +247,7 @@
   flex-wrap: wrap;
   gap: 0.3rem 0.45rem;
   margin-top: 0.05rem;
-  color: #d9f99d;
+  color: var(--lux-team-meta-light);
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -276,9 +312,9 @@
 }
 
 .player-role-btn {
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(10, 23, 36, 0.22);
-  color: #d7ebff;
+  background: rgba(255, 255, 255, 0.92);
+  color: #5b6474;
+  border: 1px solid rgba(148, 163, 184, 0.34);
   border-radius: 999px;
   min-width: 1.55rem;
   height: 1rem;
@@ -287,18 +323,27 @@
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 2px rgba(15, 23, 42, 0.08);
 }
 
 .player-role-btn.captain-btn.active {
-  background: rgba(209, 172, 74, 0.24);
-  border-color: rgba(255, 236, 179, 0.28);
-  color: #ffecb3;
+  background: var(--lux-captain-light-solid);
+  color: #ffffff;
+  border: 1px solid var(--lux-captain-light-solid-border);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 1px 3px rgba(84, 56, 8, 0.18);
 }
 
 .player-role-btn.vice-captain-btn.active {
-  background: rgba(108, 92, 231, 0.22);
-  border-color: rgba(226, 221, 255, 0.26);
-  color: #e2ddff;
+  background: var(--lux-vice-light-solid);
+  color: #ffffff;
+  border: 1px solid var(--lux-vice-light-solid-border);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 1px 3px rgba(53, 33, 112, 0.18);
 }
 
 body.dark-theme .myxi-role-chip.player-chip.slot-chip.compact {
@@ -346,4 +391,69 @@ body.dark-theme .myxi-role-chip.player-chip.slot-chip.compact {
   .myxi-role-selectors {
     gap: 0.2rem;
   }
+}
+
+body.dark-theme .myxi-role-summary-pill {
+  border-color: rgba(160, 176, 210, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e9edf5;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+body.dark-theme .myxi-role-summary-pill.captain {
+  background: var(--lux-captain-dark-bg);
+  border-color: var(--lux-captain-dark-border);
+  color: var(--lux-captain-dark-text);
+}
+
+body.dark-theme .myxi-role-summary-pill.vice-captain {
+  background: var(--lux-vice-dark-bg);
+  border-color: var(--lux-vice-dark-border);
+  color: var(--lux-vice-dark-text);
+}
+
+body.dark-theme .myxi-team-meta {
+  color: var(--lux-team-meta-dark);
+}
+
+body.dark-theme .player-role-btn {
+  background: rgba(24, 38, 56, 0.88);
+  color: #d7dfeb;
+  border: 1px solid rgba(124, 142, 171, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+body.dark-theme .player-role-btn.captain-btn.active {
+  background: #b78a2e;
+  color: #fff8e7;
+  border: 1px solid #d9b45a;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 2px 6px rgba(0, 0, 0, 0.22);
+}
+
+.player-role-btn:hover {
+  background: #f3f4f6; /* slightly deeper than white */
+  color: #374151;
+  border-color: #d1d5db;
+  transform: translateY(-1px);
+}
+
+/* Hover */
+body.dark-theme .player-role-btn:hover {
+  background: rgba(30, 46, 66, 0.96);
+  color: #edf2f8;
+}
+
+body.dark-theme .player-role-btn.vice-captain-btn.active {
+  background: #6f56c9;
+  color: #f7f2ff;
+  border: 1px solid #9277e8;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 2px 6px rgba(0, 0, 0, 0.22);
 }
