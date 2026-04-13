@@ -1459,7 +1459,7 @@ body.dark-theme .player-avatar-fallback {
 
 .right-column {
   display: grid;
-  grid-template-rows: 60% 40%;
+  grid-template-rows: 70% 30%;
   gap: 0.6rem;
 }
 
