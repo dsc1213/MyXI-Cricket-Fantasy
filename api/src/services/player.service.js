@@ -824,9 +824,8 @@ class PlayerService {
       return next
     }
 
-    const scoringRuleRecord = await scoringRuleService.getScoringRulesByTournament(
-      resolvedTournamentId,
-    )
+    const scoringRuleRecord =
+      await scoringRuleService.getScoringRulesByTournament(resolvedTournamentId)
     const ruleSet = getRuleSetForTournament({
       tournamentId: resolvedTournamentId,
       scoringRules: scoringRuleRecord?.rules
@@ -990,16 +989,18 @@ class PlayerService {
 
       let multiplier = 1
       let roleTag = ''
+      // Use resolved C/VC after backup replacement
+      const resolvedCaptainId =
+        resolvedSelection.resolvedCaptainId ?? selection?.captainId
+      const resolvedViceCaptainId =
+        resolvedSelection.resolvedViceCaptainId ?? selection?.viceCaptainId
       if (!forcePlainMultiplier) {
-        if (
-          resolvedSelection.captainApplies &&
-          Number(selection?.captainId) === numericId
-        ) {
+        if (resolvedSelection.captainApplies && Number(resolvedCaptainId) === numericId) {
           multiplier = 2
           roleTag = 'C'
         } else if (
           resolvedSelection.viceCaptainApplies &&
-          Number(selection?.viceCaptainId) === numericId
+          Number(resolvedViceCaptainId) === numericId
         ) {
           multiplier = 1.5
           roleTag = 'VC'
@@ -1020,7 +1021,11 @@ class PlayerService {
       }
     }
 
-    const picksDetailedRaw = (resolvedSelection.nextPlayingXi || selection?.playingXi || [])
+    const picksDetailedRaw = (
+      resolvedSelection.nextPlayingXi ||
+      selection?.playingXi ||
+      []
+    )
       .map((id) => buildPreviewEntry(id))
       .filter(Boolean)
     const backupsDetailedRaw = (resolvedSelection.nextBackups || selection?.backups || [])

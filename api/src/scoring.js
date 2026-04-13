@@ -210,64 +210,174 @@ const calculateFantasyPointBreakdown = (stats, ruleSet) => {
   push('Hat-trick', hatTrick, ruleSet.hatTrick)
 
   if (runs >= 200 && Number(ruleSet.twoHundred || 0)) {
-    rows.push({ label: '200+ bonus', count: 1, valuePerUnit: ruleSet.twoHundred, points: Number(ruleSet.twoHundred || 0) })
+    rows.push({
+      label: '200+ bonus',
+      count: 1,
+      valuePerUnit: ruleSet.twoHundred,
+      points: Number(ruleSet.twoHundred || 0),
+    })
   } else if (runs >= 150 && Number(ruleSet.oneFifty || 0)) {
-    rows.push({ label: '150 bonus', count: 1, valuePerUnit: ruleSet.oneFifty, points: Number(ruleSet.oneFifty || 0) })
+    rows.push({
+      label: '150 bonus',
+      count: 1,
+      valuePerUnit: ruleSet.oneFifty,
+      points: Number(ruleSet.oneFifty || 0),
+    })
   } else if (runs >= 100 && Number(ruleSet.century || 0)) {
-    rows.push({ label: 'Century bonus', count: 1, valuePerUnit: ruleSet.century, points: Number(ruleSet.century || 0) })
+    rows.push({
+      label: 'Century bonus',
+      count: 1,
+      valuePerUnit: ruleSet.century,
+      points: Number(ruleSet.century || 0),
+    })
   } else if (runs >= 75 && Number(ruleSet.seventyFive || 0)) {
-    rows.push({ label: '75 bonus', count: 1, valuePerUnit: ruleSet.seventyFive, points: Number(ruleSet.seventyFive || 0) })
+    rows.push({
+      label: '75 bonus',
+      count: 1,
+      valuePerUnit: ruleSet.seventyFive,
+      points: Number(ruleSet.seventyFive || 0),
+    })
   } else if (runs >= 50 && Number(ruleSet.fifty || 0)) {
-    rows.push({ label: 'Fifty bonus', count: 1, valuePerUnit: ruleSet.fifty, points: Number(ruleSet.fifty || 0) })
+    rows.push({
+      label: 'Fifty bonus',
+      count: 1,
+      valuePerUnit: ruleSet.fifty,
+      points: Number(ruleSet.fifty || 0),
+    })
   } else if (runs >= 30 && Number(ruleSet.thirty || 0)) {
-    rows.push({ label: 'Thirty bonus', count: 1, valuePerUnit: ruleSet.thirty, points: Number(ruleSet.thirty || 0) })
+    rows.push({
+      label: 'Thirty bonus',
+      count: 1,
+      valuePerUnit: ruleSet.thirty,
+      points: Number(ruleSet.thirty || 0),
+    })
   }
 
-  if (runs === 0 && ballsFaced > 0 && stats?.dismissed === true && Number(ruleSet.duck || 0)) {
-    rows.push({ label: 'Duck', count: 1, valuePerUnit: ruleSet.duck, points: Number(ruleSet.duck || 0) })
+  if (
+    runs === 0 &&
+    ballsFaced > 0 &&
+    stats?.dismissed === true &&
+    Number(ruleSet.duck || 0)
+  ) {
+    rows.push({
+      label: 'Duck',
+      count: 1,
+      valuePerUnit: ruleSet.duck,
+      points: Number(ruleSet.duck || 0),
+    })
   }
 
   if (wickets >= 5 && Number(ruleSet.fivew || 0)) {
-    rows.push({ label: 'Five wicket bonus', count: 1, valuePerUnit: ruleSet.fivew, points: Number(ruleSet.fivew || 0) })
+    rows.push({
+      label: 'Five wicket bonus',
+      count: 1,
+      valuePerUnit: ruleSet.fivew,
+      points: Number(ruleSet.fivew || 0),
+    })
   } else if (wickets >= 4 && Number(ruleSet.fourw || 0)) {
-    rows.push({ label: 'Four wicket bonus', count: 1, valuePerUnit: ruleSet.fourw, points: Number(ruleSet.fourw || 0) })
+    rows.push({
+      label: 'Four wicket bonus',
+      count: 1,
+      valuePerUnit: ruleSet.fourw,
+      points: Number(ruleSet.fourw || 0),
+    })
   } else if (wickets >= 3 && Number(ruleSet.threew || 0)) {
-    rows.push({ label: 'Three wicket bonus', count: 1, valuePerUnit: ruleSet.threew, points: Number(ruleSet.threew || 0) })
+    rows.push({
+      label: 'Three wicket bonus',
+      count: 1,
+      valuePerUnit: ruleSet.threew,
+      points: Number(ruleSet.threew || 0),
+    })
   }
 
   if (catches >= 3 && Number(ruleSet.threeCatch || 0)) {
-    rows.push({ label: '3+ catches bonus', count: 1, valuePerUnit: ruleSet.threeCatch, points: Number(ruleSet.threeCatch || 0) })
+    rows.push({
+      label: '3+ catches bonus',
+      count: 1,
+      valuePerUnit: ruleSet.threeCatch,
+      points: Number(ruleSet.threeCatch || 0),
+    })
   }
 
   if (stumpings >= 2 && Number(ruleSet.twoStumping || 0)) {
-    rows.push({ label: '2+ stumpings bonus', count: 1, valuePerUnit: ruleSet.twoStumping, points: Number(ruleSet.twoStumping || 0) })
+    rows.push({
+      label: '2+ stumpings bonus',
+      count: 1,
+      valuePerUnit: ruleSet.twoStumping,
+      points: Number(ruleSet.twoStumping || 0),
+    })
   }
 
   if (ballsFaced >= 15) {
     const strikeRate = getStrikeRateValue(runs, ballsFaced)
     if (strikeRate >= 250 && Number(ruleSet.strikeRate250 || 0)) {
-      rows.push({ label: 'Strike rate 250+', count: 1, valuePerUnit: ruleSet.strikeRate250, points: Number(ruleSet.strikeRate250 || 0) })
+      rows.push({
+        label: 'Strike rate 250+',
+        count: 1,
+        valuePerUnit: ruleSet.strikeRate250,
+        points: Number(ruleSet.strikeRate250 || 0),
+      })
     } else if (strikeRate >= 200 && Number(ruleSet.strikeRate200 || 0)) {
-      rows.push({ label: 'Strike rate 200+', count: 1, valuePerUnit: ruleSet.strikeRate200, points: Number(ruleSet.strikeRate200 || 0) })
+      rows.push({
+        label: 'Strike rate 200+',
+        count: 1,
+        valuePerUnit: ruleSet.strikeRate200,
+        points: Number(ruleSet.strikeRate200 || 0),
+      })
     } else if (strikeRate >= 150 && Number(ruleSet.strikeRate150 || 0)) {
-      rows.push({ label: 'Strike rate 150+', count: 1, valuePerUnit: ruleSet.strikeRate150, points: Number(ruleSet.strikeRate150 || 0) })
+      rows.push({
+        label: 'Strike rate 150+',
+        count: 1,
+        valuePerUnit: ruleSet.strikeRate150,
+        points: Number(ruleSet.strikeRate150 || 0),
+      })
     } else if (strikeRate < 80 && Number(ruleSet.strikeRateBelow80 || 0)) {
-      rows.push({ label: 'Strike rate below 80', count: 1, valuePerUnit: ruleSet.strikeRateBelow80, points: Number(ruleSet.strikeRateBelow80 || 0) })
+      rows.push({
+        label: 'Strike rate below 80',
+        count: 1,
+        valuePerUnit: ruleSet.strikeRateBelow80,
+        points: Number(ruleSet.strikeRateBelow80 || 0),
+      })
     }
   }
 
   if (overs >= 2) {
     const economy = getEconomyValue(overs, runsConceded)
     if (economy <= 3 && Number(ruleSet.economyBelow3 || 0)) {
-      rows.push({ label: 'Economy 3 or less', count: 1, valuePerUnit: ruleSet.economyBelow3, points: Number(ruleSet.economyBelow3 || 0) })
+      rows.push({
+        label: 'Economy 3 or less',
+        count: 1,
+        valuePerUnit: ruleSet.economyBelow3,
+        points: Number(ruleSet.economyBelow3 || 0),
+      })
     } else if (economy <= 5 && Number(ruleSet.economyBelow5 || 0)) {
-      rows.push({ label: 'Economy 5 or less', count: 1, valuePerUnit: ruleSet.economyBelow5, points: Number(ruleSet.economyBelow5 || 0) })
+      rows.push({
+        label: 'Economy 5 or less',
+        count: 1,
+        valuePerUnit: ruleSet.economyBelow5,
+        points: Number(ruleSet.economyBelow5 || 0),
+      })
     } else if (economy <= 6 && Number(ruleSet.economyBelow6 || 0)) {
-      rows.push({ label: 'Economy 6 or less', count: 1, valuePerUnit: ruleSet.economyBelow6, points: Number(ruleSet.economyBelow6 || 0) })
+      rows.push({
+        label: 'Economy 6 or less',
+        count: 1,
+        valuePerUnit: ruleSet.economyBelow6,
+        points: Number(ruleSet.economyBelow6 || 0),
+      })
     } else if (economy >= 12 && Number(ruleSet.economyAbove12 || 0)) {
-      rows.push({ label: 'Economy 12+', count: 1, valuePerUnit: ruleSet.economyAbove12, points: Number(ruleSet.economyAbove12 || 0) })
+      rows.push({
+        label: 'Economy 12+',
+        count: 1,
+        valuePerUnit: ruleSet.economyAbove12,
+        points: Number(ruleSet.economyAbove12 || 0),
+      })
     } else if (economy >= 10 && Number(ruleSet.economyAbove10 || 0)) {
-      rows.push({ label: 'Economy 10+', count: 1, valuePerUnit: ruleSet.economyAbove10, points: Number(ruleSet.economyAbove10 || 0) })
+      rows.push({
+        label: 'Economy 10+',
+        count: 1,
+        valuePerUnit: ruleSet.economyAbove10,
+        points: Number(ruleSet.economyAbove10 || 0),
+      })
     }
   }
 
@@ -554,6 +664,13 @@ const resolveEffectiveSelection = ({
     return null
   }
 
+  // Initialize resolved C/VC and their normalized keys before swap loop
+  let resolvedCaptainId = captainId
+  let resolvedViceCaptainId = viceCaptainId
+
+  let normalizedCaptainKey = normalizeId(resolvedCaptainId)
+  let normalizedViceKey = normalizeId(resolvedViceCaptainId)
+
   for (const playerId of normalizedPlayingXi) {
     const playerKey = normalizeId(playerId)
     if (activeSet.has(playerKey) && !used.has(playerKey)) {
@@ -573,6 +690,15 @@ const resolveEffectiveSelection = ({
         promotedBackupId: replacement,
         benchedPlayerId: playerId,
       })
+      // If benched player was C or VC, assign tag to replacement
+      if (normalizeId(playerId) === normalizeId(captainId)) {
+        resolvedCaptainId = replacement
+        normalizedCaptainKey = normalizeId(replacement)
+      }
+      if (normalizeId(playerId) === normalizeId(viceCaptainId)) {
+        resolvedViceCaptainId = replacement
+        normalizedViceKey = normalizeId(replacement)
+      }
       continue
     }
     nextPlayingXi.push(playerId)
@@ -586,8 +712,11 @@ const resolveEffectiveSelection = ({
   }
 
   const effectiveKeys = effectivePlayerIds.map(normalizeId)
-  const normalizedCaptainKey = normalizeId(captainId)
-  const normalizedViceKey = normalizeId(viceCaptainId)
+
+  // Recalculate normalized keys after possible swap
+  normalizedCaptainKey = normalizeId(resolvedCaptainId)
+  normalizedViceKey = normalizeId(resolvedViceCaptainId)
+
   return {
     nextPlayingXi,
     nextBackups: remainingBackups,
@@ -597,12 +726,14 @@ const resolveEffectiveSelection = ({
     replacementPairs,
     captainApplies:
       !!normalizedCaptainKey &&
-      normalizedPlayingXi.map(normalizeId).includes(normalizedCaptainKey) &&
+      nextPlayingXi.map(normalizeId).includes(normalizedCaptainKey) &&
       effectiveKeys.includes(normalizedCaptainKey),
     viceCaptainApplies:
       !!normalizedViceKey &&
-      normalizedPlayingXi.map(normalizeId).includes(normalizedViceKey) &&
+      nextPlayingXi.map(normalizeId).includes(normalizedViceKey) &&
       effectiveKeys.includes(normalizedViceKey),
+    resolvedCaptainId,
+    resolvedViceCaptainId,
   }
 }
 
