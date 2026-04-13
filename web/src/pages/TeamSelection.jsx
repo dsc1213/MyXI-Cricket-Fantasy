@@ -370,12 +370,10 @@ function TeamSelection() {
   )
   const backupsWithLineupStatus = useMemo(
     () =>
-      sortPlayersByDisplayRole(
-        backups.map((player) => ({
-          ...player,
-          lineupStatus: resolveLineupStatus(player),
-        })),
-      ),
+      backups.map((player) => ({
+        ...player,
+        lineupStatus: resolveLineupStatus(player),
+      })),
     [backups, teamAPlayerIds, teamALineupPlaying, teamBLineupPlaying],
   )
 
