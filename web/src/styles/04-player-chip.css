@@ -32,6 +32,10 @@ body.dark-theme .player-badge {
   color: #b7f3ff;
 }
 
+.player-team-tag {
+  color: #8f7638;
+}
+
 body.dark-theme .player-team-tag {
-  color: #86efac;
+  color: #d6c28a;
 }
