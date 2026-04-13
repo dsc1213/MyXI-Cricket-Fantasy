@@ -532,7 +532,7 @@ function TeamSelection() {
               disabled={
                 selected.length !== limits.maxXI ||
                 isSaving ||
-                (isViewMode ? true : (isMasterAdmin ? false : isMatchLocked))
+                (isViewMode ? true : isMasterAdmin ? false : isMatchLocked)
               }
               onClick={onSave}
             >
@@ -600,7 +600,7 @@ function TeamSelection() {
               setSelectionError('')
             }}
             validationMessage={validationMessage}
-            disabled={isViewMode ? true : (isMasterAdmin ? false : isMatchLocked)}
+            disabled={isViewMode ? true : isMasterAdmin ? false : isMatchLocked}
           />
         </aside>
       </div>
@@ -621,7 +621,7 @@ function TeamSelection() {
                 disabled={
                   selected.length !== limits.maxXI ||
                   isSaving ||
-                  (isViewMode ? true : (isMasterAdmin ? false : isMatchLocked))
+                  (isViewMode ? true : isMasterAdmin ? false : isMatchLocked)
                 }
                 onClick={onSave}
               >
@@ -650,7 +650,7 @@ function TeamSelection() {
               setSelectionError('')
             }}
             validationMessage={validationMessage}
-            disabled={isViewMode ? true : (isMasterAdmin ? false : isMatchLocked)}
+            disabled={isViewMode ? true : isMasterAdmin ? false : isMatchLocked}
           />
         </div>
       </PreviewModal>
