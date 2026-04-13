@@ -223,7 +223,7 @@ function TeamSelection() {
   }
 
   const addPlayer = (player) => {
-    if (isViewMode || (isMatchLocked && !allowLockedEdit)) return
+    if (isViewMode || (isMatchLocked && !isMasterAdmin && !allowLockedEdit)) return
     if (selected.find((p) => p.id === player.id)) return
     if (selected.length >= limits.maxXI) return
     const isTeamA = teamAPlayerIds.has(player.id)
@@ -264,7 +264,7 @@ function TeamSelection() {
   }
 
   const removePlayer = (player) => {
-    if (isViewMode || (isMatchLocked && !allowLockedEdit)) return
+    if (isViewMode || (isMatchLocked && !isMasterAdmin && !allowLockedEdit)) return
     if (String(captainIdRef.current) === String(player.id)) syncCaptainId(null)
     if (String(viceCaptainIdRef.current) === String(player.id)) syncViceCaptainId(null)
     setSelectionError('')
@@ -272,7 +272,7 @@ function TeamSelection() {
   }
 
   const addBackup = (player) => {
-    if (isViewMode || (isMatchLocked && !allowLockedEdit)) return
+    if (isViewMode || (isMatchLocked && !isMasterAdmin && !allowLockedEdit)) return
     if (backups.find((p) => p.id === player.id)) return
     if (selected.find((p) => p.id === player.id)) return
     if (backups.length >= limits.maxBackups) return
@@ -281,7 +281,7 @@ function TeamSelection() {
   }
 
   const removeBackup = (player) => {
-    if (isViewMode || (isMatchLocked && !allowLockedEdit)) return
+    if (isViewMode || (isMatchLocked && !isMasterAdmin && !allowLockedEdit)) return
     setBackups((prev) => prev.filter((p) => p.id !== player.id))
   }
 
@@ -392,7 +392,8 @@ function TeamSelection() {
         )
         return
       }
-      if (isMatchLocked && !allowLockedEdit) {
+      // Allow master admin to save even if match is locked
+      if (isMatchLocked && !isMasterAdmin) {
         throw new Error('Match is locked. Teams cannot be edited after start time.')
       }
       const resolvedCaptainId = captainIdRef.current
@@ -443,7 +444,7 @@ function TeamSelection() {
         isSelected={!!isSelected}
         isBackup={!!isBackup}
         lineupStatus={lineupStatus}
-        disabled={isViewMode || (isMatchLocked && !allowLockedEdit)}
+        disabled={isViewMode || (isMatchLocked && !isMasterAdmin && !allowLockedEdit)}
         onToggle={() => (isSelected ? removePlayer(player) : addPlayer(player))}
         onBackup={() => (isBackup ? removeBackup(player) : addBackup(player))}
       />
@@ -531,7 +532,7 @@ function TeamSelection() {
               disabled={
                 selected.length !== limits.maxXI ||
                 isSaving ||
-                (isMatchLocked && !allowLockedEdit)
+                (isViewMode ? true : (isMasterAdmin ? false : isMatchLocked))
               }
               onClick={onSave}
             >
@@ -599,7 +600,7 @@ function TeamSelection() {
               setSelectionError('')
             }}
             validationMessage={validationMessage}
-            disabled={isViewMode || (isMatchLocked && !allowLockedEdit)}
+            disabled={isViewMode ? true : (isMasterAdmin ? false : isMatchLocked)}
           />
         </aside>
       </div>
@@ -620,7 +621,7 @@ function TeamSelection() {
                 disabled={
                   selected.length !== limits.maxXI ||
                   isSaving ||
-                  (isMatchLocked && !allowLockedEdit)
+                  (isViewMode ? true : (isMasterAdmin ? false : isMatchLocked))
                 }
                 onClick={onSave}
               >
@@ -649,7 +650,7 @@ function TeamSelection() {
               setSelectionError('')
             }}
             validationMessage={validationMessage}
-            disabled={isViewMode || (isMatchLocked && !allowLockedEdit)}
+            disabled={isViewMode ? true : (isMasterAdmin ? false : isMatchLocked)}
           />
         </div>
       </PreviewModal>

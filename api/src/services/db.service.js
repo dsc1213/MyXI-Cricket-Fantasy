@@ -55,7 +55,9 @@ const canReadOtherUserContestTeam = async ({ actor, targetUser, contestId }) => 
     [normalizedContestId],
   )
   const participantIds = new Set(
-    (participantResult.rows || []).map((row) => Number(row.userId)).filter(Number.isFinite),
+    (participantResult.rows || [])
+      .map((row) => Number(row.userId))
+      .filter(Number.isFinite),
   )
 
   return participantIds.has(Number(targetUser.id))
@@ -232,7 +234,9 @@ const createDbService = (dependencies) => {
           .map((value) => Number(value))
           .filter((value) => Number.isFinite(value) && value > 0)
         if (!normalizedIds.length) {
-          return res.status(400).json({ message: 'Select at least one audit log to delete' })
+          return res
+            .status(400)
+            .json({ message: 'Select at least one audit log to delete' })
         }
         const result = await auditLogService.deleteByIds(normalizedIds)
         await auditLogService.logAction({
@@ -345,7 +349,9 @@ const createDbService = (dependencies) => {
       try {
         const actor = await resolveCatalogActor(req)
         if (!actor || actor.role !== 'master_admin') {
-          return res.status(403).json({ message: 'Only master can review pending removals' })
+          return res
+            .status(403)
+            .json({ message: 'Only master can review pending removals' })
         }
         const rows = await contestService.listPendingContestRemovals()
         return res.json(rows || [])
@@ -354,45 +360,58 @@ const createDbService = (dependencies) => {
       }
     })
 
-    router.post('/admin/pending-removals/contests/:contestId/confirm', async (req, res, next) => {
-      try {
-        const actor = await resolveCatalogActor(req)
-        if (!actor || actor.role !== 'master_admin') {
-          return res.status(403).json({ message: 'Only master can review pending removals' })
+    router.post(
+      '/admin/pending-removals/contests/:contestId/confirm',
+      async (req, res, next) => {
+        try {
+          const actor = await resolveCatalogActor(req)
+          if (!actor || actor.role !== 'master_admin') {
+            return res
+              .status(403)
+              .json({ message: 'Only master can review pending removals' })
+          }
+          const result = await contestService.confirmContestRemoval(
+            req.params.contestId,
+            {
+              performedBy: actor?.id || null,
+              ipAddress: req.ip,
+              userAgent: req.header('user-agent') || '',
+            },
+          )
+          if (!result?.ok) {
+            return res.status(404).json({ message: 'Pending removal not found' })
+          }
+          return res.json(result)
+        } catch (error) {
+          return next(error)
         }
-        const result = await contestService.confirmContestRemoval(req.params.contestId, {
-          performedBy: actor?.id || null,
-          ipAddress: req.ip,
-          userAgent: req.header('user-agent') || '',
-        })
-        if (!result?.ok) {
-          return res.status(404).json({ message: 'Pending removal not found' })
-        }
-        return res.json(result)
-      } catch (error) {
-        return next(error)
-      }
-    })
+      },
+    )
 
-    router.post('/admin/pending-removals/contests/:contestId/reject', async (req, res, next) => {
-      try {
-        const actor = await resolveCatalogActor(req)
-        if (!actor || actor.role !== 'master_admin') {
-          return res.status(403).json({ message: 'Only master can review pending removals' })
+    router.post(
+      '/admin/pending-removals/contests/:contestId/reject',
+      async (req, res, next) => {
+        try {
+          const actor = await resolveCatalogActor(req)
+          if (!actor || actor.role !== 'master_admin') {
+            return res
+              .status(403)
+              .json({ message: 'Only master can review pending removals' })
+          }
+          const result = await contestService.rejectContestRemoval(req.params.contestId, {
+            performedBy: actor?.id || null,
+            ipAddress: req.ip,
+            userAgent: req.header('user-agent') || '',
+          })
+          if (!result?.ok) {
+            return res.status(404).json({ message: 'Pending removal not found' })
+          }
+          return res.json(result)
+        } catch (error) {
+          return next(error)
         }
-        const result = await contestService.rejectContestRemoval(req.params.contestId, {
-          performedBy: actor?.id || null,
-          ipAddress: req.ip,
-          userAgent: req.header('user-agent') || '',
-        })
-        if (!result?.ok) {
-          return res.status(404).json({ message: 'Pending removal not found' })
-        }
-        return res.json(result)
-      } catch (error) {
-        return next(error)
-      }
-    })
+      },
+    )
 
     router.get('/admin/tournaments/:id/removal-preview', async (req, res, next) => {
       try {
@@ -438,7 +457,9 @@ const createDbService = (dependencies) => {
       try {
         const actor = await resolveCatalogActor(req)
         if (!actor || actor.role !== 'master_admin') {
-          return res.status(403).json({ message: 'Only master can review pending removals' })
+          return res
+            .status(403)
+            .json({ message: 'Only master can review pending removals' })
         }
         const rows = await tournamentService.listPendingTournamentRemovals()
         return res.json(rows || [])
@@ -447,45 +468,61 @@ const createDbService = (dependencies) => {
       }
     })
 
-    router.post('/admin/pending-removals/tournaments/:tournamentId/confirm', async (req, res, next) => {
-      try {
-        const actor = await resolveCatalogActor(req)
-        if (!actor || actor.role !== 'master_admin') {
-          return res.status(403).json({ message: 'Only master can review pending removals' })
+    router.post(
+      '/admin/pending-removals/tournaments/:tournamentId/confirm',
+      async (req, res, next) => {
+        try {
+          const actor = await resolveCatalogActor(req)
+          if (!actor || actor.role !== 'master_admin') {
+            return res
+              .status(403)
+              .json({ message: 'Only master can review pending removals' })
+          }
+          const result = await tournamentService.confirmTournamentRemoval(
+            req.params.tournamentId,
+            {
+              performedBy: actor?.id || null,
+              ipAddress: req.ip,
+              userAgent: req.header('user-agent') || '',
+            },
+          )
+          if (!result?.ok) {
+            return res.status(404).json({ message: 'Pending removal not found' })
+          }
+          return res.json(result)
+        } catch (error) {
+          return next(error)
         }
-        const result = await tournamentService.confirmTournamentRemoval(req.params.tournamentId, {
-          performedBy: actor?.id || null,
-          ipAddress: req.ip,
-          userAgent: req.header('user-agent') || '',
-        })
-        if (!result?.ok) {
-          return res.status(404).json({ message: 'Pending removal not found' })
-        }
-        return res.json(result)
-      } catch (error) {
-        return next(error)
-      }
-    })
+      },
+    )
 
-    router.post('/admin/pending-removals/tournaments/:tournamentId/reject', async (req, res, next) => {
-      try {
-        const actor = await resolveCatalogActor(req)
-        if (!actor || actor.role !== 'master_admin') {
-          return res.status(403).json({ message: 'Only master can review pending removals' })
+    router.post(
+      '/admin/pending-removals/tournaments/:tournamentId/reject',
+      async (req, res, next) => {
+        try {
+          const actor = await resolveCatalogActor(req)
+          if (!actor || actor.role !== 'master_admin') {
+            return res
+              .status(403)
+              .json({ message: 'Only master can review pending removals' })
+          }
+          const result = await tournamentService.rejectTournamentRemoval(
+            req.params.tournamentId,
+            {
+              performedBy: actor?.id || null,
+              ipAddress: req.ip,
+              userAgent: req.header('user-agent') || '',
+            },
+          )
+          if (!result?.ok) {
+            return res.status(404).json({ message: 'Pending removal not found' })
+          }
+          return res.json(result)
+        } catch (error) {
+          return next(error)
         }
-        const result = await tournamentService.rejectTournamentRemoval(req.params.tournamentId, {
-          performedBy: actor?.id || null,
-          ipAddress: req.ip,
-          userAgent: req.header('user-agent') || '',
-        })
-        if (!result?.ok) {
-          return res.status(404).json({ message: 'Pending removal not found' })
-        }
-        return res.json(result)
-      } catch (error) {
-        return next(error)
-      }
-    })
+      },
+    )
 
     // Returns the full tournament catalog for admin management screens.
     router.get('/admin/tournaments/catalog', async (req, res, next) => {
@@ -1250,7 +1287,7 @@ const createDbService = (dependencies) => {
           req.body?.captainId || null,
           req.body?.viceCaptainId || null,
           {
-            allowLockedEdit: isMasterAdmin && !isSelfWrite,
+            allowLockedEdit: isMasterAdmin,
           },
         )
         return res.json({
