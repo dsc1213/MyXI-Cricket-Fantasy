@@ -61,7 +61,7 @@
 .player-chip.slot-chip.compact .lineup-status-light {
   position: absolute;
   left: 0.24rem;
-  top: 50%;
+  top: 15%;
   transform: translateY(-50%);
   width: 9px;
   height: 9px;

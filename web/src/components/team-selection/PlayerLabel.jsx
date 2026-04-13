@@ -51,10 +51,34 @@ function PlayerLabel({
       {!!lineupStatus && (
         <span
           className={`lineup-status-light ${lineupStatus}`.trim()}
-          title={lineupStatus === 'playing' ? 'In announced playing XI' : 'Not in announced playing XI'}
-          aria-label={lineupStatus === 'playing' ? 'In announced playing XI' : 'Not in announced playing XI'}
+          title={
+            lineupStatus === 'playing'
+              ? 'In announced playing XI'
+              : 'Not in announced playing XI'
+          }
+          aria-label={
+            lineupStatus === 'playing'
+              ? 'In announced playing XI'
+              : 'Not in announced playing XI'
+          }
         />
       )}
+      <div className="player-chip-copy">
+        <PlayerIdentity
+          name={name}
+          imageUrl={imageUrl}
+          subtitle={role}
+          className="dense player-chip-identity"
+          nameSuffix={
+            <>
+              {showTeam && teamCode ? (
+                <em className="player-team-tag">{` (${teamCode})`}</em>
+              ) : null}
+              {!!badge && <em className="player-badge">{badge}</em>}
+            </>
+          }
+        />
+      </div>
       {showRoleControls && (
         <div className="player-chip-role-controls">
           <button
@@ -77,7 +101,9 @@ function PlayerLabel({
               roleControls.onViceCaptainClick?.()
             }}
             aria-label={
-              roleControls?.viceCaptainActive ? 'Vice captain selected' : 'Set vice captain'
+              roleControls?.viceCaptainActive
+                ? 'Vice captain selected'
+                : 'Set vice captain'
             }
             title="Vice Captain"
           >
@@ -85,22 +111,6 @@ function PlayerLabel({
           </button>
         </div>
       )}
-      <div className="player-chip-copy">
-        <PlayerIdentity
-          name={name}
-          imageUrl={imageUrl}
-          subtitle={role}
-          className="dense player-chip-identity"
-          nameSuffix={
-            <>
-              {showTeam && teamCode ? (
-                <em className="player-team-tag">{` (${teamCode})`}</em>
-              ) : null}
-              {!!badge && <em className="player-badge">{badge}</em>}
-            </>
-          }
-        />
-      </div>
     </div>
   )
 }
