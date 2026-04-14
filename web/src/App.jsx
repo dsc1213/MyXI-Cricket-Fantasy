@@ -542,7 +542,7 @@ function App() {
                   Profile
                 </NavLink>
                 <NavLink
-                  to="//home?panel=players"
+                  to="/home?panel=players"
                   className="leaderboard-link"
                   onClick={() => setMobileMenuOpen(false)}
                 >
