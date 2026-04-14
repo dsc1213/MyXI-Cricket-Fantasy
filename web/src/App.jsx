@@ -504,16 +504,6 @@ function App() {
             </button>
           </div>
           <div className="mobile-nav-links">
-            {!!currentUser && (
-              <button
-                type="button"
-                className="leaderboard-link mobile-refresh-btn"
-                onClick={onRefreshAppData}
-                disabled={isRefreshingAppData}
-              >
-                {isRefreshingAppData ? 'Refreshing...' : 'Refresh data'}
-              </button>
-            )}
             <div className="mobile-nav-section">
               <div className="mobile-nav-section-links">
                 <NavLink
@@ -550,6 +540,13 @@ function App() {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Profile
+                </NavLink>
+                <NavLink
+                  to="//home?panel=players"
+                  className="leaderboard-link"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Player Manager
                 </NavLink>
                 <NavLink
                   to="/change-password"
