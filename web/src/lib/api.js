@@ -717,6 +717,16 @@ const fetchPlayerStats = ({ tournamentId } = {}) => {
     request(`/player-stats${query ? `?${query}` : ''}`),
   )
 }
+const fetchPlayerMatchBreakdown = ({ tournamentId, playerId } = {}) => {
+  const params = new URLSearchParams()
+  if (tournamentId) params.set('tournamentId', tournamentId)
+  const query = withSortedParams(params)
+  return cachedGet(`playerStatsBreakdown:${playerId || ''}:${query || 'all'}`, () =>
+    request(
+      `/player-stats/${encodeURIComponent(playerId || '')}/breakdown${query ? `?${query}` : ''}`,
+    ),
+  )
+}
 const fetchMatchOptions = () => cachedGet('matchOptions', () => request('/match-options'))
 const fetchPrettyTournaments = () =>
   cachedGet('prettyTournaments', () => request('/tournaments/pretty'))
@@ -1184,6 +1194,7 @@ export {
   deleteAdminPlayer,
   deleteAdminPlayersBulk,
   fetchPlayerStats,
+  fetchPlayerMatchBreakdown,
   fetchMatchOptions,
   fetchPrettyTournaments,
   fetchPlayerOverrideContext,

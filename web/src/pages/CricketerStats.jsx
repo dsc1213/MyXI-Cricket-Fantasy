@@ -1,10 +1,25 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { fetchPlayerStats, fetchTournaments } from '../lib/api.js'
+import { fetchPlayerMatchBreakdown, fetchPlayerStats, fetchTournaments } from '../lib/api.js'
 import TournamentPageTabs from '../components/TournamentPageTabs.jsx'
 import PlayerIdentity from '../components/ui/PlayerIdentity.jsx'
 import SelectField from '../components/ui/SelectField.jsx'
 import StickyTable from '../components/ui/StickyTable.jsx'
+
+const formatStatValue = (value) => {
+  const numeric = Number(value || 0)
+  return Number.isInteger(numeric) ? String(numeric) : numeric.toFixed(1)
+}
+
+const formatBreakdownDate = (value) => {
+  if (!value) return '-'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return '-'
+  return parsed.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  })
+}
 
 function CricketerStats() {
   const { tournamentId: routeTournamentId } = useParams()
@@ -14,6 +29,10 @@ function CricketerStats() {
   const [selectedTournamentId, setSelectedTournamentId] = useState(routeTournamentId || '')
   const [rows, setRows] = useState([])
   const [searchText, setSearchText] = useState('')
+  const [expandedPlayerId, setExpandedPlayerId] = useState('')
+  const [breakdownByPlayerId, setBreakdownByPlayerId] = useState({})
+  const [breakdownLoadingByPlayerId, setBreakdownLoadingByPlayerId] = useState({})
+  const [breakdownErrorByPlayerId, setBreakdownErrorByPlayerId] = useState({})
 
   useEffect(() => {
     let active = true
@@ -85,6 +104,36 @@ function CricketerStats() {
   )
 
   const selectedTournament = tournaments.find((item) => item.id === selectedTournamentId)
+  const toggleBreakdown = useCallback(async (row) => {
+    if (!row?.id || !selectedTournamentId) return
+    const playerId = String(row.id)
+    if (expandedPlayerId === playerId) {
+      setExpandedPlayerId('')
+      return
+    }
+    setExpandedPlayerId(playerId)
+    if (Object.prototype.hasOwnProperty.call(breakdownByPlayerId, playerId)) return
+    setBreakdownLoadingByPlayerId((prev) => ({ ...prev, [playerId]: true }))
+    setBreakdownErrorByPlayerId((prev) => ({ ...prev, [playerId]: '' }))
+    try {
+      const data = await fetchPlayerMatchBreakdown({
+        tournamentId: selectedTournamentId,
+        playerId,
+      })
+      setBreakdownByPlayerId((prev) => ({
+        ...prev,
+        [playerId]: Array.isArray(data) ? data : [],
+      }))
+    } catch (error) {
+      setBreakdownErrorByPlayerId((prev) => ({
+        ...prev,
+        [playerId]: error.message || 'Failed to load match breakdown',
+      }))
+    } finally {
+      setBreakdownLoadingByPlayerId((prev) => ({ ...prev, [playerId]: false }))
+    }
+  }, [breakdownByPlayerId, expandedPlayerId, selectedTournamentId])
+
   const columns = useMemo(
     () => [
       {
@@ -155,10 +204,23 @@ function CricketerStats() {
         sortValue: (row) => Number(row.points || 0),
         headerClassName: 'cricketer-col-points',
         cellClassName: 'cricketer-col-points',
-        render: (row) => <strong>{Number(row.points || 0)}</strong>,
+        render: (row) => (
+          <button
+            type="button"
+            className="cricketer-stats-points-trigger"
+            onClick={(event) => {
+              event.stopPropagation()
+              void toggleBreakdown(row)
+            }}
+            aria-expanded={expandedPlayerId === String(row.id)}
+            aria-label={`Show match breakdown for ${row.name}`}
+          >
+            <strong>{Number(row.points || 0)}</strong>
+          </button>
+        ),
       },
     ],
-    [],
+    [expandedPlayerId, toggleBreakdown],
   )
 
   return (
@@ -210,6 +272,90 @@ function CricketerStats() {
             tableClassName="cricketer-stats-table"
             wrapperClassName="cricketer-stats-sticky-wrap"
             emptyText="No player stats"
+            isRowExpanded={(row) => expandedPlayerId === String(row.id)}
+            expandedRowClassName="cricketer-stats-expanded-row"
+            renderExpandedRow={(row) => {
+              const playerId = String(row.id)
+              const breakdownRows = breakdownByPlayerId[playerId] || []
+              const isBreakdownLoading = Boolean(breakdownLoadingByPlayerId[playerId])
+              const breakdownErrorText = breakdownErrorByPlayerId[playerId] || ''
+              const breakdownTotals = breakdownRows.reduce(
+                (acc, item) => ({
+                  runs: acc.runs + Number(item.runs || 0),
+                  wickets: acc.wickets + Number(item.wickets || 0),
+                  catches: acc.catches + Number(item.catches || 0),
+                  points: acc.points + Number(item.points || 0),
+                }),
+                { runs: 0, wickets: 0, catches: 0, points: 0 },
+              )
+              return (
+                <div className="cricketer-breakdown-inline" data-player-id={playerId}>
+                  <div className="cricketer-breakdown-inline-head">
+                    <strong>{row.name}</strong>
+                    <span>Match by match points</span>
+                  </div>
+                  {isBreakdownLoading ? <p className="team-note">Loading breakdown...</p> : null}
+                  {!isBreakdownLoading && breakdownErrorText ? (
+                    <p className="error-text">{breakdownErrorText}</p>
+                  ) : null}
+                  {!isBreakdownLoading && !breakdownErrorText ? (
+                    <>
+                      <div className="cricketer-breakdown-table-wrap">
+                        <table className="cricketer-breakdown-table">
+                          <thead>
+                            <tr>
+                              <th className="cricketer-breakdown-col-match">Match</th>
+                              <th className="cricketer-breakdown-col-stat">Runs</th>
+                              <th className="cricketer-breakdown-col-stat">Wkts</th>
+                              <th className="cricketer-breakdown-col-stat">Ct</th>
+                              <th className="cricketer-breakdown-col-points">Points</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {breakdownRows.length ? (
+                              breakdownRows.map((item) => (
+                                <tr key={item.matchId}>
+                                  <td className="cricketer-breakdown-col-match">
+                                    <div className="cricketer-breakdown-match-cell">
+                                      <strong>{item.matchName || '-'}</strong>
+                                      <span>
+                                        {formatBreakdownDate(item.startTime)}
+                                        {item.status ? ` · ${item.status}` : ''}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="cricketer-breakdown-col-stat">{item.runs || 0}</td>
+                                  <td className="cricketer-breakdown-col-stat">
+                                    {item.wickets || 0}
+                                  </td>
+                                  <td className="cricketer-breakdown-col-stat">
+                                    {item.catches || 0}
+                                  </td>
+                                  <td className="cricketer-breakdown-col-points">
+                                    <strong>{formatStatValue(item.points)}</strong>
+                                  </td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan={5}>No match breakdown available</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="cricketer-breakdown-total">
+                        <span>Total</span>
+                        <span>{formatStatValue(breakdownTotals.runs)} runs</span>
+                        <span>{formatStatValue(breakdownTotals.wickets)} wkts</span>
+                        <span>{formatStatValue(breakdownTotals.catches)} ct</span>
+                        <strong>{formatStatValue(breakdownTotals.points)} pts</strong>
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              )
+            }}
           />
         </div>
       </article>

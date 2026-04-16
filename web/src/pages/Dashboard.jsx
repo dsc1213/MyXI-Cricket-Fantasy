@@ -250,6 +250,52 @@ function Dashboard({ defaultPanel = 'joined' }) {
     }
   }
 
+  const reloadManualTeamPool = useCallback(
+    async ({ tournamentId = manualTournamentId, matchId = manualMatchId } = {}) => {
+      if (!tournamentId || !matchId) return null
+      const [data, savedScore] = await Promise.all([
+        fetchTeamPool({
+          contestId: undefined,
+          tournamentId,
+          matchId,
+        }),
+        fetchAdminMatchScores({
+          tournamentId,
+          matchId,
+        }).catch(() => null),
+      ])
+      const teamAPlayers = data?.teams?.teamA?.players || []
+      const teamBPlayers = data?.teams?.teamB?.players || []
+      const nextTeamPool = {
+        teamAName: data?.teams?.teamA?.name || 'Team A',
+        teamBName: data?.teams?.teamB?.name || 'Team B',
+        teamAPlayers,
+        teamBPlayers,
+        teamALineup: data?.teams?.teamA?.lineup || null,
+        teamBLineup: data?.teams?.teamB?.lineup || null,
+      }
+      setManualTeamPool(nextTeamPool)
+      setManualPlayingXi({
+        teamA:
+          data?.teams?.teamA?.lineup?.playingXI?.length >= 11
+            ? canonicalizePlayingXiNames(teamAPlayers, data.teams.teamA.lineup.playingXI)
+            : [],
+        teamB:
+          data?.teams?.teamB?.lineup?.playingXI?.length >= 11
+            ? canonicalizePlayingXiNames(teamBPlayers, data.teams.teamB.lineup.playingXI)
+            : [],
+      })
+      setManualPlayerStats(
+        buildManualStatsState(
+          [...teamAPlayers, ...teamBPlayers],
+          savedScore?.playerStats || [],
+        ),
+      )
+      return { teamAPlayers, teamBPlayers, nextTeamPool, savedScore }
+    },
+    [manualMatchId, manualTournamentId],
+  )
+
   useEffect(() => {
     const nextPanel = requestedPanel || defaultPanel
     setActivePanel((prev) => (prev === nextPanel ? prev : nextPanel))
@@ -443,54 +489,12 @@ function Dashboard({ defaultPanel = 'joined' }) {
     const loadTeamPool = async () => {
       try {
         setIsLoadingManualPool(true)
-        const [data, savedScore] = await Promise.all([
-          fetchTeamPool({
-            contestId: undefined,
-            tournamentId: manualTournamentId,
-            matchId: manualMatchId,
-          }),
-          fetchAdminMatchScores({
-            tournamentId: manualTournamentId,
-            matchId: manualMatchId,
-          }).catch(() => null),
-        ])
+        const result = await reloadManualTeamPool({
+          tournamentId: manualTournamentId,
+          matchId: manualMatchId,
+        })
         if (!active) return
-        const teamAPlayers = data?.teams?.teamA?.players || []
-        const teamBPlayers = data?.teams?.teamB?.players || []
-        const nextTeamPool = {
-          teamAName: data?.teams?.teamA?.name || 'Team A',
-          teamBName: data?.teams?.teamB?.name || 'Team B',
-          teamAPlayers,
-          teamBPlayers,
-          teamALineup: data?.teams?.teamA?.lineup || null,
-          teamBLineup: data?.teams?.teamB?.lineup || null,
-        }
-        setManualTeamPool(nextTeamPool)
-        const defaultPlayingA =
-          data?.teams?.teamA?.lineup?.playingXI?.length >= 11
-            ? canonicalizePlayingXiNames(
-                teamAPlayers,
-                data.teams.teamA.lineup.playingXI,
-              )
-            : []
-        const defaultPlayingB =
-          data?.teams?.teamB?.lineup?.playingXI?.length >= 11
-            ? canonicalizePlayingXiNames(
-                teamBPlayers,
-                data.teams.teamB.lineup.playingXI,
-              )
-            : []
-        const nextPlayingXi = {
-          teamA: defaultPlayingA,
-          teamB: defaultPlayingB,
-        }
-        setManualPlayingXi(nextPlayingXi)
-        setManualPlayerStats(
-          buildManualStatsState(
-            [...teamAPlayers, ...teamBPlayers],
-            savedScore?.playerStats || [],
-          ),
-        )
+        void result
       } catch (error) {
         if (!active) return
         setErrorText(error.message || 'Failed to load playing XI for manual scoring')
@@ -504,7 +508,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
     return () => {
       active = false
     }
-  }, [manualMatchId, manualTournamentId])
+  }, [manualMatchId, manualTournamentId, reloadManualTeamPool])
 
   const filteredJoined = useMemo(() => {
     return pageLoadData.joinedContests.filter((contest) => {
@@ -999,11 +1003,10 @@ function Dashboard({ defaultPanel = 'joined' }) {
         source: 'manual-xi',
         lineups: payload,
       })
-      setManualTeamPool((prev) => ({
-        ...prev,
-        teamALineup: payload[prev.teamAName],
-        teamBLineup: payload[prev.teamBName],
-      }))
+      await reloadManualTeamPool({
+        tournamentId: manualTournamentId,
+        matchId: manualMatchId,
+      })
       setSaveNotice('Playing XI saved')
     } catch (error) {
       setErrorText(error.message || 'Failed to save playing XI')
@@ -1260,6 +1263,10 @@ function Dashboard({ defaultPanel = 'joined' }) {
           teamBPlayers: manualTeamPool.teamBPlayers,
         })
       }
+      await reloadManualTeamPool({
+        tournamentId: manualTournamentId,
+        matchId: manualMatchId,
+      })
       const refreshedMatches = await fetchTournamentMatches(manualTournamentId)
       setManualScoreContext((prev) => ({ ...prev, matches: refreshedMatches || [] }))
     } catch (error) {
@@ -1292,9 +1299,9 @@ function Dashboard({ defaultPanel = 'joined' }) {
 
       const refreshedMatches = await fetchTournamentMatches(manualTournamentId)
       setManualScoreContext((prev) => ({ ...prev, matches: refreshedMatches || [] }))
-      await refreshManualStatsState({
-        teamAPlayers: manualTeamPool.teamAPlayers,
-        teamBPlayers: manualTeamPool.teamBPlayers,
+      await reloadManualTeamPool({
+        tournamentId: manualTournamentId,
+        matchId: manualMatchId,
       })
     } catch (error) {
       setErrorText(error.message || 'Failed to reset match scores')

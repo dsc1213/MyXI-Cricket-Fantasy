@@ -1894,6 +1894,48 @@ const registerMockProviderRoutes = (router, ctx) => {
     return res.json(rows)
   })
 
+  router.get('/player-stats/:playerId/breakdown', (req, res) => {
+    const tournamentId = (req.query.tournamentId || '').toString()
+    const playerId = (req.params.playerId || '').toString()
+    const aggregateIndex = getTournamentPlayerStatsIndex(tournamentId)
+    const target = aggregateIndex[playerId] || null
+    const matchesById = new Map(tournamentMatches.map((match) => [String(match.id), match]))
+    const rows = Object.entries(target?.byMatch || {})
+      .map(([matchId, breakdown]) => {
+        const match = matchesById.get(String(matchId)) || null
+        return {
+          matchId,
+          matchName:
+            match?.name ||
+            [match?.teamAKey || match?.teamA, 'vs', match?.teamBKey || match?.teamB]
+              .filter(Boolean)
+              .join(' '),
+          teamA: match?.teamAKey || match?.teamA || '',
+          teamB: match?.teamBKey || match?.teamB || '',
+          startTime: match?.startAt || null,
+          status: match?.status || '',
+          runs: Number(breakdown?.runs || 0),
+          wickets: Number(breakdown?.wickets || 0),
+          catches: Number(breakdown?.catches || 0),
+          fours: Number(breakdown?.fours || 0),
+          sixes: Number(breakdown?.sixes || 0),
+          maidens: 0,
+          wides: 0,
+          stumpings: 0,
+          runoutDirect: 0,
+          runoutIndirect: 0,
+          dismissed: false,
+          points: Number(breakdown?.points || 0),
+        }
+      })
+      .sort((a, b) => {
+        const left = a.startTime ? new Date(a.startTime).getTime() : 0
+        const right = b.startTime ? new Date(b.startTime).getTime() : 0
+        return left - right
+      })
+    return res.json(rows)
+  })
+
   router.get('/team-pool', (req, res) => {
     const contestId = (req.query.contestId || '').toString()
     const tournamentId = (req.query.tournamentId || '').toString()

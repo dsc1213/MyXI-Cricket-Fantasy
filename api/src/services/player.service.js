@@ -592,6 +592,63 @@ class PlayerService {
       .sort((a, b) => Number(b.points || 0) - Number(a.points || 0))
   }
 
+  async getTournamentPlayerMatchBreakdown(tournamentId, playerId) {
+    if (!tournamentId || !playerId) return []
+
+    const result = await dbQuery(
+      `SELECT pms.match_id as "matchId",
+              m.name as "matchName",
+              m.team_a as "teamA",
+              m.team_b as "teamB",
+              m.team_a_key as "teamAKey",
+              m.team_b_key as "teamBKey",
+              m.start_time as "startTime",
+              m.status as "matchStatus",
+              pms.runs,
+              pms.wickets,
+              pms.catches,
+              pms.fours,
+              pms.sixes,
+              pms.maidens,
+              pms.wides,
+              pms.stumpings,
+              pms.runout_direct as "runoutDirect",
+              pms.runout_indirect as "runoutIndirect",
+              pms.dismissed,
+              pms.fantasy_points as "points"
+       FROM player_match_scores pms
+       LEFT JOIN matches m
+         ON m.id::text = pms.match_id::text
+       WHERE pms.tournament_id = $1
+         AND pms.player_id::text = $2
+       ORDER BY m.start_time ASC NULLS LAST, pms.match_id ASC`,
+      [tournamentId, String(playerId)],
+    )
+
+    return result.rows.map((row) => ({
+      matchId: row.matchId,
+      matchName:
+        row.matchName ||
+        [row.teamAKey || row.teamA, 'vs', row.teamBKey || row.teamB].filter(Boolean).join(' '),
+      teamA: row.teamAKey || row.teamA || '',
+      teamB: row.teamBKey || row.teamB || '',
+      startTime: row.startTime || null,
+      status: row.matchStatus || '',
+      runs: Number(row.runs || 0),
+      wickets: Number(row.wickets || 0),
+      catches: Number(row.catches || 0),
+      fours: Number(row.fours || 0),
+      sixes: Number(row.sixes || 0),
+      maidens: Number(row.maidens || 0),
+      wides: Number(row.wides || 0),
+      stumpings: Number(row.stumpings || 0),
+      runoutDirect: Number(row.runoutDirect || 0),
+      runoutIndirect: Number(row.runoutIndirect || 0),
+      dismissed: Boolean(row.dismissed),
+      points: Number(row.points || 0),
+    }))
+  }
+
   // Builds selectable team pool for a user with contest and lineup context.
   async getTeamPool({ contestId, tournamentId, matchId, userId }) {
     const contestRepo = await factory.getContestRepository()
@@ -759,6 +816,7 @@ class PlayerService {
         pointsByPlayerId.set(Number(row.playerId), Number(row.fantasyPoints || 0))
       })
     }
+    const activePlayerIds = Array.from(pointsByPlayerId.keys())
 
     const isFixedRoster =
       (contest?.mode || '').toString().trim().toLowerCase() === 'fixed_roster'
@@ -930,6 +988,23 @@ class PlayerService {
       matchId && userId
         ? await teamSelectionRepo.findByMatchAndUser(matchId, userId, contest?.id || null)
         : null
+    const ownershipSelectionRows =
+      matchId && contest?.id
+        ? await dbQuery(
+            `SELECT ts.user_id as "userId",
+                    ts.playing_xi as "playingXi",
+                    ts.backups,
+                    ts.captain_id as "captainId",
+                    ts.vice_captain_id as "viceCaptainId",
+                    u.game_name as "gameName",
+                    u.name
+             FROM team_selections ts
+             JOIN users u ON u.id = ts.user_id
+             WHERE ts.contest_id = $1
+               AND ts.match_id = $2`,
+            [contest.id, matchId],
+          )
+        : { rows: [] }
     const selectionSourceRows =
       matchId && contest?.id && userId
         ? await dbQuery(
@@ -952,13 +1027,69 @@ class PlayerService {
         savedReplacementMap.set(numericPlayerId, replacedPlayerId)
       }
     }
-    const activePlayerIds = Array.from(pointsByPlayerId.keys())
     const resolvedSelection = resolveEffectiveSelection({
       playingXi: selection?.playingXi || [],
       backups: selection?.backups || [],
       activePlayerIds,
       captainId: selection?.captainId || null,
       viceCaptainId: selection?.viceCaptainId || null,
+    })
+    const ownershipByPlayerId = new Map()
+    for (const row of ownershipSelectionRows.rows || []) {
+      const resolvedRowSelection = resolveEffectiveSelection({
+        playingXi: Array.isArray(row?.playingXi) ? row.playingXi : [],
+        backups: Array.isArray(row?.backups) ? row.backups : [],
+        activePlayerIds,
+        captainId: row?.captainId || null,
+        viceCaptainId: row?.viceCaptainId || null,
+      })
+      const resolvedCaptainId = resolvedRowSelection.resolvedCaptainId ?? row?.captainId
+      const resolvedViceCaptainId =
+        resolvedRowSelection.resolvedViceCaptainId ?? row?.viceCaptainId
+      for (const playerId of resolvedRowSelection.nextPlayingXi || []) {
+        const numericPlayerId = Number(playerId)
+        if (!numericPlayerId) continue
+        const current =
+          ownershipByPlayerId.get(numericPlayerId) || {
+            pickedByCount: 0,
+            captainCount: 0,
+            viceCaptainCount: 0,
+            pickedBy: [],
+          }
+        let roleTag = ''
+        if (
+          resolvedRowSelection.captainApplies &&
+          Number(resolvedCaptainId) === numericPlayerId
+        ) {
+          roleTag = 'C'
+          current.captainCount += 1
+        } else if (
+          resolvedRowSelection.viceCaptainApplies &&
+          Number(resolvedViceCaptainId) === numericPlayerId
+        ) {
+          roleTag = 'VC'
+          current.viceCaptainCount += 1
+        }
+        current.pickedByCount += 1
+        current.pickedBy.push({
+          userId: row?.gameName || String(row?.userId || ''),
+          name: row?.gameName || row?.name || String(row?.userId || ''),
+          roleTag,
+        })
+        ownershipByPlayerId.set(numericPlayerId, current)
+      }
+    }
+    ownershipByPlayerId.forEach((value) => {
+      value.pickedBy.sort((left, right) => {
+        if (String(left?.roleTag || '') !== String(right?.roleTag || '')) {
+          const rank = { C: 0, VC: 1, '': 2 }
+          return (
+            (rank[String(left?.roleTag || '')] ?? 3) -
+            (rank[String(right?.roleTag || '')] ?? 3)
+          )
+        }
+        return String(left?.name || '').localeCompare(String(right?.name || ''))
+      })
     })
     const promotedBackupIdSet = new Set(
       (resolvedSelection.promotedBackupIds || []).map((id) => Number(id)),
@@ -1016,6 +1147,7 @@ class PlayerService {
         selectionSource: isAutoSwapped ? 'selection-auto-swap' : 'selection',
         autoSwapped: isAutoSwapped,
         replacementInfo,
+        ownership: ownershipByPlayerId.get(numericId) || null,
         rawStats: stats,
         pointBreakdown: stats ? calculateFantasyPointBreakdown(stats, ruleSet) : [],
       }

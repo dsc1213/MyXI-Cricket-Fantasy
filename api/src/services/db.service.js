@@ -1186,6 +1186,20 @@ const createDbService = (dependencies) => {
       }
     })
 
+    router.get('/player-stats/:playerId/breakdown', async (req, res, next) => {
+      try {
+        const tournamentId = (req.query.tournamentId || '').toString()
+        const playerId = (req.params.playerId || '').toString()
+        const rows = await playerService.getTournamentPlayerMatchBreakdown(
+          tournamentId,
+          playerId,
+        )
+        return res.json(rows)
+      } catch (error) {
+        return next(error)
+      }
+    })
+
     // Returns a user's team pool with access checks for self or master admin.
     router.get('/team-pool', async (req, res, next) => {
       try {

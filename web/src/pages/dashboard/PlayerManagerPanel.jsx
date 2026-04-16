@@ -159,7 +159,10 @@ function PlayerManagerPanel() {
         ]),
       ),
     )
-  }, [isEditMode, players])
+    // Intentionally initialize drafts only when edit mode is entered.
+    // Do not rehydrate after every players reload, otherwise a saved row looks unsaved.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode])
 
   const startEditingRow = (row) => {
     const key = String(row.id)
@@ -221,6 +224,7 @@ function PlayerManagerPanel() {
         imageUrl: draft.imageUrl || '',
       })
       setNotice('Player updated')
+      cancelEditingRow(id)
       await loadPlayers()
     } catch (error) {
       setErrorText(error.message || 'Failed to update player')
@@ -442,9 +446,7 @@ function PlayerManagerPanel() {
               className="dashboard-text-input"
               type="text"
               value={draft.name}
-              onChange={(event) =>
-                updateEditingRow(row.id, 'name', event.target.value)
-              }
+              onChange={(event) => updateEditingRow(row.id, 'name', event.target.value)}
               aria-label={`Player name ${row.displayName || row.name || row.id}`}
             />
           )

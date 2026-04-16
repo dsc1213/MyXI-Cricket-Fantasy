@@ -3017,6 +3017,110 @@ body.dark-theme .fantasy-hub-main {
   font-size: 0.8rem;
 }
 
+.cricketer-stats-points-trigger {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.14em;
+}
+
+.cricketer-stats-points-trigger:hover,
+.cricketer-stats-points-trigger:focus-visible {
+  color: var(--brand, #4f6db8);
+}
+
+.cricketer-stats-expanded-row td {
+  padding: 0;
+  background: color-mix(in srgb, var(--input-bg) 84%, var(--brand, #4f6db8) 16%);
+}
+
+.cricketer-breakdown-inline {
+  padding: 0.85rem 0.95rem 0.95rem;
+}
+
+.cricketer-breakdown-inline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.65rem;
+  margin-bottom: 0.65rem;
+}
+
+.cricketer-breakdown-inline-head strong {
+  font-size: 0.84rem;
+}
+
+.cricketer-breakdown-inline-head span {
+  font-size: 0.74rem;
+  opacity: 0.72;
+}
+
+.cricketer-breakdown-table-wrap {
+  border: 1px solid var(--input-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.cricketer-breakdown-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cricketer-breakdown-table th,
+.cricketer-breakdown-table td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--input-border);
+  text-align: left;
+  font-size: 0.8rem;
+}
+
+.cricketer-breakdown-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-2, #eef2f7);
+}
+
+.cricketer-breakdown-match-cell {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.cricketer-breakdown-match-cell strong {
+  font-size: 0.82rem;
+}
+
+.cricketer-breakdown-match-cell span {
+  font-size: 0.72rem;
+  opacity: 0.75;
+}
+
+.cricketer-breakdown-col-match {
+  width: 48%;
+}
+
+.cricketer-breakdown-col-stat,
+.cricketer-breakdown-col-points {
+  width: 13%;
+}
+
+.cricketer-breakdown-total {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) repeat(4, auto);
+  gap: 0.65rem;
+  align-items: center;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.82rem;
+}
+
+.cricketer-breakdown-total strong {
+  font-size: 0.9rem;
+}
+
 .stats-team-cell {
   min-width: 0;
 }

@@ -511,12 +511,13 @@ body.dark-theme .user-menu-item:hover {
 .team-preview-sections {
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, 0.7fr) minmax(0, 0.3fr);
+  grid-template-rows: auto auto;
+  align-content: start;
   gap: 0.55rem;
+  overflow: auto;
 }
 
 .team-preview-section {
-  min-height: 0;
   display: grid;
   align-content: start;
 }
@@ -549,10 +550,9 @@ body.dark-theme .user-menu-item:hover {
 }
 
 .team-preview-list {
-  overflow: auto;
+  overflow: visible;
   display: grid;
   gap: 0.45rem;
-  min-height: 0;
 }
 
 .team-preview-override {

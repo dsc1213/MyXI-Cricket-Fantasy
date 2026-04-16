@@ -205,6 +205,17 @@ function TeamPreviewDrawer({
       <div className="team-preview-copy">
         <div className="team-preview-copy-main">
           <strong>{name}</strong>
+          {entry?.ownership?.pickedByCount > 0 ? (
+            <button
+              type="button"
+              className="team-preview-ownership-link"
+              onClick={() => toggleExpanded(`ownership:${rowKey}`)}
+              aria-expanded={Boolean(expandedRows[`ownership:${rowKey}`])}
+              aria-label={`${expandedRows[`ownership:${rowKey}`] ? 'Hide' : 'Show'} ownership for ${name}`}
+            >
+              {entry.ownership.pickedByCount}
+            </button>
+          ) : null}
           {showTeam && teamCode ? (
             <span className="team-preview-team-tag">{`(${teamCode})`}</span>
           ) : null}
@@ -294,6 +305,30 @@ function TeamPreviewDrawer({
     )
   }
 
+  const renderExpandedOwnership = (entry, key) => {
+    if (!expandedRows[`ownership:${key}`] || typeof entry !== 'object') return null
+    const pickedBy = Array.isArray(entry?.ownership?.pickedBy) ? entry.ownership.pickedBy : []
+    if (!pickedBy.length) return null
+    return (
+      <div className="team-preview-ownership-panel">
+        <ul className="team-preview-ownership-list">
+          {pickedBy.map((row, index) => (
+            <li key={`${key}-owner-${index}`}>
+              <span>{row.name}</span>
+              {row.roleTag ? (
+                <span
+                  className={`team-preview-role-badge team-preview-role-badge-${row.roleTag.toString().trim().toLowerCase()}`.trim()}
+                >
+                  {row.roleTag}
+                </span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+
   return (
     <div
       className={`team-preview-drawer ${previewPlayer ? 'open' : ''}`.trim()}
@@ -378,6 +413,7 @@ function TeamPreviewDrawer({
                         </div>
                         {renderPointCell(entry, rowKey)}
                       </div>
+                      {renderExpandedOwnership(entry, rowKey)}
                       {renderExpandedBreakdown(entry, rowKey)}
                     </div>
                   )
@@ -449,6 +485,7 @@ function TeamPreviewDrawer({
                         </div>
                         {renderPointCell(entry, rowKey)}
                       </div>
+                      {renderExpandedOwnership(entry, rowKey)}
                       {renderExpandedBreakdown(entry, rowKey)}
                     </div>
                   )

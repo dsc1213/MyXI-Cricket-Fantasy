@@ -35,7 +35,12 @@ function Modal({
         if (closeOnBackdrop && event.target === event.currentTarget) onClose?.()
       }}
     >
-      <div className={`ui-modal-card size-${size} ${className}`.trim()}>
+      <div
+        className={`ui-modal-card size-${size} ${className}`.trim()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title || undefined}
+      >
         <div className="ui-modal-header">
           <span>{title}</span>
           <button type="button" className="ui-modal-close" onClick={onClose}>

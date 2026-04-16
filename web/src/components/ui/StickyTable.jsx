@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 
 function isSortablePrimitive(value) {
   return (
@@ -25,6 +25,9 @@ function StickyTable({
   showEmptyRow = true,
   wrapperClassName = '',
   tableClassName = '',
+  isRowExpanded,
+  renderExpandedRow,
+  expandedRowClassName = '',
 }) {
   const [sortState, setSortState] = useState({ key: '', direction: 'asc' })
 
@@ -117,33 +120,50 @@ function StickyTable({
         </thead>
         <tbody>
           {sortedRows.length ? (
-            sortedRows.map((row, index) => (
-              <tr
-                key={rowKey(row, index)}
-                className={resolveRowClass(row, index)}
-                onClick={onRowClick ? () => onRowClick(row, index) : undefined}
-              >
-                {columns.map((column) => (
-                  <td
-                    key={`${rowKey(row, index)}-${column.key}`}
-                    className={column.cellClassName || ''}
-                    style={
-                      column.width != null
-                        ? {
-                            width: column.width,
-                            minWidth: column.width,
-                            maxWidth: column.width,
-                          }
-                        : undefined
-                    }
+            sortedRows.map((row, index) => {
+              const key = rowKey(row, index)
+              const expanded = Boolean(isRowExpanded?.(row, index))
+              return (
+                <Fragment key={key}>
+                  <tr
+                    className={resolveRowClass(row, index)}
+                    onClick={onRowClick ? () => onRowClick(row, index) : undefined}
                   >
-                    {typeof column.render === 'function'
-                      ? column.render(row, index)
-                      : row[column.key]}
-                  </td>
-                ))}
-              </tr>
-            ))
+                    {columns.map((column) => (
+                      <td
+                        key={`${key}-${column.key}`}
+                        className={column.cellClassName || ''}
+                        style={
+                          column.width != null
+                            ? {
+                                width: column.width,
+                                minWidth: column.width,
+                                maxWidth: column.width,
+                              }
+                            : undefined
+                        }
+                      >
+                        {typeof column.render === 'function'
+                          ? column.render(row, index)
+                          : row[column.key]}
+                      </td>
+                    ))}
+                  </tr>
+                  {expanded && typeof renderExpandedRow === 'function' ? (
+                    <tr
+                      key={`${key}-expanded`}
+                      className={
+                        typeof expandedRowClassName === 'function'
+                          ? expandedRowClassName(row, index)
+                          : expandedRowClassName
+                      }
+                    >
+                      <td colSpan={columns.length}>{renderExpandedRow(row, index)}</td>
+                    </tr>
+                  ) : null}
+                </Fragment>
+              )
+            })
           ) : showEmptyRow ? (
             <tr>
               <td colSpan={columns.length}>{emptyText}</td>
