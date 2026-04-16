@@ -64,11 +64,8 @@ class TeamSelectionService {
     }
 
     const repo = await factory.getTeamSelectionRepository()
-    // Check if selection already exists
-    let existing = await repo.findByMatchAndUser(matchId, userId, contestId)
-    if (!existing && contestId) {
-      existing = await repo.findByMatchAndUserAnyContest(matchId, userId)
-    }
+    // Selections are contest-scoped. Do not reuse another contest's row for the same match.
+    const existing = await repo.findByMatchAndUser(matchId, userId, contestId)
     if (existing) {
       const saved = await repo.update(existing.id, {
         contestId: contestId || existing.contestId || null,
@@ -100,21 +97,13 @@ class TeamSelectionService {
       if (!this.isDuplicateSelectionError(error)) {
         throw error
       }
-      const fallbackExisting = await repo.findByMatchAndUserAnyContest(matchId, userId)
-      if (!fallbackExisting) {
-        const conflictError = new Error(
-          'A team selection already exists for this match and user. Please retry to update your saved team.',
-        )
-        conflictError.statusCode = 409
-        throw conflictError
-      }
-      saved = await repo.update(fallbackExisting.id, {
-        contestId: contestId || fallbackExisting.contestId || null,
-        captainId: normalizedCaptainId,
-        viceCaptainId: normalizedViceCaptainId,
-        playingXi: normalizedPlayingXi,
-        backups: normalizedBackups,
-      })
+      const conflictError = new Error(
+        contestId
+          ? 'A saved team already exists for this user and match in another contest row. Apply the latest migration and retry.'
+          : 'A team selection already exists for this match and user. Please retry to update your saved team.',
+      )
+      conflictError.statusCode = 409
+      throw conflictError
     }
     await this.syncContestMatchPlayers({
       contestId,

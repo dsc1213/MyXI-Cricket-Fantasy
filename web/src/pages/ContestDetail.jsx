@@ -85,6 +85,17 @@ const sortContestMatches = (rows = []) =>
     )
   })
 
+const getDefaultSelectedMatchId = (rows = [], currentSelectedMatchId = '') => {
+  const sortedRows = sortContestMatches(rows)
+  if (
+    currentSelectedMatchId &&
+    sortedRows.some((match) => String(match.id) === String(currentSelectedMatchId))
+  ) {
+    return currentSelectedMatchId
+  }
+  return sortedRows[0]?.id || ''
+}
+
 function ContestDetail() {
   const { tournamentId, contestId } = useParams()
   const location = useLocation()
@@ -191,11 +202,7 @@ function ContestDetail() {
         const rows = normalizeContestMatches(data)
         if (!active) return
         setMatches(rows)
-        setSelectedMatchId((prev) => {
-          if (!prev && rows.length > 0) return rows[0].id
-          if (prev && !rows.find((item) => item.id === prev)) return rows[0]?.id || ''
-          return prev
-        })
+        setSelectedMatchId((prev) => getDefaultSelectedMatchId(rows, prev))
       } catch (error) {
         if (!active) return
         setErrorText(error.message || 'Failed to load matches')

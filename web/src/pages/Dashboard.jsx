@@ -121,6 +121,12 @@ function Dashboard({ defaultPanel = 'joined' }) {
     'playingXiManager',
     'scoreManager',
   ])
+  const canAccessManualScorePanels = ['admin', 'master_admin', 'contest_manager'].includes(
+    currentUser?.role,
+  )
+  const shouldLoadManualScoreContext =
+    canAccessManualScorePanels &&
+    ['scoreManager', 'playingXiManager'].includes(activePanel)
 
   const buildLineupUnmappedErrorMessage = (unmatched = []) => {
     const sample = (unmatched || [])
@@ -336,6 +342,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
   }, [currentUserId])
 
   useEffect(() => {
+    if (!shouldLoadManualScoreContext) return undefined
     let active = true
     const loadManualContext = async () => {
       try {
@@ -355,12 +362,16 @@ function Dashboard({ defaultPanel = 'joined' }) {
     return () => {
       active = false
     }
-  }, [manualTournamentId])
+  }, [manualTournamentId, shouldLoadManualScoreContext])
 
   useEffect(() => {
+    if (!shouldLoadManualScoreContext) {
+      setManualScoreContext((prev) => ({ ...prev, matches: [] }))
+      return undefined
+    }
     if (!manualTournamentId) {
       setManualScoreContext((prev) => ({ ...prev, matches: [] }))
-      return
+      return undefined
     }
 
     let active = true
@@ -387,7 +398,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
     return () => {
       active = false
     }
-  }, [manualTournamentId])
+  }, [manualTournamentId, shouldLoadManualScoreContext])
 
   const filteredManualContests = useMemo(() => {
     const contestManagerScopeId =

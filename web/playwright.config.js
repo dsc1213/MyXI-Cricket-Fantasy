@@ -2,6 +2,10 @@ import { defineConfig, devices } from '@playwright/test'
 
 const apiMode = globalThis?.process?.env?.PW_API_MODE === 'db' ? 'db' : 'mock'
 const useMockApi = apiMode === 'mock'
+const webPort = Number(globalThis?.process?.env?.PW_WEB_PORT || 4173)
+const apiPort = Number(globalThis?.process?.env?.PW_API_PORT || 4000)
+const webBaseUrl = `http://127.0.0.1:${webPort}`
+const apiBaseUrl = `http://127.0.0.1:${apiPort}`
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -9,15 +13,15 @@ export default defineConfig({
   workers: 1,
   reporter: 'list',
   use: {
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL: webBaseUrl,
     trace: 'on-first-retry',
   },
   webServer: [
     {
-      command: 'npm run dev -- --host 127.0.0.1 --port 4173',
-      url: 'http://127.0.0.1:4173',
+      command: `npm run dev -- --host 127.0.0.1 --port ${webPort}`,
+      url: webBaseUrl,
       env: {
-        VITE_API_BASE_URL: 'http://127.0.0.1:4000',
+        VITE_API_BASE_URL: apiBaseUrl,
       },
       reuseExistingServer: !globalThis?.process?.env?.CI,
       timeout: 120 * 1000,
@@ -29,8 +33,9 @@ export default defineConfig({
       cwd: '../api',
       env: {
         MOCK_API: useMockApi ? 'true' : 'false',
+        PORT: String(apiPort),
       },
-      url: 'http://127.0.0.1:4000/health',
+      url: `${apiBaseUrl}/health`,
       reuseExistingServer: false,
       timeout: 120 * 1000,
     },

@@ -14,6 +14,7 @@ function ResourceRemovalModal({
   onConfirm,
   isSubmitting = false,
 }) {
+  const normalizeConfirmValue = (value = '') => value.toString().trim().toLowerCase()
   const [preview, setPreview] = useState(null)
   const [isLoadingPreview, setIsLoadingPreview] = useState(Boolean(open && resourceId))
   const [errorText, setErrorText] = useState('')
@@ -51,7 +52,8 @@ function ResourceRemovalModal({
     return String(raw || '').trim()
   }, [preview, resourceName])
 
-  const isTypedMatch = typedValue.trim() === expectedName
+  const isTypedMatch =
+    normalizeConfirmValue(typedValue) === normalizeConfirmValue(expectedName)
 
   return (
     <Modal

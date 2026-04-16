@@ -231,6 +231,10 @@ test('backup players replace non-playing XI picks when playing XI is announced',
     expect(autoSwappedRows.map((row) => row.name).sort()).toEqual(
       backupsToPromote.map((player) => player.name).sort(),
     )
+    const captainReplacementRow = autoSwappedRows.find((row) => row.roleTag === 'C')
+    const viceCaptainReplacementRow = autoSwappedRows.find((row) => row.roleTag === 'VC')
+    expect(captainReplacementRow?.name).toBe(backupsToPromote[0].name)
+    expect(viceCaptainReplacementRow?.name).toBe(backupsToPromote[1].name)
     const replacementInfoByName = new Map(
       autoSwappedRows.map((row) => [row.name, row.replacementInfo || '']),
     )

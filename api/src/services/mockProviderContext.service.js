@@ -1053,12 +1053,15 @@ const createMockProviderContext = ({
         viceCaptainId: selection.viceCaptainId,
       })
       const multipliers = new Map()
-      if (resolved.captainApplies && selection?.captainId) {
-        const captainName = idToPlayerName.get(selection.captainId)
+      const resolvedCaptainId = resolved.resolvedCaptainId ?? selection?.captainId
+      const resolvedViceCaptainId =
+        resolved.resolvedViceCaptainId ?? selection?.viceCaptainId
+      if (resolved.captainApplies && resolvedCaptainId) {
+        const captainName = idToPlayerName.get(resolvedCaptainId)
         if (captainName) multipliers.set(normalizeUserKey(captainName), 2)
       }
-      if (resolved.viceCaptainApplies && selection?.viceCaptainId) {
-        const viceName = idToPlayerName.get(selection.viceCaptainId)
+      if (resolved.viceCaptainApplies && resolvedViceCaptainId) {
+        const viceName = idToPlayerName.get(resolvedViceCaptainId)
         if (viceName) multipliers.set(normalizeUserKey(viceName), 1.5)
       }
       return {

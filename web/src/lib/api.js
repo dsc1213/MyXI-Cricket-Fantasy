@@ -113,6 +113,14 @@ const refreshContestScopedData = async ({ contestId, matchId, userId } = {}) => 
         return { rows: [] }
       }),
     )
+    if (userId) {
+      const matchQuery = withSortedParams(new URLSearchParams([['userId', userId]]))
+      tasks.push(
+        primeCachedGet(`contestMatches:${contestId}:${matchQuery}`, () =>
+          request(`/contests/${contestId}/matches?${matchQuery}`),
+        ),
+      )
+    }
     if (matchId) {
       tasks.push(
         primeCachedGet(`contestParticipants:${contestId}:matchId=${matchId}`, () =>
@@ -637,6 +645,7 @@ const saveTeamSelection = async ({
   invalidateAppQueryCache((key) =>
     key.startsWith('teamPool:') ||
     key.startsWith('userPicks:') ||
+    key.startsWith(`contestMatches:${contestId}:`) ||
     key.startsWith(`contestParticipants:${contestId}:`) ||
       key === `contest:${contestId}`,
   )

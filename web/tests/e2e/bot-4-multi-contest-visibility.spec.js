@@ -12,6 +12,82 @@ import {
 test.describe('4) Multi-contest visibility', () => {
   test.setTimeout(120000)
 
+  test('saving a team in one contest does not move the same match selection out of another contest', async ({
+    request,
+  }) => {
+    const tag = Date.now()
+    let contestAId = ''
+    let contestBId = ''
+
+    try {
+      const tournamentId = 't20wc-2026'
+      const contestA = await createContest({
+        request,
+        tournamentId,
+        name: `bot-multi-save-a-${tag}`,
+        teams: 120,
+        createdBy: 'master',
+      })
+      contestAId = contestA.id
+
+      const contestB = await createContest({
+        request,
+        tournamentId,
+        name: `bot-multi-save-b-${tag}`,
+        teams: 120,
+        createdBy: 'master',
+      })
+      contestBId = contestB.id
+
+      const contestAMatches = await apiCall(
+        request,
+        'GET',
+        `/contests/${contestAId}/matches?userId=player`,
+        undefined,
+        200,
+      )
+      const sharedMatchId = (contestAMatches || [])[0]?.id
+      expect(sharedMatchId).toBeTruthy()
+
+      await apiCall(request, 'POST', `/contests/${contestAId}/join`, { userId: 'player' }, 200)
+      await apiCall(request, 'POST', `/contests/${contestBId}/join`, { userId: 'player' }, 200)
+
+      await saveSelection({
+        request,
+        contestId: contestAId,
+        userId: 'player',
+        matchId: sharedMatchId,
+      })
+      await saveSelection({
+        request,
+        contestId: contestBId,
+        userId: 'player',
+        matchId: sharedMatchId,
+      })
+
+      const selectionA = await apiCall(
+        request,
+        'GET',
+        `/team-pool?contestId=${contestAId}&matchId=${sharedMatchId}&userId=player`,
+        undefined,
+        200,
+      )
+      const selectionB = await apiCall(
+        request,
+        'GET',
+        `/team-pool?contestId=${contestBId}&matchId=${sharedMatchId}&userId=player`,
+        undefined,
+        200,
+      )
+
+      expect((selectionA?.selection?.playingXi || []).length).toBe(11)
+      expect((selectionB?.selection?.playingXi || []).length).toBe(11)
+    } finally {
+      await deleteContestIfPresent(request, contestAId)
+      await deleteContestIfPresent(request, contestBId)
+    }
+  })
+
   test('users joined across multiple contests appear in leaderboard and participants', async ({
     request,
   }) => {

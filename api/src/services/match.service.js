@@ -186,9 +186,17 @@ class MatchService {
         `UPDATE team_selections
          SET playing_xi = $1,
              backups = $2,
+             captain_id = $3,
+             vice_captain_id = $4,
              updated_at = now()
-         WHERE id = $3`,
-        [nextPlayingXi, nextBackups, row.id],
+         WHERE id = $5`,
+        [
+          nextPlayingXi,
+          nextBackups,
+          resolved.resolvedCaptainId || null,
+          resolved.resolvedViceCaptainId || null,
+          row.id,
+        ],
       )
 
       if (row.contestId) {
