@@ -2,10 +2,7 @@ import StickyTable from '../ui/StickyTable.jsx'
 import { MatchLabel } from '../ui/CountryFlag.jsx'
 import Button from '../ui/Button.jsx'
 import LoadingNote from '../ui/LoadingNote.jsx'
-
-function normalizeMatchStatus(value) {
-  return (value || '').toString().trim().toLowerCase().replace(/\s+/g, '')
-}
+import { normalizeMatchStatus } from '../../lib/matchStatus.js'
 
 function ViewActionIcon() {
   return (

@@ -419,6 +419,8 @@ function PlayerManagerPanel() {
             ),
             sortable: false,
             width: '48px',
+            headerClassName: 'player-manager-col-select',
+            cellClassName: 'player-manager-col-select',
             render: (row) => {
               const checked = selectedPlayerIds.includes(String(row.id))
               const label = row.displayName || row.name || 'player'
@@ -438,6 +440,8 @@ function PlayerManagerPanel() {
       key: 'player',
       label: 'Player',
       sortValue: (row) => row.displayName || row.name || '',
+      headerClassName: 'player-manager-col-player',
+      cellClassName: 'player-manager-col-player',
       render: (row) => {
         const draft = editingRows[String(row.id)] || null
         if (isEditMode && draft) {
@@ -465,6 +469,8 @@ function PlayerManagerPanel() {
       key: 'country',
       label: 'Country',
       sortValue: (row) => resolvePlayerCountry(row),
+      headerClassName: 'player-manager-col-country',
+      cellClassName: 'player-manager-col-country',
       render: (row) => {
         const draft = editingRows[String(row.id)] || null
         if (isEditMode && draft) {
@@ -486,6 +492,8 @@ function PlayerManagerPanel() {
     {
       key: 'role',
       label: 'Role',
+      headerClassName: 'player-manager-col-role',
+      cellClassName: 'player-manager-col-role',
       render: (row) => {
         const draft = editingRows[String(row.id)] || null
         if (isEditMode && draft) {
@@ -510,6 +518,8 @@ function PlayerManagerPanel() {
             key: 'imageUrl',
             label: 'Image URL',
             sortable: false,
+            headerClassName: 'player-manager-col-image-url',
+            cellClassName: 'player-manager-col-image-url',
             render: (row) => {
               const draft = editingRows[String(row.id)] || null
               if (!draft) {
@@ -542,6 +552,8 @@ function PlayerManagerPanel() {
             key: 'actions',
             label: 'Actions',
             sortable: false,
+            headerClassName: 'player-manager-col-actions',
+            cellClassName: 'player-manager-col-actions',
             render: (row) => {
               const draft = editingRows[String(row.id)] || null
               if (!draft) {

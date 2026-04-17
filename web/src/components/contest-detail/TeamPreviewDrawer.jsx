@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { MatchLabel } from '../ui/CountryFlag.jsx'
 import PlayerAvatar from '../ui/PlayerAvatar.jsx'
 import { sortPlayersByDisplayRole } from '../../lib/playerRoleSort.js'
+import { isMatchLiveOrComplete } from '../../lib/matchStatus.js'
 
 const normalizeLineupName = (value = '') =>
   String(value || '')
@@ -34,6 +35,10 @@ function TeamPreviewDrawer({
   const isFixedRosterContest = contestMode === 'fixed_roster'
   const [expandedRows, setExpandedRows] = useState({})
   const [openMetaInfoKey, setOpenMetaInfoKey] = useState('')
+  const shouldShowOwnershipCounts = useMemo(() => {
+    return isMatchLiveOrComplete(activeMatch?.status)
+  }, [activeMatch?.status])
+
   useEffect(() => {
     document.body.classList.toggle('team-preview-open', !!previewPlayer)
     return () => document.body.classList.remove('team-preview-open')
@@ -196,7 +201,9 @@ function TeamPreviewDrawer({
 
   const renderPlayerMeta = (entry, name, rowKey) => {
     const teamCode =
-      typeof entry === 'object' ? normalizeTeamCode(entry?.team || entry?.teamCode || '') : ''
+      typeof entry === 'object'
+        ? normalizeTeamCode(entry?.team || entry?.teamCode || '')
+        : ''
     const autoSwapped = typeof entry === 'object' ? Boolean(entry?.autoSwapped) : false
     const replacementInfoText =
       entry?.replacementInfo ||
@@ -205,7 +212,7 @@ function TeamPreviewDrawer({
       <div className="team-preview-copy">
         <div className="team-preview-copy-main">
           <strong>{name}</strong>
-          {entry?.ownership?.pickedByCount > 0 ? (
+          {shouldShowOwnershipCounts && entry?.ownership?.pickedByCount > 0 ? (
             <button
               type="button"
               className="team-preview-ownership-link"
@@ -227,17 +234,15 @@ function TeamPreviewDrawer({
             </span>
           ) : null}
         </div>
-        {autoSwapped ? (
-          renderInfoHint(
-            {
+        {autoSwapped
+          ? renderInfoHint({
               label: 'Backup replacement',
               title: replacementInfoText,
               className: 'team-preview-meta-note',
               infoKey: `replacement:${rowKey}`,
               dialogText: replacementInfoText,
-            },
-          )
-        ) : null}
+            })
+          : null}
       </div>
     )
   }
@@ -249,8 +254,7 @@ function TeamPreviewDrawer({
       typeof entry === 'object' &&
       (Array.isArray(entry?.pointBreakdown) && entry.pointBreakdown.length > 0
         ? true
-        : Number(entry?.multiplier || 1) !== 1 ||
-          Boolean(entry?.roleTag))
+        : Number(entry?.multiplier || 1) !== 1 || Boolean(entry?.roleTag))
     if (!hasDetails) return <span>{points}</span>
     return (
       <button
@@ -307,7 +311,9 @@ function TeamPreviewDrawer({
 
   const renderExpandedOwnership = (entry, key) => {
     if (!expandedRows[`ownership:${key}`] || typeof entry !== 'object') return null
-    const pickedBy = Array.isArray(entry?.ownership?.pickedBy) ? entry.ownership.pickedBy : []
+    const pickedBy = Array.isArray(entry?.ownership?.pickedBy)
+      ? entry.ownership.pickedBy
+      : []
     if (!pickedBy.length) return null
     return (
       <div className="team-preview-ownership-panel">
@@ -355,7 +361,9 @@ function TeamPreviewDrawer({
             )}
             {previewPlayer && <p>{`Points: ${previewPlayer.points}`}</p>}
             {isFixedRosterContest && (
-              <p>Leaderboard counts the top 11 roster players by overall contest points.</p>
+              <p>
+                Leaderboard counts the top 11 roster players by overall contest points.
+              </p>
             )}
           </div>
           <button type="button" className="ghost small" onClick={onClose}>
@@ -366,9 +374,13 @@ function TeamPreviewDrawer({
           <section className="team-preview-section team-preview-section-primary">
             <div className="team-preview-list">
               {isLoading && <p className="team-note">Loading team preview...</p>}
-              {!isLoading && isFixedRosterContest && !fixedRosterDisplayGroups.primary.length && (
-                <p className="team-note">No owned players are involved in this match.</p>
-              )}
+              {!isLoading &&
+                isFixedRosterContest &&
+                !fixedRosterDisplayGroups.primary.length && (
+                  <p className="team-note">
+                    No owned players are involved in this match.
+                  </p>
+                )}
               {!isLoading && !isFixedRosterContest && !sortedPreviewXI.length && (
                 <p className="team-note">No saved lineup found for this match.</p>
               )}
@@ -421,18 +433,18 @@ function TeamPreviewDrawer({
             </div>
           </section>
           {!isLoading &&
-            !!(isFixedRosterContest
-              ? fixedRosterDisplayGroups.secondary
-              : sortedPreviewBackups
+            !!(
+              isFixedRosterContest
+                ? fixedRosterDisplayGroups.secondary
+                : sortedPreviewBackups
             )?.length && (
-            <section className="team-preview-section team-preview-section-backups">
-              <div className="team-preview-section-head">
-                <h4>
-                  {isFixedRosterContest ? 'Other owned players' : 'Backup Replacements'}
-                </h4>
-                {!isFixedRosterContest &&
-                  renderInfoHint(
-                    {
+              <section className="team-preview-section team-preview-section-backups">
+                <div className="team-preview-section-head">
+                  <h4>
+                    {isFixedRosterContest ? 'Other owned players' : 'Backup Replacements'}
+                  </h4>
+                  {!isFixedRosterContest &&
+                    renderInfoHint({
                       title:
                         'Reserve players are used when a picked XI player is not in the announced lineup. Promoted backups move into XI and replaced players move here.',
                       className: 'team-preview-section-info',
@@ -441,58 +453,57 @@ function TeamPreviewDrawer({
                         'Reserve players are used when a picked XI player is not in the announced lineup. Promoted backups move into XI and replaced players move here.',
                       showIcon: true,
                       iconOnly: true,
-                    },
-                  )}
-              </div>
-              <div className="team-preview-list">
-                {(isFixedRosterContest
-                  ? fixedRosterDisplayGroups.secondary
-                  : sortedPreviewBackups
-                ).map((entry, index) => {
-                  const name =
-                    typeof entry === 'string'
-                      ? entry
-                      : entry?.name || `Backup ${index + 1}`
-                  const lineupStatus =
-                    typeof entry === 'object' ? resolveLineupStatus(entry) : ''
-                  const rowKey = `backup-${name}-${index}`
-                  return (
-                    <div className="team-preview-entry" key={rowKey}>
-                      <div className="player-row team-preview-row">
-                        <div className="player-row-main">
-                          <PlayerAvatar
-                            name={name}
-                            imageUrl={
-                              typeof entry === 'object' ? entry?.imageUrl || '' : ''
-                            }
-                          />
-                          {!!lineupStatus && (
-                            <span
-                              className={`team-preview-lineup-dot lineup-status-light ${lineupStatus}`.trim()}
-                              title={
-                                lineupStatus === 'playing'
-                                  ? 'In announced playing XI'
-                                  : 'Not in announced playing XI'
-                              }
-                              aria-label={
-                                lineupStatus === 'playing'
-                                  ? 'In announced playing XI'
-                                  : 'Not in announced playing XI'
+                    })}
+                </div>
+                <div className="team-preview-list">
+                  {(isFixedRosterContest
+                    ? fixedRosterDisplayGroups.secondary
+                    : sortedPreviewBackups
+                  ).map((entry, index) => {
+                    const name =
+                      typeof entry === 'string'
+                        ? entry
+                        : entry?.name || `Backup ${index + 1}`
+                    const lineupStatus =
+                      typeof entry === 'object' ? resolveLineupStatus(entry) : ''
+                    const rowKey = `backup-${name}-${index}`
+                    return (
+                      <div className="team-preview-entry" key={rowKey}>
+                        <div className="player-row team-preview-row">
+                          <div className="player-row-main">
+                            <PlayerAvatar
+                              name={name}
+                              imageUrl={
+                                typeof entry === 'object' ? entry?.imageUrl || '' : ''
                               }
                             />
-                          )}
-                          {renderPlayerMeta(entry, name, rowKey)}
+                            {!!lineupStatus && (
+                              <span
+                                className={`team-preview-lineup-dot lineup-status-light ${lineupStatus}`.trim()}
+                                title={
+                                  lineupStatus === 'playing'
+                                    ? 'In announced playing XI'
+                                    : 'Not in announced playing XI'
+                                }
+                                aria-label={
+                                  lineupStatus === 'playing'
+                                    ? 'In announced playing XI'
+                                    : 'Not in announced playing XI'
+                                }
+                              />
+                            )}
+                            {renderPlayerMeta(entry, name, rowKey)}
+                          </div>
+                          {renderPointCell(entry, rowKey)}
                         </div>
-                        {renderPointCell(entry, rowKey)}
+                        {renderExpandedOwnership(entry, rowKey)}
+                        {renderExpandedBreakdown(entry, rowKey)}
                       </div>
-                      {renderExpandedOwnership(entry, rowKey)}
-                      {renderExpandedBreakdown(entry, rowKey)}
-                    </div>
-                  )
-                })}
-              </div>
-            </section>
-          )}
+                    )
+                  })}
+                </div>
+              </section>
+            )}
         </div>
       </aside>
     </div>

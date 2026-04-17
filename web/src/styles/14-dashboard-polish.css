@@ -3013,7 +3013,26 @@ body.dark-theme .fantasy-hub-main {
   height: 30px;
 }
 
-.cricketer-stats-player-identity .player-identity-name {
+.cricketer-stats-table
+  td.cricketer-col-player
+  .cricketer-stats-player-identity
+  .player-identity-copy {
+  overflow: visible;
+  align-content: start;
+}
+
+.cricketer-stats-table
+  td.cricketer-col-player
+  .cricketer-stats-player-identity
+  .player-identity-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  line-height: 1.14;
   font-size: 0.8rem;
 }
 
@@ -4474,8 +4493,8 @@ body.dark-theme .app.app-team .backups-card .player-chip.slot-chip.compact small
   }
 
   .app.is-cricketer-stats-page .cricketer-stats-table .cricketer-col-player {
-    width: 52%;
-    min-width: 150px;
+    width: 58%;
+    min-width: 190px;
   }
 
   .app.is-cricketer-stats-page .cricketer-stats-table .cricketer-col-team {
@@ -4495,16 +4514,46 @@ body.dark-theme .app.app-team .backups-card .player-chip.slot-chip.compact small
   }
 
   .app.is-cricketer-stats-page .cricketer-stats-player-identity {
-    gap: 0.34rem;
+    gap: 0.42rem;
+    align-items: flex-start;
   }
 
   .app.is-cricketer-stats-page .cricketer-stats-player-identity .player-avatar {
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
+    flex: 0 0 26px;
   }
 
-  .app.is-cricketer-stats-page .cricketer-stats-player-identity .player-identity-name {
-    font-size: 0.68rem;
+  .app.is-cricketer-stats-page .cricketer-stats-player-identity .player-identity-copy {
+    overflow: visible;
+    align-content: start;
+  }
+
+  .app.is-cricketer-stats-page
+    .cricketer-stats-table
+    td.cricketer-col-player
+    .cricketer-stats-player-identity
+    .player-identity-name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+    line-height: 1.14;
+    font-size: 0.78rem;
+  }
+
+  .app.is-cricketer-stats-page
+    .cricketer-stats-table
+    td.cricketer-col-player
+    .cricketer-stats-player-identity
+    .player-identity-subtitle {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.63rem;
   }
 
   .app.is-cricketer-stats-page
@@ -4898,6 +4947,95 @@ body.dark-theme .app.app-lower-content select {
   .dashboard-panel-view .catalog-table td {
     white-space: nowrap;
     word-break: normal;
+  }
+
+  .dashboard-panel-view .player-manager-panel .catalog-table-wrap {
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .dashboard-panel-view .player-manager-table {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  .dashboard-panel-view .player-manager-table th,
+  .dashboard-panel-view .player-manager-table td {
+    white-space: normal;
+    word-break: break-word;
+    padding: 0.3rem 0.26rem;
+    font-size: 0.68rem;
+  }
+
+  .dashboard-panel-view .player-manager-table .player-manager-col-select {
+    width: 36px;
+  }
+
+  .dashboard-panel-view .player-manager-table .player-manager-col-player {
+    width: auto;
+  }
+
+  .dashboard-panel-view .player-manager-table .player-manager-col-country {
+    width: 26%;
+  }
+
+  .dashboard-panel-view .player-manager-table .player-manager-col-role {
+    width: 22%;
+    white-space: nowrap;
+    word-break: normal;
+  }
+
+  .dashboard-panel-view .player-manager-table .player-manager-col-image-url,
+  .dashboard-panel-view .player-manager-table .player-manager-col-actions {
+    display: none;
+  }
+
+  .dashboard-panel-view .player-manager-table .player-identity {
+    align-items: flex-start;
+    gap: 0.42rem;
+  }
+
+  .dashboard-panel-view .player-manager-table .player-avatar {
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+  }
+
+  .dashboard-panel-view .player-manager-table .player-identity-copy {
+    overflow: visible;
+    align-content: start;
+  }
+
+  .dashboard-panel-view
+    .player-manager-table
+    td
+    .player-identity
+    .player-identity-name {
+    max-width: none;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+    line-height: 1.14;
+    font-size: 0.76rem;
+  }
+
+  .dashboard-panel-view .player-manager-table .dashboard-text-input,
+  .dashboard-panel-view .player-manager-table select.dashboard-text-input {
+    width: 100%;
+    min-width: 0;
+    padding: 0.22rem 1.35rem 0.22rem 0.38rem;
+    font-size: 0.66rem;
+  }
+
+  .dashboard-panel-view .player-manager-table .player-manager-col-country,
+  .dashboard-panel-view .player-manager-table .player-manager-col-role {
+    font-size: 0.66rem;
   }
 
   .app.is-contest-detail .match-table {

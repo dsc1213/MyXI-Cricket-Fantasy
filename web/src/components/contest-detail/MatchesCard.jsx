@@ -4,6 +4,7 @@ import { getCountryFlag } from '../ui/countryFlagUtils.js'
 import LoadingNote from '../ui/LoadingNote.jsx'
 import SelectField from '../ui/SelectField.jsx'
 import StickyTable from '../ui/StickyTable.jsx'
+import { formatMatchStatus, normalizeMatchStatus } from '../../lib/matchStatus.js'
 
 const monthShort = [
   'Jan',
@@ -66,18 +67,6 @@ function AddActionIcon() {
       />
     </svg>
   )
-}
-
-function normalizeMatchStatus(value) {
-  return (value || '').toString().trim().toLowerCase().replace(/\s+/g, '')
-}
-
-function formatMatchStatus(value) {
-  const normalized = normalizeMatchStatus(value)
-  if (normalized === 'completed') return 'Completed'
-  if (normalized === 'inprogress') return 'In Progress'
-  if (normalized === 'notstarted') return 'Not Started'
-  return value || '-'
 }
 
 function formatShortDate(value) {

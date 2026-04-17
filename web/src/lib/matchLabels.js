@@ -1,11 +1,12 @@
 import { getCountryFlag } from '../components/ui/countryFlagUtils.js'
+import { normalizeMatchStatus } from './matchStatus.js'
 
 export const formatCompactMatchLabel = (item = {}) => {
   const statusDot = (() => {
-    const status = String(item?.status || '').trim().toLowerCase()
+    const status = normalizeMatchStatus(item?.status)
     if (status === 'completed') return '🟢'
-    if (status === 'inprogress' || status === 'in_progress') return '🟡'
-    if (status === 'notstarted' || status === 'not_started') return '⚪'
+    if (status === 'inprogress') return '🟡'
+    if (status === 'notstarted') return '⚪'
     return ''
   })()
   const rawLabel = String(item?.label || item?.name || '').trim()
