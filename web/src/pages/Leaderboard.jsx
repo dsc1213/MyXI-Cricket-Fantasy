@@ -191,6 +191,8 @@ function Leaderboard() {
       .trim()
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '')
+  const getLeaderboardDisplayName = (row = {}) =>
+    (row.gameName || row.name || row.userId || '').toString().trim()
   const currentUserIdentityKeys = new Set(
     [
       currentUser?.userId,
@@ -299,7 +301,7 @@ function Leaderboard() {
           className="leaderboard-link button-link"
           onClick={() => onOpenUserBreakdown(row)}
         >
-          {row.name}
+          {getLeaderboardDisplayName(row)}
         </button>
       ),
     },
