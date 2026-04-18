@@ -703,8 +703,84 @@ class PlayerService {
       playerRepo.findByTeam(teamAKey, resolvedTournamentId),
       playerRepo.findByTeam(teamBKey, resolvedTournamentId),
     ])
+    const leaderboardPointsRows = await dbQuery(
+      `SELECT player_id as "playerId", COALESCE(SUM(fantasy_points), 0)::float as "totalPoints"
+       FROM player_match_scores
+       WHERE tournament_id = $1
+       GROUP BY player_id`,
+      [resolvedTournamentId],
+    )
+    const totalPointsByPlayerId = new Map(
+      (leaderboardPointsRows.rows || []).map((row) => [
+        Number(row.playerId),
+        Number(row.totalPoints || 0),
+      ]),
+    )
+    const resolveMatchStartTimestamp = (match) => {
+      const raw = match?.startTime || match?.startAt || match?.date || null
+      const parsed = raw ? new Date(raw).getTime() : Number.NaN
+      return Number.isFinite(parsed) ? parsed : 0
+    }
+    const activeMatchStart = resolveMatchStartTimestamp(activeMatchRaw)
+    const resolvePreviousMatch = (teamCode) => {
+      const normalizedTeamCode = String(teamCode || '').trim().toUpperCase()
+      if (!normalizedTeamCode || !activeMatchStart) return null
+      return [...tournamentMatches]
+        .filter((match) => {
+          const homeCode = String(match?.teamAKey || match?.teamA || '')
+            .trim()
+            .toUpperCase()
+          const awayCode = String(match?.teamBKey || match?.teamB || '')
+            .trim()
+            .toUpperCase()
+          return (
+            [homeCode, awayCode].includes(normalizedTeamCode) &&
+            resolveMatchStartTimestamp(match) < activeMatchStart
+          )
+        })
+        .sort((left, right) => resolveMatchStartTimestamp(right) - resolveMatchStartTimestamp(left))[0]
+    }
+    const previousTeamAMatch = resolvePreviousMatch(teamAKey)
+    const previousTeamBMatch = resolvePreviousMatch(teamBKey)
+    const [previousTeamALineupMap, previousTeamBLineupMap] = await Promise.all([
+      previousTeamAMatch?.id
+        ? this.getMatchLineupMap(resolvedTournamentId, previousTeamAMatch.id)
+        : Promise.resolve(new Map()),
+      previousTeamBMatch?.id
+        ? this.getMatchLineupMap(resolvedTournamentId, previousTeamBMatch.id)
+        : Promise.resolve(new Map()),
+    ])
+    const previousTeamAPlayingSet = new Set(
+      (previousTeamALineupMap.get(teamAKey)?.playingXI || []).map((name) =>
+        this.normalizeLineupNameKey(name),
+      ),
+    )
+    const previousTeamBPlayingSet = new Set(
+      (previousTeamBLineupMap.get(teamBKey)?.playingXI || []).map((name) =>
+        this.normalizeLineupNameKey(name),
+      ),
+    )
 
-    const normalizePoolPlayer = (player) => ({
+    const normalizePoolPlayer = (player) => {
+      const normalizedName = this.normalizeLineupNameKey(
+        player.displayName ||
+          [player.firstName, player.lastName].filter(Boolean).join(' ').trim(),
+      )
+      const normalizedTeamCode = String(player.teamKey || '').trim().toUpperCase()
+      const previousMatch =
+        normalizedTeamCode === String(teamAKey || '').trim().toUpperCase()
+          ? previousTeamAMatch
+          : normalizedTeamCode === String(teamBKey || '').trim().toUpperCase()
+            ? previousTeamBMatch
+            : null
+      const playedLastMatch =
+        normalizedTeamCode === String(teamAKey || '').trim().toUpperCase()
+          ? previousTeamAPlayingSet.has(normalizedName)
+          : normalizedTeamCode === String(teamBKey || '').trim().toUpperCase()
+            ? previousTeamBPlayingSet.has(normalizedName)
+            : false
+
+      return {
       id: player.id,
       playerId: player.playerId || player.id,
       name:
@@ -717,7 +793,16 @@ class PlayerService {
       battingStyle: player.battingStyle || '',
       bowlingStyle: player.bowlingStyle || '',
       active: player.active !== false,
-    })
+        totalPoints: Number(totalPointsByPlayerId.get(Number(player.id)) || 0),
+        lastMatch: previousMatch
+          ? {
+              matchId: previousMatch.id,
+              matchName: previousMatch.name,
+              played: playedLastMatch,
+            }
+          : null,
+      }
+    }
 
     const lineupMap = await this.getMatchLineupMap(resolvedTournamentId, activeMatch.id)
 

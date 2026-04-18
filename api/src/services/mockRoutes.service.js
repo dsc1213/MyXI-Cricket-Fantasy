@@ -1972,6 +1972,80 @@ const registerMockProviderRoutes = (router, ctx) => {
       seedFromDefaultHasTeam: true,
     })
     const matchRosters = getMatchRosters(activeMatch)
+    const tournamentPlayerPointsIndex = getTournamentPlayerStatsIndex(resolvedTournamentId)
+    const resolveMatchStartTimestamp = (match) => {
+      const raw = match?.startAt || match?.date || null
+      const parsed = raw ? new Date(raw).getTime() : Number.NaN
+      return Number.isFinite(parsed) ? parsed : 0
+    }
+    const activeMatchStart = resolveMatchStartTimestamp(activeMatch)
+    const resolvePreviousMatch = (teamCode) => {
+      const normalizedTeamCode = String(teamCode || '').trim().toUpperCase()
+      if (!normalizedTeamCode || !activeMatchStart) return null
+      return [...tournamentMatches]
+        .filter((match) => {
+          const homeCode = String(match?.home || '').trim().toUpperCase()
+          const awayCode = String(match?.away || '').trim().toUpperCase()
+          return (
+            [homeCode, awayCode].includes(normalizedTeamCode) &&
+            resolveMatchStartTimestamp(match) < activeMatchStart
+          )
+        })
+        .sort((left, right) => resolveMatchStartTimestamp(right) - resolveMatchStartTimestamp(left))[0]
+    }
+    const previousTeamAMatch = resolvePreviousMatch(activeMatch.home)
+    const previousTeamBMatch = resolvePreviousMatch(activeMatch.away)
+    const previousTeamALineup =
+      previousTeamAMatch
+        ? mockMatchLineups.get(
+            lineupKey({
+              tournamentId: contest?.tournamentId || resolvedTournamentId,
+              matchId: previousTeamAMatch.id,
+            }),
+          )?.lineups?.[activeMatch.home] || null
+        : null
+    const previousTeamBLineup =
+      previousTeamBMatch
+        ? mockMatchLineups.get(
+            lineupKey({
+              tournamentId: contest?.tournamentId || resolvedTournamentId,
+              matchId: previousTeamBMatch.id,
+            }),
+          )?.lineups?.[activeMatch.away] || null
+        : null
+    const previousTeamAPlayingSet = new Set(
+      (previousTeamALineup?.playingXI || []).map((name) => normalizeLineupNameKey(name)),
+    )
+    const previousTeamBPlayingSet = new Set(
+      (previousTeamBLineup?.playingXI || []).map((name) => normalizeLineupNameKey(name)),
+    )
+    const decoratePoolPlayer = (player) => {
+      const normalizedName = normalizeLineupNameKey(player.name)
+      const normalizedTeamCode = String(player.team || '').trim().toUpperCase()
+      const previousMatch =
+        normalizedTeamCode === String(activeMatch.home || '').trim().toUpperCase()
+          ? previousTeamAMatch
+          : normalizedTeamCode === String(activeMatch.away || '').trim().toUpperCase()
+            ? previousTeamBMatch
+            : null
+      const playedLastMatch =
+        normalizedTeamCode === String(activeMatch.home || '').trim().toUpperCase()
+          ? previousTeamAPlayingSet.has(normalizedName)
+          : normalizedTeamCode === String(activeMatch.away || '').trim().toUpperCase()
+            ? previousTeamBPlayingSet.has(normalizedName)
+            : false
+      return {
+        ...player,
+        totalPoints: Number(tournamentPlayerPointsIndex[player.id]?.totalPoints || 0),
+        lastMatch: previousMatch
+          ? {
+              matchId: previousMatch.id,
+              matchName: previousMatch.name,
+              played: playedLastMatch,
+            }
+          : null,
+      }
+    }
     const savedLineup =
       mockMatchLineups.get(
         lineupKey({
@@ -1988,12 +2062,12 @@ const registerMockProviderRoutes = (router, ctx) => {
       teams: {
         teamA: {
           name: activeMatch.home,
-          players: matchRosters.teamA,
+          players: matchRosters.teamA.map(decoratePoolPlayer),
           lineup: lineupA,
         },
         teamB: {
           name: activeMatch.away,
-          players: matchRosters.teamB,
+          players: matchRosters.teamB.map(decoratePoolPlayer),
           lineup: lineupB,
         },
       },

@@ -8,7 +8,10 @@ import CricketRouteLoader from '../components/ui/CricketRouteLoader.jsx'
 import { CountryText } from '../components/ui/CountryFlag.jsx'
 import { roleCounts } from '../components/team-selection/playerPool.js'
 import { fetchTeamPool, saveTeamSelection } from '../lib/api.js'
-import { sortPlayersByDisplayRole } from '../lib/playerRoleSort.js'
+import {
+  sortPlayersByDisplayRole,
+  sortPlayersByLastPlayedThenDisplayRole,
+} from '../lib/playerRoleSort.js'
 
 const normalizeLineupName = (value = '') => value.toString().trim().toLowerCase()
 
@@ -71,11 +74,11 @@ function TeamSelection() {
     [playerPool.teamBPlayers],
   )
   const sortedTeamAPlayers = useMemo(
-    () => sortPlayersByDisplayRole(playerPool.teamAPlayers || []),
+    () => sortPlayersByLastPlayedThenDisplayRole(playerPool.teamAPlayers || []),
     [playerPool.teamAPlayers],
   )
   const sortedTeamBPlayers = useMemo(
-    () => sortPlayersByDisplayRole(playerPool.teamBPlayers || []),
+    () => sortPlayersByLastPlayedThenDisplayRole(playerPool.teamBPlayers || []),
     [playerPool.teamBPlayers],
   )
 

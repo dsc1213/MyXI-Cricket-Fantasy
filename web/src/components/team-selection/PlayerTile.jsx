@@ -9,22 +9,28 @@ function PlayerTile({
   onBackup,
   disabled = false,
 }) {
+  const playedPreviousMatch = Boolean(player?.lastMatch?.played)
+
   return (
     <div
-      className={`player-tile ${isSelected ? 'selected' : ''} ${isBackup ? 'backup-selected' : ''} ${lineupStatus ? `lineup-${lineupStatus}` : ''}`.trim()}
+      className={`player-tile ${playedPreviousMatch ? 'played-previous-match' : ''} ${isSelected ? 'selected' : ''} ${isBackup ? 'backup-selected' : ''} ${lineupStatus ? `lineup-${lineupStatus}` : ''}`.trim()}
     >
-      {!!lineupStatus && (
+      {(lineupStatus || playedPreviousMatch) && (
         <span
-          className={`lineup-status-light ${lineupStatus}`.trim()}
+          className={`lineup-status-light ${lineupStatus || 'previous-played'}`.trim()}
           title={
             lineupStatus === 'playing'
               ? 'In announced playing XI'
-              : 'Not in announced playing XI'
+              : lineupStatus === 'bench'
+                ? 'Not in announced playing XI'
+                : 'Played previous match'
           }
           aria-label={
             lineupStatus === 'playing'
               ? 'In announced playing XI'
-              : 'Not in announced playing XI'
+              : lineupStatus === 'bench'
+                ? 'Not in announced playing XI'
+                : 'Played previous match'
           }
         />
       )}

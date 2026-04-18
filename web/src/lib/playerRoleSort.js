@@ -30,3 +30,18 @@ export const sortPlayersByDisplayRole = (players = []) =>
     const rightName = (right?.name || right?.playerName || '').toString().trim()
     return leftName.localeCompare(rightName)
   })
+
+export const sortPlayersByLastPlayedThenDisplayRole = (players = []) =>
+  [...players].sort((left, right) => {
+    const leftPlayed = Boolean(left?.lastMatch?.played)
+    const rightPlayed = Boolean(right?.lastMatch?.played)
+    if (leftPlayed !== rightPlayed) return leftPlayed ? -1 : 1
+
+    const roleDelta =
+      getPlayerDisplayRoleRank(left?.role) - getPlayerDisplayRoleRank(right?.role)
+    if (roleDelta !== 0) return roleDelta
+
+    const leftName = (left?.name || left?.playerName || '').toString().trim()
+    const rightName = (right?.name || right?.playerName || '').toString().trim()
+    return leftName.localeCompare(rightName)
+  })

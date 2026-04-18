@@ -143,7 +143,6 @@ body.dark-theme .app.app-team .team-column-header .country-text > span {
   width: 9px;
   height: 9px;
   border-radius: 999px;
-  box-shadow: 0 0 0 2px rgba(10, 18, 30, 0.35);
   z-index: 2;
 }
 
@@ -153,6 +152,14 @@ body.dark-theme .app.app-team .team-column-header .country-text > span {
 
 .lineup-status-light.bench {
   background: #ef4444;
+}
+
+.lineup-status-light.previous-played {
+  background: #d4a853;
+}
+
+body.dark-theme .app.app-team .lineup-status-light.previous-played {
+  background: #e0ba72;
 }
 
 .player-tile.lineup-playing .player-meta,
@@ -177,6 +184,22 @@ body.dark-theme .app.app-team .team-column-header .country-text > span {
 .player-chip.slot-chip.compact .player-chip-identity .player-identity-subtitle {
   font-size: 0.56rem;
   color: var(--chip-subtext);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.player-tile-total-points {
+  display: inline-flex;
+  align-items: center;
+  font-size: inherit;
+  font-weight: 800;
+  line-height: 1;
+  color: rgba(241, 246, 255, 0.92);
+}
+
+body:not(.dark-theme) .app.app-team .player-tile-total-points {
+  color: rgba(36, 48, 74, 0.86);
 }
 
 .player-chip.slot-chip.compact
@@ -604,9 +627,9 @@ body.dark-theme
   opacity: 0.95;
 }
 
-.app.app-team .team-column .player-avatar-fallback,
-.app.app-team .myxi-card .player-avatar-fallback,
-.app.app-team .backups-card .player-avatar-fallback {
+body.dark-theme .app.app-team .team-column .player-avatar-fallback,
+body.dark-theme .app.app-team .myxi-card .player-avatar-fallback,
+body.dark-theme .app.app-team .backups-card .player-avatar-fallback {
   color: rgba(235, 241, 255, 0.94);
 }
 
