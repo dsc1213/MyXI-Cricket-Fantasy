@@ -189,17 +189,33 @@ body.dark-theme .app.app-team .lineup-status-light.previous-played {
   gap: 0.3rem;
 }
 
-.player-tile-total-points {
+.player-tile .player-chip.slot-chip.compact .player-chip-identity .player-identity-subtitle > span,
+.player-tile .player-chip.slot-chip.compact .player-chip-identity .player-tile-total-points {
   display: inline-flex;
   align-items: center;
   font-size: inherit;
+  letter-spacing: normal;
+  text-transform: none;
   font-weight: 800;
   line-height: 1;
-  color: rgba(241, 246, 255, 0.92);
+  color: inherit;
 }
 
-body:not(.dark-theme) .app.app-team .player-tile-total-points {
-  color: rgba(36, 48, 74, 0.86);
+.player-tile .player-chip.slot-chip.compact .player-chip-identity .player-tile-total-points {
+  padding: 0.08rem 0.26rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(248, 251, 255, 0.96);
+}
+
+body:not(.dark-theme)
+  .app.app-team
+  .player-tile
+  .player-chip.slot-chip.compact
+  .player-chip-identity
+  .player-tile-total-points {
+  border-color: rgba(36, 48, 74, 0.16);
+  color: rgba(36, 48, 74, 0.92);
 }
 
 .player-chip.slot-chip.compact

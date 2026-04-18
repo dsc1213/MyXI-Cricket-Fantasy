@@ -4,6 +4,7 @@ function PlayerIdentity({
   name = '',
   imageUrl = '',
   subtitle = '',
+  subtitleSuffix = null,
   className = '',
   size = 'sm',
   title = '',
@@ -17,7 +18,12 @@ function PlayerIdentity({
           {name}
           {nameSuffix}
         </span>
-        {!!subtitle && <small className="player-identity-subtitle">{subtitle}</small>}
+        {!!subtitle && (
+          <small className="player-identity-subtitle">
+            <span>{subtitle}</span>
+            {subtitleSuffix}
+          </small>
+        )}
       </div>
     </div>
   )

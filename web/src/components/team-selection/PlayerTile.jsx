@@ -10,6 +10,7 @@ function PlayerTile({
   disabled = false,
 }) {
   const playedPreviousMatch = Boolean(player?.lastMatch?.played)
+  const totalFantasyPoints = Number(player?.totalPoints || 0)
 
   return (
     <div
@@ -35,7 +36,10 @@ function PlayerTile({
         />
       )}
       <div className="player-meta">
-        <PlayerLabel player={player} />
+        <PlayerLabel
+          player={player}
+          subtitleSuffix={<span className="player-tile-total-points">{totalFantasyPoints}</span>}
+        />
       </div>
       <div className="tile-actions">
         <button type="button" className="tile-btn" onClick={onToggle} disabled={disabled}>

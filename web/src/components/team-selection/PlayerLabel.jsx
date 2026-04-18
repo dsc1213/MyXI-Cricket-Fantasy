@@ -18,6 +18,7 @@ function PlayerLabel({
   roleControls = null,
   lineupStatus = '',
   showTeam = false,
+  subtitleSuffix = null,
 }) {
   const name = normalizePlayerName(player)
   const role = (player.role || '').toString().trim() || 'BAT'
@@ -68,6 +69,7 @@ function PlayerLabel({
           name={name}
           imageUrl={imageUrl}
           subtitle={role}
+          subtitleSuffix={subtitleSuffix}
           className="dense player-chip-identity"
           nameSuffix={
             <>
