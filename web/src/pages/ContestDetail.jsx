@@ -19,6 +19,7 @@ import {
   removeAdminContest,
 } from '../lib/api.js'
 import { getStoredUser } from '../lib/auth.js'
+import { getDisplayName } from '../lib/displayName.js'
 
 const normalizeContestMatches = (payload) => {
   if (Array.isArray(payload)) return payload
@@ -361,11 +362,9 @@ function ContestDetail() {
     }
   }, [contestId, showLeaderboardPreview])
 
-  const getLeaderboardDisplayName = (row = {}) => row.gameName || row.name || row.userId || '-'
-
   const leaderboardColumns = [
     { key: 'rank', label: 'Rank', render: (_, index) => index + 1 },
-    { key: 'name', label: 'Game Name', render: (row) => getLeaderboardDisplayName(row) },
+    { key: 'name', label: 'Game Name', render: (row) => getDisplayName(row) || '-' },
     { key: 'points', label: 'Points', render: (row) => Number(row.points || 0) },
   ]
 
@@ -515,7 +514,7 @@ function ContestDetail() {
           <StickyTable
             columns={leaderboardColumns}
             rows={leaderboardRows.slice(0, 15)}
-            rowKey={(row, index) => row.id || `${getLeaderboardDisplayName(row)}-${index}`}
+            rowKey={(row, index) => row.id || `${getDisplayName(row) || 'row'}-${index}`}
             emptyText="No leaderboard rows"
             wrapperClassName="leaderboard-preview-table-wrap"
             tableClassName="leaderboard-table"

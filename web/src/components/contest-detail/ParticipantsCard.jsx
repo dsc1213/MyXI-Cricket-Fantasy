@@ -3,6 +3,7 @@ import { MatchLabel } from '../ui/CountryFlag.jsx'
 import Button from '../ui/Button.jsx'
 import LoadingNote from '../ui/LoadingNote.jsx'
 import { normalizeMatchStatus } from '../../lib/matchStatus.js'
+import { getDisplayName } from '../../lib/displayName.js'
 
 function ViewActionIcon() {
   return (
@@ -85,7 +86,9 @@ function ParticipantsCard({
     {
       key: 'name',
       label: 'Name',
-      render: (player) => <strong className="participant-name">{player.name}</strong>,
+      render: (player) => (
+        <strong className="participant-name">{getDisplayName(player)}</strong>
+      ),
     },
     {
       key: 'points',
@@ -109,12 +112,12 @@ function ParticipantsCard({
                 className="icon-edit-btn match-action-icon-btn"
                 disabled={!canEditTeams || !isLoggedIn || !targetIdentity}
                 to={`/fantasy/select?contest=${contestId}&match=${activeMatch?.id || ''}&mode=edit&userId=${encodeURIComponent(targetIdentity)}`}
-                aria-label={`Edit ${player.name} team`}
+                aria-label={`Edit ${getDisplayName(player)} team`}
                 title={
                   !isLoggedIn
                     ? 'Login required to edit team'
                     : canEditTeams
-                      ? `Edit ${player.name} team`
+                      ? `Edit ${getDisplayName(player)} team`
                       : 'Team can only be edited before match starts'
                 }
               >
@@ -127,12 +130,12 @@ function ParticipantsCard({
               className="icon-eye-btn match-action-icon-btn"
               disabled={!canViewPlayerTeam(player) || !isLoggedIn}
               onClick={() => onPreviewPlayer(player)}
-              aria-label={`View ${player.name} team`}
+              aria-label={`View ${getDisplayName(player)} team`}
               title={
                 !isLoggedIn
                   ? 'Login required to view team'
                   : canViewPlayerTeam(player)
-                    ? `View ${player.name} team`
+                    ? `View ${getDisplayName(player)} team`
                     : 'Player teams are disabled until this match starts.'
               }
             >

@@ -14,6 +14,7 @@ import {
   fetchContests,
   fetchTournaments,
 } from '../lib/api.js'
+import { getDisplayName } from '../lib/displayName.js'
 
 const formatBreakdownDate = (value) => {
   const raw = (value || '').toString().trim()
@@ -191,8 +192,6 @@ function Leaderboard() {
       .trim()
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '')
-  const getLeaderboardDisplayName = (row = {}) =>
-    (row.gameName || row.name || row.userId || '').toString().trim()
   const currentUserIdentityKeys = new Set(
     [
       currentUser?.userId,
@@ -301,7 +300,7 @@ function Leaderboard() {
           className="leaderboard-link button-link"
           onClick={() => onOpenUserBreakdown(row)}
         >
-          {getLeaderboardDisplayName(row)}
+          {getDisplayName(row)}
         </button>
       ),
     },
