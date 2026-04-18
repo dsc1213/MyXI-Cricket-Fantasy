@@ -573,6 +573,7 @@ class PlayerService {
         const aggregate = aggregateByPlayerId[player.id] || null
         return {
           id: player.id,
+          displayName: player.name,
           name: player.name,
           team: player.teamKey,
           teamCode: player.teamKey,

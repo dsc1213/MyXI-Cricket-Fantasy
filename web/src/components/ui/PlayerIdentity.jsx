@@ -20,7 +20,7 @@ function PlayerIdentity({
         </span>
         {!!subtitle && (
           <small className="player-identity-subtitle">
-            <span>{subtitle}</span>
+            <span className="player-identity-role">{subtitle}</span>
             {subtitleSuffix}
           </small>
         )}

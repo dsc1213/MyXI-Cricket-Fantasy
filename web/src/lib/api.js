@@ -554,9 +554,7 @@ const fetchContestMatches = ({ contestId, status, team, userId } = {}) => {
   if (team) params.set('team', team)
   if (userId) params.set('userId', userId)
   const query = withSortedParams(params)
-  return cachedGet(`contestMatches:${contestId}:${query || 'all'}`, () =>
-    request(`/contests/${contestId}/matches${query ? `?${query}` : ''}`),
-  )
+  return request(`/contests/${contestId}/matches${query ? `?${query}` : ''}`)
 }
 
 const fetchContestParticipants = ({ contestId, matchId, userId } = {}) => {

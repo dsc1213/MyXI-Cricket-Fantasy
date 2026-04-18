@@ -118,7 +118,8 @@ const createCoreController = ({
       )
       res.json(data)
     } catch (error) {
-      res.status(500).json({ error: error.message })
+      const statusCode = Number(error?.statusCode || 500)
+      res.status(statusCode).json({ error: error.message })
     }
   }
   // Scoring rules

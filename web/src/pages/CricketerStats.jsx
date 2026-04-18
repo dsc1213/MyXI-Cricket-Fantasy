@@ -21,6 +21,9 @@ const formatBreakdownDate = (value) => {
   })
 }
 
+const getPlayerDisplayName = (row = {}) =>
+  (row.displayName || row.name || '').toString().trim()
+
 function CricketerStats() {
   const { tournamentId: routeTournamentId } = useParams()
   const [isLoading, setIsLoading] = useState(true)
@@ -85,7 +88,7 @@ function CricketerStats() {
     if (!query) return rows
     return rows.filter((row) => {
       const haystack = [
-        row.name,
+        getPlayerDisplayName(row),
         row.teamCode,
         row.team,
         row.teamName,
@@ -139,12 +142,12 @@ function CricketerStats() {
       {
         key: 'name',
         label: 'Player',
-        sortValue: (row) => row.name || '',
+        sortValue: (row) => getPlayerDisplayName(row),
         headerClassName: 'cricketer-col-player',
         cellClassName: 'cricketer-col-player',
         render: (row) => (
           <PlayerIdentity
-            name={row.name}
+            name={getPlayerDisplayName(row)}
             imageUrl={row.imageUrl || ''}
             className="dense cricketer-stats-player-identity"
           />
@@ -213,7 +216,7 @@ function CricketerStats() {
               void toggleBreakdown(row)
             }}
             aria-expanded={expandedPlayerId === String(row.id)}
-            aria-label={`Show match breakdown for ${row.name}`}
+            aria-label={`Show match breakdown for ${getPlayerDisplayName(row)}`}
           >
             <strong>{Number(row.points || 0)}</strong>
           </button>
@@ -291,7 +294,7 @@ function CricketerStats() {
               return (
                 <div className="cricketer-breakdown-inline" data-player-id={playerId}>
                   <div className="cricketer-breakdown-inline-head">
-                    <strong>{row.name}</strong>
+                    <strong>{getPlayerDisplayName(row)}</strong>
                     <span>Match by match points</span>
                   </div>
                   {isBreakdownLoading ? <p className="team-note">Loading breakdown...</p> : null}

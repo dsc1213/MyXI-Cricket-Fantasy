@@ -361,9 +361,11 @@ function ContestDetail() {
     }
   }, [contestId, showLeaderboardPreview])
 
+  const getLeaderboardDisplayName = (row = {}) => row.gameName || row.name || row.userId || '-'
+
   const leaderboardColumns = [
     { key: 'rank', label: 'Rank', render: (_, index) => index + 1 },
-    { key: 'name', label: 'Game Name', render: (row) => row.name },
+    { key: 'name', label: 'Game Name', render: (row) => getLeaderboardDisplayName(row) },
     { key: 'points', label: 'Points', render: (row) => Number(row.points || 0) },
   ]
 
@@ -513,7 +515,7 @@ function ContestDetail() {
           <StickyTable
             columns={leaderboardColumns}
             rows={leaderboardRows.slice(0, 15)}
-            rowKey={(row, index) => row.id || `${row.name}-${index}`}
+            rowKey={(row, index) => row.id || `${getLeaderboardDisplayName(row)}-${index}`}
             emptyText="No leaderboard rows"
             wrapperClassName="leaderboard-preview-table-wrap"
             tableClassName="leaderboard-table"

@@ -189,19 +189,24 @@ body.dark-theme .app.app-team .lineup-status-light.previous-played {
   gap: 0.3rem;
 }
 
-.player-tile .player-chip.slot-chip.compact .player-chip-identity .player-identity-subtitle > span,
+.player-tile .player-chip.slot-chip.compact .player-chip-identity .player-identity-role,
 .player-tile .player-chip.slot-chip.compact .player-chip-identity .player-tile-total-points {
   display: inline-flex;
   align-items: center;
-  font-size: inherit;
   letter-spacing: normal;
   text-transform: none;
-  font-weight: 800;
   line-height: 1;
   color: inherit;
 }
 
+.player-tile .player-chip.slot-chip.compact .player-chip-identity .player-identity-role {
+  font-size: 0.35rem;
+  font-weight: 700;
+}
+
 .player-tile .player-chip.slot-chip.compact .player-chip-identity .player-tile-total-points {
+  font-size: 0.5rem;
+  font-weight: 800;
   padding: 0.08rem 0.26rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.2);
