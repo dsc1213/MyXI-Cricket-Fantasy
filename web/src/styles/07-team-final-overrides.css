@@ -155,11 +155,11 @@ body.dark-theme .app.app-team .team-column-header .country-text > span {
 }
 
 .lineup-status-light.previous-played {
-  background: #d4a853;
+  background: var(--lux-vice-light-solid);
 }
 
 body.dark-theme .app.app-team .lineup-status-light.previous-played {
-  background: #e0ba72;
+  background: var(--lux-vice-dark-solid);
 }
 
 .player-tile.lineup-playing .player-meta,
