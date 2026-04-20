@@ -69,6 +69,22 @@ function AddActionIcon() {
   )
 }
 
+function CopyActionIcon() {
+  return (
+    <svg
+      className="action-icon"
+      viewBox="0 0 24 24"
+      role="presentation"
+      aria-hidden="true"
+    >
+      <path
+        fill="currentColor"
+        d="M8 7a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3h-1v1a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-6a3 3 0 0 1 3-3h1V7Zm2 1h3a3 3 0 0 1 3 3v3h1a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v1Zm-3 2a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-6a1 1 0 0 0-1-1H7Z"
+      />
+    </svg>
+  )
+}
+
 function formatShortDate(value) {
   if (typeof value !== 'string') return value
   const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
@@ -110,6 +126,8 @@ function MatchesCard({
   contestId,
   onPreviewLeaderboard,
   onPreviewTeam,
+  onCopyTeam,
+  copyableMatchIds = new Set(),
   isLoggedIn = false,
 }) {
   const isFixedRosterContest = contestMode === 'fixed_roster'
@@ -183,6 +201,7 @@ function MatchesCard({
         }
         const canEdit = normalizedStatus === 'notstarted'
         const canManageOwnTeam = Boolean(match.viewerJoined)
+        const canCopyTeam = copyableMatchIds.has(String(match.id))
         const canView =
           normalizedStatus === 'notstarted' ||
           normalizedStatus === 'inprogress' ||
@@ -233,18 +252,35 @@ function MatchesCard({
                       <span className="join-action-label">Join</span>
                     </Button>
                   ) : (
-                    <Button
-                      variant="ghost"
-                      size="small"
-                      className="icon-edit-btn match-action-icon-btn join-action-btn"
-                      to={`/fantasy/select?contest=${contestId}&match=${match.id}&mode=add`}
-                      aria-label="Add team"
-                      title="Add team"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      <AddActionIcon />
-                      <span className="join-action-label">Join</span>
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="small"
+                        className="icon-edit-btn match-action-icon-btn join-action-btn"
+                        to={`/fantasy/select?contest=${contestId}&match=${match.id}&mode=add`}
+                        aria-label="Add team"
+                        title="Add team"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <AddActionIcon />
+                        <span className="join-action-label">Join</span>
+                      </Button>
+                      {canCopyTeam ? (
+                        <Button
+                          variant="ghost"
+                          size="small"
+                          className="icon-copy-btn match-action-icon-btn"
+                          aria-label="Copy team"
+                          title="Copy team from another contest"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            onCopyTeam?.(match)
+                          }}
+                        >
+                          <CopyActionIcon />
+                        </Button>
+                      ) : null}
+                    </>
                   ))}
                 {match.hasTeam && (
                   <Button

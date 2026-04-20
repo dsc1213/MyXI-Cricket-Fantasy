@@ -134,6 +134,65 @@ class TeamSelectionService {
     return await repo.findByMatchAndUser(matchId, userId, contestId)
   }
 
+  async getCopySources({ matchId, userId, targetContestId }) {
+    const result = await dbQuery(
+      `SELECT ts.id, ts.contest_id as "contestId", ts.match_id as "matchId",
+              ts.user_id as "userId", ts.captain_id as "captainId",
+              ts.vice_captain_id as "viceCaptainId", ts.playing_xi as "playingXi",
+              ts.backups, ts.updated_at as "updatedAt", c.name as "contestName"
+       FROM team_selections ts
+       LEFT JOIN contests c ON c.id = ts.contest_id
+       WHERE ts.match_id = $1
+         AND ts.user_id = $2
+         AND ts.contest_id IS NOT NULL
+         AND ts.contest_id <> $3
+       ORDER BY ts.updated_at DESC`,
+      [matchId, userId, targetContestId],
+    )
+    return (result.rows || []).map((row) => ({
+      ...row,
+      playingXi:
+        typeof row.playingXi === 'string' ? JSON.parse(row.playingXi) : row.playingXi,
+      backups: typeof row.backups === 'string' ? JSON.parse(row.backups) : row.backups,
+    }))
+  }
+
+  async copyTeamSelection({
+    sourceSelectionId,
+    targetContestId,
+    matchId,
+    userId,
+    options = {},
+  }) {
+    const repo = await factory.getTeamSelectionRepository()
+    const source = await repo.findById(sourceSelectionId)
+    if (!source) {
+      const error = new Error('Source team not found')
+      error.statusCode = 404
+      throw error
+    }
+    if (String(source.userId) !== String(userId) || String(source.matchId) !== String(matchId)) {
+      const error = new Error('Source team does not match this user and match')
+      error.statusCode = 400
+      throw error
+    }
+    if (String(source.contestId || '') === String(targetContestId || '')) {
+      const error = new Error('Source and target contest cannot be the same')
+      error.statusCode = 400
+      throw error
+    }
+    return this.saveTeamSelection(
+      matchId,
+      userId,
+      source.playingXi || [],
+      source.backups || [],
+      targetContestId,
+      source.captainId || null,
+      source.viceCaptainId || null,
+      options,
+    )
+  }
+
   // Syncs contest_match_players rows from the latest saved playing XI.
   async syncContestMatchPlayers({ contestId, match, userId, playingXi }) {
     if (!contestId || !match?.tournamentId || !match?.id || !userId) return

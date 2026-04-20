@@ -1036,17 +1036,19 @@ class ContestService {
     const submittedByUser = new Map(
       submittedResult.rows.map((row) => [String(row.userId), Number(row.points || 0)]),
     )
+    const includeMissingTeams = Boolean(options?.includeMissingTeams)
     const participants = joinedParticipants
-      .filter((row) => submittedByUser.has(String(row.id)))
+      .filter((row) => includeMissingTeams || submittedByUser.has(String(row.id)))
       .map((row) => ({
         ...row,
+        hasTeam: submittedByUser.has(String(row.id)),
         points: Number(submittedByUser.get(String(row.id)) || 0),
       }))
 
     return {
       participants,
       joinedCount,
-      withTeamCount: participants.length,
+      withTeamCount: submittedByUser.size,
       previewXI,
       previewBackups,
     }

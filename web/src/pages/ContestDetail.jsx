@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import ResourceRemovalModal from '../components/admin/ResourceRemovalModal.jsx'
 import ContestTopBar from '../components/contest-detail/ContestTopBar.jsx'
+import CopyTeamModal from '../components/contest-detail/CopyTeamModal.jsx'
 import MatchesCard from '../components/contest-detail/MatchesCard.jsx'
 import ParticipantsCard from '../components/contest-detail/ParticipantsCard.jsx'
 import TeamPreviewDrawer from '../components/contest-detail/TeamPreviewDrawer.jsx'
@@ -14,12 +15,16 @@ import {
   fetchContestMatches,
   fetchContestParticipants,
   fetchContestRemovalPreview,
+  fetchTeamCopySources,
+  fetchTeamPool,
   fetchTournaments,
   fetchUserPicks,
+  copyTeamSelection,
   removeAdminContest,
 } from '../lib/api.js'
 import { getStoredUser } from '../lib/auth.js'
 import { getDisplayName } from '../lib/displayName.js'
+import { normalizeMatchStatus } from '../lib/matchStatus.js'
 
 const normalizeContestMatches = (payload) => {
   if (Array.isArray(payload)) return payload
@@ -97,6 +102,11 @@ const getDefaultSelectedMatchId = (rows = [], currentSelectedMatchId = '') => {
   return sortedRows[0]?.id || ''
 }
 
+const getTeamPoolPlayers = (pool = {}) => [
+  ...(pool?.teams?.teamA?.players || []),
+  ...(pool?.teams?.teamB?.players || []),
+]
+
 function ContestDetail() {
   const { tournamentId, contestId } = useParams()
   const location = useLocation()
@@ -135,6 +145,14 @@ function ContestDetail() {
   const [leaderboardPreviewError, setLeaderboardPreviewError] = useState('')
   const [showDeleteContestModal, setShowDeleteContestModal] = useState(false)
   const [isRemovingContest, setIsRemovingContest] = useState(false)
+  const [copyMatch, setCopyMatch] = useState(null)
+  const [copySources, setCopySources] = useState([])
+  const [selectedCopySourceId, setSelectedCopySourceId] = useState('')
+  const [copyPlayerMap, setCopyPlayerMap] = useState(new Map())
+  const [isLoadingCopySources, setIsLoadingCopySources] = useState(false)
+  const [isSavingCopiedTeam, setIsSavingCopiedTeam] = useState(false)
+  const [copyError, setCopyError] = useState('')
+  const [copyableMatchIds, setCopyableMatchIds] = useState(new Set())
 
   useEffect(() => {
     let active = true
@@ -235,6 +253,7 @@ function ContestDetail() {
             contestId,
             matchId: selectedMatchId,
             userId: currentUserGameName,
+            includeMissingTeams: canEditFullTeams,
           }),
         )
         if (!active) return
@@ -260,7 +279,7 @@ function ContestDetail() {
     return () => {
       active = false
     }
-  }, [contestId, selectedMatchId, currentUserGameName])
+  }, [canEditFullTeams, contestId, selectedMatchId, currentUserGameName])
 
   const loadParticipantsForMatch = async (matchId) =>
     normalizeContestParticipants(
@@ -268,8 +287,55 @@ function ContestDetail() {
         contestId,
         matchId,
         userId: currentUserGameName,
+        includeMissingTeams: canEditFullTeams,
       }),
     )
+
+  useEffect(() => {
+    let active = true
+    const candidates = sortedMatches.filter(
+      (match) =>
+        isLoggedIn &&
+        normalizeMatchStatus(match.status) === 'notstarted' &&
+        match.viewerJoined &&
+        !match.hasTeam,
+    )
+    if (!candidates.length) {
+      setCopyableMatchIds(new Set())
+      return () => {
+        active = false
+      }
+    }
+
+    const loadCopyAvailability = async () => {
+      const results = await Promise.allSettled(
+        candidates.map(async (match) => {
+          const payload = await fetchTeamCopySources({
+            contestId,
+            matchId: match.id,
+            userId: currentUserGameName,
+          })
+          return {
+            matchId: String(match.id),
+            hasSources: Array.isArray(payload?.sources) && payload.sources.length > 0,
+          }
+        }),
+      )
+      if (!active) return
+      setCopyableMatchIds(
+        new Set(
+          results
+            .filter((result) => result.status === 'fulfilled' && result.value.hasSources)
+            .map((result) => result.value.matchId),
+        ),
+      )
+    }
+
+    loadCopyAvailability()
+    return () => {
+      active = false
+    }
+  }, [contestId, currentUserGameName, isLoggedIn, sortedMatches])
 
   const onPreviewPlayer = async (player) => {
     try {
@@ -325,6 +391,84 @@ function ContestDetail() {
       setErrorText(error.message || 'Failed to load my team preview')
     } finally {
       setIsLoadingPreview(false)
+    }
+  }
+
+  const onOpenCopyTeamModal = async (match) => {
+    try {
+      if (!isLoggedIn || !match?.id) return
+      setCopyMatch(match)
+      setSelectedMatchId(match.id)
+      setCopySources([])
+      setSelectedCopySourceId('')
+      setCopyPlayerMap(new Map())
+      setCopyError('')
+      setIsLoadingCopySources(true)
+      const [sourcesPayload, poolPayload] = await Promise.all([
+        fetchTeamCopySources({
+          contestId,
+          matchId: match.id,
+          userId: currentUserGameName,
+        }),
+        fetchTeamPool({
+          contestId,
+          tournamentId,
+          matchId: match.id,
+          userId: currentUserGameName,
+        }),
+      ])
+      const sources = Array.isArray(sourcesPayload?.sources) ? sourcesPayload.sources : []
+      const playerMap = new Map(
+        getTeamPoolPlayers(poolPayload).map((player) => [String(player.id), player]),
+      )
+      setCopySources(sources)
+      setSelectedCopySourceId(sources[0]?.id ? String(sources[0].id) : '')
+      setCopyPlayerMap(playerMap)
+    } catch (error) {
+      setCopyError(error.message || 'Failed to load teams to copy')
+    } finally {
+      setIsLoadingCopySources(false)
+    }
+  }
+
+  const onSaveCopiedTeam = async () => {
+    const source = copySources.find(
+      (entry) => String(entry.id) === String(selectedCopySourceId),
+    )
+    if (!source || !copyMatch?.id) return
+    try {
+      setIsSavingCopiedTeam(true)
+      setCopyError('')
+      await copyTeamSelection({
+        sourceSelectionId: source.id,
+        targetContestId: contestId,
+        matchId: copyMatch.id,
+        userId: currentUserGameName,
+      })
+      setMatches((rows) =>
+        rows.map((match) =>
+          String(match.id) === String(copyMatch.id)
+            ? {
+                ...match,
+                hasTeam: true,
+                viewerJoined: true,
+                submittedCount: Number(match.submittedCount || 0) + 1,
+              }
+            : match,
+        ),
+      )
+      const payload = await loadParticipantsForMatch(copyMatch.id)
+      setParticipants(payload.participants)
+      setJoinedParticipantsCount(payload.joinedCount)
+      setPreviewXI(payload.previewXI)
+      setPreviewBackups(payload.previewBackups)
+      setCopyMatch(null)
+      setCopySources([])
+      setSelectedCopySourceId('')
+    } catch (error) {
+      setCopyError(error.message || 'Failed to copy team')
+    } finally {
+      setIsSavingCopiedTeam(false)
     }
   }
 
@@ -411,6 +555,8 @@ function ContestDetail() {
           contestId={contestId}
           onPreviewLeaderboard={() => setShowLeaderboardPreview(true)}
           onPreviewTeam={onPreviewMyTeamFromMatch}
+          onCopyTeam={onOpenCopyTeamModal}
+          copyableMatchIds={copyableMatchIds}
           isLoggedIn={isLoggedIn}
         />
 
@@ -443,6 +589,24 @@ function ContestDetail() {
           setPreviewBackups([])
           setIsLoadingPreview(false)
         }}
+      />
+
+      <CopyTeamModal
+        open={Boolean(copyMatch)}
+        onClose={() => {
+          setCopyMatch(null)
+          setCopySources([])
+          setSelectedCopySourceId('')
+          setCopyError('')
+        }}
+        sources={copySources}
+        selectedSourceId={selectedCopySourceId}
+        playerMap={copyPlayerMap}
+        isLoading={isLoadingCopySources}
+        isSaving={isSavingCopiedTeam}
+        errorText={copyError}
+        onSelectSource={setSelectedCopySourceId}
+        onSave={onSaveCopiedTeam}
       />
 
       <ResourceRemovalModal

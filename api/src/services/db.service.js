@@ -12,6 +12,8 @@ import auditLogService from './audit-log.service.js'
 import userRepository from '../repositories/user.repository.js'
 import { dbQuery } from '../db.js'
 
+const TEAM_LOCK_BYPASS_ROLES = new Set(['master_admin'])
+
 const resolveDbUser = async (rawIdentifier) => {
   const value = (rawIdentifier ?? '').toString().trim()
   if (!value) return null
@@ -710,6 +712,7 @@ const createDbService = (dependencies) => {
         const payload = await contestService.getContestParticipants(req.params.id, {
           matchId: req.query?.matchId,
           viewerUserId: targetUser?.id || null,
+          includeMissingTeams: TEAM_LOCK_BYPASS_ROLES.has(actor?.role),
         })
         return res.json(payload || { participants: [], joinedCount: 0, previewXI: [] })
       } catch (error) {
@@ -1397,6 +1400,65 @@ const createDbService = (dependencies) => {
     })
 
     // Saves a user's team selection for a match using request body fields.
+    router.get('/team-selection/copy-sources', async (req, res, next) => {
+      try {
+        const actor = req.currentUser || null
+        const targetUser =
+          (await resolveDbUser(
+            req.query?.userId || actor?.id || actor?.userId || actor?.gameName,
+          )) || actor
+        if (!actor || !targetUser) {
+          return res.status(401).json({ message: 'Unauthorized' })
+        }
+        const isSelfRead = Boolean(
+          actor?.id && targetUser?.id && Number(actor.id) === Number(targetUser.id),
+        )
+        if (!isSelfRead && !TEAM_LOCK_BYPASS_ROLES.has(actor?.role)) {
+          return res.status(403).json({ message: 'Only master admin can inspect another user team.' })
+        }
+        const sources = await teamSelectionService.getCopySources({
+          matchId: req.query?.matchId,
+          userId: targetUser.id,
+          targetContestId: req.query?.contestId,
+        })
+        return res.json({ sources })
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.post('/team-selection/copy', async (req, res, next) => {
+      try {
+        const actor = req.currentUser || null
+        const targetUser =
+          (await resolveDbUser(
+            req.body?.userId || actor?.id || actor?.userId || actor?.gameName,
+          )) || actor
+        if (!actor || !targetUser) {
+          return res.status(401).json({ message: 'Unauthorized' })
+        }
+        const isSelfWrite = Boolean(
+          actor?.id && targetUser?.id && Number(actor.id) === Number(targetUser.id),
+        )
+        const canBypassTeamLock = TEAM_LOCK_BYPASS_ROLES.has(actor?.role)
+        if (!isSelfWrite && !canBypassTeamLock) {
+          return res.status(403).json({ message: 'Only master admin can edit another user team.' })
+        }
+        const result = await teamSelectionService.copyTeamSelection({
+          sourceSelectionId: req.body?.sourceSelectionId,
+          targetContestId: req.body?.targetContestId,
+          matchId: req.body?.matchId,
+          userId: targetUser.id,
+          options: {
+            allowLockedEdit: canBypassTeamLock && !isSelfWrite,
+          },
+        })
+        return res.json({ selection: result, copied: true })
+      } catch (error) {
+        return next(error)
+      }
+    })
+
     router.post('/team-selection/save', async (req, res, next) => {
       try {
         const matchId = req.body?.matchId
@@ -1411,8 +1473,8 @@ const createDbService = (dependencies) => {
         const isSelfWrite = Boolean(
           actor?.id && targetUser?.id && Number(actor.id) === Number(targetUser.id),
         )
-        const isMasterAdmin = actor?.role === 'master_admin'
-        if (!isSelfWrite && !isMasterAdmin) {
+        const canBypassTeamLock = TEAM_LOCK_BYPASS_ROLES.has(actor?.role)
+        if (!isSelfWrite && !canBypassTeamLock) {
           return res.status(403).json({
             message: 'Only master admin can edit another user team.',
           })
@@ -1426,7 +1488,7 @@ const createDbService = (dependencies) => {
           req.body?.captainId || null,
           req.body?.viceCaptainId || null,
           {
-            allowLockedEdit: isMasterAdmin,
+            allowLockedEdit: canBypassTeamLock,
           },
         )
         return res.json({
@@ -1452,8 +1514,8 @@ const createDbService = (dependencies) => {
         const isSelfWrite = Boolean(
           actor?.id && targetUser?.id && Number(actor.id) === Number(targetUser.id),
         )
-        const isMasterAdmin = actor?.role === 'master_admin'
-        if (!isSelfWrite && !isMasterAdmin) {
+        const canBypassTeamLock = TEAM_LOCK_BYPASS_ROLES.has(actor?.role)
+        if (!isSelfWrite && !canBypassTeamLock) {
           return res.status(403).json({
             message: 'Only master admin can edit another user team.',
           })
@@ -1467,7 +1529,7 @@ const createDbService = (dependencies) => {
           req.body?.captainId || null,
           req.body?.viceCaptainId || null,
           {
-            allowLockedEdit: isMasterAdmin && !isSelfWrite,
+            allowLockedEdit: canBypassTeamLock && !isSelfWrite,
           },
         )
         return res.json({
@@ -1769,6 +1831,15 @@ const createDbService = (dependencies) => {
           (await resolveDbUser(
             userId || uploadedBy || actor?.id || actor?.userId || actor?.gameName,
           )) || actor
+
+        if (req.body?.dryRun === true) {
+          const preview = await matchScoreService.previewMatchScores(
+            String(matchId),
+            String(tournamentId),
+            rows,
+          )
+          return res.json(preview)
+        }
 
         const payload = await matchScoreService.uploadMatchScores(
           String(matchId),

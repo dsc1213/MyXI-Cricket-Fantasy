@@ -557,10 +557,11 @@ const fetchContestMatches = ({ contestId, status, team, userId } = {}) => {
   return request(`/contests/${contestId}/matches${query ? `?${query}` : ''}`)
 }
 
-const fetchContestParticipants = ({ contestId, matchId, userId } = {}) => {
+const fetchContestParticipants = ({ contestId, matchId, userId, includeMissingTeams = false } = {}) => {
   const params = new URLSearchParams()
   if (matchId) params.set('matchId', matchId)
   if (userId) params.set('userId', userId)
+  if (includeMissingTeams) params.set('includeMissingTeams', 'true')
   const query = withSortedParams(params)
   return cachedGet(`contestParticipants:${contestId}:${query || 'all'}`, () =>
     request(`/contests/${contestId}/participants${query ? `?${query}` : ''}`),
@@ -657,6 +658,40 @@ const saveTeamSelection = async ({
         ),
     ),
   ])
+  return data
+}
+
+const fetchTeamCopySources = ({ contestId, matchId, userId } = {}) => {
+  const params = new URLSearchParams()
+  if (contestId) params.set('contestId', contestId)
+  if (matchId) params.set('matchId', matchId)
+  if (userId) params.set('userId', userId)
+  const query = withSortedParams(params)
+  return request(`/team-selection/copy-sources${query ? `?${query}` : ''}`)
+}
+
+const copyTeamSelection = async ({
+  sourceSelectionId,
+  targetContestId,
+  matchId,
+  userId,
+}) => {
+  const data = await request('/team-selection/copy', {
+    method: 'POST',
+    body: JSON.stringify({
+      sourceSelectionId,
+      targetContestId,
+      matchId,
+      userId,
+    }),
+  })
+  invalidateAppQueryCache((key) =>
+    key.startsWith('teamPool:') ||
+    key.startsWith('userPicks:') ||
+    key.startsWith(`contestMatches:${targetContestId}:`) ||
+    key.startsWith(`contestParticipants:${targetContestId}:`) ||
+    key === `contest:${targetContestId}`,
+  )
   return data
 }
 
@@ -1234,6 +1269,8 @@ export {
   fetchContestUserPlayerBreakdown,
   fetchTeamPool,
   saveTeamSelection,
+  fetchTeamCopySources,
+  copyTeamSelection,
   fetchUserPicks,
   fetchPlayers,
   createAdminPlayer,

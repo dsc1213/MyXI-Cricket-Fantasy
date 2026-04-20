@@ -1868,6 +1868,7 @@ const registerMockProviderRoutes = (router, ctx) => {
     }
     const matchId = (req.query.matchId || 'm1').toString()
     const viewerUserId = (req.query.userId || '').toString()
+    const includeMissingTeams = req.query.includeMissingTeams === 'true'
     const contestMatches = getContestMatches(contest)
     const activeMatch =
       contestMatches.find((match) => match.id === matchId) || contestMatches[0]
@@ -1918,7 +1919,7 @@ const registerMockProviderRoutes = (router, ctx) => {
           hasTeam: isFixedRosterContest(contest) ? true : pickNames.length > 0,
         }
       })
-      .filter((row) => row.hasTeam)
+      .filter((row) => includeMissingTeams || row.hasTeam)
       .sort((a, b) => {
         const scoreDelta = Number(b.points || 0) - Number(a.points || 0)
         if (scoreDelta !== 0) return scoreDelta
@@ -1927,7 +1928,7 @@ const registerMockProviderRoutes = (router, ctx) => {
     return res.json({
       activeMatch,
       joinedCount,
-      withTeamCount: participants.length,
+      withTeamCount: participants.filter((row) => row.hasTeam).length,
       participants,
       previewXI,
     })
@@ -2346,6 +2347,67 @@ const registerMockProviderRoutes = (router, ctx) => {
     })
   })
 
+  router.get('/team-selection/copy-sources', (req, res) => {
+    const contestId = (req.query?.contestId || '').toString()
+    const matchId = (req.query?.matchId || '').toString()
+    const userId = (req.query?.userId || '').toString()
+    const userKey = normalizeActorId(userId)
+    const sources = Array.from(mockTeamSelections.values())
+      .filter(
+        (selection) =>
+          normalizeActorId(selection?.userId || '') === userKey &&
+          String(selection?.matchId || '') === matchId &&
+          String(selection?.contestId || '') !== contestId &&
+          String(selection?.contestId || ''),
+      )
+      .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))
+      .map((selection) => {
+        const sourceContest = mockContests.find(
+          (contest) => String(contest.id) === String(selection.contestId),
+        )
+        return {
+          id: selectionKey(selection),
+          contestId: selection.contestId,
+          matchId: selection.matchId,
+          userId: selection.userId,
+          captainId: selection.captainId,
+          viceCaptainId: selection.viceCaptainId,
+          playingXi: selection.playingXi,
+          backups: selection.backups,
+          updatedAt: selection.updatedAt,
+          contestName: sourceContest?.name || `Contest ${selection.contestId}`,
+        }
+      })
+    return res.json({ sources })
+  })
+
+  router.post('/team-selection/copy', (req, res) => {
+    const sourceSelectionId = (req.body?.sourceSelectionId || '').toString()
+    const targetContestId = (req.body?.targetContestId || '').toString()
+    const matchId = (req.body?.matchId || '').toString()
+    const userId = (req.body?.userId || '').toString()
+    const source = mockTeamSelections.get(sourceSelectionId)
+    if (!source) return res.status(404).json({ message: 'Source team not found' })
+    if (
+      normalizeActorId(source.userId || '') !== normalizeActorId(userId) ||
+      String(source.matchId || '') !== matchId
+    ) {
+      return res
+        .status(400)
+        .json({ message: 'Source team does not match this user and match' })
+    }
+    const payload = {
+      ...source,
+      contestId: targetContestId,
+      matchId,
+      userId,
+      updatedAt: new Date().toISOString(),
+    }
+    mockTeamSelections.set(selectionKey(payload), payload)
+    persistState()
+    return res.json({ copied: true, selection: payload })
+  })
+
   router.post('/team-selection/save', (req, res) => {
     const contestId = (req.body?.contestId || '').toString()
     const matchId = (req.body?.matchId || '').toString()
@@ -2375,11 +2437,6 @@ const registerMockProviderRoutes = (router, ctx) => {
         .status(403)
         .json({ message: 'Fixed-roster contests cannot save match-wise teams' })
     }
-    if (normalizeMatchStatus(activeMatch.status) !== 'notstarted') {
-      return res
-        .status(403)
-        .json({ message: 'Match is locked. Teams cannot be edited after start time.' })
-    }
     const actor = resolveTeamActor(req, userId)
     if (!actor) {
       return res.status(401).json({ message: 'Valid actorUserId required for team save' })
@@ -2394,6 +2451,11 @@ const registerMockProviderRoutes = (router, ctx) => {
         message:
           'Only master admin can edit another user full team. Admin can do replacement only.',
       })
+    }
+    if (normalizeMatchStatus(activeMatch.status) !== 'notstarted' && actor.role !== 'master_admin') {
+      return res
+        .status(403)
+        .json({ message: 'Match is locked. Teams cannot be edited after start time.' })
     }
     if (playingXi.length !== 11) {
       return res.status(400).json({ message: 'playingXi must have 11 players' })

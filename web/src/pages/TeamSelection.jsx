@@ -5,9 +5,15 @@ import PreviewModal from '../components/team-selection/PreviewModal.jsx'
 import RightColumnContent from '../components/team-selection/RightColumnContent.jsx'
 import Button from '../components/ui/Button.jsx'
 import CricketRouteLoader from '../components/ui/CricketRouteLoader.jsx'
+import Modal from '../components/ui/Modal.jsx'
 import { CountryText } from '../components/ui/CountryFlag.jsx'
 import { roleCounts } from '../components/team-selection/playerPool.js'
-import { fetchTeamPool, saveTeamSelection } from '../lib/api.js'
+import {
+  copyTeamSelection,
+  fetchTeamCopySources,
+  fetchTeamPool,
+  saveTeamSelection,
+} from '../lib/api.js'
 import {
   sortPlayersByDisplayRole,
   sortPlayersByLastPlayedThenDisplayRole,
@@ -56,6 +62,10 @@ function TeamSelection() {
   const [showSidebar, setShowSidebar] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
+  const [copySources, setCopySources] = useState([])
+  const [showCopyModal, setShowCopyModal] = useState(false)
+  const [isCopyingTeam, setIsCopyingTeam] = useState(false)
+  const [hasSavedSelection, setHasSavedSelection] = useState(false)
   const rawUser =
     typeof window !== 'undefined' ? window.localStorage.getItem('myxi-user') : null
   const currentUser = rawUser ? JSON.parse(rawUser) : null
@@ -80,6 +90,15 @@ function TeamSelection() {
   const sortedTeamBPlayers = useMemo(
     () => sortPlayersByLastPlayedThenDisplayRole(playerPool.teamBPlayers || []),
     [playerPool.teamBPlayers],
+  )
+  const playerById = useMemo(
+    () =>
+      new Map(
+        [...(playerPool.teamAPlayers || []), ...(playerPool.teamBPlayers || [])].map(
+          (player) => [String(player.id), player],
+        ),
+      ),
+    [playerPool.teamAPlayers, playerPool.teamBPlayers],
   )
 
   const syncCaptainId = (value) => {
@@ -136,11 +155,26 @@ function TeamSelection() {
         setContestMeta(data?.contest || null)
         setActiveMatch(data?.activeMatch || null)
         setSelectionError('')
+        setCopySources([])
 
+        const savedSelection = data?.selection || null
+        setHasSavedSelection(Boolean(savedSelection))
+        if (!savedSelection && contest && match && mode !== 'view') {
+          fetchTeamCopySources({
+            contestId: contest,
+            matchId: match,
+            userId: effectiveUserId,
+          })
+            .then((payload) => {
+              if (active) setCopySources(Array.isArray(payload?.sources) ? payload.sources : [])
+            })
+            .catch(() => {
+              if (active) setCopySources([])
+            })
+        }
         if (mode === 'edit' || mode === 'view') {
           let hydratedSelected = []
           let hydratedBackups = []
-          const savedSelection = data?.selection || null
           const pickedXI = (savedSelection?.playingXi || [])
             .map((id) => poolById.get(String(id)))
             .filter(Boolean)
@@ -424,12 +458,51 @@ function TeamSelection() {
         captainId: resolvedCaptainId,
         viceCaptainId: resolvedViceCaptainId,
       })
+      setHasSavedSelection(true)
       setSaveMessage('Team saved')
       navigate(backToHref)
     } catch (error) {
       setPoolError(error.message || 'Failed to save team')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const applyCopiedSelection = (selection = {}) => {
+    const copiedXI = (selection.playingXi || [])
+      .map((id) => playerById.get(String(id)))
+      .filter(Boolean)
+      .slice(0, 11)
+    const copiedBackups = (selection.backups || [])
+      .map((id) => playerById.get(String(id)))
+      .filter(Boolean)
+      .slice(0, 6)
+    setSelected(copiedXI)
+    setBackups(copiedBackups)
+    syncCaptainId(selection.captainId || null)
+    syncViceCaptainId(selection.viceCaptainId || null)
+  }
+
+  const onCopyTeam = async (source) => {
+    if (!source?.id) return
+    try {
+      setIsCopyingTeam(true)
+      setPoolError('')
+      const result = await copyTeamSelection({
+        sourceSelectionId: source.id,
+        targetContestId: contest,
+        matchId: match,
+        userId: effectiveUserId,
+      })
+      applyCopiedSelection(result?.selection || source)
+      setHasSavedSelection(true)
+      setCopySources([])
+      setShowCopyModal(false)
+      setSaveMessage('Team copied and saved')
+    } catch (error) {
+      setPoolError(error.message || 'Failed to copy team')
+    } finally {
+      setIsCopyingTeam(false)
     }
   }
 
@@ -564,6 +637,18 @@ function TeamSelection() {
         </div>
       </header>
 
+      {!isViewMode && !hasSavedSelection && copySources.length > 0 ? (
+        <div className="copy-team-banner">
+          <div>
+            <strong>Already picked this match</strong>
+            <span>{`${copySources.length} team${copySources.length === 1 ? '' : 's'} available`}</span>
+          </div>
+          <Button variant="secondary" size="small" onClick={() => setShowCopyModal(true)}>
+            Copy team
+          </Button>
+        </div>
+      ) : null}
+
       <div className="team-grid-2 compact-fit">
         <div className="team-column team-column-a">
           <div className="team-column-header">
@@ -655,6 +740,29 @@ function TeamSelection() {
           />
         </div>
       </PreviewModal>
+      <Modal
+        open={showCopyModal}
+        onClose={() => setShowCopyModal(false)}
+        title="Copy existing team"
+        size="sm"
+      >
+        <div className="copy-team-source-list">
+          {copySources.map((source) => (
+            <button
+              key={source.id}
+              type="button"
+              className="copy-team-source-row"
+              disabled={isCopyingTeam}
+              onClick={() => void onCopyTeam(source)}
+            >
+              <strong>{source.contestName || `Contest ${source.contestId}`}</strong>
+              <span>
+                {`${source.playingXi?.length || 0} players · ${source.backups?.length || 0} backups`}
+              </span>
+            </button>
+          ))}
+        </div>
+      </Modal>
     </section>
   )
 }

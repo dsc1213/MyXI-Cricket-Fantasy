@@ -41,6 +41,19 @@ class TeamSelectionRepository {
     return this.normalizeSelectionRow(result.rows[0])
   }
 
+  async findById(id) {
+    const result = await dbQuery(
+      `SELECT id, contest_id as "contestId", match_id as "matchId", user_id as "userId",
+              captain_id as "captainId", vice_captain_id as "viceCaptainId",
+              playing_xi as "playingXi", backups, created_at as "createdAt", updated_at as "updatedAt"
+       FROM team_selections
+       WHERE id = $1
+       LIMIT 1`,
+      [id],
+    )
+    return this.normalizeSelectionRow(result.rows[0])
+  }
+
   async findByMatch(matchId, contestId = null) {
     const hasContest = contestId !== null && contestId !== undefined && contestId !== ''
     const result = await dbQuery(

@@ -53,11 +53,7 @@ function TeamPreviewDrawer({
 
   const sortedPreviewBackups = useMemo(() => {
     if (!Array.isArray(previewBackups)) return []
-    const objectEntries = previewBackups.filter(
-      (entry) => entry && typeof entry === 'object',
-    )
-    if (objectEntries.length !== previewBackups.length) return previewBackups
-    return sortPlayersByDisplayRole(objectEntries)
+    return previewBackups
   }, [previewBackups])
 
   const fixedRosterDisplayGroups = useMemo(() => {

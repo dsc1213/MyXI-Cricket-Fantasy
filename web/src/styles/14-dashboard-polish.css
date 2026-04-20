@@ -3615,6 +3615,156 @@ body.dark-theme .searchable-select-list {
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
 }
 
+.copy-team-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.55rem 0 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--input-border);
+  border-radius: 14px;
+  background: var(--panel-bg);
+}
+
+.copy-team-banner > div {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.copy-team-banner strong {
+  color: var(--text-strong);
+  font-size: 0.86rem;
+}
+
+.copy-team-banner span,
+.copy-team-source-row span {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.copy-team-source-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.copy-team-source-row {
+  border: 1px solid var(--input-border);
+  border-radius: 12px;
+  background: var(--input-bg);
+  color: var(--input-text);
+  cursor: pointer;
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.65rem 0.72rem;
+  text-align: left;
+}
+
+.copy-team-source-row:hover,
+.copy-team-source-row:focus-visible,
+.copy-team-source-row.active {
+  border-color: var(--focus-ring);
+  outline: none;
+}
+
+.copy-team-modal-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.42fr) minmax(0, 0.58fr);
+  gap: 0.75rem;
+}
+
+.copy-team-modal-scroll {
+  display: grid;
+  gap: 0.75rem;
+  max-height: min(62vh, 560px);
+  overflow-y: auto;
+  padding-right: 0.15rem;
+}
+
+.copy-team-preview {
+  border: 1px solid var(--input-border);
+  border-radius: 14px;
+  background: var(--panel-soft-bg, var(--panel-bg));
+  min-width: 0;
+  padding: 0.7rem;
+}
+
+.copy-team-preview-head {
+  align-items: baseline;
+  border-bottom: 1px solid var(--input-border);
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.5rem;
+}
+
+.copy-team-preview-head strong,
+.copy-team-preview-section h4,
+.copy-team-player-row span {
+  color: var(--text-strong);
+}
+
+.copy-team-preview-head span,
+.copy-team-player-row small {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.copy-team-preview-section {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.copy-team-preview-section + .copy-team-preview-section {
+  margin-top: 0.7rem;
+}
+
+.copy-team-preview-section h4 {
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.copy-team-player-list {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.copy-team-player-row {
+  align-items: center;
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+  padding: 0.45rem 0.55rem;
+}
+
+.copy-team-player-row span {
+  font-size: 0.82rem;
+  font-weight: 700;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.copy-team-player-row small {
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+.copy-team-save-row {
+  background: var(--panel-bg);
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.2rem;
+  position: sticky;
+}
+
 .create-contest-match-actions {
   display: flex;
   align-items: center;
@@ -5083,11 +5233,7 @@ body.dark-theme .app.app-lower-content select {
     align-content: start;
   }
 
-  .dashboard-panel-view
-    .player-manager-table
-    td
-    .player-identity
-    .player-identity-name {
+  .dashboard-panel-view .player-manager-table td .player-identity .player-identity-name {
     max-width: none;
     display: -webkit-box;
     -webkit-box-orient: vertical;
@@ -5855,5 +6001,14 @@ body:not(.dark-theme) .playing-xi-card .player-identity-subtitle {
 @media (max-width: 800px) {
   .processed-lineup-grid {
     grid-template-columns: 1fr;
+  }
+
+  .copy-team-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .copy-team-preview-head {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
