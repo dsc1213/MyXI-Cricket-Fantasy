@@ -746,6 +746,85 @@ const createDbService = (dependencies) => {
       }
     })
 
+    router.get('/admin/contests/:id/participants', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can manage contest participants' })
+        }
+        const rows = await contestService.getContestJoinedParticipants(req.params.id)
+        return res.json({ participants: rows })
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.post('/admin/contests/:id/participants', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can manage contest participants' })
+        }
+        const contest = await contestService.getContestById(req.params.id)
+        if (
+          (contest?.mode || '').toString().trim().toLowerCase() === 'fixed_roster' &&
+          actor?.role !== 'master_admin'
+        ) {
+          return res.status(403).json({ message: 'Auction contests are master-only' })
+        }
+        const requestedUser = await resolveDbUser(req.body?.userId)
+        if (!requestedUser?.id) {
+          return res.status(404).json({ message: 'User not found' })
+        }
+        const result = await contestService.adminAddContestParticipant(
+          req.params.id,
+          requestedUser.id,
+        )
+        return res.json(result)
+      } catch (error) {
+        const statusCode = Number(error?.statusCode || 0)
+        if (statusCode >= 400) {
+          return res
+            .status(statusCode)
+            .json({ message: error.message || 'Failed to add participant' })
+        }
+        return next(error)
+      }
+    })
+
+    router.delete('/admin/contests/:id/participants/:userId', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can manage contest participants' })
+        }
+        const contest = await contestService.getContestById(req.params.id)
+        if (
+          (contest?.mode || '').toString().trim().toLowerCase() === 'fixed_roster' &&
+          actor?.role !== 'master_admin'
+        ) {
+          return res.status(403).json({ message: 'Auction contests are master-only' })
+        }
+        const requestedUser = await resolveDbUser(req.params.userId)
+        if (!requestedUser?.id) {
+          return res.status(404).json({ message: 'User not found' })
+        }
+        const result = await contestService.adminRemoveContestParticipant(
+          req.params.id,
+          requestedUser.id,
+        )
+        return res.json(result)
+      } catch (error) {
+        return next(error)
+      }
+    })
+
     // Returns score-manager context data, including tournament and match selectors.
     router.get('/admin/match-score-context', async (req, res, next) => {
       try {
@@ -952,12 +1031,58 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Updates editable contest metadata from admin controls.
+    router.patch('/admin/contests/:id', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can update contests' })
+        }
+        const contest = await contestService.getContestById(req.params.id)
+        if (
+          (contest?.mode || '').toString().trim().toLowerCase() === 'fixed_roster' &&
+          actor?.role !== 'master_admin'
+        ) {
+          return res.status(403).json({ message: 'Auction contests are master-only' })
+        }
+        const payload = {}
+        if (req.body?.name !== undefined) {
+          const name = req.body.name.toString().trim()
+          if (!name) return res.status(400).json({ message: 'Contest name is required' })
+          payload.name = name
+        }
+        if (req.body?.maxParticipants !== undefined) {
+          payload.maxParticipants = Number(req.body.maxParticipants || 0)
+        }
+        if (req.body?.startAt !== undefined) payload.startAt = req.body.startAt
+        const result = await contestService.updateContest(req.params.id, payload)
+        return res.json(result)
+      } catch (error) {
+        const statusCode = Number(error?.statusCode || 0)
+        if (statusCode >= 400) {
+          return res
+            .status(statusCode)
+            .json({ message: error.message || 'Failed to update contest' })
+        }
+        return next(error)
+      }
+    })
+
     // Starts a contest from admin controls.
     router.post('/admin/contests/:id/start', async (req, res, next) => {
       try {
         const actor = await resolveCatalogActor(req)
         if (!canManageCatalog(actor)) {
           return res.status(403).json({ message: 'Only admin/master can start contests' })
+        }
+        const contest = await contestService.getContestById(req.params.id)
+        if (
+          (contest?.mode || '').toString().trim().toLowerCase() === 'fixed_roster' &&
+          actor?.role !== 'master_admin'
+        ) {
+          return res.status(403).json({ message: 'Auction contests are master-only' })
         }
         const result = await contestService.startContest(req.params.id)
         return res.json(result)

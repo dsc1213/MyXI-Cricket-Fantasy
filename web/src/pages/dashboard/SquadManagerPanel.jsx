@@ -163,12 +163,13 @@ function SquadManagerPanel() {
 
   const actorUserId = currentUser?.gameName || currentUser?.email || currentUser?.id || ''
 
-  const loadSquads = async () => {
+  const loadSquads = async ({ forceRefresh = false } = {}) => {
     try {
       setIsLoading(true)
       setErrorText('')
       const data = await fetchAdminTeamSquads({
         tournamentId,
+        forceRefresh,
       })
       setRows(Array.isArray(data) ? data : [])
       const tournaments = await fetchTournamentCatalog()
@@ -717,7 +718,11 @@ function SquadManagerPanel() {
         <div className="contest-section-head">
           <h3>Squad Manager</h3>
           <div className="top-actions">
-            <Button variant="ghost" size="small" onClick={() => void loadSquads()}>
+            <Button
+              variant="ghost"
+              size="small"
+              onClick={() => void loadSquads({ forceRefresh: true })}
+            >
               Refresh squads
             </Button>
             {canManageSquads && (

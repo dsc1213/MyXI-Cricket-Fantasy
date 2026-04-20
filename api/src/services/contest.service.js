@@ -824,6 +824,91 @@ class ContestService {
     return { left: false, message: 'Not joined' }
   }
 
+  async getContestJoinedParticipants(contestId) {
+    const result = await dbQuery(
+      `WITH participant_ids AS (
+         SELECT user_id, MIN(joined_at) as joined_at
+         FROM contest_joins
+         WHERE contest_id = $1
+         GROUP BY user_id
+         UNION
+         SELECT user_id, MIN(created_at) as joined_at
+         FROM contest_fixed_rosters
+         WHERE contest_id = $1
+         GROUP BY user_id
+       )
+       SELECT u.id, u.name, u.user_id as "userId", u.game_name as "gameName",
+              u.email, u.role, MIN(p.joined_at) as "joinedAt"
+       FROM participant_ids p
+       JOIN users u ON u.id = p.user_id
+       GROUP BY u.id, u.name, u.user_id, u.game_name, u.email, u.role
+       ORDER BY MIN(p.joined_at) ASC NULLS LAST, u.game_name ASC`,
+      [contestId],
+    )
+    return result.rows || []
+  }
+
+  async adminAddContestParticipant(contestId, userId) {
+    const contestRepo = await factory.getContestRepository()
+    const contest = await contestRepo.findById(contestId)
+    if (!contest) {
+      const error = new Error('Contest not found')
+      error.statusCode = 404
+      throw error
+    }
+    const existing = await dbQuery(
+      `SELECT id FROM contest_joins WHERE contest_id = $1 AND user_id = $2`,
+      [contestId, userId],
+    )
+    if (existing.rows.length > 0) return { joined: true, message: 'Already joined' }
+    if (
+      Number(contest.maxParticipants || 0) > 0 &&
+      Number(contest.participantsCount || 0) >= Number(contest.maxParticipants || 0)
+    ) {
+      const error = new Error('Contest is full')
+      error.statusCode = 403
+      throw error
+    }
+    await dbQuery(
+      `INSERT INTO contest_joins (contest_id, user_id, joined_at) VALUES ($1, $2, now())`,
+      [contestId, userId],
+    )
+    await contestRepo.incrementParticipants(contestId)
+    return { joined: true }
+  }
+
+  async adminRemoveContestParticipant(contestId, userId) {
+    const contestRepo = await factory.getContestRepository()
+    const joinResult = await dbQuery(
+      `DELETE FROM contest_joins WHERE contest_id = $1 AND user_id = $2 RETURNING id`,
+      [contestId, userId],
+    )
+    const fixedRosterResult = await dbQuery(
+      `DELETE FROM contest_fixed_rosters WHERE contest_id = $1 AND user_id = $2 RETURNING id`,
+      [contestId, userId],
+    )
+    await dbQuery(`DELETE FROM contest_scores WHERE contest_id = $1 AND user_id = $2`, [
+      contestId,
+      userId,
+    ])
+    await dbQuery(
+      `DELETE FROM contest_match_players WHERE contest_id = $1 AND user_id = $2`,
+      [contestId, userId],
+    )
+    await dbQuery(`DELETE FROM team_selections WHERE contest_id = $1 AND user_id = $2`, [
+      contestId,
+      userId,
+    ])
+    if (joinResult.rows.length > 0) {
+      await contestRepo.decrementParticipants(contestId)
+    }
+    return {
+      left: joinResult.rows.length > 0 || fixedRosterResult.rows.length > 0,
+      removedJoin: joinResult.rows.length > 0,
+      removedFixedRoster: fixedRosterResult.rows.length > 0,
+    }
+  }
+
   // Returns contest participants with preview picks and optional compare context.
   async getContestParticipants(contestId, options = {}) {
     const contest = await this.getContestById(contestId)

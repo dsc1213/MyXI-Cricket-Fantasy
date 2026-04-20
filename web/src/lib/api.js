@@ -1015,13 +1015,17 @@ const fetchAdminTeamSquads = (args = '') => {
     typeof args === 'string' ? args : (args?.teamCode || '').toString().trim()
   const tournamentId =
     typeof args === 'object' && args ? (args.tournamentId || '').toString().trim() : ''
+  const forceRefresh = typeof args === 'object' && args ? Boolean(args.forceRefresh) : false
   const params = new URLSearchParams()
   if (teamCode) params.set('teamCode', teamCode)
   if (tournamentId) params.set('tournamentId', tournamentId)
   const query = withSortedParams(params)
-  return cachedGet(`adminTeamSquads:${query || 'all'}`, () =>
-    request(`/admin/team-squads${query ? `?${query}` : ''}`),
-  )
+  const path = `/admin/team-squads${query ? `?${query}` : ''}`
+  if (forceRefresh) {
+    invalidateAppQueryCache(`adminTeamSquads:${query || 'all'}`)
+    return primeCachedGet(`adminTeamSquads:${query || 'all'}`, () => request(path))
+  }
+  return cachedGet(`adminTeamSquads:${query || 'all'}`, () => request(path))
 }
 const upsertAdminTeamSquad = async (payload) => {
   const data = await request('/admin/team-squads', {
@@ -1050,6 +1054,18 @@ const createAdminContest = async (payload) => {
   invalidateAppQueryCache((key) => key.startsWith('contestCatalog:') || key.startsWith('contests:'))
   return data
 }
+const updateAdminContest = async (contestId, payload = {}) => {
+  const data = await request(`/admin/contests/${contestId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload || {}),
+  })
+  invalidateAppQueryCache((key) =>
+    key.startsWith('contestCatalog:') ||
+    key.startsWith('contests:') ||
+    key === `contest:${contestId}`,
+  )
+  return data
+}
 const startAdminContest = async (contestId, actorUserId = '') => {
   const data = await request(`/admin/contests/${contestId}/start`, {
     method: 'POST',
@@ -1069,6 +1085,40 @@ const fetchContestMatchOptions = (tournamentId = '') => {
   return cachedGet(`contestMatchOptions:${query || 'all'}`, () =>
     request(`/admin/contest-match-options${query ? `?${query}` : ''}`),
   )
+}
+const fetchAdminContestParticipants = (contestId) =>
+  request(`/admin/contests/${contestId}/participants`)
+
+const addAdminContestParticipant = async ({ contestId, userId }) => {
+  const data = await request(`/admin/contests/${contestId}/participants`, {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
+  })
+  invalidateAppQueryCache((key) =>
+    key.startsWith('contestCatalog:') ||
+    key.startsWith('contests:') ||
+    key.startsWith(`contestParticipants:${contestId}:`) ||
+    key.startsWith(`contestLeaderboard:${contestId}`) ||
+    key === `contest:${contestId}`,
+  )
+  return data
+}
+
+const removeAdminContestParticipant = async ({ contestId, userId }) => {
+  const data = await request(
+    `/admin/contests/${contestId}/participants/${encodeURIComponent(userId)}`,
+    {
+      method: 'DELETE',
+    },
+  )
+  invalidateAppQueryCache((key) =>
+    key.startsWith('contestCatalog:') ||
+    key.startsWith('contests:') ||
+    key.startsWith(`contestParticipants:${contestId}:`) ||
+    key.startsWith(`contestLeaderboard:${contestId}`) ||
+    key === `contest:${contestId}`,
+  )
+  return data
 }
 const fetchContestRemovalPreview = (contestId) =>
   request(`/admin/contests/${contestId}/removal-preview`)
@@ -1223,8 +1273,12 @@ export {
   upsertAdminTeamSquad,
   deleteAdminTeamSquad,
   createAdminContest,
+  updateAdminContest,
   startAdminContest,
   fetchContestMatchOptions,
+  fetchAdminContestParticipants,
+  addAdminContestParticipant,
+  removeAdminContestParticipant,
   fetchContestRemovalPreview,
   removeAdminContest,
   fetchPendingContestRemovals,

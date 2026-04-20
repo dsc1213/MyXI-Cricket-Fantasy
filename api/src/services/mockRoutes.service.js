@@ -369,10 +369,32 @@ const registerMockProviderRoutes = (router, ctx) => {
     const saved = Array.isArray(contestJoins[normalized]) ? contestJoins[normalized] : []
     return new Set(saved)
   }
+  const getJoinedSetForUserIdentity = (user = {}) => {
+    const keys = [user.id, user.userId, user.gameName, user.email, user.name]
+      .map((value) => normalizeActorId(value || ''))
+      .filter(Boolean)
+    return keys.reduce((joinedSet, key) => {
+      const saved = Array.isArray(contestJoins[key]) ? contestJoins[key] : []
+      saved.forEach((contestId) => joinedSet.add(contestId))
+      return joinedSet
+    }, new Set())
+  }
   const saveJoinedSetForUser = (userId = '', joinedSet = new Set()) => {
     const normalized = normalizeActorId(userId)
     if (!normalized) return
     contestJoins[normalized] = Array.from(joinedSet)
+  }
+  const removeContestJoinForUserIdentity = (user = {}, contestId = '') => {
+    const target = contestId.toString()
+    const keys = [user.id, user.userId, user.gameName, user.email, user.name]
+      .map((value) => normalizeActorId(value || ''))
+      .filter(Boolean)
+    return keys.reduce((removed, key) => {
+      const saved = Array.isArray(contestJoins[key]) ? contestJoins[key] : []
+      const next = saved.filter((id) => id.toString() !== target)
+      contestJoins[key] = next
+      return removed || next.length !== saved.length
+    }, false)
   }
   const getContestJoinedCount = (contestId = '') => {
     const target = (contestId || '').toString()
@@ -1366,6 +1388,115 @@ const registerMockProviderRoutes = (router, ctx) => {
     })
   })
 
+  router.patch('/admin/contests/:contestId', (req, res) => {
+    const actor = resolveAdminActor(req)
+    if (!canAccessAdminUsers(actor)) {
+      return res.status(403).json({ message: 'Only admin/master can update contests' })
+    }
+    const contest = mockContests.find((item) => item.id === req.params.contestId)
+    if (!contest) return res.status(404).json({ message: 'Contest not found' })
+    if (isFixedRosterContest(contest) && actor?.role !== 'master_admin') {
+      return res.status(403).json({ message: 'Auction contests are master-only' })
+    }
+    if (req.body?.name !== undefined) {
+      const name = req.body.name.toString().trim()
+      if (!name) return res.status(400).json({ message: 'Contest name is required' })
+      contest.name = name
+    }
+    if (req.body?.maxParticipants !== undefined) {
+      const maxPlayers = Number(req.body.maxParticipants || 0)
+      if (!Number.isFinite(maxPlayers) || maxPlayers < 2) {
+        return res.status(400).json({ message: 'Max players must be at least 2' })
+      }
+      contest.teams = maxPlayers
+      contest.maxParticipants = maxPlayers
+    }
+    if (req.body?.startAt !== undefined) {
+      contest.startAt = req.body.startAt ? new Date(req.body.startAt).toISOString() : null
+    }
+    mockContestCatalog.set(contest.id, { ...contest })
+    persistState()
+    return res.json({
+      ...contest,
+      status: getContestDisplayStatus(contest),
+      joinOpen: isContestJoinOpen(contest),
+    })
+  })
+
+  router.get('/admin/contests/:contestId/participants', (req, res) => {
+    const actor = resolveAdminActor(req)
+    if (!canAccessAdminUsers(actor)) {
+      return res
+        .status(403)
+        .json({ message: 'Only admin/master can manage contest participants' })
+    }
+    const contestId = (req.params.contestId || '').toString()
+    const participants = users
+      .filter((user) => getJoinedSetForUserIdentity(user).has(contestId))
+      .map((user) => ({
+        id: user.id,
+        name: user.name,
+        userId: user.userId,
+        gameName: user.gameName,
+        email: user.email,
+        role: user.role,
+        joinedAt: null,
+      }))
+    return res.json({ participants })
+  })
+
+  router.post('/admin/contests/:contestId/participants', (req, res) => {
+    const actor = resolveAdminActor(req)
+    if (!canAccessAdminUsers(actor)) {
+      return res
+        .status(403)
+        .json({ message: 'Only admin/master can manage contest participants' })
+    }
+    const contestId = (req.params.contestId || '').toString()
+    const userId = (req.body?.userId || '').toString()
+    const contest = mockContests.find((item) => item.id === contestId)
+    if (!contest) return res.status(404).json({ message: 'Contest not found' })
+    if (isFixedRosterContest(contest) && actor?.role !== 'master_admin') {
+      return res.status(403).json({ message: 'Auction contests are master-only' })
+    }
+    const user = users.find((item) =>
+      [item.id, item.userId, item.gameName, item.email, item.name]
+        .map((value) => normalizeActorId(value || ''))
+        .includes(normalizeActorId(userId)),
+    )
+    if (!user) return res.status(404).json({ message: 'User not found' })
+    const joinedSet = getJoinedSetForUser(user.id)
+    joinedSet.add(contestId)
+    saveJoinedSetForUser(user.id, joinedSet)
+    persistState()
+    return res.json({ joined: true })
+  })
+
+  router.delete('/admin/contests/:contestId/participants/:userId', (req, res) => {
+    const actor = resolveAdminActor(req)
+    if (!canAccessAdminUsers(actor)) {
+      return res
+        .status(403)
+        .json({ message: 'Only admin/master can manage contest participants' })
+    }
+    const contestId = (req.params.contestId || '').toString()
+    const userId = (req.params.userId || '').toString()
+    const contest = mockContests.find((item) => item.id === contestId)
+    if (!contest) return res.status(404).json({ message: 'Contest not found' })
+    if (isFixedRosterContest(contest) && actor?.role !== 'master_admin') {
+      return res.status(403).json({ message: 'Auction contests are master-only' })
+    }
+    const user = users.find((item) =>
+      [item.id, item.userId, item.gameName, item.email, item.name]
+        .map((value) => normalizeActorId(value || ''))
+        .includes(normalizeActorId(userId)),
+    )
+    if (!user) return res.status(404).json({ message: 'User not found' })
+    const removed = removeContestJoinForUserIdentity(user, contestId)
+    persistState()
+    return res.json({ left: removed })
+  })
+
   router.post('/admin/contests/:contestId/start', (req, res) => {
     const actor = resolveAdminActor(req)
     if (!canAccessAdminUsers(actor)) {
@@ -1374,6 +1505,9 @@ const registerMockProviderRoutes = (router, ctx) => {
     const contest = mockContests.find((item) => item.id === req.params.contestId)
     if (!contest) {
       return res.status(404).json({ message: 'Contest not found' })
+    }
+    if (isFixedRosterContest(contest) && actor?.role !== 'master_admin') {
+      return res.status(403).json({ message: 'Auction contests are master-only' })
     }
     contest.startedAt = new Date().toISOString()
     persistState()

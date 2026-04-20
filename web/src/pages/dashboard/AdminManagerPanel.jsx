@@ -1,17 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ResourceRemovalModal from '../../components/admin/ResourceRemovalModal.jsx'
+import CreateContestModal from '../../components/contest/CreateContestModal.jsx'
 import Button from '../../components/ui/Button.jsx'
 import JsonTextareaField from '../../components/ui/JsonTextareaField.jsx'
 import Modal from '../../components/ui/Modal.jsx'
+import SearchableSelect from '../../components/ui/SearchableSelect.jsx'
 import StickyTable from '../../components/ui/StickyTable.jsx'
 import {
   createAdminTournament,
+  createAdminContest,
+  addAdminContestParticipant,
   deleteAdminUser,
+  fetchAdminContestParticipants,
   fetchContestRemovalPreview,
   fetchTournamentRemovalPreview,
   fetchContestCatalog,
+  fetchContestMatchOptions,
   removeAdminContest,
+  removeAdminContestParticipant,
   removeAdminTournament,
   disableTournaments,
   enableTournaments,
@@ -22,6 +29,7 @@ import {
   startAdminContest,
   syncContestSelections,
   updateAdminMatchStatus,
+  updateAdminContest,
   updateAdminUser,
 } from '../../lib/api.js'
 import { getStoredUser } from '../../lib/auth.js'
@@ -94,6 +102,27 @@ function AdminManagerPanel({
     { matchNo: 1, home: '', away: '', date: '', startAt: '', venue: '' },
   ])
   const [createTournamentJson, setCreateTournamentJson] = useState('')
+  const [showCreateContestModal, setShowCreateContestModal] = useState(false)
+  const [isCreatingContest, setIsCreatingContest] = useState(false)
+  const [createContestForm, setCreateContestForm] = useState({
+    name: '',
+    teams: '8',
+    startAt: '',
+  })
+  const [createContestMatchOptions, setCreateContestMatchOptions] = useState([])
+  const [createContestMatchIds, setCreateContestMatchIds] = useState([])
+  const [editContest, setEditContest] = useState(null)
+  const [editContestForm, setEditContestForm] = useState({
+    name: '',
+    teams: '',
+    startAt: '',
+  })
+  const [contestParticipants, setContestParticipants] = useState([])
+  const [editContestParticipantIds, setEditContestParticipantIds] = useState([])
+  const [editContestAddUserId, setEditContestAddUserId] = useState('')
+  const [pendingParticipantAction, setPendingParticipantAction] = useState(null)
+  const [isLoadingContestParticipants, setIsLoadingContestParticipants] = useState(false)
+  const [isSavingContestEdit, setIsSavingContestEdit] = useState(false)
 
   const loadUsers = useCallback(async () => {
     try {
@@ -388,6 +417,149 @@ function AdminManagerPanel({
     }
   }
 
+  const getUserDisplayName = (row = {}) =>
+    (row.gameName || row.name || row.userId || row.email || row.id || '').toString().trim()
+
+  const openCreateContestModal = async () => {
+    if (!selectedContestTournamentId) return
+    try {
+      setErrorText('')
+      setNotice('')
+      setShowCreateContestModal(true)
+      const rows = await fetchContestMatchOptions(selectedContestTournamentId)
+      const options = Array.isArray(rows) ? rows : []
+      setCreateContestMatchOptions(options)
+      setCreateContestMatchIds(options.map((row) => String(row.id)))
+    } catch (error) {
+      setErrorText(error.message || 'Failed to load contest matches')
+    }
+  }
+
+  const onCreateContest = async () => {
+    try {
+      setErrorText('')
+      setNotice('')
+      setIsCreatingContest(true)
+      await createAdminContest({
+        tournamentId: selectedContestTournamentId,
+        name: createContestForm.name,
+        teams: Number(createContestForm.teams || 0),
+        maxParticipants: Number(createContestForm.teams || 0),
+        startAt: createContestForm.startAt
+          ? new Date(createContestForm.startAt).toISOString()
+          : null,
+        matchIds: createContestMatchIds,
+        game: 'Fantasy',
+        actorUserId: currentUser?.gameName || currentUser?.email || currentUser?.id || '',
+      })
+      setShowCreateContestModal(false)
+      setCreateContestForm({ name: '', teams: '8', startAt: '' })
+      setCreateContestMatchOptions([])
+      setCreateContestMatchIds([])
+      await loadContestCatalog(selectedContestTournamentId)
+      setNotice('Contest created')
+    } catch (error) {
+      setErrorText(error.message || 'Failed to create contest')
+    } finally {
+      setIsCreatingContest(false)
+    }
+  }
+
+  const loadContestParticipants = async (contest) => {
+    if (!contest?.id) return []
+    try {
+      setIsLoadingContestParticipants(true)
+      setErrorText('')
+      const payload = await fetchAdminContestParticipants(contest.id)
+      const rows = Array.isArray(payload?.participants) ? payload.participants : []
+      setContestParticipants(rows)
+      return rows
+    } catch (error) {
+      setErrorText(error.message || 'Failed to load contest participants')
+      setContestParticipants([])
+      return []
+    } finally {
+      setIsLoadingContestParticipants(false)
+    }
+  }
+
+  const openContestEditModal = async (contest) => {
+    setEditContest(contest)
+    setEditContestForm({
+      name: contest?.name || '',
+      teams: String(contest?.maxPlayers || contest?.maxParticipants || contest?.teams || ''),
+      startAt: contest?.startAt ? new Date(contest.startAt).toISOString().slice(0, 16) : '',
+    })
+    setEditContestAddUserId('')
+    const rows = await loadContestParticipants(contest)
+    setEditContestParticipantIds(rows.map((row) => String(row.id)))
+  }
+
+  const closeContestEditModal = () => {
+    setEditContest(null)
+    setEditContestForm({ name: '', teams: '', startAt: '' })
+    setContestParticipants([])
+    setEditContestParticipantIds([])
+    setEditContestAddUserId('')
+    setPendingParticipantAction(null)
+  }
+
+  const applyPendingParticipantAction = () => {
+    if (!pendingParticipantAction) return
+    const userId = String(pendingParticipantAction.userId || '')
+    if (!userId) {
+      setPendingParticipantAction(null)
+      return
+    }
+    if (pendingParticipantAction.type === 'add') {
+      setEditContestParticipantIds((prev) =>
+        prev.includes(userId) ? prev : [...prev, userId],
+      )
+      setEditContestAddUserId('')
+    }
+    if (pendingParticipantAction.type === 'remove') {
+      setEditContestParticipantIds((prev) =>
+        prev.filter((id) => String(id) !== userId),
+      )
+    }
+    setPendingParticipantAction(null)
+  }
+
+  const onSaveContestEdit = async () => {
+    if (!editContest?.id) return
+    try {
+      setIsSavingContestEdit(true)
+      setErrorText('')
+      setNotice('')
+      await updateAdminContest(editContest.id, {
+        name: editContestForm.name.trim(),
+        maxParticipants: Number(editContestForm.teams || 0),
+        startAt: editContestForm.startAt
+          ? new Date(editContestForm.startAt).toISOString()
+          : null,
+      })
+      const originalIds = new Set(contestParticipants.map((row) => String(row.id)))
+      const nextIds = new Set(editContestParticipantIds.map((id) => String(id)))
+      const idsToAdd = [...nextIds].filter((id) => !originalIds.has(id))
+      const idsToRemove = [...originalIds].filter((id) => !nextIds.has(id))
+      await Promise.all([
+        ...idsToAdd.map((userId) =>
+          addAdminContestParticipant({ contestId: editContest.id, userId }),
+        ),
+        ...idsToRemove.map((userId) =>
+          removeAdminContestParticipant({ contestId: editContest.id, userId }),
+        ),
+      ])
+      await loadContestCatalog(selectedContestTournamentId)
+      closeContestEditModal()
+      setNotice('Contest updated')
+    } catch (error) {
+      setErrorText(error.message || 'Failed to update contest')
+    } finally {
+      setIsSavingContestEdit(false)
+    }
+  }
+
   const onDeleteTournament = async (tournamentId) => {
     if (!canDeleteTournaments) {
       setErrorText('Only admin/master can remove tournaments')
@@ -408,6 +580,10 @@ function AdminManagerPanel({
   }
 
   const onRemoveContest = async (contestId) => {
+    if (!canRemoveContests) {
+      setErrorText('Only admin/master can remove contests')
+      return
+    }
     try {
       setErrorText('')
       setNotice('')
@@ -416,6 +592,7 @@ function AdminManagerPanel({
         currentUser?.gameName || currentUser?.email || currentUser?.id || '',
       )
       await loadContestCatalog(selectedContestTournamentId)
+      closeContestEditModal()
       setNotice('Contest removed and sent for master review')
     } catch (error) {
       setErrorText(error.message || 'Failed to remove contest')
@@ -814,6 +991,66 @@ function AdminManagerPanel({
       enabled.some((id) => !selectedContestIds.includes(id))
     )
   }, [contestCatalog, selectedContestIds])
+  const canEditContestRow = (row = {}) =>
+    isMasterUser || (row.mode || '').toString().trim().toLowerCase() !== 'fixed_roster'
+  const selectedEditParticipantIds = useMemo(
+    () => new Set(editContestParticipantIds.map((id) => String(id))),
+    [editContestParticipantIds],
+  )
+  const editParticipantRows = useMemo(() => {
+    const userMap = new Map(users.map((row) => [String(row.id), row]))
+    const participantMap = new Map(contestParticipants.map((row) => [String(row.id), row]))
+    return editContestParticipantIds.map((id) => {
+      const key = String(id)
+      return {
+        ...(userMap.get(key) || {}),
+        ...(participantMap.get(key) || {}),
+        id: key,
+      }
+    })
+  }, [contestParticipants, editContestParticipantIds, users])
+  const addableParticipantOptions = useMemo(
+    () =>
+      users
+        .filter((row) => !selectedEditParticipantIds.has(String(row.id)))
+        .sort((a, b) => getUserDisplayName(a).localeCompare(getUserDisplayName(b)))
+        .map((row) => ({
+          value: row.id,
+          label: getUserDisplayName(row),
+        })),
+    [selectedEditParticipantIds, users],
+  )
+  const participantColumns = [
+    {
+      key: 'name',
+      label: 'Game Name',
+      render: (row) => (
+        <div className="participant-name-action">
+          <span>{getUserDisplayName(row)}</span>
+          <Button
+            variant="ghost"
+            size="small"
+            disabled={isSavingContestEdit}
+            onClick={(event) => {
+              event.stopPropagation()
+              setPendingParticipantAction({
+                type: 'remove',
+                userId: row.id,
+                label: getUserDisplayName(row),
+              })
+            }}
+          >
+            Remove
+          </Button>
+        </div>
+      ),
+    },
+    {
+      key: 'joinedAt',
+      label: 'Joined',
+      render: (row) => formatSafeDate(row.joinedAt, 'datetime'),
+    },
+  ]
   const contestColumns = [
     { key: 'name', label: 'Contest' },
     { key: 'game', label: 'Type' },
@@ -833,12 +1070,19 @@ function AdminManagerPanel({
       render: (row) => (row.startAt ? formatSafeDate(row.startAt, 'datetime') : 'Manual'),
     },
     {
+      key: 'participants',
+      label: 'Participants',
+      render: (row) =>
+        `${Number(row.joinedCount ?? row.participantsCount ?? row.participants ?? 0)} / ${Number(row.maxPlayers || row.maxParticipants || row.teams || 0) || '-'}`,
+    },
+    {
       key: 'select',
       label: 'Select',
       render: (row) => (
         <input
           type="checkbox"
           checked={selectedContestIds.includes(row.id)}
+          disabled={!canEditContestRow(row)}
           onClick={(event) => event.stopPropagation()}
           onChange={() => onToggleContest(row.id)}
         />
@@ -851,7 +1095,7 @@ function AdminManagerPanel({
         <Button
           variant="ghost"
           size="small"
-          disabled={!row.canStart || isSaving}
+          disabled={!canEditContestRow(row) || !row.canStart || isSaving}
           onClick={(event) => {
             event.stopPropagation()
             void onStartContestNow(row.id)
@@ -862,23 +1106,20 @@ function AdminManagerPanel({
       ),
     },
     {
-      key: 'delete',
-      label: 'Remove',
+      key: 'edit',
+      label: 'Edit',
       render: (row) => (
         <Button
-          variant="danger"
+          variant="ghost"
           size="small"
-          disabled={!canRemoveContests}
+          disabled={!canEditContestRow(row)}
           onClick={(event) => {
             event.stopPropagation()
-            setRemovalTarget({
-              type: 'contest',
-              id: row.id,
-              name: row.name,
-            })
+            void openContestEditModal(row)
           }}
+          title={canEditContestRow(row) ? 'Edit contest' : 'Auction contests are master-only'}
         >
-          Remove
+          Edit
         </Button>
       ),
     },
@@ -1111,12 +1352,12 @@ function AdminManagerPanel({
                   ))}
                 </select>
                 <Button
-                  variant="ghost"
+                  variant="secondary"
                   size="small"
                   disabled={!selectedContestTournamentId}
-                  onClick={() => void loadContestCatalog(selectedContestTournamentId)}
+                  onClick={() => void openCreateContestModal()}
                 >
-                  Refresh contests
+                  + Create contest
                 </Button>
                 <Button
                   variant="primary"
@@ -1147,6 +1388,195 @@ function AdminManagerPanel({
           </>
         )}
       </div>
+      <CreateContestModal
+        open={showCreateContestModal}
+        onClose={() => setShowCreateContestModal(false)}
+        onCreate={() => void onCreateContest()}
+        isSaving={isCreatingContest}
+        tournaments={contestTournamentOptions.map((item) => ({
+          id: item.value,
+          name: item.label,
+        }))}
+        form={{
+          ...createContestForm,
+          tournamentId: selectedContestTournamentId,
+        }}
+        onChangeForm={(nextForm) =>
+          setCreateContestForm({
+            name: nextForm.name || '',
+            teams: nextForm.teams || '',
+            startAt: nextForm.startAt || '',
+          })
+        }
+        matchOptions={createContestMatchOptions}
+        selectedMatchIds={createContestMatchIds}
+        onChangeSelectedMatchIds={setCreateContestMatchIds}
+        lockedTournamentId={selectedContestTournamentId}
+      />
+      <Modal
+        open={Boolean(editContest)}
+        onClose={closeContestEditModal}
+        title={`Edit contest${editContest?.name ? ` • ${editContest.name}` : ''}`}
+        size="md"
+        footer={
+          <>
+            <Button
+              variant="danger"
+              size="small"
+              disabled={!canRemoveContests || isSavingContestEdit || !editContest?.id}
+              onClick={() =>
+                setRemovalTarget({
+                  type: 'contest',
+                  id: editContest.id,
+                  name: editContest.name,
+                })
+              }
+            >
+              Remove contest
+            </Button>
+            <Button variant="ghost" size="small" onClick={closeContestEditModal}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="small"
+              disabled={
+                isSavingContestEdit ||
+                isLoadingContestParticipants ||
+                !editContestForm.name.trim() ||
+                Number(editContestForm.teams || 0) < 2 ||
+                Number(editContestForm.teams || 0) < editContestParticipantIds.length
+              }
+              onClick={() => void onSaveContestEdit()}
+            >
+              {isSavingContestEdit ? 'Saving...' : 'Save'}
+            </Button>
+          </>
+        }
+      >
+        <div className="create-contest-form">
+          <label className="create-contest-field">
+            <span>Contest name</span>
+            <input
+              className="create-contest-input"
+              type="text"
+              value={editContestForm.name}
+              onChange={(event) =>
+                setEditContestForm((prev) => ({ ...prev, name: event.target.value }))
+              }
+            />
+          </label>
+          <label className="create-contest-field">
+            <span>Max participants</span>
+            <input
+              className="create-contest-input"
+              type="number"
+              min="2"
+              value={editContestForm.teams}
+              onChange={(event) =>
+                setEditContestForm((prev) => ({ ...prev, teams: event.target.value }))
+              }
+            />
+            {Number(editContestForm.teams || 0) < editContestParticipantIds.length ? (
+              <small className="error-text">
+                Max participants cannot be less than selected participants.
+              </small>
+            ) : null}
+          </label>
+          <label className="create-contest-field">
+            <span>Starts at</span>
+            <input
+              className="create-contest-input"
+              type="datetime-local"
+              value={editContestForm.startAt}
+              onChange={(event) =>
+                setEditContestForm((prev) => ({ ...prev, startAt: event.target.value }))
+              }
+            />
+            <small className="team-note">
+              Leave empty to keep this contest on manual start.
+            </small>
+          </label>
+          <div className="create-contest-field">
+            <span>Add participant</span>
+            <div className="top-actions">
+              <SearchableSelect
+                value={editContestAddUserId}
+                disabled={isSavingContestEdit}
+                onChange={setEditContestAddUserId}
+                options={addableParticipantOptions}
+                placeholder="Search user name"
+              />
+              <Button
+                variant="primary"
+                size="small"
+                disabled={!editContestAddUserId || isSavingContestEdit}
+                onClick={() => {
+                  const option = addableParticipantOptions.find(
+                    (item) => String(item.value) === String(editContestAddUserId),
+                  )
+                  setPendingParticipantAction({
+                    type: 'add',
+                    userId: editContestAddUserId,
+                    label: option?.label || editContestAddUserId,
+                  })
+                }}
+              >
+                Add
+              </Button>
+            </div>
+          </div>
+          {isLoadingContestParticipants ? (
+            <p className="team-note">Loading participants...</p>
+          ) : (
+            <StickyTable
+              columns={participantColumns}
+              rows={editParticipantRows}
+              rowKey={(row) => row.id}
+              emptyText="No participants selected"
+              wrapperClassName="catalog-table-wrap"
+              tableClassName="catalog-table"
+            />
+          )}
+        </div>
+      </Modal>
+      <Modal
+        open={Boolean(pendingParticipantAction)}
+        onClose={() => setPendingParticipantAction(null)}
+        title={
+          pendingParticipantAction?.type === 'add'
+            ? 'Add participant'
+            : 'Remove participant'
+        }
+        size="sm"
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              size="small"
+              onClick={() => setPendingParticipantAction(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant={pendingParticipantAction?.type === 'remove' ? 'danger' : 'primary'}
+              size="small"
+              onClick={applyPendingParticipantAction}
+            >
+              {pendingParticipantAction?.type === 'add' ? 'Add' : 'Remove'}
+            </Button>
+          </>
+        }
+      >
+        <p className="team-note">
+          {pendingParticipantAction?.type === 'add'
+            ? `Add ${pendingParticipantAction?.label || 'this user'} to this contest?`
+            : `Remove ${pendingParticipantAction?.label || 'this user'} from this contest?`}
+        </p>
+        <p className="team-note">
+          This updates the draft only. Click Save in the edit contest modal to apply it.
+        </p>
+      </Modal>
       <Modal
         open={showCreateTournamentModal}
         onClose={() => setShowCreateTournamentModal(false)}
@@ -1341,28 +1771,30 @@ function AdminManagerPanel({
         open={Boolean(removalTarget)}
         resourceId={removalTarget?.id || ''}
         resourceName={removalTarget?.name || ''}
-        resourceLabel={removalTarget?.type === 'tournament' ? 'tournament' : 'contest'}
-        impactLabel={removalTarget?.type === 'tournament' ? 'tournament impact' : 'contest impact'}
+        resourceLabel={removalTarget?.type === 'contest' ? 'contest' : 'tournament'}
+        impactLabel={
+          removalTarget?.type === 'contest' ? 'contest impact' : 'tournament impact'
+        }
         impactRows={
-          removalTarget?.type === 'tournament'
+          removalTarget?.type === 'contest'
             ? [
-                { key: 'matchCount', label: 'Matches' },
-                { key: 'contestCount', label: 'Contests' },
-                { key: 'scoreRowsCount', label: 'Score rows' },
-                { key: 'lineupsCount', label: 'Lineups' },
-              ]
-            : [
                 { key: 'matchCount', label: 'Matches' },
                 { key: 'joinedCount', label: 'Participants' },
                 { key: 'teamSelectionsCount', label: 'Team selections' },
                 { key: 'fixedRostersCount', label: 'Fixed rosters' },
                 { key: 'contestScoresCount', label: 'Contest scores' },
               ]
+            : [
+                { key: 'matchCount', label: 'Matches' },
+                { key: 'contestCount', label: 'Contests' },
+                { key: 'scoreRowsCount', label: 'Score rows' },
+                { key: 'lineupsCount', label: 'Lineups' },
+              ]
         }
         loadPreview={
-          removalTarget?.type === 'tournament'
-            ? fetchTournamentRemovalPreview
-            : fetchContestRemovalPreview
+          removalTarget?.type === 'contest'
+            ? fetchContestRemovalPreview
+            : fetchTournamentRemovalPreview
         }
         isSubmitting={isRemovingResource}
         onClose={() => setRemovalTarget(null)}
@@ -1370,10 +1802,10 @@ function AdminManagerPanel({
           if (!removalTarget?.id) return
           try {
             setIsRemovingResource(true)
-            if (removalTarget.type === 'tournament') {
-              await onDeleteTournament(removalTarget.id)
-            } else {
+            if (removalTarget.type === 'contest') {
               await onRemoveContest(removalTarget.id)
+            } else {
+              await onDeleteTournament(removalTarget.id)
             }
             setRemovalTarget(null)
           } finally {

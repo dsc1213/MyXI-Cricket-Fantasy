@@ -4,9 +4,8 @@ import ApiFailureTile from '../components/ui/ApiFailureTile.jsx'
 import Button from '../components/ui/Button.jsx'
 import LoadingNote from '../components/ui/LoadingNote.jsx'
 import LastScoreMeta from '../components/ui/LastScoreMeta.jsx'
-import Modal from '../components/ui/Modal.jsx'
-import PlayingXiModalLink from '../components/ui/PlayingXiModalLink.jsx'
 import SelectField from '../components/ui/SelectField.jsx'
+import CreateContestModal from '../components/contest/CreateContestModal.jsx'
 import ContestTileCard from '../components/contest/ContestTileCard.jsx'
 import {
   createAdminContest,
@@ -17,7 +16,6 @@ import {
   joinContest,
 } from '../lib/api.js'
 import { getStoredUser } from '../lib/auth.js'
-import { formatCompactMatchLabel } from '../lib/matchLabels.js'
 
 const tournamentPalette = [
   '#0f7a67',
@@ -72,22 +70,6 @@ const shouldShowContestStart = (startAt, nowTs) => {
   const parsed = new Date(startAt)
   if (Number.isNaN(parsed.getTime())) return true
   return parsed.getTime() > nowTs
-}
-
-const formatLocalMatchOptionDate = (value) => {
-  const raw = (value || '').toString().trim()
-  if (!raw) return 'Manual'
-  const parsed = new Date(raw)
-  if (Number.isNaN(parsed.getTime())) return raw
-  return parsed.toLocaleString(undefined, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-    timeZoneName: 'short',
-  })
 }
 
 function FantasyHub() {
@@ -276,7 +258,54 @@ function FantasyHub() {
   const showApiFailureTile =
     !isLoading && !!errorText && tournaments.length === 0 && contests.length === 0
   const canCreateContest = !isLoading && tournaments.length > 0
-  const canCreateWithMatches = selectedContestMatchIds.length > 0
+
+  const onCreateContest = async () => {
+    try {
+      setIsSavingContest(true)
+      setIsLoading(true)
+      setErrorText('')
+      setNotice('')
+      const createdContestResponse = await createAdminContest({
+        ...createContestForm,
+        maxParticipants: Number(createContestForm.teams || 0),
+        createdBy: currentUserId || currentUser?.email || 'admin',
+        matchIds: selectedContestMatchIds,
+        startAt: createContestForm.startAt
+          ? new Date(createContestForm.startAt).toISOString()
+          : null,
+      })
+      const createdContest = normalizeContestRow(
+        createdContestResponse?.contest || createdContestResponse || {},
+      )
+      const refreshed = await reloadFantasyData()
+      if (
+        createdContest.id &&
+        !refreshed?.contests?.some((item) => item.id === createdContest.id)
+      ) {
+        setContests((prev) => [
+          createdContest,
+          ...prev.filter((item) => item.id !== createdContest.id),
+        ])
+      }
+      setSelectedTournament(createContestForm.tournamentId)
+      setShowCreateContestModal(false)
+      setCreateContestForm({
+        name: '',
+        tournamentId: '',
+        game: 'Fantasy',
+        teams: 0,
+        startAt: '',
+      })
+      setContestMatchOptions([])
+      setSelectedContestMatchIds([])
+      setNotice('Contest created')
+    } catch (error) {
+      setErrorText(error.message || 'Failed to create contest')
+    } finally {
+      setIsLoading(false)
+      setIsSavingContest(false)
+    }
+  }
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -605,224 +634,19 @@ function FantasyHub() {
         </div>
       )}
 
-      <Modal
+      <CreateContestModal
         open={showCreateContestModal}
         onClose={() => setShowCreateContestModal(false)}
-        title="Create contest"
-        size="md"
-        closeOnBackdrop={false}
-        footer={
-          <>
-            <Button
-              variant="ghost"
-              size="small"
-              onClick={() => setShowCreateContestModal(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="small"
-              disabled={
-                isSavingContest ||
-                isLoadingContestMatchOptions ||
-                !createContestForm.name ||
-                !createContestForm.tournamentId ||
-                Number(createContestForm.teams || 0) < 2 ||
-                !canCreateWithMatches
-              }
-              onClick={async () => {
-                try {
-                  setIsSavingContest(true)
-                  setIsLoading(true)
-                  setErrorText('')
-                  setNotice('')
-                  const createdContestResponse = await createAdminContest({
-                    ...createContestForm,
-                    maxParticipants: Number(createContestForm.teams || 0),
-                    createdBy: currentUserId || currentUser?.email || 'admin',
-                    matchIds: selectedContestMatchIds,
-                    startAt: createContestForm.startAt
-                      ? new Date(createContestForm.startAt).toISOString()
-                      : null,
-                  })
-                  const createdContest = normalizeContestRow(
-                    createdContestResponse?.contest || createdContestResponse || {},
-                  )
-                  const refreshed = await reloadFantasyData()
-                  if (
-                    createdContest.id &&
-                    !refreshed?.contests?.some((item) => item.id === createdContest.id)
-                  ) {
-                    setContests((prev) => [
-                      createdContest,
-                      ...prev.filter((item) => item.id !== createdContest.id),
-                    ])
-                  }
-                  setSelectedTournament(createContestForm.tournamentId)
-                  setShowCreateContestModal(false)
-                  setCreateContestForm({
-                    name: '',
-                    tournamentId: '',
-                    game: 'Fantasy',
-                    teams: 0,
-                    startAt: '',
-                  })
-                  setContestMatchOptions([])
-                  setSelectedContestMatchIds([])
-                  setNotice('Contest created')
-                } catch (error) {
-                  setErrorText(error.message || 'Failed to create contest')
-                } finally {
-                  setIsLoading(false)
-                  setIsSavingContest(false)
-                }
-              }}
-            >
-              {isSavingContest ? 'Creating...' : 'Create'}
-            </Button>
-          </>
-        }
-      >
-        <div className="create-contest-form">
-          <label className="create-contest-field">
-            <span>Tournament</span>
-            <SelectField
-              className="create-contest-input"
-              value={createContestForm.tournamentId}
-              onChange={(event) =>
-                setCreateContestForm((prev) => ({
-                  ...prev,
-                  tournamentId: event.target.value,
-                }))
-              }
-              options={[
-                { value: '', label: 'Select tournament' },
-                ...tournaments.map((item) => ({ value: item.id, label: item.name })),
-              ]}
-            />
-          </label>
-          <label className="create-contest-field">
-            <span>Contest name</span>
-            <input
-              className="create-contest-input"
-              type="text"
-              value={createContestForm.name}
-              onChange={(event) =>
-                setCreateContestForm((prev) => ({ ...prev, name: event.target.value }))
-              }
-            />
-          </label>
-          <label className="create-contest-field">
-            <span>Max players</span>
-            <input
-              className="create-contest-input"
-              type="number"
-              min="2"
-              value={createContestForm.teams}
-              onChange={(event) =>
-                setCreateContestForm((prev) => ({
-                  ...prev,
-                  teams: Number(event.target.value || 0),
-                }))
-              }
-            />
-            {Number(createContestForm.teams || 0) > 0 &&
-            Number(createContestForm.teams || 0) < 2 ? (
-              <small className="error-text">Max players must be at least 2.</small>
-            ) : null}
-          </label>
-          <label className="create-contest-field">
-            <span>Starts at</span>
-            <input
-              className="create-contest-input"
-              type="datetime-local"
-              value={createContestForm.startAt}
-              onChange={(event) =>
-                setCreateContestForm((prev) => ({
-                  ...prev,
-                  startAt: event.target.value,
-                }))
-              }
-            />
-            <small className="team-note">
-              Leave empty to keep the contest open until an admin starts it manually.
-            </small>
-          </label>
-          <div className="create-contest-field create-contest-matches-field">
-            <span>Matches in this contest</span>
-            <div className="create-contest-match-actions">
-              <Button
-                variant="ghost"
-                size="small"
-                disabled={!contestMatchOptions.length}
-                onClick={() =>
-                  setSelectedContestMatchIds(contestMatchOptions.map((item) => item.id))
-                }
-              >
-                Select all
-              </Button>
-              <Button
-                variant="ghost"
-                size="small"
-                disabled={!selectedContestMatchIds.length}
-                onClick={() => setSelectedContestMatchIds([])}
-              >
-                Clear
-              </Button>
-              <small className="team-note">
-                Selected {selectedContestMatchIds.length} / {contestMatchOptions.length}
-              </small>
-            </div>
-            <div
-              className="create-contest-match-grid"
-              role="group"
-              aria-label="Contest matches"
-            >
-              {isLoadingContestMatchOptions ? (
-                <p className="team-note">Loading matches...</p>
-              ) : contestMatchOptions.length ? (
-                contestMatchOptions.map((match) => {
-                  const checked = selectedContestMatchIds.includes(match.id)
-                  return (
-                    <label key={match.id} className="create-contest-match-row">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(event) => {
-                          if (event.target.checked) {
-                            setSelectedContestMatchIds((prev) =>
-                              prev.includes(match.id) ? prev : [...prev, match.id],
-                            )
-                          } else {
-                            setSelectedContestMatchIds((prev) =>
-                              prev.filter((id) => id !== match.id),
-                            )
-                          }
-                        }}
-                      />
-                      <span>
-                        {formatCompactMatchLabel(match)}
-                        <small>
-                          {formatLocalMatchOptionDate(match.startAt || match.date)} -{' '}
-                          {match.status}
-                        </small>
-                        <PlayingXiModalLink
-                          tournamentId={selectedTournament}
-                          matchId={match.id}
-                          className="inline-playing-xi-link"
-                        />
-                      </span>
-                    </label>
-                  )
-                })
-              ) : (
-                <p className="team-note">No matches available for this tournament.</p>
-              )}
-            </div>
-          </div>
-        </div>
-      </Modal>
+        onCreate={() => void onCreateContest()}
+        isSaving={isSavingContest}
+        tournaments={tournaments}
+        form={createContestForm}
+        onChangeForm={setCreateContestForm}
+        matchOptions={contestMatchOptions}
+        selectedMatchIds={selectedContestMatchIds}
+        onChangeSelectedMatchIds={setSelectedContestMatchIds}
+        isLoadingMatches={isLoadingContestMatchOptions}
+      />
     </section>
   )
 }
