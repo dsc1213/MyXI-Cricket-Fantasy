@@ -467,6 +467,15 @@ function TeamPreviewDrawer({
                       <div className="team-preview-entry" key={rowKey}>
                         <div className="player-row team-preview-row">
                           <div className="player-row-main">
+                            {!isFixedRosterContest ? (
+                              <span
+                                className="backup-priority-badge"
+                                title={`Backup priority ${index + 1}`}
+                                aria-label={`Backup priority ${index + 1}`}
+                              >
+                                {index + 1}
+                              </span>
+                            ) : null}
                             <PlayerAvatar
                               name={name}
                               imageUrl={

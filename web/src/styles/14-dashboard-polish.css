@@ -3765,6 +3765,28 @@ body.dark-theme .searchable-select-list {
   position: sticky;
 }
 
+.backup-priority-badge {
+  align-items: center;
+  background: rgba(124, 58, 237, 0.18);
+  border: 1px solid rgba(124, 58, 237, 0.5);
+  border-radius: 999px;
+  color: #c4b5fd !important;
+  display: inline-flex !important;
+  flex: 0 0 auto;
+  font-size: 0.66rem !important;
+  font-weight: 900 !important;
+  height: 1.35rem;
+  justify-content: center;
+  letter-spacing: 0 !important;
+  min-width: 1.35rem;
+}
+
+body:not(.dark-theme) .backup-priority-badge {
+  background: rgba(124, 58, 237, 0.12);
+  border-color: rgba(109, 40, 217, 0.32);
+  color: #6d28d9 !important;
+}
+
 .create-contest-match-actions {
   display: flex;
   align-items: center;

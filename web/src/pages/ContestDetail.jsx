@@ -291,6 +291,15 @@ function ContestDetail() {
       }),
     )
 
+  const sortedMatches = useMemo(() => sortContestMatches(matches), [matches])
+  const activeSortedMatch =
+    sortedMatches.find((match) => match.id === selectedMatchId) || sortedMatches[0]
+
+  const teamOptions = useMemo(
+    () => Array.from(new Set(sortedMatches.flatMap((match) => [match.home, match.away]))),
+    [sortedMatches],
+  )
+
   useEffect(() => {
     let active = true
     const candidates = sortedMatches.filter(
@@ -471,15 +480,6 @@ function ContestDetail() {
       setIsSavingCopiedTeam(false)
     }
   }
-
-  const sortedMatches = useMemo(() => sortContestMatches(matches), [matches])
-  const activeSortedMatch =
-    sortedMatches.find((match) => match.id === selectedMatchId) || sortedMatches[0]
-
-  const teamOptions = useMemo(
-    () => Array.from(new Set(sortedMatches.flatMap((match) => [match.home, match.away]))),
-    [sortedMatches],
-  )
 
   useEffect(() => {
     if (!showLeaderboardPreview) return
