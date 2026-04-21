@@ -1,6 +1,12 @@
 import PlayerLabel from './PlayerLabel.jsx'
 
 const ROLE_LANES = ['WK', 'BAT', 'AR', 'BOWL']
+const ROLE_LABELS = {
+  WK: 'WICKET-KEEPERS',
+  BAT: 'BATTERS',
+  AR: 'ALL-ROUNDERS',
+  BOWL: 'BOWLERS',
+}
 
 function normalizePlayerRole(role = '') {
   const value = role.toString().trim().toUpperCase()
@@ -36,6 +42,16 @@ function buildTeamCounts(selected = []) {
   })
 }
 
+function buildTeamSideByCode(selected = []) {
+  const teamSideByCode = new Map()
+  selected.forEach((player) => {
+    const teamCode = (player?.team || player?.teamCode || '').toString().trim().toUpperCase()
+    if (!teamCode || teamSideByCode.has(teamCode)) return
+    teamSideByCode.set(teamCode, teamSideByCode.size)
+  })
+  return teamSideByCode
+}
+
 function RightColumnContent({
   selected,
   counts,
@@ -61,6 +77,12 @@ function RightColumnContent({
     },
   )
   const teamCounts = buildTeamCounts(selected)
+  const teamSideByCode = buildTeamSideByCode(selected)
+  const getTeamSideClass = (player) => {
+    const teamCode = (player?.team || player?.teamCode || '').toString().trim().toUpperCase()
+    const side = teamSideByCode.get(teamCode)
+    return side === 1 ? 'team-side-b' : 'team-side-a'
+  }
   const captainPlayer = selected.find((player) => String(player.id) === String(captainId))
   const viceCaptainPlayer = selected.find((player) => String(player.id) === String(viceCaptainId))
 
@@ -126,6 +148,7 @@ function RightColumnContent({
                 className={`myxi-role-lane${lanePlayers.length ? '' : ' is-empty'}`}
                 aria-label={`${lane} picks`}
                 data-role-lane={lane}
+                data-role-label={ROLE_LABELS[lane] || lane}
               >
                 <div className="myxi-role-lane-chips">
                   {lanePlayers.map((player) => (
@@ -133,8 +156,8 @@ function RightColumnContent({
                       key={player.id}
                       player={player}
                       lineupStatus={player.lineupStatus || ''}
-                      className="myxi-role-chip"
-                      showTeam
+                      className={`myxi-role-chip ${getTeamSideClass(player)}`}
+                      showRole={false}
                       roleControls={{
                         captainActive: String(player.id) === String(captainId),
                         viceCaptainActive: String(player.id) === String(viceCaptainId),
@@ -163,13 +186,15 @@ function RightColumnContent({
           {[...Array(6)].map((_, index) => {
             const player = backups[index]
             return player ? (
-              <PlayerLabel
-                key={`bb-${index}`}
-                player={player}
-                className="backup-chip"
-                lineupStatus={player.lineupStatus || ''}
-                showTeam
-              />
+              <div className="backup-chip-wrap" key={`bb-${index}`}>
+                <span className="backup-order-badge">{index + 1}</span>
+                <PlayerLabel
+                  player={player}
+                  className="backup-chip"
+                  lineupStatus={player.lineupStatus || ''}
+                  showTeam
+                />
+              </div>
             ) : (
               <div className="backup-chip empty" key={`bb-${index}`}>
                 <span>Empty</span>

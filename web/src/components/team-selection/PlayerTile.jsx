@@ -42,12 +42,17 @@ function PlayerTile({
         />
       </div>
       <div className="tile-actions">
-        <button type="button" className="tile-btn" onClick={onToggle} disabled={disabled}>
+        <button
+          type="button"
+          className={`tile-btn ${isSelected ? 'is-active-remove' : ''}`.trim()}
+          onClick={onToggle}
+          disabled={disabled}
+        >
           {isSelected ? '-' : '+'}
         </button>
         <button
           type="button"
-          className="tile-btn backup"
+          className={`tile-btn backup ${isBackup ? 'is-active-remove' : ''}`.trim()}
           onClick={onBackup}
           disabled={disabled || isSelected}
           title={isBackup ? 'Remove from backups' : 'Add to backups'}

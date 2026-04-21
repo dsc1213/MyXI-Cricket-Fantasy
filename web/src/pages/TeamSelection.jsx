@@ -21,6 +21,22 @@ import {
 
 const normalizeLineupName = (value = '') => value.toString().trim().toLowerCase()
 
+function PreviewActionIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="button-inline-icon"
+      viewBox="0 0 20 20"
+      focusable="false"
+    >
+      <path
+        d="M10 4.5c4.2 0 7.1 3.4 8 5.5-.9 2.1-3.8 5.5-8 5.5S2.9 12.1 2 10c.9-2.1 3.8-5.5 8-5.5Zm0 2C7.1 6.5 4.9 8.6 4.1 10c.8 1.4 3 3.5 5.9 3.5s5.1-2.1 5.9-3.5c-.8-1.4-3-3.5-5.9-3.5Zm0 1.4a2.1 2.1 0 1 1 0 4.2 2.1 2.1 0 0 1 0-4.2Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
 const buildSelectionRequirementMessage = ({ counts, teamACount, teamBCount, limits }) => {
   if (counts.BAT < limits.minBAT) return `Select at least ${limits.minBAT} batter.`
   if (counts.BOWL < limits.minBOWL) return `Select at least ${limits.minBOWL} bowler.`
@@ -632,7 +648,8 @@ function TeamSelection() {
               setShowSidebar(true)
             }}
           >
-            {`☰ Preview & Save (${previewSaveCountLabel})`}
+            <PreviewActionIcon />
+            <span>{`Preview & Save (${previewSaveCountLabel})`}</span>
           </Button>
         </div>
       </header>

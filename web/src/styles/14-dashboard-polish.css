@@ -6034,3 +6034,284 @@ body:not(.dark-theme) .playing-xi-card .player-identity-subtitle {
     flex-direction: column;
   }
 }
+
+/* MyXI pitch preview: keep selected XI layout stable across theme and modal contexts. */
+.app.app-team .myxi-card,
+.team-preview-modal .myxi-card,
+.ui-modal-body .myxi-card {
+  position: relative !important;
+  overflow: hidden !important;
+  border-color: rgba(166, 219, 124, 0.36);
+  background:
+    radial-gradient(ellipse at 50% 18%, rgba(236, 252, 203, 0.17), transparent 35%),
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.075) 0 14.25%,
+      rgba(24, 91, 43, 0.05) 14.25% 28.5%,
+      rgba(255, 255, 255, 0.07) 28.5% 42.75%,
+      rgba(24, 91, 43, 0.06) 42.75% 57%,
+      rgba(255, 255, 255, 0.065) 57% 71.25%,
+      rgba(24, 91, 43, 0.07) 71.25% 85.5%,
+      rgba(255, 255, 255, 0.055) 85.5%
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.018) 0 2px,
+      transparent 2px 5px
+    ),
+    linear-gradient(180deg, #75a653 0%, #4f8a43 34%, #2e6338 66%, #18462f 100%) !important;
+}
+
+.app.app-team .myxi-card > *,
+.team-preview-modal .myxi-card > *,
+.ui-modal-body .myxi-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+body:not(.dark-theme) .app.app-team .player-avatar-fallback,
+body:not(.dark-theme) .team-preview-modal .player-avatar-fallback {
+  color: rgba(235, 241, 255, 0.94);
+}
+
+.app.app-team .myxi-card .myxi-role-lanes,
+.ui-modal-body .myxi-card .myxi-role-lanes {
+  row-gap: 1.05rem;
+  margin-top: 0.8rem;
+}
+
+.app.app-team .myxi-card .myxi-role-lane::before,
+.ui-modal-body .myxi-card .myxi-role-lane::before {
+  margin-bottom: 0.48rem;
+}
+
+.app.app-team .myxi-card .myxi-role-lane-chips,
+.ui-modal-body .myxi-card .myxi-role-lane-chips {
+  --lane-gap: 0.58rem;
+}
+
+.app.app-team .myxi-card .myxi-role-chip.player-chip.slot-chip.compact {
+  padding: 0.38rem 4rem 0.38rem 0.58rem;
+}
+
+.app.app-team .myxi-card .myxi-role-chip.team-side-a,
+.ui-modal-body .myxi-card .myxi-role-chip.team-side-a {
+  --myxi-team-rail: linear-gradient(180deg, #fef08a 0%, #f59e0b 50%, #b45309 100%);
+}
+
+.app.app-team .myxi-card .myxi-role-chip.team-side-b,
+.ui-modal-body .myxi-card .myxi-role-chip.team-side-b {
+  --myxi-team-rail: linear-gradient(180deg, #67e8f9 0%, #0ea5e9 50%, #1d4ed8 100%);
+}
+
+.app.app-team .myxi-card .myxi-role-chip.player-chip.slot-chip.compact::before,
+.ui-modal-body .myxi-card .myxi-role-chip.player-chip.slot-chip.compact::before {
+  background: var(--myxi-team-rail);
+}
+
+.app.app-team .myxi-card .myxi-role-chip.player-chip.slot-chip.compact .player-chip-copy,
+.ui-modal-body
+  .myxi-card
+  .myxi-role-chip.player-chip.slot-chip.compact
+  .player-chip-copy {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.app.app-team
+  .myxi-card
+  .myxi-role-chip.player-chip.slot-chip.compact
+  .player-chip-identity
+  .player-identity-copy,
+.ui-modal-body
+  .myxi-card
+  .myxi-role-chip.player-chip.slot-chip.compact
+  .player-chip-identity
+  .player-identity-copy {
+  min-width: 0;
+  width: min(100%, 7.2rem);
+  max-width: 5.2rem;
+  overflow: hidden;
+}
+
+.app.app-team
+  .myxi-card
+  .myxi-role-chip.player-chip.slot-chip.compact
+  .player-chip-identity
+  .player-identity-name,
+.ui-modal-body
+  .myxi-card
+  .myxi-role-chip.player-chip.slot-chip.compact
+  .player-chip-identity
+  .player-identity-name {
+  display: -webkit-inline-box;
+  width: 100%;
+  max-width: 100%;
+  color: rgba(248, 250, 252, 0.96);
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.app.app-team
+  .myxi-card
+  .myxi-role-chip.player-chip.slot-chip.compact
+  .player-chip-identity
+  .player-identity-subtitle,
+.ui-modal-body
+  .myxi-card
+  .myxi-role-chip.player-chip.slot-chip.compact
+  .player-chip-identity
+  .player-identity-subtitle {
+  display: none;
+}
+
+.app.app-team .myxi-card .player-chip-role-controls,
+.ui-modal-body .myxi-card .player-chip-role-controls {
+  position: absolute;
+  right: 0.54rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.app.app-team .tile-actions .tile-btn.is-active-remove {
+  display: inline-grid;
+  place-items: center;
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.72);
+  color: #ef4444;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: none;
+}
+
+.app.app-team .tile-actions .tile-btn.is-active-remove:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(248, 113, 113, 0.9);
+  color: #f87171;
+}
+
+body.dark-theme .app.app-team .tile-actions .tile-btn.is-active-remove {
+  background: transparent;
+  border-color: rgba(248, 113, 113, 0.68);
+  color: #f87171;
+}
+
+.app.app-team .backups-card .backup-chip-wrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  width: 100%;
+  min-height: 36px;
+}
+
+.app.app-team .backups-card .backup-chip-wrap .backup-chip {
+  width: 100%;
+  min-height: 36px;
+  padding-left: 1.7rem;
+}
+
+.app.app-team .backups-card .backup-order-badge {
+  position: absolute;
+  left: 0.46rem;
+  top: 50%;
+  z-index: 2;
+  display: inline-grid;
+  place-items: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  transform: translateY(-50%);
+  border: 1px solid rgba(226, 232, 240, 0.24);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.46);
+  color: rgba(245, 248, 255, 0.96);
+  font-size: 0.56rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.app.app-team .tile-actions {
+  align-items: center;
+}
+
+.app.app-team .tile-actions .tile-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  padding: 0;
+  border-radius: 7px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+}
+
+.app.app-team .tile-actions .tile-btn.backup {
+  font-size: 0.7rem;
+  letter-spacing: 0;
+}
+
+.team-preview-modal {
+  max-height: min(92vh, 820px);
+  overflow: hidden;
+}
+
+.team-preview-modal .ui-modal-body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.team-preview-modal .team-preview-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.team-preview-modal .myxi-card,
+.team-preview-modal .backups-card {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+.team-preview-modal .myxi-role-lanes {
+  min-height: 0;
+}
+
+.button-inline-icon {
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+}
+
+.team-bar-actions .show-mobile {
+  gap: 0.35rem;
+}
+
+@media (max-width: 900px) {
+  .team-preview-modal {
+    max-height: calc(100dvh - 2rem);
+  }
+
+  .team-preview-modal .ui-modal-body {
+    max-height: calc(100dvh - 9.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .team-preview-modal .ui-modal-footer {
+    flex: 0 0 auto;
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+  }
+}

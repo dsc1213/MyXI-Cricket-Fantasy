@@ -155,11 +155,15 @@ body.dark-theme .app.app-team .team-column-header .country-text > span {
 }
 
 .lineup-status-light.previous-played {
-  background: var(--lux-vice-light-solid);
+  background: linear-gradient(135deg, #fff843 0%, #facc15 45%, #f97316 100%);
+  border: 1px solid rgba(17, 24, 39, 0.72);
+  box-shadow: 0 0 0 1px rgba(255, 248, 67, 0.22);
 }
 
 body.dark-theme .app.app-team .lineup-status-light.previous-played {
-  background: var(--lux-vice-dark-solid);
+  background: linear-gradient(135deg, #fff843 0%, #facc15 45%, #f97316 100%);
+  border: 1px solid rgba(8, 13, 24, 0.86);
+  box-shadow: 0 0 0 1px rgba(255, 248, 67, 0.2);
 }
 
 .player-tile.lineup-playing .player-meta,

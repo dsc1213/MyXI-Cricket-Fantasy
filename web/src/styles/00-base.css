@@ -737,7 +737,7 @@ body.dark-theme .player-avatar-fallback {
 }
 
 .badge.light {
-  background: rgba(13, 27, 42, 0.08);
+  background: transparent;
   color: rgba(15, 23, 42, 0.7);
 }
 
@@ -934,7 +934,7 @@ body.dark-theme .player-avatar-fallback {
 
 .player-tile.selected {
   border-color: #0d1b2a;
-  background: rgba(13, 27, 42, 0.08);
+  background: transparent;
 }
 
 .player-meta span {
