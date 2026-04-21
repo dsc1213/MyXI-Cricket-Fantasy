@@ -190,7 +190,7 @@ function RightColumnContent({
                 <span className="backup-order-badge">{index + 1}</span>
                 <PlayerLabel
                   player={player}
-                  className="backup-chip"
+                  className="backup-chip has-order"
                   lineupStatus={player.lineupStatus || ''}
                   showTeam
                 />

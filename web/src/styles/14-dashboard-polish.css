@@ -6041,6 +6041,7 @@ body:not(.dark-theme) .playing-xi-card .player-identity-subtitle {
 .ui-modal-body .myxi-card {
   position: relative !important;
   overflow: hidden !important;
+  padding-bottom: 1rem;
   border-color: rgba(166, 219, 124, 0.36);
   background:
     radial-gradient(ellipse at 50% 18%, rgba(236, 252, 203, 0.17), transparent 35%),
@@ -6078,6 +6079,7 @@ body:not(.dark-theme) .team-preview-modal .player-avatar-fallback {
 .ui-modal-body .myxi-card .myxi-role-lanes {
   row-gap: 1.05rem;
   margin-top: 0.8rem;
+  padding-bottom: 0.8rem;
 }
 
 .app.app-team .myxi-card .myxi-role-lane::before,
@@ -6204,28 +6206,26 @@ body.dark-theme .app.app-team .tile-actions .tile-btn.is-active-remove {
 .app.app-team .backups-card .backup-chip-wrap {
   position: relative;
   display: flex;
-  align-items: stretch;
+  align-items: center;
+  gap: 0.35rem;
   min-width: 0;
   width: 100%;
   min-height: 36px;
 }
 
 .app.app-team .backups-card .backup-chip-wrap .backup-chip {
+  flex: 1 1 auto;
   width: 100%;
   min-height: 36px;
-  padding-left: 1.7rem;
 }
 
 .app.app-team .backups-card .backup-order-badge {
-  position: absolute;
-  left: 0.46rem;
-  top: 50%;
-  z-index: 2;
+  position: static;
+  flex: 0 0 auto;
   display: inline-grid;
   place-items: center;
   width: 1.05rem;
   height: 1.05rem;
-  transform: translateY(-50%);
   border: 1px solid rgba(226, 232, 240, 0.24);
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.46);
