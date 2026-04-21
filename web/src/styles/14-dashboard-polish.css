@@ -6203,7 +6203,9 @@ body.dark-theme .app.app-team .tile-actions .tile-btn.is-active-remove {
   color: #f87171;
 }
 
-.app.app-team .backups-card .backup-chip-wrap {
+.app.app-team .backups-card .backup-chip-wrap,
+.team-preview-modal .backups-card .backup-chip-wrap,
+.ui-modal-body .backups-card .backup-chip-wrap {
   position: relative;
   display: flex;
   align-items: center;
@@ -6213,13 +6215,17 @@ body.dark-theme .app.app-team .tile-actions .tile-btn.is-active-remove {
   min-height: 36px;
 }
 
-.app.app-team .backups-card .backup-chip-wrap .backup-chip {
+.app.app-team .backups-card .backup-chip-wrap .backup-chip,
+.team-preview-modal .backups-card .backup-chip-wrap .backup-chip,
+.ui-modal-body .backups-card .backup-chip-wrap .backup-chip {
   flex: 1 1 auto;
   width: 100%;
   min-height: 36px;
 }
 
-.app.app-team .backups-card .backup-order-badge {
+.app.app-team .backups-card .backup-order-badge,
+.team-preview-modal .backups-card .backup-order-badge,
+.ui-modal-body .backups-card .backup-order-badge {
   position: static;
   flex: 0 0 auto;
   display: inline-grid;
@@ -6302,10 +6308,43 @@ body.dark-theme .app.app-team .tile-actions .tile-btn.is-active-remove {
   }
 
   .team-preview-modal .ui-modal-body {
-    max-height: calc(100dvh - 9.5rem);
+    max-height: calc(100dvh - 8.75rem);
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .team-preview-modal .team-preview-column {
+    display: block;
+    height: max-content;
+    min-height: 0;
+  }
+
+  .team-preview-modal .myxi-card,
+  .team-preview-modal .backups-card,
+  .team-preview-modal .ui-modal-body .myxi-card,
+  .team-preview-modal .ui-modal-body .backups-card {
+    flex: none;
+    height: auto;
+    min-height: max-content;
+    overflow: visible !important;
+  }
+
+  .team-preview-modal .myxi-card {
+    padding-bottom: 1.5rem;
+  }
+
+  .team-preview-modal .myxi-card .myxi-role-lanes {
+    padding-bottom: 1.35rem;
+  }
+
+  .team-preview-modal .backups-card {
+    margin-top: 0.75rem;
+    padding-bottom: 1rem;
+  }
+
+  .team-preview-modal .backups-grid {
+    row-gap: 0.55rem;
   }
 
   .team-preview-modal .ui-modal-footer {
