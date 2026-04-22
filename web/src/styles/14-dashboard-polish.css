@@ -5364,7 +5364,7 @@ body.dark-theme .app.app-lower-content select {
 
   .app.is-contest-detail .participants-table thead th:nth-child(1),
   .app.is-contest-detail .participants-table tbody td:nth-child(1) {
-    width: 52%;
+    width: 50%;
     min-width: 108px;
   }
 
@@ -5377,7 +5377,7 @@ body.dark-theme .app.app-lower-content select {
 
   .app.is-contest-detail .participants-table thead th:nth-child(3),
   .app.is-contest-detail .participants-table tbody td:nth-child(3) {
-    width: 26%;
+    width: 28%;
     min-width: 88px;
   }
 
