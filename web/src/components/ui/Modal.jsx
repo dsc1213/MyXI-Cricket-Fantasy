@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 function Modal({
   open,
   title,
+  titleMeta = null,
   onClose,
   children,
   footer = null,
@@ -42,7 +43,10 @@ function Modal({
         aria-label={title || undefined}
       >
         <div className="ui-modal-header">
-          <span>{title}</span>
+          <span>
+            {title}
+            {titleMeta}
+          </span>
           <button type="button" className="ui-modal-close" onClick={onClose}>
             ×
           </button>

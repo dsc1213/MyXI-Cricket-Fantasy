@@ -5,6 +5,11 @@ import ContestTopBar from '../components/contest-detail/ContestTopBar.jsx'
 import CopyTeamModal from '../components/contest-detail/CopyTeamModal.jsx'
 import MatchesCard from '../components/contest-detail/MatchesCard.jsx'
 import ParticipantsCard from '../components/contest-detail/ParticipantsCard.jsx'
+import TeamCompareModal from '../components/contest-detail/TeamCompareModal.jsx'
+import {
+  buildTeamComparison,
+  normalizeCompareTeam,
+} from '../components/contest-detail/teamCompare.js'
 import TeamPreviewDrawer from '../components/contest-detail/TeamPreviewDrawer.jsx'
 import Button from '../components/ui/Button.jsx'
 import Modal from '../components/ui/Modal.jsx'
@@ -153,6 +158,14 @@ function ContestDetail() {
   const [isSavingCopiedTeam, setIsSavingCopiedTeam] = useState(false)
   const [copyError, setCopyError] = useState('')
   const [copyableMatchIds, setCopyableMatchIds] = useState(new Set())
+  const [comparePlayer, setComparePlayer] = useState(null)
+  const [compareData, setCompareData] = useState({
+    common: [],
+    onlyMine: [],
+    onlyTheirs: [],
+  })
+  const [isLoadingCompare, setIsLoadingCompare] = useState(false)
+  const [compareError, setCompareError] = useState('')
 
   useEffect(() => {
     let active = true
@@ -368,6 +381,40 @@ function ContestDetail() {
     }
   }
 
+  const onComparePlayer = async (player) => {
+    try {
+      if (!isLoggedIn || !player?.userId) return
+      setComparePlayer(player)
+      setCompareData({ common: [], onlyMine: [], onlyTheirs: [] })
+      setCompareError('')
+      setIsLoadingCompare(true)
+      const [mySelection, theirSelection] = await Promise.all([
+        fetchUserPicks({
+          userId: currentUserGameName,
+          tournamentId,
+          contestId,
+          matchId: selectedMatchId,
+        }),
+        fetchUserPicks({
+          userId: player.userId,
+          tournamentId,
+          contestId,
+          matchId: selectedMatchId,
+        }),
+      ])
+      setCompareData(
+        buildTeamComparison(
+          normalizeCompareTeam(mySelection),
+          normalizeCompareTeam(theirSelection),
+        ),
+      )
+    } catch (error) {
+      setCompareError(error.message || 'Failed to compare teams')
+    } finally {
+      setIsLoadingCompare(false)
+    }
+  }
+
   const onPreviewMyTeamFromMatch = async (match) => {
     try {
       if (!isLoggedIn) return
@@ -568,6 +615,7 @@ function ContestDetail() {
           isLoading={isLoadingParticipants}
           joinedCount={joinedParticipantsCount}
           onPreviewPlayer={onPreviewPlayer}
+          onComparePlayer={onComparePlayer}
           canEditFullTeams={canEditFullTeams}
           isLoggedIn={isLoggedIn}
           viewerUserId={currentUserGameName}
@@ -607,6 +655,20 @@ function ContestDetail() {
         errorText={copyError}
         onSelectSource={setSelectedCopySourceId}
         onSave={onSaveCopiedTeam}
+      />
+
+      <TeamCompareModal
+        comparePlayer={comparePlayer}
+        compareData={compareData}
+        isLoading={isLoadingCompare}
+        errorText={compareError}
+        myName={currentUser?.gameName || currentUserGameName}
+        onClose={() => {
+          setComparePlayer(null)
+          setCompareData({ common: [], onlyMine: [], onlyTheirs: [] })
+          setCompareError('')
+          setIsLoadingCompare(false)
+        }}
       />
 
       <ResourceRemovalModal

@@ -37,6 +37,22 @@ function EditActionIcon() {
   )
 }
 
+function CompareActionIcon() {
+  return (
+    <svg
+      className="action-icon"
+      viewBox="0 0 24 24"
+      role="presentation"
+      aria-hidden="true"
+    >
+      <path
+        fill="currentColor"
+        d="M8 4h2v13h3l-4 4-4-4h3V4Zm8 16h-2V7h-3l4-4 4 4h-3v13Z"
+      />
+    </svg>
+  )
+}
+
 function ParticipantsCard({
   contestMode = '',
   contestId,
@@ -44,6 +60,7 @@ function ParticipantsCard({
   participants,
   joinedCount = 0,
   onPreviewPlayer,
+  onComparePlayer = () => {},
   canEditFullTeams = false,
   isLoggedIn = false,
   viewerUserId = '',
@@ -98,7 +115,7 @@ function ParticipantsCard({
     },
     {
       key: 'team',
-      label: 'Team',
+      label: 'Actions',
       render: (player) => {
         const targetIdentity = (player?.userId || player?.gameName || '')
           .toString()
@@ -140,6 +157,30 @@ function ParticipantsCard({
               }
             >
               <ViewActionIcon />
+            </Button>
+            <Button
+              variant="ghost"
+              size="small"
+              className="icon-compare-btn match-action-icon-btn"
+              disabled={
+                !canViewPlayerTeam(player) ||
+                !isLoggedIn ||
+                isViewerRow(player) ||
+                !targetIdentity
+              }
+              onClick={() => onComparePlayer(player)}
+              aria-label={`Compare my team with ${getDisplayName(player)}`}
+              title={
+                !isLoggedIn
+                  ? 'Login required to compare teams'
+                  : isViewerRow(player)
+                    ? 'Cannot compare your team with itself'
+                    : canViewPlayerTeam(player)
+                      ? `Compare my team with ${getDisplayName(player)}`
+                      : 'Player teams are disabled until this match starts.'
+              }
+            >
+              <CompareActionIcon />
             </Button>
           </div>
         )
