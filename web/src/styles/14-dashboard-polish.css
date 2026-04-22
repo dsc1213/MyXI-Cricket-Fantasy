@@ -6350,8 +6350,9 @@ body:not(.dark-theme) .team-preview-modal .player-avatar-fallback {
   --lane-gap: 0.58rem;
 }
 
-.app.app-team .myxi-card .myxi-role-chip.player-chip.slot-chip.compact {
-  padding: 0.38rem 4rem 0.38rem 0.58rem;
+.app.app-team .myxi-card .myxi-role-chip.player-chip.slot-chip.compact,
+.ui-modal-body .myxi-card .myxi-role-chip.player-chip.slot-chip.compact {
+  padding: 0.38rem 3rem 0.38rem 0.58rem;
 }
 
 .app.app-team .myxi-card .myxi-role-chip.team-side-a,
@@ -6375,6 +6376,8 @@ body:not(.dark-theme) .team-preview-modal .player-avatar-fallback {
   .myxi-role-chip.player-chip.slot-chip.compact
   .player-chip-copy {
   min-width: 0;
+  width: 100%;
+  max-width: 100%;
   overflow: hidden;
 }
 
@@ -6389,8 +6392,8 @@ body:not(.dark-theme) .team-preview-modal .player-avatar-fallback {
   .player-chip-identity
   .player-identity-copy {
   min-width: 0;
-  width: min(100%, 7.2rem);
-  max-width: 5.2rem;
+  width: min(100%, 9.75rem);
+  max-width: 7.85rem;
   overflow: hidden;
 }
 
