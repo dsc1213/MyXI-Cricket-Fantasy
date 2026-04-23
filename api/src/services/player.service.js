@@ -180,7 +180,7 @@ class PlayerService {
     if (strictSquad && !providedSquad.length) {
       throw new Error(`lineups.${teamCode}.squad is required for manual updates`)
     }
-    if (playingXI.length < 11 || playingXI.length > 12) {
+    if (playingXI.length < 11 || playingXI.length > 15) {
       const duplicates = findDuplicateLineupNames(submittedPlayingXI)
       const submittedNames = (Array.isArray(submittedPlayingXI) ? submittedPlayingXI : [])
         .map((name) => this.normalizeLineupName(name))
@@ -192,7 +192,7 @@ class PlayerService {
         ? ` Submitted players: ${submittedNames.join(', ')}.`
         : ''
       throw new Error(
-        `lineups.${teamCode}.playingXI must contain 11 or 12 unique players. Received ${playingXI.length} unique players from ${submittedPlayingXI.length} entries.${duplicateText}${submittedText} Next steps: check the full submitted list above, remove duplicates if any, and make sure exactly 11 or 12 valid player names are listed.`,
+        `lineups.${teamCode}.playingXI must contain 11 to 15 unique players. Received ${playingXI.length} unique players from ${submittedPlayingXI.length} entries.${duplicateText}${submittedText} Next steps: check the full submitted list above, remove duplicates if any, and make sure 11 to 15 valid player names are listed.`,
       )
     }
 

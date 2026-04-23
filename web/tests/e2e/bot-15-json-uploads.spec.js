@@ -173,6 +173,91 @@ test.describe('15) JSON uploads and UI validation', () => {
     await expect(page.getByRole('button', { name: 'Save' })).toBeVisible()
   })
 
+  test('score json preview cancel does not persist scores', async ({ page }) => {
+    await loginUi(page, MASTER_LOGIN)
+    await page.goto('/home?panel=upload')
+
+    await page.getByRole('tab', { name: 'Scorecards' }).click()
+    await page.getByRole('tab', { name: 'Manual Entry' }).click()
+
+    const scopeRow = page.locator('.manual-scope-row')
+    const tournamentSelect = scopeRow.getByLabel('Tournament')
+    const selectedTournament = await tournamentSelect.inputValue()
+    if (!selectedTournament) {
+      const option = tournamentSelect.locator('option').nth(1)
+      const value = await option.getAttribute('value')
+      if (value) await tournamentSelect.selectOption(value)
+    }
+
+    const matchSelect = scopeRow.getByLabel('Match')
+    const selectedMatch = await matchSelect.inputValue()
+    if (!selectedMatch) {
+      const option = matchSelect.locator('option').nth(1)
+      const value = await option.getAttribute('value')
+      if (value) await matchSelect.selectOption(value)
+    }
+
+    const firstManualRow = page.locator('.manual-team-table tbody tr').first()
+    await expect(firstManualRow).toBeVisible()
+    const playerName = (await firstManualRow.locator('td').first().innerText()).trim()
+    const firstManualInput = firstManualRow.locator('input[type="number"]').first()
+    const initialValue = await firstManualInput.inputValue()
+
+    await page.getByRole('tab', { name: 'JSON Upload' }).click()
+    const scoreJsonField = page.getByLabel('Scorecard JSON')
+    await scoreJsonField.fill(
+      JSON.stringify(
+        {
+          playerStats: [
+            {
+              playerName,
+              runs: 123,
+              wickets: 0,
+              catches: 0,
+              stumpings: 0,
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+    )
+
+    await page.getByRole('button', { name: 'Save' }).click()
+    const previewDialog = page.getByRole('dialog', {
+      name: 'Processed scorecard JSON preview',
+    })
+    await expect(previewDialog).toBeVisible()
+    await expect(previewDialog).toContainText(playerName)
+    await expect(previewDialog).toContainText('123')
+    await previewDialog.getByRole('button', { name: 'Cancel' }).click()
+    await expect(previewDialog).toBeHidden()
+
+    await page.reload()
+    await page.goto('/home?panel=upload')
+    await page.getByRole('tab', { name: 'Scorecards' }).click()
+    await page.getByRole('tab', { name: 'Manual Entry' }).click()
+
+    const refreshedScopeRow = page.locator('.manual-scope-row')
+    const refreshedTournamentSelect = refreshedScopeRow.getByLabel('Tournament')
+    if (!(await refreshedTournamentSelect.inputValue())) {
+      const option = refreshedTournamentSelect.locator('option').nth(1)
+      const value = await option.getAttribute('value')
+      if (value) await refreshedTournamentSelect.selectOption(value)
+    }
+    const refreshedMatchSelect = refreshedScopeRow.getByLabel('Match')
+    if (!(await refreshedMatchSelect.inputValue())) {
+      const option = refreshedMatchSelect.locator('option').nth(1)
+      const value = await option.getAttribute('value')
+      if (value) await refreshedMatchSelect.selectOption(value)
+    }
+
+    const refreshedRow = page.locator('.manual-team-table tbody tr', { hasText: playerName }).first()
+    await expect(refreshedRow).toBeVisible()
+    await expect(refreshedRow.locator('input[type="number"]').first()).toHaveValue(initialValue)
+    await expect(refreshedRow.locator('input[type="number"]').first()).not.toHaveValue('123')
+  })
+
   test('player manager import modal generates JSON beside input area', async ({
     page,
   }) => {

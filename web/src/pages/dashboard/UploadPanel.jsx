@@ -276,7 +276,7 @@ function UploadPanel({
               'Build a JSON object with the top-level key lineups.',
               'Inside lineups, add one object for each team in the selected match.',
               'Inside each team object, add playingXI and add impactPlayers only if they are explicitly announced.',
-              'Put 11 or 12 player names inside playingXI.',
+              'Put 11 to 15 player names inside playingXI.',
               'Use player names exactly as they appear in the selected match squads.',
               'Paste that JSON into this box.',
               'Click Save.',
@@ -664,7 +664,7 @@ function UploadPanel({
             onChange={() => onToggleManualPlayingXi(team.key, row.name)}
             disabled={
               !selectedNameKeys.has(normalizeLooseKey(row.name)) &&
-              selectedNameKeys.size >= 12
+              selectedNameKeys.size >= 15
             }
             aria-label={`${row.name} playing`}
           />
@@ -681,9 +681,9 @@ function UploadPanel({
             <span className="manual-team-meta">{`${team.players.length} players`}</span>
           </div>
           <span
-            className={`manual-lineup-count ${selectedNameKeys.size >= 11 && selectedNameKeys.size <= 12 ? 'ready' : ''}`.trim()}
+            className={`manual-lineup-count ${selectedNameKeys.size >= 11 && selectedNameKeys.size <= 15 ? 'ready' : ''}`.trim()}
           >
-            {selectedNameKeys.size}/12
+            {selectedNameKeys.size}/15
           </span>
         </div>
         <StickyTable
@@ -804,7 +804,7 @@ function UploadPanel({
                     isLoadingManualPool ||
                     !sortedManualLineupTeams.every((team) => {
                       const count = (team.selected || []).length
-                      return count >= 11 && count <= 12
+                      return count >= 11 && count <= 15
                     })
                   }
                 >

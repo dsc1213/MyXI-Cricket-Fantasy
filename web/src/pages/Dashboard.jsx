@@ -945,7 +945,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
           ),
         }
       }
-      if (current.length >= 12) return prev
+      if (current.length >= 15) return prev
       return {
         ...prev,
         [side]: [...current, nextPlayerName],
@@ -1113,7 +1113,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
       )
       const playingXI = squad
         .filter((name) => selectedSet.has(normalizeLooseKey(name)))
-        .slice(0, 12)
+        .slice(0, 15)
       return { playingXI }
     }
 

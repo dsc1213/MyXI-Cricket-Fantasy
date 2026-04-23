@@ -142,13 +142,31 @@ const dbHandlers = {
   '/admin/match-scores/reset': (data) =>
     matchScoreService.resetMatchScores(data.matchId, data.tournamentId, data.resetBy),
   '/match-scores/process-excel': (data) => matchScoreService.processExcelScores(data),
-  '/match-scores/save': (data) =>
-    matchScoreService.saveExcelProcessedScores(
+  '/match-scores/save': async (data) => {
+    let parsedPayload = {}
+    if (typeof data?.payloadText === 'string' && data.payloadText.trim()) {
+      parsedPayload = JSON.parse(data.payloadText)
+    }
+    const rows =
+      data?.processedPayload?.playerStats ||
+      parsedPayload?.playerStats ||
+      data?.playerStats
+
+    if (data?.dryRun === true) {
+      return matchScoreService.previewMatchScores(
+        data.matchId,
+        data.tournamentId,
+        rows,
+      )
+    }
+
+    return matchScoreService.saveExcelProcessedScores(
       data.matchId,
       data.tournamentId,
-      data.playerStats,
+      rows,
       data.uploadedBy,
-    ),
+    )
+  },
   '/admin/player-overrides/context': (data) =>
     matchScoreService.getPlayerOverridesContext(data.tournamentId),
   '/admin/player-overrides/save': (data) =>
