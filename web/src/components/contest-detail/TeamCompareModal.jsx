@@ -1,6 +1,7 @@
 import { getDisplayName } from '../../lib/displayName.js'
 import Button from '../ui/Button.jsx'
 import Modal from '../ui/Modal.jsx'
+import ScorePill from '../ui/ScorePill.jsx'
 
 function CompareRoleBadge({ roleTag, variant }) {
   if (!roleTag) return null
@@ -9,18 +10,6 @@ function CompareRoleBadge({ roleTag, variant }) {
     <span className={`team-compare-role-badge ${variant} ${roleClass}`.trim()}>
       {roleTag}
     </span>
-  )
-}
-
-const getPointToneClass = (value) =>
-  Number(value || 0) < 0 ? 'is-negative' : 'is-positive'
-
-function ComparePointPill({ value, prefix = '', suffix = ' pts', tone = '' }) {
-  const toneClass = tone || getPointToneClass(value)
-  return (
-    <strong className={`team-compare-point-pill ${toneClass}`}>
-      {`${prefix}${Number(value || 0)}${suffix}`}
-    </strong>
   )
 }
 
@@ -117,7 +106,7 @@ function TeamComparePanel({
           <section className="team-compare-section">
             <div className="team-compare-section-head">
               <h4>{`Common players (${normalizedCommon.length})`}</h4>
-              <ComparePointPill value={commonPoints} />
+              <ScorePill value={commonPoints} />
             </div>
             <div className="team-compare-list">
               {normalizedCommon.length ? (
@@ -151,7 +140,7 @@ function TeamComparePanel({
               <div className="team-compare-diff-column">
                 <h5>
                   <span>{`${myName} (${normalizedOnlyMine.length})`}</span>
-                  <ComparePointPill value={myDiffPoints} tone={myDiffTone} />
+                  <ScorePill value={myDiffPoints} tone={myDiffTone} />
                 </h5>
                 <div className="team-compare-list">
                   {normalizedOnlyMine.length ? (
@@ -170,7 +159,7 @@ function TeamComparePanel({
               <div className="team-compare-diff-column">
                 <h5>
                   <span>{`${opponentName} (${normalizedOnlyTheirs.length})`}</span>
-                  <ComparePointPill
+                  <ScorePill
                     value={opponentDiffPoints}
                     tone={opponentDiffTone}
                   />
@@ -208,7 +197,7 @@ function TeamCompareModal({
   const { pointDifference } = getCompareStats(compareData)
   const pointDiffLabel =
     !isLoading && !errorText ? (
-      <ComparePointPill value={pointDifference} prefix="Net " />
+      <ScorePill value={pointDifference} prefix="Net " />
     ) : null
   return (
     <Modal

@@ -6074,7 +6074,7 @@ body:not(.dark-theme) .playing-xi-card .player-identity-subtitle {
   margin-bottom: 0.55rem;
 }
 
-.team-compare-point-pill {
+.score-pill {
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
@@ -6088,7 +6088,7 @@ body:not(.dark-theme) .playing-xi-card .player-identity-subtitle {
   white-space: nowrap;
 }
 
-.team-compare-point-pill.is-negative {
+.score-pill.is-negative {
   border-color: rgba(248, 113, 113, 0.38);
   background: rgba(185, 28, 28, 0.16);
   color: #fca5a5;
@@ -6263,14 +6263,14 @@ body:not(.dark-theme) .team-compare-unique-player {
   box-shadow: none;
 }
 
-body:not(.dark-theme) .team-compare-point-pill {
+body:not(.dark-theme) .score-pill {
   border-color: rgba(22, 163, 74, 0.3);
   background: rgba(34, 197, 94, 0.15);
   color: #15803d;
   box-shadow: none;
 }
 
-body:not(.dark-theme) .team-compare-point-pill.is-negative {
+body:not(.dark-theme) .score-pill.is-negative {
   border-color: rgba(220, 38, 38, 0.28);
   background: rgba(239, 68, 68, 0.13);
   color: #b91c1c;
@@ -6298,7 +6298,8 @@ body:not(.dark-theme) .team-compare-point-pill.is-negative {
 .team-preview-modal .myxi-card,
 .ui-modal-body .myxi-card {
   position: relative !important;
-  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
   padding-bottom: 1rem;
   border-color: rgba(166, 219, 124, 0.36);
   background:
@@ -6337,7 +6338,22 @@ body:not(.dark-theme) .team-preview-modal .player-avatar-fallback {
 .ui-modal-body .myxi-card .myxi-role-lanes {
   row-gap: 1.05rem;
   margin-top: 0.8rem;
-  padding-bottom: 0.8rem;
+  padding-bottom: 1.35rem;
+}
+
+.app.app-team .right-column.desktop-only {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app.app-team .right-column.desktop-only .myxi-card {
+  min-height: 0;
+  max-height: 100%;
+  overscroll-behavior: contain;
+}
+
+.app.app-team .right-column.desktop-only .backups-card {
+  flex: 0 0 auto;
 }
 
 .app.app-team .myxi-card .myxi-role-lane::before,

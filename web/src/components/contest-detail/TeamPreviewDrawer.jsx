@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MatchLabel } from '../ui/CountryFlag.jsx'
 import PlayerAvatar from '../ui/PlayerAvatar.jsx'
+import ScorePill from '../ui/ScorePill.jsx'
 import { sortPlayersByDisplayRole } from '../../lib/playerRoleSort.js'
 import { isMatchLiveOrComplete } from '../../lib/matchStatus.js'
 
@@ -14,6 +15,9 @@ const normalizeTeamCode = (value = '') =>
   String(value || '')
     .trim()
     .toUpperCase()
+
+const getEntryTeamCode = (entry) =>
+  normalizeTeamCode(typeof entry === 'object' ? entry?.team || entry?.teamCode || '' : '')
 
 const toNameSet = (values = []) =>
   new Set(
@@ -55,6 +59,38 @@ function TeamPreviewDrawer({
     if (!Array.isArray(previewBackups)) return []
     return previewBackups
   }, [previewBackups])
+
+  const previewXITeamGroups = useMemo(() => {
+    if (isFixedRosterContest || !Array.isArray(sortedPreviewXI) || !sortedPreviewXI.length) {
+      return []
+    }
+    const primaryCodes = [
+      normalizeTeamCode(activeMatch?.home || activeMatch?.teamA || ''),
+      normalizeTeamCode(activeMatch?.away || activeMatch?.teamB || ''),
+    ].filter(Boolean)
+    const groups = primaryCodes.map((teamCode) => ({
+      teamCode,
+      entries: sortedPreviewXI.filter((entry) => getEntryTeamCode(entry) === teamCode),
+    }))
+    const otherEntries = sortedPreviewXI.filter((entry) => {
+      const teamCode = getEntryTeamCode(entry)
+      return !primaryCodes.includes(teamCode)
+    })
+    if (otherEntries.length) {
+      groups.push({
+        teamCode: 'Other',
+        entries: otherEntries,
+      })
+    }
+    return groups.filter((group) => group.entries.length)
+  }, [
+    activeMatch?.away,
+    activeMatch?.home,
+    activeMatch?.teamA,
+    activeMatch?.teamB,
+    isFixedRosterContest,
+    sortedPreviewXI,
+  ])
 
   const fixedRosterDisplayGroups = useMemo(() => {
     if (!isFixedRosterContest) {
@@ -219,7 +255,7 @@ function TeamPreviewDrawer({
               {entry.ownership.pickedByCount}
             </button>
           ) : null}
-          {showTeam && teamCode ? (
+          {showTeam && teamCode && isFixedRosterContest ? (
             <span className="team-preview-team-tag">{`(${teamCode})`}</span>
           ) : null}
           {entry?.roleTag ? (
@@ -331,6 +367,43 @@ function TeamPreviewDrawer({
     )
   }
 
+  const renderPreviewEntry = (entry, index, prefix = 'xi') => {
+    const name = typeof entry === 'string' ? entry : entry?.name || `Player ${index + 1}`
+    const lineupStatus = typeof entry === 'object' ? resolveLineupStatus(entry) : ''
+    const rowKey = `${prefix}-${name}-${index}`
+    return (
+      <div className="team-preview-entry" key={rowKey}>
+        <div className="player-row team-preview-row">
+          <div className="player-row-main">
+            <PlayerAvatar
+              name={name}
+              imageUrl={typeof entry === 'object' ? entry?.imageUrl || '' : ''}
+            />
+            {!!lineupStatus && (
+              <span
+                className={`team-preview-lineup-dot lineup-status-light ${lineupStatus}`.trim()}
+                title={
+                  lineupStatus === 'playing'
+                    ? 'In announced playing XI'
+                    : 'Not in announced playing XI'
+                }
+                aria-label={
+                  lineupStatus === 'playing'
+                    ? 'In announced playing XI'
+                    : 'Not in announced playing XI'
+                }
+              />
+            )}
+            {renderPlayerMeta(entry, name, rowKey)}
+          </div>
+          {renderPointCell(entry, rowKey)}
+        </div>
+        {renderExpandedOwnership(entry, rowKey)}
+        {renderExpandedBreakdown(entry, rowKey)}
+      </div>
+    )
+  }
+
   return (
     <div
       className={`team-preview-drawer ${previewPlayer ? 'open' : ''}`.trim()}
@@ -381,51 +454,46 @@ function TeamPreviewDrawer({
                 <p className="team-note">No saved lineup found for this match.</p>
               )}
               {!isLoading &&
-                (isFixedRosterContest
-                  ? fixedRosterDisplayGroups.primary
-                  : sortedPreviewXI
-                ).map((entry, index) => {
-                  const name =
-                    typeof entry === 'string'
-                      ? entry
-                      : entry?.name || `Player ${index + 1}`
-                  const lineupStatus =
-                    typeof entry === 'object' ? resolveLineupStatus(entry) : ''
-                  const rowKey = `xi-${name}-${index}`
-                  return (
-                    <div className="team-preview-entry" key={rowKey}>
-                      <div className="player-row team-preview-row">
-                        <div className="player-row-main">
-                          <PlayerAvatar
-                            name={name}
-                            imageUrl={
-                              typeof entry === 'object' ? entry?.imageUrl || '' : ''
-                            }
-                          />
-                          {!!lineupStatus && (
-                            <span
-                              className={`team-preview-lineup-dot lineup-status-light ${lineupStatus}`.trim()}
-                              title={
-                                lineupStatus === 'playing'
-                                  ? 'In announced playing XI'
-                                  : 'Not in announced playing XI'
-                              }
-                              aria-label={
-                                lineupStatus === 'playing'
-                                  ? 'In announced playing XI'
-                                  : 'Not in announced playing XI'
-                              }
-                            />
-                          )}
-                          {renderPlayerMeta(entry, name, rowKey)}
+                isFixedRosterContest &&
+                fixedRosterDisplayGroups.primary.map((entry, index) =>
+                  renderPreviewEntry(entry, index, 'xi'),
+                )}
+              {!isLoading &&
+                !isFixedRosterContest &&
+                (previewXITeamGroups.length
+                  ? previewXITeamGroups.map((group, groupIndex) => (
+                      <section
+                        className="team-preview-team-group"
+                        key={`team-group-${group.teamCode}`}
+                      >
+                        <div className="team-preview-team-group-head">
+                          <ScorePill
+                            className="team-preview-team-pill"
+                            suffix=""
+                            tone="neutral"
+                            variant={groupIndex % 2 === 0 ? 'team-a' : 'team-b'}
+                          >
+                            {group.teamCode}
+                          </ScorePill>
+                          <ScorePill
+                            className="team-preview-team-count-pill"
+                            suffix=""
+                            tone="muted"
+                            variant="muted"
+                          >
+                            {`${group.entries.length} players`}
+                          </ScorePill>
                         </div>
-                        {renderPointCell(entry, rowKey)}
-                      </div>
-                      {renderExpandedOwnership(entry, rowKey)}
-                      {renderExpandedBreakdown(entry, rowKey)}
-                    </div>
-                  )
-                })}
+                        <div className="team-preview-team-group-list">
+                          {group.entries.map((entry, index) =>
+                            renderPreviewEntry(entry, index, `xi-${group.teamCode}`),
+                          )}
+                        </div>
+                      </section>
+                    ))
+                  : sortedPreviewXI.map((entry, index) =>
+                      renderPreviewEntry(entry, index, 'xi'),
+                    ))}
             </div>
           </section>
           {!isLoading &&

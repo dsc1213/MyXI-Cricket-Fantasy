@@ -316,7 +316,7 @@ body.dark-theme
   height: 100%;
   min-height: 100%;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) minmax(0, 0.42fr);
+  grid-template-rows: minmax(0, 1fr) auto;
   align-content: stretch;
 }
 
@@ -351,6 +351,8 @@ body.dark-theme
   align-content: start;
   align-items: start;
   justify-content: stretch;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .myxi-meta {
@@ -495,8 +497,8 @@ body.dark-theme
   background: var(--backups-bg);
   border-color: var(--panel-border);
   box-shadow: var(--panel-shadow);
-  height: 100%;
-  min-height: 0;
+  height: auto;
+  min-height: fit-content;
   align-content: start;
   overflow: auto;
   box-sizing: border-box;
