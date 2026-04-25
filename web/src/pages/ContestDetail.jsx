@@ -122,6 +122,7 @@ function ContestDetail() {
   const currentUserGameName =
     currentUser?.userId || currentUser?.gameName || currentUser?.email || 'kiran11'
   const canEditFullTeams = currentUser?.role === 'master_admin'
+  const canSeeMissingTeams = ['admin', 'master_admin'].includes(currentUser?.role)
   const canDeleteContest = ['admin', 'master_admin'].includes(currentUser?.role)
   const [isLoading, setIsLoading] = useState(true)
   const [isMetaLoading, setIsMetaLoading] = useState(true)
@@ -266,7 +267,7 @@ function ContestDetail() {
             contestId,
             matchId: selectedMatchId,
             userId: currentUserGameName,
-            includeMissingTeams: canEditFullTeams,
+            includeMissingTeams: canSeeMissingTeams,
           }),
         )
         if (!active) return
@@ -292,7 +293,7 @@ function ContestDetail() {
     return () => {
       active = false
     }
-  }, [canEditFullTeams, contestId, selectedMatchId, currentUserGameName])
+  }, [canSeeMissingTeams, contestId, selectedMatchId, currentUserGameName])
 
   const loadParticipantsForMatch = async (matchId) =>
     normalizeContestParticipants(
@@ -300,7 +301,7 @@ function ContestDetail() {
         contestId,
         matchId,
         userId: currentUserGameName,
-        includeMissingTeams: canEditFullTeams,
+        includeMissingTeams: canSeeMissingTeams,
       }),
     )
 
@@ -617,6 +618,7 @@ function ContestDetail() {
           onPreviewPlayer={onPreviewPlayer}
           onComparePlayer={onComparePlayer}
           canEditFullTeams={canEditFullTeams}
+          canSeeMissingTeams={canSeeMissingTeams}
           isLoggedIn={isLoggedIn}
           viewerUserId={currentUserGameName}
           viewerJoined={Boolean(activeSortedMatch?.viewerJoined)}

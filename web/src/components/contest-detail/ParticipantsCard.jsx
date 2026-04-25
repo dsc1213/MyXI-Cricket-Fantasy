@@ -62,6 +62,7 @@ function ParticipantsCard({
   onPreviewPlayer,
   onComparePlayer = () => {},
   canEditFullTeams = false,
+  canSeeMissingTeams = false,
   isLoggedIn = false,
   viewerUserId = '',
   viewerJoined = false,
@@ -104,7 +105,16 @@ function ParticipantsCard({
       key: 'name',
       label: 'Name',
       render: (player) => (
-        <strong className="participant-name">{getDisplayName(player)}</strong>
+        <span
+          className={`participant-name-wrap ${
+            canSeeMissingTeams && !player?.hasTeam ? 'is-missing-team' : ''
+          }`.trim()}
+        >
+          <strong className="participant-name">{getDisplayName(player)}</strong>
+          {canSeeMissingTeams && !player?.hasTeam ? (
+            <small className="participant-team-missing-note">Not submitted</small>
+          ) : null}
+        </span>
       ),
     },
     {

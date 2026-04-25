@@ -202,13 +202,6 @@ function TeamSelection() {
           syncCaptainId(savedSelection?.captainId || null)
           syncViceCaptainId(savedSelection?.viceCaptainId || null)
 
-          if (!hydratedSelected.length) {
-            hydratedSelected = mergedPlayers.slice(0, 11)
-            hydratedBackups = mergedPlayers.slice(11, 17)
-            syncCaptainId(mergedPlayers[0]?.id || null)
-            syncViceCaptainId(mergedPlayers[1]?.id || null)
-          }
-
           setSelected(hydratedSelected)
           setBackups(hydratedBackups)
         } else {

@@ -612,6 +612,32 @@ body.dark-theme .match-table tbody tr.active {
   text-overflow: ellipsis;
 }
 
+.participant-name-wrap {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.participant-name-wrap.is-missing-team .participant-name {
+  color: #fbbf24;
+}
+
+.participant-team-missing-note {
+  color: rgba(251, 191, 36, 0.88);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+body:not(.dark-theme) .participant-name-wrap.is-missing-team .participant-name {
+  color: #7c4a03;
+}
+
+body:not(.dark-theme) .participant-team-missing-note {
+  color: rgba(124, 74, 3, 0.88);
+}
+
 .participant-row-score {
   font-size: 0.78rem;
   color: var(--text-primary);
