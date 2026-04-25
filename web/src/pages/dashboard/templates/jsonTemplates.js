@@ -46,6 +46,7 @@ export const SCORE_AI_PROMPT_TEXT = [
   '- Return valid JSON only.',
   '- No markdown or explanations.',
   '- Use exactly {"playerStats":[...]} as the top-level shape.',
+  '- If the source contains multiple scorecards, innings snapshots, score updates, or repeated versions of the same match, always use the latest / most recent / final available score state only.',
   '- Use playerName exactly as shown in the template.',
   '- playerId is optional. Do not invent ids.',
   '- Include only players present in the template.',
