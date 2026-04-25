@@ -100,6 +100,7 @@ function ParticipantsCard({
     showFixedRosterNote || showPrestartNote || showNoRowsNote || showLoadingNote
   const canViewTeams = participants.some((player) => canViewPlayerTeam(player))
   const canEditTeams = !isFixedRosterContest && (isNotStarted || canEditFullTeams)
+  const showMissingSubmissionState = canSeeMissingTeams && !isFixedRosterContest
   const columns = [
     {
       key: 'name',
@@ -107,11 +108,11 @@ function ParticipantsCard({
       render: (player) => (
         <span
           className={`participant-name-wrap ${
-            canSeeMissingTeams && !player?.hasTeam ? 'is-missing-team' : ''
+            showMissingSubmissionState && !player?.hasTeam ? 'is-missing-team' : ''
           }`.trim()}
         >
           <strong className="participant-name">{getDisplayName(player)}</strong>
-          {canSeeMissingTeams && !player?.hasTeam ? (
+          {showMissingSubmissionState && !player?.hasTeam ? (
             <small className="participant-team-missing-note">Not submitted</small>
           ) : null}
         </span>
