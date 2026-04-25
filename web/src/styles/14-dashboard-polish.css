@@ -3669,6 +3669,60 @@ body.dark-theme .searchable-select-list {
   outline: none;
 }
 
+.save-all-confirm-copy {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.save-all-confirm-copy > p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.save-all-confirm-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.save-all-confirm-row {
+  display: block;
+  padding: 0.65rem 0.72rem;
+  border: 1px solid var(--input-border);
+  border-radius: 12px;
+  background: var(--input-bg);
+}
+
+.save-all-confirm-check {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.7rem;
+  cursor: pointer;
+}
+
+.save-all-confirm-check input {
+  margin-top: 0.15rem;
+  width: 1rem;
+  height: 1rem;
+}
+
+.save-all-confirm-copy-block {
+  display: grid;
+  gap: 0.14rem;
+  min-width: 0;
+}
+
+.save-all-confirm-row strong {
+  color: var(--text-strong);
+  font-size: 0.86rem;
+}
+
+.save-all-confirm-row span {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
 .copy-team-modal-grid {
   display: grid;
   grid-template-columns: minmax(180px, 0.42fr) minmax(0, 0.58fr);
@@ -6298,8 +6352,6 @@ body:not(.dark-theme) .score-pill.is-negative {
 .team-preview-modal .myxi-card,
 .ui-modal-body .myxi-card {
   position: relative !important;
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
   padding-bottom: 1rem;
   border-color: rgba(166, 219, 124, 0.36);
   background:
@@ -6322,6 +6374,16 @@ body:not(.dark-theme) .score-pill.is-negative {
     linear-gradient(180deg, #75a653 0%, #4f8a43 34%, #2e6338 66%, #18462f 100%) !important;
 }
 
+.app.app-team .myxi-card {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+.team-preview-modal .myxi-card,
+.ui-modal-body .myxi-card {
+  overflow: visible !important;
+}
+
 .app.app-team .myxi-card > *,
 .team-preview-modal .myxi-card > *,
 .ui-modal-body .myxi-card > * {
@@ -6342,13 +6404,23 @@ body:not(.dark-theme) .team-preview-modal .player-avatar-fallback {
 }
 
 .app.app-team .right-column.desktop-only {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-content: stretch;
+  height: 100%;
+  max-height: 100%;
   min-height: 0;
   overflow: hidden;
 }
 
+.app.app-team .right-column.desktop-only > * {
+  min-height: 0;
+}
+
 .app.app-team .right-column.desktop-only .myxi-card {
   min-height: 0;
-  max-height: 100%;
+  height: 100%;
+  max-height: 500px;
   overscroll-behavior: contain;
 }
 
@@ -6519,27 +6591,45 @@ body.dark-theme .app.app-team .tile-actions .tile-btn.is-active-remove {
 }
 
 .app.app-team .tile-actions {
+  display: flex;
   align-items: center;
+  gap: 0.32rem;
 }
 
 .app.app-team .tile-actions .tile-btn {
   display: inline-grid;
   place-items: center;
+  box-sizing: border-box;
+  flex: 0 0 20px;
   width: 20px;
   height: 20px;
   min-width: 20px;
   min-height: 20px;
   padding: 0;
+  border-width: 1px;
+  border-style: solid;
   border-radius: 7px;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 800;
   line-height: 1;
   text-align: center;
+  font-variant-ligatures: none;
+  vertical-align: middle;
 }
 
 .app.app-team .tile-actions .tile-btn.backup {
   font-size: 0.7rem;
   letter-spacing: 0;
+}
+
+.app.app-team .tile-actions .tile-btn.is-active-remove,
+.app.app-team .tile-actions .tile-btn.is-active-remove.backup {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  flex-basis: 20px;
+  font-size: 0.72rem;
 }
 
 .team-preview-modal {

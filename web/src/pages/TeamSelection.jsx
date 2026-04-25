@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import PlayerTile from '../components/team-selection/PlayerTile.jsx'
 import PreviewModal from '../components/team-selection/PreviewModal.jsx'
 import RightColumnContent from '../components/team-selection/RightColumnContent.jsx'
+import SaveToContestsModal from '../components/team-selection/SaveToContestsModal.jsx'
 import Button from '../components/ui/Button.jsx'
 import CricketRouteLoader from '../components/ui/CricketRouteLoader.jsx'
 import Modal from '../components/ui/Modal.jsx'
@@ -10,6 +11,7 @@ import { CountryText } from '../components/ui/CountryFlag.jsx'
 import { roleCounts } from '../components/team-selection/playerPool.js'
 import {
   copyTeamSelection,
+  fetchContests,
   fetchTeamCopySources,
   fetchTeamPool,
   saveTeamSelection,
@@ -82,6 +84,10 @@ function TeamSelection() {
   const [showCopyModal, setShowCopyModal] = useState(false)
   const [isCopyingTeam, setIsCopyingTeam] = useState(false)
   const [hasSavedSelection, setHasSavedSelection] = useState(false)
+  const [saveAllContests, setSaveAllContests] = useState([])
+  const [showSaveAllModal, setShowSaveAllModal] = useState(false)
+  const [isSavingAll, setIsSavingAll] = useState(false)
+  const [selectedSaveAllContestIds, setSelectedSaveAllContestIds] = useState(new Set())
   const rawUser =
     typeof window !== 'undefined' ? window.localStorage.getItem('myxi-user') : null
   const currentUser = rawUser ? JSON.parse(rawUser) : null
@@ -182,7 +188,8 @@ function TeamSelection() {
             userId: effectiveUserId,
           })
             .then((payload) => {
-              if (active) setCopySources(Array.isArray(payload?.sources) ? payload.sources : [])
+              if (active)
+                setCopySources(Array.isArray(payload?.sources) ? payload.sources : [])
             })
             .catch(() => {
               if (active) setCopySources([])
@@ -233,6 +240,46 @@ function TeamSelection() {
     match,
     mode,
   ])
+
+  useEffect(() => {
+    let active = true
+
+    const loadSaveAllContests = async () => {
+      if (!contest || !match || !effectiveUserId || isViewMode) {
+        if (active) setSaveAllContests([])
+        return
+      }
+      try {
+        const rows = await fetchContests({
+          game: 'Fantasy',
+          userId: effectiveUserId,
+          joined: true,
+        })
+        if (!active) return
+        const normalizedMatchId = String(match)
+        const filtered = (Array.isArray(rows) ? rows : []).filter((row) => {
+          const matchIds = Array.isArray(row?.matchIds) ? row.matchIds : []
+          const modeValue = (row?.mode || '').toString().trim().toLowerCase()
+          const gameValue = (row?.game || '').toString().trim().toLowerCase()
+          return (
+            String(row?.id || '') !== String(contest) &&
+            gameValue === 'fantasy' &&
+            modeValue !== 'fixed_roster' &&
+            modeValue !== 'auction' &&
+            matchIds.some((value) => String(value) === normalizedMatchId)
+          )
+        })
+        setSaveAllContests(filtered)
+      } catch {
+        if (active) setSaveAllContests([])
+      }
+    }
+
+    loadSaveAllContests()
+    return () => {
+      active = false
+    }
+  }, [contest, effectiveUserId, isViewMode, match])
 
   const counts = useMemo(() => roleCounts(selected), [selected])
   const teamACount = selected.filter((p) => teamAPlayerIds.has(p.id)).length
@@ -357,6 +404,20 @@ function TeamSelection() {
   const validationMessage =
     selectionError || liveSelectionRuleMessage || roleRequirementMessage
   const previewSaveCountLabel = `${Math.min(selected.length, limits.maxXI)}/${limits.maxXI}`
+  const canShowSaveAllButton = !isViewMode && saveAllContests.length > 0
+  const saveAllContestOptions = useMemo(
+    () => [
+      {
+        id: contest,
+        name: contestMeta?.name || `Contest ${contest}`,
+      },
+      ...saveAllContests.map((row) => ({
+        id: row.id,
+        name: row.name || row.contestName || `Contest ${row.id}`,
+      })),
+    ],
+    [contest, contestMeta?.name, saveAllContests],
+  )
   const mobileActionValidationMessage =
     validationMessage ||
     (selected.length === limits.maxXI &&
@@ -395,14 +456,17 @@ function TeamSelection() {
       .join(' • ')
   }, [activeMatch, playerPool.teamAName, playerPool.teamBName])
 
-  const resolveLineupStatus = (player) => {
-    const playerNameKey = normalizeLineupName(player?.name || player?.playerName || '')
-    const playingSet = teamAPlayerIds.has(player.id)
-      ? teamALineupPlaying
-      : teamBLineupPlaying
-    if (!playingSet.size) return ''
-    return playingSet.has(playerNameKey) ? 'playing' : 'bench'
-  }
+  const resolveLineupStatus = useCallback(
+    (player) => {
+      const playerNameKey = normalizeLineupName(player?.name || player?.playerName || '')
+      const playingSet = teamAPlayerIds.has(player.id)
+        ? teamALineupPlaying
+        : teamBLineupPlaying
+      if (!playingSet.size) return ''
+      return playingSet.has(playerNameKey) ? 'playing' : 'bench'
+    },
+    [teamAPlayerIds, teamALineupPlaying, teamBLineupPlaying],
+  )
 
   const selectedWithLineupStatus = useMemo(
     () =>
@@ -412,7 +476,7 @@ function TeamSelection() {
           lineupStatus: resolveLineupStatus(player),
         })),
       ),
-    [selected, teamAPlayerIds, teamALineupPlaying, teamBLineupPlaying],
+    [resolveLineupStatus, selected],
   )
   const backupsWithLineupStatus = useMemo(
     () =>
@@ -420,36 +484,13 @@ function TeamSelection() {
         ...player,
         lineupStatus: resolveLineupStatus(player),
       })),
-    [backups, teamAPlayerIds, teamALineupPlaying, teamBLineupPlaying],
+    [backups, resolveLineupStatus],
   )
 
   const onSave = async () => {
     try {
-      if (!isComplete) {
-        setSelectionError(
-          buildSelectionRequirementMessage({
-            counts,
-            teamACount,
-            teamBCount,
-            limits,
-          }),
-        )
-        return
-      }
-      // Allow master admin to save even if match is locked
-      if (isMatchLocked && !isMasterAdmin) {
-        throw new Error('Match is locked. Teams cannot be edited after start time.')
-      }
-      const resolvedCaptainId = captainIdRef.current
-      const resolvedViceCaptainId = viceCaptainIdRef.current
-      if (!resolvedCaptainId || !resolvedViceCaptainId) {
-        setSelectionError('Captain and vice captain are required before saving.')
-        return
-      }
-      if (String(resolvedCaptainId) === String(resolvedViceCaptainId)) {
-        setSelectionError('Captain and vice captain must be different players.')
-        return
-      }
+      const selectionPayload = buildSavePayload()
+      if (!selectionPayload) return
       setPoolError('')
       setIsSaving(true)
       setSaveMessage('')
@@ -457,16 +498,7 @@ function TeamSelection() {
       if (isEditingOtherUser && !isMasterAdmin) {
         throw new Error('Only master admin can edit another user team')
       }
-      await saveTeamSelection({
-        contestId: contest,
-        matchId: match,
-        userId: effectiveUserId,
-        actorUserId,
-        playingXi: selected.map((player) => player.id),
-        backups: backups.map((player) => player.id),
-        captainId: resolvedCaptainId,
-        viceCaptainId: resolvedViceCaptainId,
-      })
+      await saveTeamSelection(selectionPayload)
       setHasSavedSelection(true)
       setSaveMessage('Team saved')
       navigate(backToHref)
@@ -475,6 +507,110 @@ function TeamSelection() {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const buildSavePayload = () => {
+    if (!isComplete) {
+      setSelectionError(
+        buildSelectionRequirementMessage({
+          counts,
+          teamACount,
+          teamBCount,
+          limits,
+        }),
+      )
+      return null
+    }
+    if (isMatchLocked && !isMasterAdmin) {
+      throw new Error('Match is locked. Teams cannot be edited after start time.')
+    }
+    const resolvedCaptainId = captainIdRef.current
+    const resolvedViceCaptainId = viceCaptainIdRef.current
+    if (!resolvedCaptainId || !resolvedViceCaptainId) {
+      setSelectionError('Captain and vice captain are required before saving.')
+      return null
+    }
+    if (String(resolvedCaptainId) === String(resolvedViceCaptainId)) {
+      setSelectionError('Captain and vice captain must be different players.')
+      return null
+    }
+    return {
+      contestId: contest,
+      matchId: match,
+      userId: effectiveUserId,
+      actorUserId,
+      playingXi: selected.map((player) => player.id),
+      backups: backups.map((player) => player.id),
+      captainId: resolvedCaptainId,
+      viceCaptainId: resolvedViceCaptainId,
+    }
+  }
+
+  const onSaveAllContests = async () => {
+    try {
+      const selectionPayload = buildSavePayload()
+      if (!selectionPayload) return
+      setShowSaveAllModal(false)
+      setPoolError('')
+      setSaveMessage('')
+      setSelectionError('')
+      setIsSavingAll(true)
+      const targetContests = saveAllContestOptions.filter((target) =>
+        selectedSaveAllContestIds.has(String(target.id)),
+      )
+      if (!targetContests.length) {
+        setPoolError('Select at least one contest to save this XI.')
+        return
+      }
+      const results = await Promise.allSettled(
+        targetContests.map((target) =>
+          saveTeamSelection({
+            ...selectionPayload,
+            contestId: target.id,
+          }),
+        ),
+      )
+      const succeeded = results.filter((entry) => entry.status === 'fulfilled').length
+      const failed = results
+        .map((entry, index) =>
+          entry.status === 'rejected'
+            ? targetContests[index]?.name || `Contest ${targetContests[index]?.id}`
+            : null,
+        )
+        .filter(Boolean)
+      if (failed.length) {
+        setPoolError(
+          `Saved to ${succeeded} contest${succeeded === 1 ? '' : 's'}. Failed: ${failed.join(', ')}`,
+        )
+        return
+      }
+      setHasSavedSelection(true)
+      setSaveMessage(
+        `Saved to ${targetContests.length} contest${targetContests.length === 1 ? '' : 's'}`,
+      )
+      navigate(backToHref)
+    } catch (error) {
+      setPoolError(error.message || 'Failed to save to joined contests')
+    } finally {
+      setIsSavingAll(false)
+    }
+  }
+
+  const openSaveAllModal = () => {
+    setSelectedSaveAllContestIds(
+      new Set(saveAllContestOptions.map((contestOption) => String(contestOption.id))),
+    )
+    setShowSaveAllModal(true)
+  }
+
+  const toggleSaveAllContest = (contestId) => {
+    setSelectedSaveAllContestIds((current) => {
+      const next = new Set(current)
+      const normalizedId = String(contestId)
+      if (next.has(normalizedId)) next.delete(normalizedId)
+      else next.add(normalizedId)
+      return next
+    })
   }
 
   const applyCopiedSelection = (selection = {}) => {
@@ -608,19 +744,38 @@ function TeamSelection() {
         </div>
         <div className="team-bar-actions">
           {!isViewMode && (
-            <Button
-              className="desktop-save"
-              variant="primary"
-              size="small"
-              disabled={
-                selected.length !== limits.maxXI ||
-                isSaving ||
-                (isViewMode ? true : isMasterAdmin ? false : isMatchLocked)
-              }
-              onClick={onSave}
-            >
-              {isSaving ? 'Saving...' : 'Save'}
-            </Button>
+            <>
+              <Button
+                className="desktop-save"
+                variant="primary"
+                size="small"
+                disabled={
+                  selected.length !== limits.maxXI ||
+                  isSaving ||
+                  isSavingAll ||
+                  (isViewMode ? true : isMasterAdmin ? false : isMatchLocked)
+                }
+                onClick={onSave}
+              >
+                {isSaving ? 'Saving...' : 'Save'}
+              </Button>
+              {canShowSaveAllButton ? (
+                <Button
+                  className="desktop-save-all"
+                  variant="secondary"
+                  size="small"
+                  disabled={
+                    selected.length !== limits.maxXI ||
+                    isSaving ||
+                    isSavingAll ||
+                    (isViewMode ? true : isMasterAdmin ? false : isMatchLocked)
+                  }
+                  onClick={openSaveAllModal}
+                >
+                  {isSavingAll ? 'Saving...' : 'Save to joined contests'}
+                </Button>
+              ) : null}
+            </>
           )}
           {!!mobileActionValidationMessage && (
             <span className="team-bar-rules show-mobile mobile-preview-hint mobile-save-validation">
@@ -710,19 +865,38 @@ function TeamSelection() {
         footer={
           <>
             {!isViewMode && (
-              <Button
-                variant="primary"
-                size="small"
-                className="mobile-preview-save"
-                disabled={
-                  selected.length !== limits.maxXI ||
-                  isSaving ||
-                  (isViewMode ? true : isMasterAdmin ? false : isMatchLocked)
-                }
-                onClick={onSave}
-              >
-                {isSaving ? 'Saving...' : 'Save Team'}
-              </Button>
+              <>
+                <Button
+                  variant="primary"
+                  size="small"
+                  className="mobile-preview-save"
+                  disabled={
+                    selected.length !== limits.maxXI ||
+                    isSaving ||
+                    isSavingAll ||
+                    (isViewMode ? true : isMasterAdmin ? false : isMatchLocked)
+                  }
+                  onClick={onSave}
+                >
+                  {isSaving ? 'Saving...' : 'Save Team'}
+                </Button>
+                {canShowSaveAllButton ? (
+                  <Button
+                    variant="secondary"
+                    size="small"
+                    className="mobile-preview-save-all"
+                    disabled={
+                      selected.length !== limits.maxXI ||
+                      isSaving ||
+                      isSavingAll ||
+                      (isViewMode ? true : isMasterAdmin ? false : isMatchLocked)
+                    }
+                    onClick={openSaveAllModal}
+                  >
+                    {isSavingAll ? 'Saving...' : 'Save to joined contests'}
+                  </Button>
+                ) : null}
+              </>
             )}
             <Button variant="ghost" size="small" onClick={() => setShowSidebar(false)}>
               Close
@@ -773,6 +947,15 @@ function TeamSelection() {
           ))}
         </div>
       </Modal>
+      <SaveToContestsModal
+        open={showSaveAllModal}
+        onClose={() => setShowSaveAllModal(false)}
+        onConfirm={() => void onSaveAllContests()}
+        isSaving={isSavingAll}
+        contests={saveAllContestOptions}
+        selectedContestIds={selectedSaveAllContestIds}
+        onToggleContest={toggleSaveAllContest}
+      />
     </section>
   )
 }

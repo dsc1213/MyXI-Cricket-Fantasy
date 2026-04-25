@@ -247,7 +247,7 @@ body.dark-theme .leaderboard-card .leaderboard-row:not(.header):nth-child(even) 
 @media (min-width: 901px) {
   .right-column {
     display: grid;
-    grid-template-rows: 70% 30%;
+    grid-template-rows: 77% 23%;
   }
 
   .right-column .myxi-card {

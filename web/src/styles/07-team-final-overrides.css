@@ -194,7 +194,10 @@ body.dark-theme .app.app-team .lineup-status-light.previous-played {
 }
 
 .player-tile .player-chip.slot-chip.compact .player-chip-identity .player-identity-role,
-.player-tile .player-chip.slot-chip.compact .player-chip-identity .player-tile-total-points {
+.player-tile
+  .player-chip.slot-chip.compact
+  .player-chip-identity
+  .player-tile-total-points {
   display: inline-flex;
   align-items: center;
   letter-spacing: normal;
@@ -208,7 +211,10 @@ body.dark-theme .app.app-team .lineup-status-light.previous-played {
   font-weight: 700;
 }
 
-.player-tile .player-chip.slot-chip.compact .player-chip-identity .player-tile-total-points {
+.player-tile
+  .player-chip.slot-chip.compact
+  .player-chip-identity
+  .player-tile-total-points {
   font-size: 0.5rem;
   font-weight: 800;
   padding: 0.08rem 0.26rem;
