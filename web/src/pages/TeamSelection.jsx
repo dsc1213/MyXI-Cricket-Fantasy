@@ -772,7 +772,7 @@ function TeamSelection() {
                   }
                   onClick={openSaveAllModal}
                 >
-                  {isSavingAll ? 'Saving...' : 'Save to joined contests'}
+                  {isSavingAll ? 'Saving...' : 'Save to all'}
                 </Button>
               ) : null}
             </>
@@ -797,7 +797,7 @@ function TeamSelection() {
             }}
           >
             <PreviewActionIcon />
-            <span>{`Preview & Save (${previewSaveCountLabel})`}</span>
+            <span>{`Preview (${previewSaveCountLabel})`}</span>
           </Button>
         </div>
       </header>

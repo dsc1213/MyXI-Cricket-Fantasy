@@ -20,8 +20,25 @@
 }
 
 @media (min-width: 901px) {
+  .app.app-team {
+    height: 100svh;
+    overflow: hidden;
+  }
+
+  .app.app-team .main.main-team {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    align-items: stretch;
+  }
+
   .team-shell.premium-fit {
-    min-height: calc(100svh - 210px);
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
   }
 }
 
@@ -41,7 +58,9 @@
 
 @media (min-width: 901px) {
   .team-grid-2.compact-fit {
-    min-height: calc(100svh - 320px);
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
   }
 }
 

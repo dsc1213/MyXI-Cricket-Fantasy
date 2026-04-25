@@ -6420,7 +6420,7 @@ body:not(.dark-theme) .team-preview-modal .player-avatar-fallback {
 .app.app-team .right-column.desktop-only .myxi-card {
   min-height: 0;
   height: 100%;
-  max-height: 500px;
+  max-height: 100%;
   overscroll-behavior: contain;
 }
 
