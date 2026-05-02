@@ -8,11 +8,9 @@ import {
 } from './logger.js'
 import {
   canCallScraper,
-  getOnDemandMinIntervalMs,
 } from './settings.js'
 
 let syncRunning = false
-let lastOnDemandScraperAt = 0
 
 const runLiveScoreOnDemandSync = async ({ reason = 'page-load' } = {}) => {
   const context = createLiveScoreSyncContext(reason)
@@ -29,6 +27,7 @@ const runLiveScoreOnDemandSync = async ({ reason = 'page-load' } = {}) => {
     scraperSkipped: null,
     syncId: context.syncId,
     scraperCalls: context.scraperCalls,
+    dbWrites: context.dbWrites,
     liveStatus: context.liveStatus,
   }
 
@@ -65,36 +64,6 @@ const runLiveScoreOnDemandSync = async ({ reason = 'page-load' } = {}) => {
       return summary
     }
 
-    const minIntervalMs = getOnDemandMinIntervalMs()
-    const now = Date.now()
-    if (minIntervalMs > 0 && now - lastOnDemandScraperAt < minIntervalMs) {
-      summary.scraperSkipped = {
-        reason: 'on-demand-throttled',
-        minIntervalMs,
-        nextAllowedAt: new Date(lastOnDemandScraperAt + minIntervalMs).toISOString(),
-      }
-      context.liveStatus.matchId = {
-        status: 'throttled',
-        message: `Live sync throttled until ${summary.scraperSkipped.nextAllowedAt}`,
-      }
-      context.liveStatus.pxi = {
-        status: 'throttled',
-        message: 'Playing XI sync skipped because live sync is throttled',
-      }
-      context.liveStatus.latestMatchScores = {
-        status: 'throttled',
-        message: 'Score sync skipped because live sync is throttled',
-      }
-      await recordLiveScoreLog(context, {
-        step: 'sync-run',
-        status: 'skipped',
-        message: 'On-demand scraper sync throttled',
-        details: summary.scraperSkipped,
-      })
-      return summary
-    }
-
-    lastOnDemandScraperAt = now
     summary.discovery = await discoverProviderIdsForStartedMatches(context)
     summary.scoreSync = await runScoreSync(context)
     await recordLiveScoreLog(context, {
