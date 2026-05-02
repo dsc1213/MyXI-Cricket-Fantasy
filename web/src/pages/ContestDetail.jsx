@@ -24,6 +24,7 @@ import {
   fetchTeamPool,
   fetchTournaments,
   fetchUserPicks,
+  syncLiveScoresNow,
   copyTeamSelection,
   removeAdminContest,
 } from '../lib/api.js'
@@ -125,6 +126,9 @@ function ContestDetail() {
   const canSeeMissingTeams = ['admin', 'master_admin'].includes(currentUser?.role)
   const canDeleteContest = ['admin', 'master_admin'].includes(currentUser?.role)
   const [isLoading, setIsLoading] = useState(true)
+  const [isLiveSyncing, setIsLiveSyncing] = useState(true)
+  const [liveSyncContestId, setLiveSyncContestId] = useState('')
+  const [liveSyncRevision, setLiveSyncRevision] = useState(0)
   const [isMetaLoading, setIsMetaLoading] = useState(true)
   const [hasLoadedMatchesOnce, setHasLoadedMatchesOnce] = useState(false)
   const [errorText, setErrorText] = useState('')
@@ -167,8 +171,36 @@ function ContestDetail() {
   })
   const [isLoadingCompare, setIsLoadingCompare] = useState(false)
   const [compareError, setCompareError] = useState('')
+  const isLiveSyncReady = !isLiveSyncing && String(liveSyncContestId) === String(contestId)
 
   useEffect(() => {
+    let active = true
+    setIsLiveSyncing(true)
+    setLiveSyncContestId('')
+
+    const runInitialLiveSync = async () => {
+      try {
+        await syncLiveScoresNow({ reason: 'contest-page' })
+      } catch (error) {
+        if (!active) return
+        setErrorText(error.message || 'Live score sync failed')
+      } finally {
+        if (active) {
+          setLiveSyncContestId(contestId)
+          setLiveSyncRevision((value) => value + 1)
+          setIsLiveSyncing(false)
+        }
+      }
+    }
+
+    runInitialLiveSync()
+    return () => {
+      active = false
+    }
+  }, [contestId])
+
+  useEffect(() => {
+    if (!isLiveSyncReady) return
     let active = true
 
     const loadMeta = async () => {
@@ -199,7 +231,7 @@ function ContestDetail() {
     return () => {
       active = false
     }
-  }, [contestId, tournamentId])
+  }, [contestId, tournamentId, isLiveSyncReady, liveSyncRevision])
 
   useEffect(() => {
     setHasLoadedMatchesOnce(false)
@@ -214,13 +246,16 @@ function ContestDetail() {
     setIsLoadingPreview(false)
     setLeaderboardRows([])
     setLeaderboardPreviewError('')
+    setIsLiveSyncing(true)
+    setLiveSyncContestId('')
   }, [contestId])
 
   useEffect(() => {
-    setIsLoading(isMetaLoading || !hasLoadedMatchesOnce)
-  }, [hasLoadedMatchesOnce, isMetaLoading])
+    setIsLoading(!isLiveSyncReady || isMetaLoading || !hasLoadedMatchesOnce)
+  }, [hasLoadedMatchesOnce, isLiveSyncReady, isMetaLoading])
 
   useEffect(() => {
+    if (!isLiveSyncReady) return
     let active = true
 
     const loadMatches = async () => {
@@ -248,10 +283,17 @@ function ContestDetail() {
     return () => {
       active = false
     }
-  }, [contestId, matchFilter, teamFilter, currentUserGameName])
+  }, [
+    contestId,
+    matchFilter,
+    teamFilter,
+    currentUserGameName,
+    isLiveSyncReady,
+    liveSyncRevision,
+  ])
 
   useEffect(() => {
-    if (!selectedMatchId) return
+    if (!isLiveSyncReady || !selectedMatchId) return
     let active = true
 
     setParticipants([])
@@ -293,7 +335,14 @@ function ContestDetail() {
     return () => {
       active = false
     }
-  }, [canSeeMissingTeams, contestId, selectedMatchId, currentUserGameName])
+  }, [
+    canSeeMissingTeams,
+    contestId,
+    selectedMatchId,
+    currentUserGameName,
+    isLiveSyncReady,
+    liveSyncRevision,
+  ])
 
   const loadParticipantsForMatch = async (matchId) =>
     normalizeContestParticipants(
@@ -315,11 +364,12 @@ function ContestDetail() {
   )
 
   useEffect(() => {
+    if (!isLiveSyncReady) return
     let active = true
     const candidates = sortedMatches.filter(
       (match) =>
         isLoggedIn &&
-        normalizeMatchStatus(match.status) === 'notstarted' &&
+        ['notstarted', 'started'].includes(normalizeMatchStatus(match.status)) &&
         match.viewerJoined &&
         !match.hasTeam,
     )
@@ -358,7 +408,7 @@ function ContestDetail() {
     return () => {
       active = false
     }
-  }, [contestId, currentUserGameName, isLoggedIn, sortedMatches])
+  }, [contestId, currentUserGameName, isLoggedIn, sortedMatches, isLiveSyncReady])
 
   const onPreviewPlayer = async (player) => {
     try {
@@ -530,7 +580,7 @@ function ContestDetail() {
   }
 
   useEffect(() => {
-    if (!showLeaderboardPreview) return
+    if (!isLiveSyncReady || !showLeaderboardPreview) return
     let active = true
     const loadLeaderboardPreview = async () => {
       try {
@@ -552,7 +602,7 @@ function ContestDetail() {
     return () => {
       active = false
     }
-  }, [contestId, showLeaderboardPreview])
+  }, [contestId, showLeaderboardPreview, isLiveSyncReady, liveSyncRevision])
 
   const leaderboardColumns = [
     { key: 'rank', label: 'Rank', render: (_, index) => index + 1 },
@@ -565,6 +615,7 @@ function ContestDetail() {
       <ContestTopBar
         contestTitle={contestTitle}
         tournamentName={tournamentName}
+        liveScoreSummary={activeSortedMatch?.liveScoreSummary || []}
         lastScoreUpdatedAt={lastScoreUpdatedAt}
         lastScoreUpdatedBy={lastScoreUpdatedBy}
         lastUpdatedContext={lastUpdatedContext}

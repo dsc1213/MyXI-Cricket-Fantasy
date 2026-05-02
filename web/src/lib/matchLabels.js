@@ -6,6 +6,7 @@ export const formatCompactMatchLabel = (item = {}) => {
     const status = normalizeMatchStatus(item?.status)
     if (status === 'completed') return '🟢'
     if (status === 'inprogress') return '🟡'
+    if (status === 'started') return '🟠'
     if (status === 'notstarted') return '⚪'
     return ''
   })()

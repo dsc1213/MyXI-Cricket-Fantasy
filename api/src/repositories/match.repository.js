@@ -1,43 +1,72 @@
 import { dbQuery } from '../db.js'
 
+const mapMatchRow = (row) => ({
+  ...row,
+  liveSync: {
+    enabled: row.liveSyncEnabled !== false,
+    provider: row.liveSyncProvider || 'cricbuzz',
+    providerMatchId: row.liveSyncProviderMatchId || row.sourceKey || null,
+    lineupSyncedAt: row.liveSyncLineupSyncedAt || null,
+    lastScoreSyncAt: row.liveSyncLastScoreSyncAt || null,
+    lastProviderStatus: row.liveSyncLastProviderStatus || '',
+    lastError: row.liveSyncLastError || '',
+  },
+})
+
+const matchSelect = `
+  m.id,
+  m.tournament_id as "tournamentId",
+  m.name,
+  m.team_a as "teamA",
+  m.team_b as "teamB",
+  m.team_a_key as "teamAKey",
+  m.team_b_key as "teamBKey",
+  m.start_time as "startTime",
+  m.source_key as "sourceKey",
+  m.status,
+  m.created_at as "createdAt",
+  m.updated_at as "updatedAt",
+  mls.provider as "liveSyncProvider",
+  mls.provider_match_id as "liveSyncProviderMatchId",
+  mls.live_sync_enabled as "liveSyncEnabled",
+  mls.lineup_synced_at as "liveSyncLineupSyncedAt",
+  mls.last_score_sync_at as "liveSyncLastScoreSyncAt",
+  mls.last_provider_status as "liveSyncLastProviderStatus",
+  mls.last_error as "liveSyncLastError"
+`
+
 class MatchRepository {
   async findAll() {
     const result = await dbQuery(
-      `SELECT id, tournament_id as "tournamentId", name, team_a as "teamA", team_b as "teamB",
-              team_a_key as "teamAKey", team_b_key as "teamBKey",
-              start_time as "startTime", source_key as "sourceKey", status,
-              created_at as "createdAt", updated_at as "updatedAt"
-       FROM matches
-       ORDER BY start_time ASC`,
+      `SELECT ${matchSelect}
+       FROM matches m
+       LEFT JOIN match_live_syncs mls ON mls.match_id = m.id
+       ORDER BY m.start_time ASC`,
     )
-    return result.rows
+    return result.rows.map(mapMatchRow)
   }
 
   async findById(id) {
     const result = await dbQuery(
-      `SELECT id, tournament_id as "tournamentId", name, team_a as "teamA", team_b as "teamB",
-              team_a_key as "teamAKey", team_b_key as "teamBKey",
-              start_time as "startTime", source_key as "sourceKey", status,
-              created_at as "createdAt", updated_at as "updatedAt"
-       FROM matches
-       WHERE id = $1`,
+      `SELECT ${matchSelect}
+       FROM matches m
+       LEFT JOIN match_live_syncs mls ON mls.match_id = m.id
+       WHERE m.id = $1`,
       [id],
     )
-    return result.rows[0]
+    return result.rows[0] ? mapMatchRow(result.rows[0]) : null
   }
 
   async findByTournament(tournamentId) {
     const result = await dbQuery(
-      `SELECT id, tournament_id as "tournamentId", name, team_a as "teamA", team_b as "teamB",
-              team_a_key as "teamAKey", team_b_key as "teamBKey",
-              start_time as "startTime", source_key as "sourceKey", status,
-              created_at as "createdAt", updated_at as "updatedAt"
-       FROM matches
-       WHERE tournament_id = $1
-       ORDER BY start_time ASC`,
+      `SELECT ${matchSelect}
+       FROM matches m
+       LEFT JOIN match_live_syncs mls ON mls.match_id = m.id
+       WHERE m.tournament_id = $1
+       ORDER BY m.start_time ASC`,
       [tournamentId],
     )
-    return result.rows
+    return result.rows.map(mapMatchRow)
   }
 
   async create(data) {
@@ -114,10 +143,10 @@ class MatchRepository {
        WHERE id = $2
        RETURNING id, tournament_id as "tournamentId", name, team_a as "teamA", team_b as "teamB",
                  team_a_key as "teamAKey", team_b_key as "teamBKey",
-                 start_time as "startTime", status, created_at as "createdAt", updated_at as "updatedAt"`,
+                 start_time as "startTime", source_key as "sourceKey", status, created_at as "createdAt", updated_at as "updatedAt"`,
       [status, id],
     )
-    return result.rows[0]
+    return result.rows[0] ? mapMatchRow(result.rows[0]) : null
   }
 
   async delete(id) {

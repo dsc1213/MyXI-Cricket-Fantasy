@@ -52,6 +52,7 @@ const formatSafeDate = (value, formatter = 'date') => {
 const formatMatchStatusLabel = (value = '') => {
   const normalized = value.toString().trim().toLowerCase()
   if (normalized === 'notstarted') return 'Not Started'
+  if (normalized === 'started') return 'Started'
   if (normalized === 'inprogress') return 'In Progress'
   if (normalized === 'completed') return 'Completed'
   return value || '-'
@@ -902,6 +903,7 @@ function AdminManagerPanel({
           }}
         >
           <option value="notstarted">Not Started</option>
+          <option value="started">Started</option>
           <option value="inprogress">In Progress</option>
           <option value="completed">Completed</option>
         </select>

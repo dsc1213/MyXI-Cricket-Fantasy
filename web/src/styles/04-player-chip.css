@@ -32,9 +32,9 @@ body.dark-theme .player-badge {
 }
 
 .player-team-tag {
-  color: #8f7638;
+  color: var(--ipl-team-text-light, #8f7638);
 }
 
 body.dark-theme .player-team-tag {
-  color: #d6c28a;
+  color: var(--ipl-team-text-dark, #d6c28a);
 }

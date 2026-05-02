@@ -534,6 +534,22 @@ const normalizePlayerStatRows = (rows, players) => {
         noBalls: Number(row.noBalls || 0),
         wides: Number(row.wides || 0),
         dismissed: row.dismissed === true,
+        battingOrder:
+          row.battingOrder == null || row.battingOrder === ''
+            ? null
+            : Number(row.battingOrder || 0),
+        inningsRuns:
+          row.inningsRuns == null || row.inningsRuns === ''
+            ? null
+            : Number(row.inningsRuns || 0),
+        inningsWickets:
+          row.inningsWickets == null || row.inningsWickets === ''
+            ? null
+            : Number(row.inningsWickets || 0),
+        inningsBalls:
+          row.inningsBalls == null || row.inningsBalls === ''
+            ? null
+            : Number(row.inningsBalls || 0),
       }
     })
     .filter(Boolean)

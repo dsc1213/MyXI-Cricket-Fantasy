@@ -1,4 +1,5 @@
 import PlayerLabel from './PlayerLabel.jsx'
+import { getIplTeamStyle } from '../../lib/iplTeamPalette.js'
 
 const ROLE_LANES = ['WK', 'BAT', 'AR', 'BOWL']
 const ROLE_LABELS = {
@@ -121,7 +122,13 @@ function RightColumnContent({
           {!!teamCounts.length && (
             <div className="myxi-team-meta">
               {teamCounts.map(([teamCode, total]) => (
-                <span key={teamCode}>{`${teamCode} ${total}`}</span>
+                <span
+                  className="ipl-team-text"
+                  key={teamCode}
+                  style={getIplTeamStyle(teamCode)}
+                >
+                  {`${teamCode} ${total}`}
+                </span>
               ))}
             </div>
           )}
@@ -157,6 +164,7 @@ function RightColumnContent({
                       player={player}
                       lineupStatus={player.lineupStatus || ''}
                       className={`myxi-role-chip ${getTeamSideClass(player)}`}
+                      style={getIplTeamStyle(player.team || player.teamCode)}
                       showRole={false}
                       roleControls={{
                         captainActive: String(player.id) === String(captainId),

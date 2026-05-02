@@ -22,7 +22,8 @@ const normalizeMatchStatus = (value = '') => {
   if (!normalized) return 'notstarted'
   if (['scheduled', 'upcoming', 'open', 'notstarted'].includes(normalized))
     return 'notstarted'
-  if (['live', 'inprogress', 'started'].includes(normalized)) return 'inprogress'
+  if (normalized === 'started') return 'started'
+  if (['live', 'inprogress'].includes(normalized)) return 'inprogress'
   if (['done', 'complete', 'completed', 'closed', 'finished'].includes(normalized))
     return 'completed'
   return 'notstarted'
@@ -217,7 +218,7 @@ const mapMatchWithDerivedStatus = (match) => {
   return {
     ...match,
     status,
-    locked: status !== 'notstarted',
+    locked: status === 'inprogress' || status === 'completed',
   }
 }
 

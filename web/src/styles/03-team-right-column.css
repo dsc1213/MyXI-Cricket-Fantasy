@@ -184,7 +184,7 @@
 }
 
 .player-team-tag {
-  color: #d6c28a;
+  color: var(--ipl-team-text-dark, #d6c28a);
   font-style: normal;
   font-size: 0.5rem;
   font-weight: 600;

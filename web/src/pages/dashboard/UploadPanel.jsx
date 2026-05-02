@@ -58,6 +58,7 @@ function UploadPanel({
   onSaveManualScores,
   onResetManualScores,
   onMarkSelectedMatchComplete,
+  onForceLiveScoreSync,
   isLoadingManualPool,
   onSaveScores,
   onGenerateScoreJson,
@@ -880,6 +881,17 @@ function UploadPanel({
                   variant="secondary"
                   size="small"
                   className="upload-action-btn"
+                  onClick={onForceLiveScoreSync}
+                  disabled={isSavingScores || !manualTournamentId || !manualMatchId}
+                  title="Force fetch scorecard from scraper, including completed matches"
+                >
+                  Force Scraper Sync
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="small"
+                  className="upload-action-btn"
                   onClick={onMarkSelectedMatchComplete}
                   disabled={isSavingScores || !canMarkSelectedMatchComplete}
                   title={
@@ -1164,6 +1176,8 @@ function UploadPanel({
                         <th>Wkts</th>
                         <th>C</th>
                         <th>St</th>
+                        <th>RO-D</th>
+                        <th>RO-A</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1176,6 +1190,8 @@ function UploadPanel({
                           <td>{Number(row?.wickets || 0)}</td>
                           <td>{Number(row?.catches || 0)}</td>
                           <td>{Number(row?.stumpings || 0)}</td>
+                          <td>{Number(row?.runoutDirect || 0)}</td>
+                          <td>{Number(row?.runoutIndirect || 0)}</td>
                         </tr>
                       ))}
                     </tbody>

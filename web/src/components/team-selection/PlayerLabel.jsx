@@ -1,4 +1,5 @@
 import PlayerIdentity from '../ui/PlayerIdentity.jsx'
+import { getIplTeamStyle, resolveIplTeamCode } from '../../lib/iplTeamPalette.js'
 
 function normalizePlayerName(player = {}) {
   const raw =
@@ -20,10 +21,12 @@ function PlayerLabel({
   showTeam = false,
   showRole = true,
   subtitleSuffix = null,
+  style = undefined,
 }) {
   const name = normalizePlayerName(player)
   const role = (player.role || '').toString().trim() || 'BAT'
   const teamCode = (player.team || player.teamCode || '').toString().trim().toUpperCase()
+  const resolvedIplTeamCode = resolveIplTeamCode(teamCode)
   const imageUrl = (player.imageUrl || '').toString().trim()
   const badge = player.badge || ''
   const isInteractive = typeof onClick === 'function'
@@ -49,6 +52,7 @@ function PlayerLabel({
       role={isInteractive ? 'button' : undefined}
       tabIndex={isInteractive ? 0 : undefined}
       title={title || undefined}
+      style={style}
     >
       {!!lineupStatus && (
         <span
@@ -75,7 +79,10 @@ function PlayerLabel({
           nameSuffix={
             <>
               {showTeam && teamCode ? (
-                <em className="player-team-tag">{` (${teamCode})`}</em>
+                <em
+                  className={`player-team-tag ${resolvedIplTeamCode ? 'ipl-team-text' : ''}`.trim()}
+                  style={getIplTeamStyle(teamCode)}
+                >{` (${teamCode})`}</em>
               ) : null}
               {!!badge && <em className="player-badge">{badge}</em>}
             </>

@@ -152,13 +152,16 @@
 .mobile-nav-panel {
   width: min(84vw, 320px);
   height: 100%;
+  max-height: 100dvh;
   background: var(--panel-bg);
   border-right: 1px solid var(--panel-border);
   box-shadow: var(--panel-shadow);
-  padding: 0.9rem;
+  padding: max(0.9rem, env(safe-area-inset-top)) 0.9rem
+    max(0.9rem, env(safe-area-inset-bottom));
   display: grid;
   grid-template-rows: auto 1fr;
   gap: 0.8rem;
+  overflow: hidden;
 }
 
 .mobile-nav-header {
@@ -171,6 +174,11 @@
   display: grid;
   align-content: start;
   gap: 0.55rem;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
 }
 
 .mobile-refresh-btn {
@@ -587,15 +595,15 @@ body.dark-theme .user-menu-item:hover {
 }
 
 .score-pill.score-pill-team-a {
-  background: rgba(245, 158, 11, 0.16);
-  border-color: rgba(251, 191, 36, 0.34);
-  color: #fef3c7;
+  background: var(--ipl-team-bg-dark, rgba(245, 158, 11, 0.16));
+  border-color: var(--ipl-team-border-dark, rgba(251, 191, 36, 0.34));
+  color: var(--ipl-team-text-dark, #fef3c7);
 }
 
 .score-pill.score-pill-team-b {
-  background: rgba(14, 165, 233, 0.16);
-  border-color: rgba(56, 189, 248, 0.34);
-  color: #dbeafe;
+  background: var(--ipl-team-bg-dark, rgba(14, 165, 233, 0.16));
+  border-color: var(--ipl-team-border-dark, rgba(56, 189, 248, 0.34));
+  color: var(--ipl-team-text-dark, #dbeafe);
 }
 
 .team-preview-team-count-pill {
@@ -613,11 +621,15 @@ body.dark-theme .user-menu-item:hover {
 }
 
 body:not(.dark-theme) .score-pill.score-pill-team-a {
-  color: #7c4a03;
+  background: var(--ipl-team-bg-light, rgba(245, 158, 11, 0.16));
+  border-color: var(--ipl-team-border-light, rgba(251, 191, 36, 0.34));
+  color: var(--ipl-team-text-light, #7c4a03);
 }
 
 body:not(.dark-theme) .score-pill.score-pill-team-b {
-  color: #0f3f78;
+  background: var(--ipl-team-bg-light, rgba(14, 165, 233, 0.16));
+  border-color: var(--ipl-team-border-light, rgba(56, 189, 248, 0.34));
+  color: var(--ipl-team-text-light, #0f3f78);
 }
 
 .team-preview-override {

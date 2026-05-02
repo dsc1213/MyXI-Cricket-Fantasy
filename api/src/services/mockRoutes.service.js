@@ -1608,7 +1608,7 @@ const registerMockProviderRoutes = (router, ctx) => {
   router.post('/admin/matches/:id/status', (req, res) => {
     const matchId = (req.params.id || '').toString()
     const status = (req.body?.status || '').toString().trim().toLowerCase()
-    if (!['notstarted', 'inprogress', 'completed'].includes(status)) {
+    if (!['notstarted', 'started', 'inprogress', 'completed'].includes(status)) {
       return res.status(400).json({ message: 'Valid status is required' })
     }
     for (const [tournamentId, matches] of Object.entries(customTournamentMatches)) {
@@ -1617,7 +1617,7 @@ const registerMockProviderRoutes = (router, ctx) => {
       if (!target) continue
       const previousStatus = normalizeMatchStatus(target.status)
       target.status = status
-      target.locked = status !== 'notstarted'
+      target.locked = status === 'inprogress' || status === 'completed'
       persistState()
       return res.json({
         ...target,
@@ -1877,8 +1877,11 @@ const registerMockProviderRoutes = (router, ctx) => {
     }
     const scoreIndex = buildContestMatchPointsIndex({ contest, matchId: activeMatch.id })
     const hasUploadedScore = Object.keys(scoreIndex).length > 0
+    const activeMatchLocked = ['inprogress', 'completed'].includes(
+      normalizeMatchStatus(activeMatch.status),
+    )
     const fallbackScoreIndex =
-      !hasUploadedScore && activeMatch.status !== 'notstarted'
+      !hasUploadedScore && activeMatchLocked
         ? [
             ...getMatchRosters(activeMatch).teamA,
             ...getMatchRosters(activeMatch).teamB,
@@ -1915,7 +1918,7 @@ const registerMockProviderRoutes = (router, ctx) => {
           points: computedPoints,
           canView: isFixedRosterContest(contest)
             ? true
-            : activeMatch.status !== 'notstarted',
+            : activeMatchLocked,
           hasTeam: isFixedRosterContest(contest) ? true : pickNames.length > 0,
         }
       })
@@ -2452,7 +2455,10 @@ const registerMockProviderRoutes = (router, ctx) => {
           'Only master admin can edit another user full team. Admin can do replacement only.',
       })
     }
-    if (normalizeMatchStatus(activeMatch.status) !== 'notstarted' && actor.role !== 'master_admin') {
+    if (
+      ['inprogress', 'completed'].includes(normalizeMatchStatus(activeMatch.status)) &&
+      actor.role !== 'master_admin'
+    ) {
       return res
         .status(403)
         .json({ message: 'Match is locked. Teams cannot be edited after start time.' })
@@ -3106,7 +3112,9 @@ const registerMockProviderRoutes = (router, ctx) => {
       matchId: activeMatch.id,
       matchLabel: activeMatch.name,
       contestId,
-      isLocked: activeMatch.status !== 'notstarted',
+      isLocked: ['inprogress', 'completed'].includes(
+        normalizeMatchStatus(activeMatch.status),
+      ),
       replacementPool: allPlayerNames,
       users: usersWithPicks,
     })

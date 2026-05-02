@@ -11,7 +11,9 @@ import {
   saveMatchScores,
   saveScoringRules,
   resetManualMatchScores,
+  syncLiveScoresNow,
   updateAdminMatchStatus,
+  forceAdminLiveScoreSync,
   upsertMatchLineups,
   upsertManualMatchScores,
 } from '../lib/api.js'
@@ -322,6 +324,8 @@ function Dashboard({ defaultPanel = 'joined' }) {
       try {
         setIsLoading(true)
         setErrorText('')
+        await syncLiveScoresNow({ reason: 'dashboard-load' })
+        if (!active) return
         const [data, allContestsRes, joinedContestsRes] = await Promise.all([
           fetchDashboardPageLoadData(),
           fetchContests({ userId: currentUserId }),
@@ -1334,6 +1338,34 @@ function Dashboard({ defaultPanel = 'joined' }) {
     }
   }
 
+  const onForceSelectedMatchLiveScoreSync = async () => {
+    try {
+      if (!manualMatchId) return
+      const shouldSync = window.confirm(
+        'Force fetch scorecard from scraper for this match? This can update scores and rankings even if the match is completed.',
+      )
+      if (!shouldSync) return
+
+      setSaveNotice('')
+      setErrorText('')
+      setIsSavingScores(true)
+      const response = await forceAdminLiveScoreSync({ id: manualMatchId })
+      const refreshedMatches = await fetchTournamentMatches(manualTournamentId)
+      setManualScoreContext((prev) => ({ ...prev, matches: refreshedMatches || [] }))
+      await reloadManualTeamPool({
+        tournamentId: manualTournamentId,
+        matchId: manualMatchId,
+      })
+      setSaveNotice(
+        `Force scraper sync completed • syncId ${response?.syncId || 'n/a'}`,
+      )
+    } catch (error) {
+      setErrorText(error.message || 'Failed to force scraper score sync')
+    } finally {
+      setIsSavingScores(false)
+    }
+  }
+
   const panelMap = {
     joined: (
       <JoinedPanel
@@ -1411,6 +1443,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
         onSaveManualScores={onSaveManualScores}
         onResetManualScores={onResetManualScores}
         onMarkSelectedMatchComplete={onMarkSelectedMatchComplete}
+        onForceLiveScoreSync={onForceSelectedMatchLiveScoreSync}
         isLoadingManualPool={isLoadingManualPool}
         onSaveScores={onSaveScores}
         onGenerateScoreJson={onGenerateScoreJson}
@@ -1459,6 +1492,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
         onSaveManualScores={onSaveManualScores}
         onResetManualScores={onResetManualScores}
         onMarkSelectedMatchComplete={onMarkSelectedMatchComplete}
+        onForceLiveScoreSync={onForceSelectedMatchLiveScoreSync}
         isLoadingManualPool={isLoadingManualPool}
         onSaveScores={onSaveScores}
         onGenerateScoreJson={onGenerateScoreJson}

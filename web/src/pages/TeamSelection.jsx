@@ -285,8 +285,10 @@ function TeamSelection() {
   const teamACount = selected.filter((p) => teamAPlayerIds.has(p.id)).length
   const teamBCount = selected.filter((p) => teamBPlayerIds.has(p.id)).length
   const isMatchLocked =
-    ((activeMatch?.status || '').toString().trim().toLowerCase().replace(/\s+/g, '') ||
-      'notstarted') !== 'notstarted'
+    ['inprogress', 'completed'].includes(
+      (activeMatch?.status || '').toString().trim().toLowerCase().replace(/\s+/g, '') ||
+        'notstarted',
+    )
   const teamALineupPlaying = useMemo(
     () =>
       new Set(

@@ -1,6 +1,7 @@
 import { createRepositoryFactory } from '../repositories/repository.factory.js'
 import { dbQuery } from '../db.js'
 import { cloneDefaultPointsRules } from '../default-points-rules.js'
+import { recordLiveScoreDbWrite } from '../live-score/logger.js'
 import scoringRuleService from './scoring-rule.service.js'
 import {
   buildPlayerIdentityIndex,
@@ -23,10 +24,44 @@ const normalizeNameForMatch = (value) =>
     .replace(/\s+/g, ' ')
     .trim()
 
+const stableJson = (value) => JSON.stringify(value || [])
+
+const emptyPlayerStats = (playerName) => ({
+  playerName,
+  runs: 0,
+  ballsFaced: 0,
+  wickets: 0,
+  catches: 0,
+  stumpings: 0,
+  runoutDirect: 0,
+  runoutIndirect: 0,
+  hatTrick: 0,
+  fours: 0,
+  sixes: 0,
+  overs: 0,
+  runsConceded: 0,
+  maidens: 0,
+  noBalls: 0,
+  wides: 0,
+  dismissed: false,
+})
+
+const buildBulkPlaceholders = ({ rows, columnsPerRow, extraSql = [] }) =>
+  rows
+    .map((row, rowIndex) => {
+      void row
+      const offset = rowIndex * columnsPerRow
+      const placeholders = Array.from(
+        { length: columnsPerRow },
+        (_, columnIndex) => `$${offset + columnIndex + 1}`,
+      )
+      return `(${[...placeholders, ...extraSql].join(', ')})`
+    })
+    .join(', ')
+
 const resolvePlayerWithNormalizedFallback = ({
   row,
   identityIndex,
-  matchPlayers = [],
 }) => {
   const directMatch = resolvePlayerStatPlayer(row, identityIndex)
   if (directMatch) {
@@ -141,7 +176,7 @@ class MatchScoreService {
   }
 
   // Uploads match scores, stores active score row, and rebuilds derived contest scores.
-  async uploadMatchScores(matchId, tournamentId, playerStats, uploadedBy) {
+  async uploadMatchScores(matchId, tournamentId, playerStats, uploadedBy, context = {}) {
     if (!matchId || !tournamentId) {
       throw new Error('matchId and tournamentId are required')
     }
@@ -150,8 +185,25 @@ class MatchScoreService {
       matchId,
       tournamentId,
       playerStats,
+      context,
     )
     const repo = await factory.getMatchScoreRepository()
+    const activeScore = context.activeScore || (await repo.findLatestActive(matchId))
+    if (
+      activeScore &&
+      String(activeScore.tournamentId) === String(tournamentId) &&
+      stableJson(activeScore.playerStats) === stableJson(normalizedPlayerStats)
+    ) {
+      return {
+        ok: true,
+        skipped: true,
+        reason: 'score-unchanged',
+        savedAt: new Date().toISOString(),
+        savedScore: activeScore,
+        impactedContests: 0,
+        contestSummaries: [],
+      }
+    }
     // Upsert score snapshot for this tournament/match.
     const savedScore = await repo.create({
       matchId,
@@ -159,10 +211,28 @@ class MatchScoreService {
       playerStats: normalizedPlayerStats,
       uploadedBy,
     })
+    await recordLiveScoreDbWrite(context, {
+      table: 'match_scores',
+      action: 'insert',
+      rows: 1,
+      fields: ['player_stats', 'uploaded_by', 'active'],
+      matchId,
+      tournamentId,
+      matchLabel: context.match?.name,
+      providerMatchId: context.providerMatchId || context.match?.providerMatchId,
+      message: `DB wrote active score snapshot with ${normalizedPlayerStats.length} player row(s)`,
+      details: {
+        fn: 'uploadMatchScores',
+        savedScoreId: savedScore?.id || '',
+        playerCount: normalizedPlayerStats.length,
+        uploadedBy: uploadedBy || 'myxi',
+      },
+    })
     const { contestSummaries } = await this.rebuildDerivedScores({
       matchId,
       tournamentId,
       playerStats: normalizedPlayerStats,
+      context,
     })
     return {
       ok: true,
@@ -170,6 +240,163 @@ class MatchScoreService {
       savedScore,
       impactedContests: contestSummaries.length,
       contestSummaries,
+    }
+  }
+
+  // Fetches an external scorecard, converts it to playerStats, and saves it.
+  async syncLiveMatchScores({
+    tournamentId,
+    matchId,
+    sourceMatchId = null,
+    uploadedBy = null,
+    provider = null,
+    context = {},
+  }) {
+    if (!matchId || !tournamentId) {
+      throw new Error('matchId and tournamentId are required')
+    }
+    const matchRepo = await factory.getMatchRepository()
+    const match = context.match || (await matchRepo.findById(matchId))
+    if (!match) throw new Error('Match not found')
+    if (String(match.tournamentId) !== String(tournamentId)) {
+      throw new Error('matchId does not belong to the provided tournamentId')
+    }
+
+    const externalMatchId = sourceMatchId || match.sourceKey
+    if (!externalMatchId) {
+      throw new Error('sourceMatchId is required when the match has no sourceKey')
+    }
+    if (!provider || typeof provider.getPlayerStats !== 'function') {
+      throw new Error('score provider is required for live score sync')
+    }
+
+    const { scorecard, playerStats } = await provider.getPlayerStats(externalMatchId)
+    const scoreRepo = await factory.getMatchScoreRepository()
+    const activeScore =
+      context.activeScore === undefined
+        ? await scoreRepo.findLatestActive(matchId)
+        : context.activeScore
+    const scoreContext = { ...context, match, activeScore }
+    const fullPlayerStats = await this.buildFullScoreSnapshot({
+      matchId,
+      tournamentId,
+      scraperPlayerStats: playerStats,
+      context: scoreContext,
+    })
+    const payload = await this.uploadMatchScores(
+      matchId,
+      tournamentId,
+      fullPlayerStats,
+      uploadedBy,
+      scoreContext,
+    )
+
+    return {
+      ...payload,
+      source: 'live-score-api',
+      sourceMatchId: String(externalMatchId),
+      scorecardStatus: scorecard?.status || '',
+      scorecardTitle: scorecard?.title || '',
+      fetchedPlayers: playerStats.length,
+      savedPlayers: fullPlayerStats.length,
+    }
+  }
+
+  async buildFullScoreSnapshot({
+    matchId,
+    tournamentId,
+    scraperPlayerStats = [],
+    context = {},
+  }) {
+    const lineupRows =
+      context.lineupRows ||
+      (
+        await dbQuery(
+          `SELECT team_code as "teamCode", playing_xi as "playingXI"
+           FROM match_lineups
+           WHERE tournament_id = $1 AND match_id = $2`,
+          [tournamentId, matchId],
+        )
+      ).rows
+    const playingXiNames = [
+      ...new Set(
+        (context.playingXiNames || []).length
+          ? context.playingXiNames
+          : (lineupRows || []).flatMap((row) => {
+              const rows =
+                typeof row.playingXI === 'string'
+                  ? JSON.parse(row.playingXI)
+                  : row.playingXI || []
+              return rows.map((name) => String(name || '').trim()).filter(Boolean)
+            }),
+      ),
+    ]
+    if (!playingXiNames.length) {
+      throw new Error('Playing XI must be saved before live score sync')
+    }
+
+    const repo = await factory.getMatchScoreRepository()
+    const activeScore = context.activeScore || (await repo.findLatestActive(matchId))
+    const existingRows =
+      activeScore && String(activeScore.tournamentId) === String(tournamentId)
+        ? activeScore.playerStats || []
+        : []
+
+    const rowsByName = new Map()
+    for (const playerName of playingXiNames) {
+      rowsByName.set(normalizeNameForMatch(playerName), emptyPlayerStats(playerName))
+    }
+
+    const overlayRows = (rows = []) => {
+      for (const row of rows) {
+        const playerName = (row?.playerName || row?.name || '').toString().trim()
+        const key = normalizeNameForMatch(playerName)
+        if (!key || !rowsByName.has(key)) continue
+        rowsByName.set(key, {
+          ...rowsByName.get(key),
+          ...row,
+          playerName: rowsByName.get(key).playerName,
+        })
+      }
+    }
+
+    overlayRows(existingRows)
+    overlayRows(scraperPlayerStats)
+    return [...rowsByName.values()]
+  }
+
+  async buildTournamentScoreContext(tournamentId) {
+    const matchRepo = await factory.getMatchRepository()
+    const playerRepo = await factory.getPlayerRepository()
+    const contestRepo = await factory.getContestRepository()
+    const scoringRuleRepo = await factory.getScoringRuleRepository()
+
+    const tournamentMatches = await matchRepo.findByTournament(tournamentId)
+    const teamKeys = [
+      ...new Set(
+        (tournamentMatches || [])
+          .flatMap((match) => [
+            match.teamAKey || match.teamA,
+            match.teamBKey || match.teamB,
+          ])
+          .filter(Boolean),
+      ),
+    ]
+    const tournamentPlayerRows =
+      typeof playerRepo.findByTournament === 'function'
+        ? await playerRepo.findByTournament(tournamentId)
+        : (
+            await Promise.all(
+              teamKeys.map((teamKey) => playerRepo.findByTeam(teamKey, tournamentId)),
+            )
+          ).flat()
+
+    return {
+      tournamentMatches,
+      tournamentPlayerRows,
+      scoringRule: await scoringRuleRepo.findByTournament(tournamentId),
+      globalScoringRules: await scoringRuleService.getDefaultScoringRules(),
+      contests: await contestRepo.findByTournament(tournamentId),
     }
   }
 
@@ -196,11 +423,16 @@ class MatchScoreService {
   }
 
   // Ensures submitted players belong to the selected match teams and normalizes identities.
-  async validatePlayersBelongToMatchTeams(matchId, tournamentId, playerStats = []) {
+  async validatePlayersBelongToMatchTeams(
+    matchId,
+    tournamentId,
+    playerStats = [],
+    context = {},
+  ) {
     const matchRepo = await factory.getMatchRepository()
     const playerRepo = await factory.getPlayerRepository()
 
-    const match = await matchRepo.findById(matchId)
+    const match = context.match || (await matchRepo.findById(matchId))
     if (!match) {
       throw new Error('Match not found')
     }
@@ -216,19 +448,21 @@ class MatchScoreService {
       throw new Error('Selected match has no team mapping for score validation')
     }
 
-    const matchPlayers = (
-      await Promise.all(
-        matchTeamCodes.map((teamCode) => playerRepo.findByTeam(teamCode, tournamentId)),
+    const matchPlayers =
+      context.matchPlayers ||
+      (
+        await Promise.all(
+          matchTeamCodes.map((teamCode) => playerRepo.findByTeam(teamCode, tournamentId)),
+        )
       )
-    )
-      .flat()
-      .map((player) => ({
-        ...player,
-        name:
-          player.displayName ||
-          [player.firstName, player.lastName].filter(Boolean).join(' ').trim(),
-        team: player.teamKey || player.team,
-      }))
+        .flat()
+        .map((player) => ({
+          ...player,
+          name:
+            player.displayName ||
+            [player.firstName, player.lastName].filter(Boolean).join(' ').trim(),
+          team: player.teamKey || player.team,
+        }))
 
     const identityIndex = buildPlayerIdentityIndex(matchPlayers)
 
@@ -310,7 +544,7 @@ class MatchScoreService {
   }
 
   // Returns context data used by the player-overrides admin UI.
-  async getPlayerOverridesContext(tournamentId) {
+  async getPlayerOverridesContext() {
     // Get context data for player overrides UI
     return { overrides: [], context: {} }
   }
@@ -382,13 +616,13 @@ class MatchScoreService {
   }
 
   // Rebuilds player_match_scores and contest_scores for one match payload.
-  async rebuildDerivedScores({ matchId, tournamentId, playerStats }) {
+  async rebuildDerivedScores({ matchId, tournamentId, playerStats, context = {} }) {
     const matchRepo = await factory.getMatchRepository()
     const playerRepo = await factory.getPlayerRepository()
     const contestRepo = await factory.getContestRepository()
     const scoringRuleRepo = await factory.getScoringRuleRepository()
 
-    const matches = await matchRepo.findByTournament(tournamentId)
+    const matches = context.tournamentMatches || (await matchRepo.findByTournament(tournamentId))
     const teamKeys = [
       ...new Set(
         (matches || [])
@@ -399,8 +633,9 @@ class MatchScoreService {
           .filter(Boolean),
       ),
     ]
-    const playerRowsSource =
-      typeof playerRepo.findByTournament === 'function'
+    const playerRowsSource = context.tournamentPlayerRows
+      ? context.tournamentPlayerRows
+      : typeof playerRepo.findByTournament === 'function'
         ? await playerRepo.findByTournament(tournamentId)
         : (
             await Promise.all(
@@ -414,34 +649,70 @@ class MatchScoreService {
         [player.firstName, player.lastName].filter(Boolean).join(' ').trim(),
       team: player.teamKey,
     }))
-    const scoringRule = await scoringRuleRepo.findByTournament(tournamentId)
-    const globalScoringRules = await scoringRuleService.getDefaultScoringRules()
+    const scoringRule =
+      context.scoringRule || (await scoringRuleRepo.findByTournament(tournamentId))
+    const globalScoringRules =
+      context.globalScoringRules || (await scoringRuleService.getDefaultScoringRules())
     const ruleSet = getRuleSetForTournament({
       tournamentId,
       scoringRules: scoringRule ? [scoringRule] : [],
       dashboardRuleTemplate: globalScoringRules?.rules || cloneDefaultPointsRules(),
     })
     const normalizedRows = normalizePlayerStatRows(playerStats || [], playerRows)
-    await dbQuery(
+    const deletedPlayerScores = await dbQuery(
       `DELETE FROM player_match_scores
        WHERE tournament_id = $1 AND match_id = $2`,
       [tournamentId, matchId],
     )
+    await recordLiveScoreDbWrite(context, {
+      table: 'player_match_scores',
+      action: 'delete',
+      rows: deletedPlayerScores.rowCount || 0,
+      fields: ['tournament_id', 'match_id'],
+      matchId,
+      tournamentId,
+      matchLabel: context.match?.name,
+      message: `DB cleared ${deletedPlayerScores.rowCount || 0} old player score row(s)`,
+      details: {
+        fn: 'rebuildDerivedScores',
+      },
+    })
     const fantasyPointsByPlayerId = new Map()
+    const playerScoreRows = []
     for (const row of normalizedRows) {
       const fantasyPoints = Number(calculateFantasyPoints(row, ruleSet) || 0)
       fantasyPointsByPlayerId.set(Number(row.playerId), fantasyPoints)
+      playerScoreRows.push([
+        tournamentId,
+        matchId,
+        row.playerId,
+        JSON.stringify(row),
+        Number(row.runs || 0),
+        Number(row.wickets || 0),
+        Number(row.catches || 0),
+        Number(row.fours || 0),
+        Number(row.sixes || 0),
+        Number(row.maidens || 0),
+        Number(row.wides || 0),
+        Number(row.stumpings || 0),
+        Number(row.runoutDirect || 0),
+        Number(row.runoutIndirect || 0),
+        row.dismissed === true,
+        fantasyPoints,
+      ])
+    }
+    if (playerScoreRows.length) {
       await dbQuery(
         `INSERT INTO player_match_scores (
            tournament_id, match_id, player_id, raw_stats,
            runs, wickets, catches, fours, sixes, maidens, wides, stumpings,
            runout_direct, runout_indirect, dismissed, fantasy_points, created_at, updated_at
          )
-         VALUES (
-           $1, $2, $3, $4,
-           $5, $6, $7, $8, $9, $10, $11, $12,
-           $13, $14, $15, $16, now(), now()
-         )
+         VALUES ${buildBulkPlaceholders({
+           rows: playerScoreRows,
+           columnsPerRow: 16,
+           extraSql: ['now()', 'now()'],
+         })}
          ON CONFLICT (tournament_id, match_id, player_id) DO UPDATE
          SET raw_stats = EXCLUDED.raw_stats,
              runs = EXCLUDED.runs,
@@ -457,34 +728,41 @@ class MatchScoreService {
              dismissed = EXCLUDED.dismissed,
              fantasy_points = EXCLUDED.fantasy_points,
              updated_at = now()`,
-        [
-          tournamentId,
-          matchId,
-          row.playerId,
-          JSON.stringify(row),
-          Number(row.runs || 0),
-          Number(row.wickets || 0),
-          Number(row.catches || 0),
-          Number(row.fours || 0),
-          Number(row.sixes || 0),
-          Number(row.maidens || 0),
-          Number(row.wides || 0),
-          Number(row.stumpings || 0),
-          Number(row.runoutDirect || 0),
-          Number(row.runoutIndirect || 0),
-          row.dismissed === true,
-          fantasyPoints,
-        ],
+        playerScoreRows.flat(),
       )
+      await recordLiveScoreDbWrite(context, {
+        table: 'player_match_scores',
+        action: 'upsert',
+        rows: playerScoreRows.length,
+        fields: [
+          'raw_stats',
+          'runs',
+          'wickets',
+          'catches',
+          'fantasy_points',
+        ],
+        matchId,
+        tournamentId,
+        matchLabel: context.match?.name,
+        message: `DB wrote ${playerScoreRows.length} player fantasy score row(s)`,
+        details: {
+          fn: 'rebuildDerivedScores',
+          playerIds: playerScoreRows.map((row) => row[2]),
+        },
+      })
     }
 
-    const contests = await contestRepo.findByTournament(tournamentId)
-    const lineupResult = await dbQuery(
-      `SELECT team_code as "teamCode", playing_xi as "playingXI"
-       FROM match_lineups
-       WHERE tournament_id = $1 AND match_id = $2`,
-      [tournamentId, matchId],
-    )
+    const contests = context.contests || (await contestRepo.findByTournament(tournamentId))
+    const lineupRows =
+      context.lineupRows ||
+      (
+        await dbQuery(
+          `SELECT team_code as "teamCode", playing_xi as "playingXI"
+           FROM match_lineups
+           WHERE tournament_id = $1 AND match_id = $2`,
+          [tournamentId, matchId],
+        )
+      ).rows
     const activePlayerIdsByTeam = new Map()
     const playerIdByTeamAndName = new Map(
       playerRows.map((player) => [
@@ -494,7 +772,7 @@ class MatchScoreService {
         Number(player.id),
       ]),
     )
-    for (const row of lineupResult.rows || []) {
+    for (const row of lineupRows || []) {
       const playingXI =
         typeof row.playingXI === 'string'
           ? JSON.parse(row.playingXI)
@@ -517,10 +795,24 @@ class MatchScoreService {
         : []
       if (scopedMatchIds.length && !scopedMatchIds.includes(String(matchId))) continue
 
-      await dbQuery(
+      const deletedContestScores = await dbQuery(
         `DELETE FROM contest_scores WHERE contest_id = $1 AND match_id = $2`,
         [contest.id, matchId],
       )
+      await recordLiveScoreDbWrite(context, {
+        table: 'contest_scores',
+        action: 'delete',
+        rows: deletedContestScores.rowCount || 0,
+        fields: ['contest_id', 'match_id'],
+        matchId,
+        tournamentId,
+        matchLabel: context.match?.name,
+        message: `DB cleared ${deletedContestScores.rowCount || 0} old contest score row(s)`,
+        details: {
+          fn: 'rebuildDerivedScores',
+          contestId: contest.id,
+        },
+      })
 
       let rows = []
       if ((contest.mode || '').toString().trim().toLowerCase() === 'fixed_roster') {
@@ -643,14 +935,39 @@ class MatchScoreService {
         })
       }
 
-      for (const row of rows) {
+      const contestScoreRows = rows.map((row) => [
+        contest.id,
+        matchId,
+        row.userId,
+        Number(row.points || 0),
+      ])
+      if (contestScoreRows.length) {
         await dbQuery(
           `INSERT INTO contest_scores (contest_id, match_id, user_id, points, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, now(), now())
+           VALUES ${buildBulkPlaceholders({
+             rows: contestScoreRows,
+             columnsPerRow: 4,
+             extraSql: ['now()', 'now()'],
+           })}
            ON CONFLICT (contest_id, match_id, user_id) DO UPDATE
            SET points = EXCLUDED.points, updated_at = now()`,
-          [contest.id, matchId, row.userId, Number(row.points || 0)],
+          contestScoreRows.flat(),
         )
+        await recordLiveScoreDbWrite(context, {
+          table: 'contest_scores',
+          action: 'upsert',
+          rows: contestScoreRows.length,
+          fields: ['points'],
+          matchId,
+          tournamentId,
+          matchLabel: context.match?.name,
+          message: `DB wrote ${contestScoreRows.length} user score row(s) for contest ${contest.id}`,
+          details: {
+            fn: 'rebuildDerivedScores',
+            contestId: contest.id,
+            users: contestScoreRows.map((row) => row[2]),
+          },
+        })
       }
       contestSummaries.push({
         contestId: contest.id,

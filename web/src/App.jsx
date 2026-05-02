@@ -38,6 +38,7 @@ import {
   logout,
   prefetchAppData,
   refreshSession,
+  syncLiveScoresNow,
   subscribeApiActivity,
 } from './lib/api.js'
 import { clearStoredAuth, getStoredUser } from './lib/auth.js'
@@ -80,6 +81,7 @@ function App() {
   const showAuthLinks = location.pathname === '/'
   const searchParams = new URLSearchParams(location.search)
   const viewMode = (searchParams.get('view') || '').toString().trim().toLowerCase()
+  const dashboardPanel = (searchParams.get('panel') || '').toString().trim().toLowerCase()
   const isAuctionView = viewMode === 'auction'
   const isLanding = location.pathname === '/'
   const isAuthPage = ['/login', '/register', '/forgot-password', '/pending'].includes(
@@ -107,6 +109,13 @@ function App() {
     '/admin/dashboard',
     '/master/dashboard',
   ].includes(location.pathname)
+  const shouldSyncLiveScoresOnRefresh =
+    isContestDetailPage ||
+    isLeaderboardPage ||
+    isTeamPage ||
+    location.pathname === '/admin/score-upload' ||
+    (isDashboardPage &&
+      ['scoremanager', 'playingximanager'].includes(dashboardPanel || viewMode || ''))
   const isLowerContentPage =
     [
       '/login',
@@ -275,6 +284,9 @@ function App() {
     setMobileMenuOpen(false)
     clearAppDataCache()
     try {
+      if (shouldSyncLiveScoresOnRefresh) {
+        await syncLiveScoresNow({ reason: 'manual-refresh' })
+      }
       await checkApi()
     } catch {
       // Reloading after cache clear is still the safest recovery path.
@@ -283,7 +295,7 @@ function App() {
         window.location.reload()
       }
     }
-  }, [checkApi, isRefreshingAppData])
+  }, [checkApi, isRefreshingAppData, shouldSyncLiveScoresOnRefresh])
 
   useEffect(() => {
     if (!userMenuOpen) return undefined

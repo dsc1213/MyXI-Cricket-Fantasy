@@ -12,6 +12,7 @@ const providerPathPrefixes = [
   '/scoring-rules/save',
   '/match-scores/process-excel',
   '/match-scores/save',
+  '/live-score',
   '/admin',
 ]
 

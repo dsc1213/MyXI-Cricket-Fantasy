@@ -4,6 +4,7 @@ import PlayerAvatar from '../ui/PlayerAvatar.jsx'
 import ScorePill from '../ui/ScorePill.jsx'
 import { sortPlayersByDisplayRole } from '../../lib/playerRoleSort.js'
 import { isMatchLiveOrComplete } from '../../lib/matchStatus.js'
+import { getIplTeamStyle } from '../../lib/iplTeamPalette.js'
 
 const normalizeLineupName = (value = '') =>
   String(value || '')
@@ -256,7 +257,10 @@ function TeamPreviewDrawer({
             </button>
           ) : null}
           {showTeam && teamCode && isFixedRosterContest ? (
-            <span className="team-preview-team-tag">{`(${teamCode})`}</span>
+            <span
+              className="team-preview-team-tag ipl-team-text"
+              style={getIplTeamStyle(teamCode)}
+            >{`(${teamCode})`}</span>
           ) : null}
           {entry?.roleTag ? (
             <span
@@ -472,6 +476,7 @@ function TeamPreviewDrawer({
                             suffix=""
                             tone="neutral"
                             variant={groupIndex % 2 === 0 ? 'team-a' : 'team-b'}
+                            style={getIplTeamStyle(group.teamCode)}
                           >
                             {group.teamCode}
                           </ScorePill>
