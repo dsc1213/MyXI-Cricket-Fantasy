@@ -1,7 +1,12 @@
 import { dbQuery } from '../db.js'
 
 const resolveActorLabel = (row = {}) =>
-  row.actorGameName || row.actorName || row.actorUserId || row.performedBy?.toString() || 'Admin'
+  row.actorLabel ||
+  row.actorGameName ||
+  row.actorName ||
+  row.actorUserId ||
+  row.performedBy?.toString() ||
+  'Admin'
 
 class AuditLogService {
   async logAction({
@@ -52,6 +57,7 @@ class AuditLogService {
               al.resource_type as "resourceType",
               al.resource_id as "resourceId",
               al.changes,
+              al.changes->>'actorLabel' as "actorLabel",
               al.created_at as "at",
               al.performed_by as "performedBy",
               NULLIF(u.game_name, '') as "actorGameName",

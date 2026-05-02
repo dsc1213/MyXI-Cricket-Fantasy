@@ -199,11 +199,12 @@ function MatchesCard({
             </div>
           )
         }
-        const canEdit = normalizedStatus === 'notstarted'
+        const canEdit = normalizedStatus === 'notstarted' || normalizedStatus === 'started'
         const canManageOwnTeam = Boolean(match.viewerJoined)
         const canCopyTeam = copyableMatchIds.has(String(match.id))
         const canView =
           normalizedStatus === 'notstarted' ||
+          normalizedStatus === 'started' ||
           normalizedStatus === 'inprogress' ||
           normalizedStatus === 'completed'
         const loginRequired = !isLoggedIn

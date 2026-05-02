@@ -10,6 +10,10 @@ import pageLoadService from './pageload.service.js'
 import auctionImportService from './auctionImport.service.js'
 import auditLogService from './audit-log.service.js'
 import userRepository from '../repositories/user.repository.js'
+import matchLiveSyncRepository from '../live-score/repository.js'
+import { runLiveScoreOnDemandSync } from '../live-score/auto-sync.service.js'
+import { forceSyncScoreForMatch } from '../live-score/score-sync.service.js'
+import { createLiveScoreSyncContext } from '../live-score/logger.js'
 import { dbQuery } from '../db.js'
 
 const TEAM_LOCK_BYPASS_ROLES = new Set(['master_admin'])
@@ -63,6 +67,15 @@ const canReadOtherUserContestTeam = async ({ actor, targetUser, contestId }) => 
   )
 
   return participantIds.has(Number(targetUser.id))
+}
+
+const parseOptionalBoolean = (value) => {
+  if (value == null) return undefined
+  if (typeof value === 'boolean') return value
+  const normalized = value.toString().trim().toLowerCase()
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false
+  return undefined
 }
 
 // Handler registry for provider routes
@@ -131,7 +144,7 @@ const dbHandlers = {
   // Match scores
   '/admin/match-scores/:tournamentId/:matchId': (tournamentId, matchId) =>
     matchScoreService.getMatchScores(tournamentId, matchId),
-  '/admin/match-score-context': (data) => ({ context: {} }),
+  '/admin/match-score-context': () => ({ context: {} }),
   '/admin/match-scores/upsert': (data) =>
     matchScoreService.uploadMatchScores(
       data.matchId,
@@ -139,6 +152,12 @@ const dbHandlers = {
       data.playerStats,
       data.uploadedBy,
     ),
+  '/admin/matches/:id/live-sync': (id, data) =>
+    matchLiveSyncRepository.upsert(id, {
+      providerMatchId: data.providerMatchId,
+      liveSyncEnabled: data.liveSyncEnabled,
+      lastError: '',
+    }),
   '/admin/match-scores/reset': (data) =>
     matchScoreService.resetMatchScores(data.matchId, data.tournamentId, data.resetBy),
   '/match-scores/process-excel': (data) => matchScoreService.processExcelScores(data),
@@ -234,6 +253,38 @@ const createDbService = (dependencies) => {
         return res.json(payload)
       } catch (error) {
         return next(error)
+      }
+    })
+
+    router.post('/live-score/sync-now', async (req, res) => {
+      try {
+        const reason = (req.body?.reason || 'ui-refresh').toString().trim()
+        const summary = await runLiveScoreOnDemandSync({ reason })
+        return res.json({
+          ok: true,
+          message: summary?.scraperSkipped?.message || 'Live score sync completed',
+          ...summary,
+        })
+      } catch (error) {
+        return res.json({
+          ok: false,
+          message: error?.message || 'Live score sync failed',
+          error: error?.message || String(error),
+          liveStatus: {
+            matchId: {
+              status: 'unknown',
+              message: 'Provider match id status unavailable because sync failed',
+            },
+            pxi: {
+              status: 'unknown',
+              message: 'Playing XI status unavailable because sync failed',
+            },
+            latestMatchScores: {
+              status: 'failed',
+              message: error?.message || 'Live score sync failed',
+            },
+          },
+        })
       }
     })
 
@@ -1128,11 +1179,88 @@ const createDbService = (dependencies) => {
             .json({ message: 'Only admin/master can update match status' })
         }
         const status = (req.body?.status || '').toString().trim().toLowerCase()
-        if (!['notstarted', 'inprogress', 'completed'].includes(status)) {
+        if (!['notstarted', 'started', 'inprogress', 'completed'].includes(status)) {
           return res.status(400).json({ message: 'Valid status is required' })
         }
         const result = await matchService.updateMatchStatus(req.params.id, status)
         return res.json(result)
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    // Updates live-sync metadata for a match.
+    router.post('/admin/matches/:id/live-sync', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can update live sync settings' })
+        }
+        const match = await matchService.getMatch(req.params.id)
+        if (!match) return res.status(404).json({ message: 'Match not found' })
+
+        const payload = await matchLiveSyncRepository.upsert(req.params.id, {
+          provider: req.body?.provider || 'cricbuzz',
+          providerMatchId: req.body?.providerMatchId || req.body?.sourceMatchId || null,
+          liveSyncEnabled: parseOptionalBoolean(req.body?.liveSyncEnabled),
+          lastError: '',
+        })
+        await auditLogService.logAction({
+          performedBy: actor?.id || null,
+          action: 'Updated live sync settings',
+          resourceType: 'match-live-sync',
+          resourceId: String(req.params.id),
+          tournamentId: String(match.tournamentId || 'global'),
+          module: 'scores',
+          detail: `Live sync settings updated for match ${req.params.id}`,
+          ipAddress: req.ip,
+          userAgent: req.header('user-agent') || '',
+        })
+        return res.json(payload)
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    // Admin-only recovery path: refetches scraper scorecard even for completed matches.
+    router.post('/admin/matches/:id/live-score/force-sync', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can force live score sync' })
+        }
+        const context = createLiveScoreSyncContext('admin-force-score-sync')
+        const result = await forceSyncScoreForMatch({
+          matchId: req.params.id,
+          actorUserId: actor?.id || null,
+          context,
+        })
+        await auditLogService.logAction({
+          performedBy: actor?.id || null,
+          action: 'Force synced scraper scorecard',
+          resourceType: 'match-score',
+          resourceId: String(req.params.id),
+          tournamentId: String(result.tournamentId || 'global'),
+          module: 'scores',
+          detail: `Force synced scraper scorecard for match ${req.params.id}`,
+          changes: {
+            syncId: context.syncId,
+            providerMatchId: result.providerMatchId,
+            result: result.result || {},
+          },
+          ipAddress: req.ip,
+          userAgent: req.header('user-agent') || '',
+        })
+        return res.json({
+          ok: true,
+          message: 'Force score sync completed',
+          syncId: context.syncId,
+          ...result,
+        })
       } catch (error) {
         return next(error)
       }

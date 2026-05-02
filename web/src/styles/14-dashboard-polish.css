@@ -3401,7 +3401,6 @@ body.dark-theme .fantasy-hub-main {
 .upload-actions-row {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 0.55rem;
   flex-wrap: wrap;
 }

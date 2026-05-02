@@ -122,6 +122,16 @@ class MatchMockRepository {
       stage: match.stage,
       stageLabel: match.stageLabel,
       venue: match.venue,
+      sourceKey: match.sourceKey || match.source_key || null,
+      liveSync: match.liveSync || {
+        enabled: true,
+        provider: 'cricbuzz',
+        providerMatchId: match.sourceKey || match.source_key || null,
+        lineupSyncedAt: null,
+        lastScoreSyncAt: null,
+        lastProviderStatus: '',
+        lastError: '',
+      },
       createdAt: match.createdAt,
       updatedAt: match.updatedAt,
     }

@@ -72,6 +72,7 @@ function ParticipantsCard({
   const isFixedRosterContest = contestMode === 'fixed_roster'
   const normalizedStatus = normalizeMatchStatus(activeMatch?.status)
   const isNotStarted = normalizedStatus === 'notstarted'
+  const isEditableStatus = isNotStarted || normalizedStatus === 'started'
   const canViewAllTeams =
     isLoggedIn &&
     (normalizedStatus === 'inprogress' ||
@@ -93,13 +94,13 @@ function ParticipantsCard({
     return isViewerRow(player)
   }
   const showFixedRosterNote = isFixedRosterContest
-  const showPrestartNote = Boolean(activeMatch) && isNotStarted && !isFixedRosterContest
+  const showPrestartNote = Boolean(activeMatch) && isEditableStatus && !isFixedRosterContest
   const showNoRowsNote = Number(joinedCount || 0) > 0 && participants.length === 0
   const showLoadingNote = isLoading
   const hasNotes =
     showFixedRosterNote || showPrestartNote || showNoRowsNote || showLoadingNote
   const canViewTeams = participants.some((player) => canViewPlayerTeam(player))
-  const canEditTeams = !isFixedRosterContest && (isNotStarted || canEditFullTeams)
+  const canEditTeams = !isFixedRosterContest && (isEditableStatus || canEditFullTeams)
   const showMissingSubmissionState = canSeeMissingTeams && !isFixedRosterContest
   const columns = [
     {

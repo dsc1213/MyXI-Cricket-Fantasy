@@ -67,6 +67,14 @@
   line-height: 1.35;
 }
 
+.ipl-team-text {
+  color: var(--ipl-team-text-light);
+}
+
+body.dark-theme .ipl-team-text {
+  color: var(--ipl-team-text-dark);
+}
+
 .menu-backdrop {
   position: fixed;
   inset: 0;
@@ -390,6 +398,83 @@
 .contest-headline .team-note + .team-note,
 .contest-headline .error-text {
   margin-top: 0.08rem;
+}
+
+.contest-score-meta-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: flex-start;
+  column-gap: clamp(0.75rem, 3vw, 2rem);
+  row-gap: 0.34rem;
+  margin-top: 0.08rem;
+}
+
+.contest-score-meta-row .last-score-meta {
+  min-width: 0;
+}
+
+.contest-live-score-summary {
+  display: grid;
+  gap: 0.16rem;
+  margin-top: 0;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.contest-live-score-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.32rem;
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.contest-live-score-row span {
+  min-width: 2.6rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.contest-live-score-row strong {
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.contest-live-score-row .contest-live-score-muted {
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+
+.contest-live-score-row small {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.contest-live-score-row.team-side-a span {
+  color: var(--ipl-team-text-light, #b45309);
+}
+
+.contest-live-score-row.team-side-b span {
+  color: var(--ipl-team-text-light, #0284c7);
+}
+
+body.dark-theme .contest-live-score-row.team-side-a span {
+  color: var(--ipl-team-text-dark, #facc15);
+}
+
+body.dark-theme .contest-live-score-row.team-side-b span {
+  color: var(--ipl-team-text-dark, #67e8f9);
+}
+
+@media (max-width: 340px) {
+  .contest-score-meta-row {
+    grid-template-columns: 1fr;
+    gap: 0.34rem;
+  }
 }
 
 .sticky-table-wrap {
@@ -871,10 +956,14 @@ body.dark-theme .team-preview-panel.solid {
 }
 
 .team-preview-team-tag {
-  color: rgba(134, 239, 172, 0.82);
+  color: var(--ipl-team-text-light, rgba(22, 101, 52, 0.9));
   font-size: 0.5rem;
   font-weight: 600;
   opacity: 0.9;
+}
+
+body.dark-theme .team-preview-team-tag {
+  color: var(--ipl-team-text-dark, rgba(134, 239, 172, 0.82));
 }
 
 .team-preview-meta-note {

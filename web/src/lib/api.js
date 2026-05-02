@@ -11,6 +11,7 @@ const inFlightGetRequests = new Map()
 const apiActivityListeners = new Set()
 let pendingApiRequestCount = 0
 let pendingRefreshRequest = null
+let pendingLiveScoreSyncRequest = null
 const SESSION_REFRESH_WINDOW_MS = 30 * 1000
 
 const emitApiActivity = () => {
@@ -408,6 +409,54 @@ const fetchDashboardPageLoadData = async () => {
       throw error
     }
   })
+}
+
+const syncLiveScoresNow = async ({ reason = 'ui-refresh' } = {}) => {
+  if (pendingLiveScoreSyncRequest) return pendingLiveScoreSyncRequest
+
+  const options = {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  }
+
+  pendingLiveScoreSyncRequest = (async () => {
+    let data = null
+    try {
+      data = await request('/api/live-score/sync-now', options)
+    } catch (firstError) {
+      try {
+        data = await request('/live-score/sync-now', options)
+      } catch (secondError) {
+        return {
+          ok: false,
+          message: secondError?.message || firstError?.message || 'Live score sync failed',
+          error: secondError?.message || firstError?.message || 'Live score sync failed',
+          reason,
+        }
+      }
+    }
+    if (data?.ok !== false) {
+      invalidateAppQueryCache((key) =>
+        key === 'dashboardPageLoadData' ||
+        key.startsWith('contest:') ||
+        key.startsWith('contestMatches:') ||
+        key.startsWith('contestParticipants:') ||
+        key.startsWith('contestLeaderboard:') ||
+        key.startsWith('contestUserMatchScores:') ||
+        key.startsWith('contestUserPlayerBreakdown:') ||
+        key.startsWith('matchLineups:') ||
+        key.startsWith('teamPool:') ||
+        key.startsWith('userPicks:') ||
+        key.startsWith('adminMatchScores:') ||
+        key.startsWith('tournamentMatches:'),
+      )
+    }
+    return data
+  })().finally(() => {
+    pendingLiveScoreSyncRequest = null
+  })
+
+  return pendingLiveScoreSyncRequest
 }
 
 const deleteAuditLogs = async ({ ids, actorUserId }) => {
@@ -1028,6 +1077,27 @@ const updateAdminMatchStatus = async ({ id, status }) => {
   )
   return data
 }
+const forceAdminLiveScoreSync = async ({ id }) => {
+  const data = await request(`/admin/matches/${id}/live-score/force-sync`, {
+    method: 'POST',
+  })
+  invalidateAppQueryCache((key) =>
+    key === 'dashboardPageLoadData' ||
+    key.startsWith('adminMatchScores:') ||
+    key.startsWith('tournamentMatches:') ||
+    key.startsWith('contestMatches:') ||
+    key.startsWith('contestParticipants:') ||
+    key.startsWith('contestLeaderboard:') ||
+    key.startsWith('contestUserMatchScores:') ||
+    key.startsWith('contestUserPlayerBreakdown:') ||
+    key.startsWith('teamPool:') ||
+    key.startsWith('userPicks:'),
+  )
+  await Promise.allSettled([
+    primeCachedGet('dashboardPageLoadData', () => request('/page-load-data')),
+  ])
+  return data
+}
 const replaceAdminMatchBackups = async ({ id }) => {
   const data = await request(`/admin/matches/${id}/replace-backups`, {
     method: 'POST',
@@ -1253,6 +1323,7 @@ export {
   resetPassword,
   changePassword,
   fetchDashboardPageLoadData,
+  syncLiveScoresNow,
   deleteAuditLogs,
   processExcelMatchScores,
   saveScoringRules,
@@ -1305,6 +1376,7 @@ export {
   confirmPendingTournamentRemoval,
   rejectPendingTournamentRemoval,
   updateAdminMatchStatus,
+  forceAdminLiveScoreSync,
   replaceAdminMatchBackups,
   fetchAdminTeamSquads,
   upsertAdminTeamSquad,

@@ -9,6 +9,114 @@ const factory = createRepositoryFactory()
 const STARTING_SOON_WINDOW_MS = 6 * 60 * 60 * 1000
 const FIXED_ROSTER_COUNTED_SIZE = 11
 
+const oversToBalls = (overs = 0) => {
+  const raw = (overs ?? 0).toString()
+  const [whole, partial = '0'] = raw.split('.')
+  const completedOvers = Number(whole || 0)
+  const extraBalls = Number(partial.slice(0, 1) || 0)
+  if (!Number.isFinite(completedOvers) || !Number.isFinite(extraBalls)) return 0
+  return completedOvers * 6 + Math.min(extraBalls, 5)
+}
+
+const ballsToOversText = (balls = 0) => {
+  const safeBalls = Math.max(0, Number(balls || 0))
+  const overs = Math.floor(safeBalls / 6)
+  const remainder = safeBalls % 6
+  return remainder ? `${overs}.${remainder}` : `${overs}`
+}
+
+const buildLiveScoreSummary = ({ match = {}, score = null, playersById = new Map() }) => {
+  if (!score?.playerStats?.length) return []
+  const teamKeys = [
+    match.teamA || match.teamAKey || match.home,
+    match.teamB || match.teamBKey || match.away,
+  ]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+  const summaryByTeam = new Map(
+    teamKeys.map((teamKey) => [
+      teamKey,
+      {
+        team: teamKey,
+        runs: 0,
+        wickets: 0,
+        bowlingBalls: 0,
+        battingBalls: 0,
+        battingOrder: null,
+        hasBatted: false,
+        hasAuthoritativeTotal: false,
+      },
+    ]),
+  )
+
+  for (const row of score.playerStats || []) {
+    const player = playersById.get(Number(row.playerId)) || {}
+    const team = String(row.team || player.teamKey || '').trim()
+    if (!summaryByTeam.has(team)) continue
+    const target = summaryByTeam.get(team)
+    const battingOrder =
+      row.battingOrder == null || row.battingOrder === ''
+        ? null
+        : Number(row.battingOrder)
+    const hasBattingStats =
+      Number(row.runs || 0) > 0 ||
+      Number(row.ballsFaced || 0) > 0 ||
+      row.dismissed === true ||
+      battingOrder != null
+    const hasInningsTotal =
+      row.inningsRuns != null ||
+      row.inningsWickets != null ||
+      row.inningsBalls != null
+    if (hasInningsTotal) {
+      target.runs = Number(row.inningsRuns || 0)
+      target.wickets = Number(row.inningsWickets || 0)
+      target.battingBalls = Number(row.inningsBalls || 0)
+      target.hasAuthoritativeTotal = true
+      target.hasBatted = true
+    } else if (!target.hasAuthoritativeTotal && hasBattingStats) {
+      target.runs += Number(row.runs || 0)
+      target.wickets += row.dismissed === true ? 1 : 0
+      target.hasBatted = true
+    }
+    if (battingOrder != null && Number.isFinite(battingOrder)) {
+      target.battingOrder =
+        target.battingOrder == null
+          ? battingOrder
+          : Math.min(target.battingOrder, battingOrder)
+    }
+    target.bowlingBalls += oversToBalls(row.overs || 0)
+  }
+
+  const rows = teamKeys
+    .map((teamKey, index) => {
+      const row = summaryByTeam.get(teamKey)
+      const opponentKey = teamKeys[index === 0 ? 1 : 0]
+      const opponent = summaryByTeam.get(opponentKey)
+      const battingBalls = row.battingBalls || opponent?.bowlingBalls || 0
+      return {
+        team: row.team,
+        score: `${row.runs}/${row.wickets}`,
+        overs: ballsToOversText(battingBalls),
+        label: `${row.team}: ${row.runs}/${row.wickets} ${ballsToOversText(battingBalls)} ov`,
+        runs: row.runs,
+        wickets: row.wickets,
+        balls: battingBalls,
+        battingOrder: row.battingOrder,
+        hasBatted: row.hasBatted,
+        isYetToBat: !row.hasBatted,
+        originalIndex: index,
+      }
+    })
+
+  if (!rows.some((row) => row.hasBatted || row.balls > 0)) return []
+  return rows.sort((left, right) => {
+    const leftOrder = left.battingOrder ?? (left.hasBatted ? 50 : 100)
+    const rightOrder = right.battingOrder ?? (right.hasBatted ? 50 : 100)
+    if (leftOrder !== rightOrder) return leftOrder - rightOrder
+    return left.originalIndex - right.originalIndex
+  })
+}
+
 const normalizeContestDateInput = (value) => {
   const raw = (value || '').toString().trim()
   if (!raw) return null
@@ -421,6 +529,7 @@ class ContestService {
               m.team_b_key as "teamBKey",
               m.team_b as "teamB",
               COALESCE(
+                NULLIF(al.changes->>'actorLabel', ''),
                 NULLIF(u.game_name, ''),
                 NULLIF(u.name, ''),
                 NULLIF(u.user_id, '')
@@ -1067,6 +1176,7 @@ class ContestService {
     const result = await dbQuery(
       `SELECT id, name,
               team_a as "teamA", team_b as "teamB",
+              team_a_key as "teamAKey", team_b_key as "teamBKey",
               start_time as "startTime", status
        FROM matches
        WHERE id = ANY($1::bigint[])
@@ -1079,6 +1189,8 @@ class ContestService {
         matchNo: index + 1,
         home: row.teamA || '',
         away: row.teamB || '',
+        teamAKey: row.teamAKey || row.teamA || '',
+        teamBKey: row.teamBKey || row.teamB || '',
         startAt: row.startTime || '',
         date: row.startTime ? row.startTime.toString().slice(0, 10) : '',
       }),
@@ -1122,6 +1234,18 @@ class ContestService {
         String(row.matchId),
         Number(row.count || 0),
       ]),
+    )
+    const scoreRepo = await factory.getMatchScoreRepository()
+    const playerRepo = await factory.getPlayerRepository()
+    const [scoreRows, tournamentPlayers] = await Promise.all([
+      Promise.all(filteredRows.map((row) => scoreRepo.findLatestActive(row.id))),
+      playerRepo.findByTournament(contest.tournamentId),
+    ])
+    const scoreByMatchId = new Map(
+      scoreRows.filter(Boolean).map((score) => [String(score.matchId), score]),
+    )
+    const playersById = new Map(
+      (tournamentPlayers || []).map((player) => [Number(player.id), player]),
     )
 
     let viewerJoined = false
@@ -1170,6 +1294,11 @@ class ContestService {
       submittedCount: Number(submittedCountByMatch.get(String(row.id)) || 0),
       joinedCount,
       viewerJoined,
+      liveScoreSummary: buildLiveScoreSummary({
+        match: row,
+        score: scoreByMatchId.get(String(row.id)),
+        playersById,
+      }),
     }))
   }
 

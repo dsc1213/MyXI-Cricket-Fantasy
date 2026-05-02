@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom'
 import LoadingNote from '../ui/LoadingNote.jsx'
 import LastScoreMeta from '../ui/LastScoreMeta.jsx'
+import { getIplTeamStyle } from '../../lib/iplTeamPalette.js'
 
 function ContestTopBar({
   contestTitle,
   tournamentName,
+  liveScoreSummary = [],
   lastScoreUpdatedAt = '',
   lastScoreUpdatedBy = '',
   lastUpdatedContext = '',
@@ -15,6 +17,9 @@ function ContestTopBar({
   actions = null,
 }) {
   const isAuctionView = viewMode === 'auction'
+  const visibleLiveScores = Array.isArray(liveScoreSummary)
+    ? liveScoreSummary.slice(0, 2)
+    : []
   const rootHref = isAuctionView ? '/auction' : '/fantasy'
   const rootLabel = isAuctionView ? 'Auction' : 'Fantasy'
   const tournamentHref = isAuctionView
@@ -36,12 +41,35 @@ function ContestTopBar({
           {!!actions && <div className="top-actions">{actions}</div>}
         </div>
         <p className="team-note">{tournamentName}</p>
-        <LastScoreMeta
-          lastScoreUpdatedAt={lastScoreUpdatedAt}
-          lastScoreUpdatedBy={lastScoreUpdatedBy}
-          lastUpdatedContext={lastUpdatedContext}
-          compact
-        />
+        <div className="contest-score-meta-row">
+          <LastScoreMeta
+            lastScoreUpdatedAt={lastScoreUpdatedAt}
+            lastScoreUpdatedBy={lastScoreUpdatedBy}
+            lastUpdatedContext={lastUpdatedContext}
+            compact
+          />
+          {visibleLiveScores.length ? (
+            <div className="contest-live-score-summary" aria-label="Selected match score">
+              {visibleLiveScores.map((row, index) => (
+                <p
+                  className={`contest-live-score-row team-side-${index === 0 ? 'a' : 'b'}`}
+                  key={`${row.team}-${index}`}
+                  style={getIplTeamStyle(row.team)}
+                >
+                  <span>{row.team}</span>
+                  {row.isYetToBat ? (
+                    <strong className="contest-live-score-muted">Yet to bat</strong>
+                  ) : (
+                    <>
+                      <strong>{row.score}</strong>
+                      <small>{`${row.overs} ov`}</small>
+                    </>
+                  )}
+                </p>
+              ))}
+            </div>
+          ) : null}
+        </div>
         <LoadingNote loading={isLoading} errorText={errorText} />
       </div>
     </div>

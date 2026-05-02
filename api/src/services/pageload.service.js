@@ -7,7 +7,6 @@ import userRepository from '../repositories/user.repository.js'
 import auditLogService from './audit-log.service.js'
 
 const factory = createRepositoryFactory()
-const emptyPointsRuleTemplate = cloneDefaultPointsRules()
 
 const loadPointsRuleTemplate = async () => {
   const globalRules = await scoringRuleService.getDefaultScoringRules()

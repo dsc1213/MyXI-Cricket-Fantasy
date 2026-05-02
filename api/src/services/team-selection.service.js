@@ -32,7 +32,8 @@ class TeamSelectionService {
     if (!match) throw new Error('Match not found')
     const resolvedMatch = mapMatchWithDerivedStatus(match)
     const allowLockedEdit = Boolean(options?.allowLockedEdit)
-    if (resolvedMatch.status !== 'notstarted' && !allowLockedEdit) {
+    const isLockedStatus = ['inprogress', 'completed'].includes(resolvedMatch.status)
+    if (isLockedStatus && !allowLockedEdit) {
       const error = new Error('Match is locked. Teams cannot be edited after start time.')
       error.statusCode = 403
       throw error

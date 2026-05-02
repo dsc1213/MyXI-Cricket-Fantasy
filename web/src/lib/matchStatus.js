@@ -8,6 +8,7 @@ export const formatMatchStatus = (value = '') => {
   const normalized = normalizeMatchStatus(value)
   if (normalized === 'completed') return 'Completed'
   if (normalized === 'inprogress') return 'In Progress'
+  if (normalized === 'started') return 'Started'
   if (normalized === 'notstarted') return 'Not Started'
   return value || '-'
 }
