@@ -30,6 +30,7 @@ import {
 } from '../lib/api.js'
 import { getStoredUser } from '../lib/auth.js'
 import { getDisplayName } from '../lib/displayName.js'
+import { sortMatchesForSelection } from '../lib/matchSort.js'
 import { normalizeMatchStatus } from '../lib/matchStatus.js'
 
 const normalizeContestMatches = (payload) => {
@@ -55,50 +56,8 @@ const normalizeContestParticipants = (payload) => {
   }
 }
 
-const getMatchStartTime = (match) => {
-  const raw = (match?.startAt || match?.startTime || '').toString().trim()
-  if (!raw) return Number.POSITIVE_INFINITY
-  const parsed = new Date(raw)
-  const time = parsed.getTime()
-  return Number.isNaN(time) ? Number.POSITIVE_INFINITY : time
-}
-
-const getLocalDayStart = (timestamp) => {
-  const day = new Date(timestamp)
-  day.setHours(0, 0, 0, 0)
-  return day.getTime()
-}
-
-const getMatchDateBucket = (matchStartTime, todayStart) => {
-  if (!Number.isFinite(matchStartTime)) return 3
-  const matchDayStart = getLocalDayStart(matchStartTime)
-  if (matchDayStart === todayStart) return 0
-  if (matchDayStart > todayStart) return 1
-  return 2
-}
-
-const sortContestMatches = (rows = []) =>
-  [...rows].sort((left, right) => {
-    const todayStart = getLocalDayStart(Date.now())
-    const leftStart = getMatchStartTime(left)
-    const rightStart = getMatchStartTime(right)
-    const leftBucket = getMatchDateBucket(leftStart, todayStart)
-    const rightBucket = getMatchDateBucket(rightStart, todayStart)
-
-    if (leftBucket !== rightBucket) {
-      return leftBucket - rightBucket
-    }
-
-    const timeDiff = leftStart - rightStart
-    if (timeDiff !== 0) return timeDiff
-
-    return String(left?.matchNo || left?.id || '').localeCompare(
-      String(right?.matchNo || right?.id || ''),
-    )
-  })
-
 const getDefaultSelectedMatchId = (rows = [], currentSelectedMatchId = '') => {
-  const sortedRows = sortContestMatches(rows)
+  const sortedRows = sortMatchesForSelection(rows)
   if (
     currentSelectedMatchId &&
     sortedRows.some((match) => String(match.id) === String(currentSelectedMatchId))
@@ -354,7 +313,7 @@ function ContestDetail() {
       }),
     )
 
-  const sortedMatches = useMemo(() => sortContestMatches(matches), [matches])
+  const sortedMatches = useMemo(() => sortMatchesForSelection(matches), [matches])
   const activeSortedMatch =
     sortedMatches.find((match) => match.id === selectedMatchId) || sortedMatches[0]
 

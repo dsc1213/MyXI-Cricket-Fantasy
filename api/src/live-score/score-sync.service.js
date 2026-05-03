@@ -9,7 +9,7 @@ import matchScoreService from '../services/match-score.service.js'
 import { appendScoredPlayersToLineups, parseJsonArray } from './lineup-impact.service.js'
 import { logAutoSyncActivity } from './activity.service.js'
 import { recordLiveScoreDbWrite, recordLiveScoreLog } from './logger.js'
-import { warnLiveScore } from './settings.js'
+import { getOnDemandMinIntervalMs, warnLiveScore } from './settings.js'
 import { canonicalizePlayerStatsWithSquad } from './player-name-match.js'
 
 const runningMatchIds = new Set()
@@ -31,6 +31,7 @@ const findScoreSyncMatches = async () => {
             m.start_time as "startTime",
             m.source_key as "sourceKey",
             mls.provider_match_id as "providerMatchId",
+            mls.last_score_sync_at as "lastScoreSyncAt",
             COALESCE(mls.live_sync_enabled, true) as "liveSyncEnabled"
      FROM matches m
      LEFT JOIN match_live_syncs mls ON mls.match_id = m.id
@@ -402,9 +403,45 @@ const runScoreSync = async (context = {}) => {
     }
   }
   const tournamentContextById = new Map()
+  const minIntervalMs = getOnDemandMinIntervalMs()
+  const now = Date.now()
 
   for (const match of matches) {
     try {
+      const lastScoreSyncAt = match.lastScoreSyncAt
+        ? new Date(match.lastScoreSyncAt).getTime()
+        : 0
+      if (
+        minIntervalMs > 0 &&
+        Number.isFinite(lastScoreSyncAt) &&
+        lastScoreSyncAt > 0 &&
+        now - lastScoreSyncAt < minIntervalMs
+      ) {
+        const nextAllowedAt = new Date(lastScoreSyncAt + minIntervalMs).toISOString()
+        summary.skipped += 1
+        context.liveStatus.latestMatchScores = {
+          status: 'throttled',
+          matchId: match.id,
+          providerMatchId: match.providerMatchId,
+          message: `Score sync skipped for ${matchLabel(match)} until ${nextAllowedAt}`,
+        }
+        await recordLiveScoreLog(context, {
+          step: 'score-sync',
+          status: 'skipped',
+          matchId: match.id,
+          tournamentId: match.tournamentId,
+          providerMatchId: match.providerMatchId,
+          matchLabel: matchLabel(match),
+          message: 'Score sync throttled for this match',
+          details: {
+            fn: 'runScoreSync',
+            minIntervalMs,
+            lastScoreSyncAt: match.lastScoreSyncAt,
+            nextAllowedAt,
+          },
+        })
+        continue
+      }
       const tournamentKey = String(match.tournamentId)
       if (!tournamentContextById.has(tournamentKey)) {
         tournamentContextById.set(

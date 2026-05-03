@@ -6,6 +6,9 @@ const sectionDescriptions = {
   fielding: 'Catches, stumpings, and runout credits sourced from dismissal details only.',
 }
 
+const shouldShowStrikeRateNote = (section, rowId) =>
+  section === 'batting' && rowId === 'strikeRate150'
+
 function ScoringRules() {
   const pointsRules = cloneDefaultPointsRules()
 
@@ -32,9 +35,19 @@ function ScoringRules() {
             </div>
             <div className="points-reference-list">
               {rows.map((row) => (
-                <div className="points-input-row points-reference-row" key={row.id}>
-                  <span>{row.label}</span>
-                  <input type="number" value={row.value} readOnly disabled />
+                <div key={row.id}>
+                  {shouldShowStrikeRateNote(section, row.id) ? (
+                    <p className="points-rule-note">
+                      <span className="points-rule-note-icon" aria-hidden="true">
+                        i
+                      </span>
+                      SR points apply only after 15 balls faced.
+                    </p>
+                  ) : null}
+                  <div className="points-input-row points-reference-row">
+                    <span>{row.label}</span>
+                    <input type="number" value={row.value} readOnly disabled />
+                  </div>
                 </div>
               ))}
             </div>

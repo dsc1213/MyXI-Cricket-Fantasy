@@ -8,6 +8,7 @@ import {
   fetchTeamPool,
   fetchTournamentMatches,
   fetchDashboardPageLoadData,
+  getFreshDashboardPageLoadData,
   saveMatchScores,
   saveScoringRules,
   resetManualMatchScores,
@@ -320,9 +321,56 @@ function Dashboard({ defaultPanel = 'joined' }) {
   useEffect(() => {
     let active = true
 
+    const hydrateDashboardData = ({ data, allContestsRes, joinedContestsRes }) => {
+      const joinedFromEndpoint = Array.isArray(joinedContestsRes)
+        ? joinedContestsRes
+        : []
+      const joinedFromPageLoad = Array.isArray(data?.joinedContests)
+        ? data.joinedContests
+        : []
+      const joinedPageLoadById = new Map(
+        joinedFromPageLoad.map((contest) => [String(contest.id), contest]),
+      )
+      const mergedJoinedFromEndpoint = joinedFromEndpoint.map((contest) => ({
+        ...joinedPageLoadById.get(String(contest.id)),
+        ...contest,
+      }))
+      const fixedRosterPublicContests = (allContestsRes || []).filter(
+        (contest) => (contest?.mode || '').toString().toLowerCase() === 'fixed_roster',
+      )
+      const toDashboardContests = (joinedRows = [], publicAuctionRows = []) => {
+        const byId = new Map()
+        ;(joinedRows || []).forEach((contest) => {
+          byId.set(String(contest.id), contest)
+        })
+        ;(publicAuctionRows || []).forEach((contest) => {
+          const id = String(contest.id)
+          byId.set(id, { ...contest, ...(byId.get(id) || {}) })
+        })
+        return Array.from(byId.values())
+      }
+      const joinedFromAll = (allContestsRes || []).filter(
+        (contest) => contest?.joined || contest?.hasTeam,
+      )
+      setPageLoadData({
+        tournaments: data?.tournaments || [],
+        joinedContests:
+          mergedJoinedFromEndpoint.length > 0
+            ? toDashboardContests(mergedJoinedFromEndpoint, fixedRosterPublicContests)
+            : toDashboardContests(joinedFromAll, fixedRosterPublicContests),
+        pointsRuleTemplate: normalizePointsRuleTemplate(data?.pointsRuleTemplate),
+        adminManager: data?.adminManager || [],
+        masterConsole: data?.masterConsole || [],
+        auditLogs: data?.auditLogs || [],
+      })
+      setPointsRules(normalizePointsRuleTemplate(data?.pointsRuleTemplate))
+      setAllContests(allContestsRes || [])
+    }
+
     const load = async () => {
       try {
-        setIsLoading(true)
+        const cachedPageLoadData = getFreshDashboardPageLoadData()
+        setIsLoading(!cachedPageLoadData)
         setErrorText('')
         await syncLiveScoresNow({ reason: 'dashboard-load' })
         if (!active) return
@@ -332,49 +380,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
           fetchContests({ userId: currentUserId, joined: true }),
         ])
         if (!active) return
-        const joinedFromEndpoint = Array.isArray(joinedContestsRes)
-          ? joinedContestsRes
-          : []
-        const joinedFromPageLoad = Array.isArray(data?.joinedContests)
-          ? data.joinedContests
-          : []
-        const joinedPageLoadById = new Map(
-          joinedFromPageLoad.map((contest) => [String(contest.id), contest]),
-        )
-        const mergedJoinedFromEndpoint = joinedFromEndpoint.map((contest) => ({
-          ...joinedPageLoadById.get(String(contest.id)),
-          ...contest,
-        }))
-        const fixedRosterPublicContests = (allContestsRes || []).filter(
-          (contest) => (contest?.mode || '').toString().toLowerCase() === 'fixed_roster',
-        )
-        const toDashboardContests = (joinedRows = [], publicAuctionRows = []) => {
-          const byId = new Map()
-          ;(joinedRows || []).forEach((contest) => {
-            byId.set(String(contest.id), contest)
-          })
-          ;(publicAuctionRows || []).forEach((contest) => {
-            const id = String(contest.id)
-            byId.set(id, { ...contest, ...(byId.get(id) || {}) })
-          })
-          return Array.from(byId.values())
-        }
-        const joinedFromAll = (allContestsRes || []).filter(
-          (contest) => contest?.joined || contest?.hasTeam,
-        )
-        setPageLoadData({
-          tournaments: data?.tournaments || [],
-          joinedContests:
-            mergedJoinedFromEndpoint.length > 0
-              ? toDashboardContests(mergedJoinedFromEndpoint, fixedRosterPublicContests)
-              : toDashboardContests(joinedFromAll, fixedRosterPublicContests),
-          pointsRuleTemplate: normalizePointsRuleTemplate(data?.pointsRuleTemplate),
-          adminManager: data?.adminManager || [],
-          masterConsole: data?.masterConsole || [],
-          auditLogs: data?.auditLogs || [],
-        })
-        setPointsRules(normalizePointsRuleTemplate(data?.pointsRuleTemplate))
-        setAllContests(allContestsRes || [])
+        hydrateDashboardData({ data, allContestsRes, joinedContestsRes })
       } catch (error) {
         if (!active) return
         setErrorText(error.message || 'Failed to load dashboard data')

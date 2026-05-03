@@ -4,6 +4,7 @@ const createLiveScoreSyncContext = (trigger = 'unknown') => ({
   syncId: `ls_${Date.now()}_${randomUUID().slice(0, 8)}`,
   trigger,
   scraperCalls: [],
+  dbWrites: [],
   liveStatus: {
     matchId: {
       status: 'pending',
@@ -68,8 +69,33 @@ const recordLiveScoreLog = async (context = {}, entry = {}) => {
   return payload
 }
 
-const recordLiveScoreDbWrite = async (context = {}, entry = {}) =>
-  recordLiveScoreLog(context, {
+const recordLiveScoreDbWrite = async (context = {}, entry = {}) => {
+  const dbWrite = {
+    table: entry.table || entry.details?.table || '',
+    action: entry.action || entry.details?.action || '',
+    rows: entry.rows ?? entry.details?.rows ?? 0,
+    fields: Array.isArray(entry.fields)
+      ? entry.fields
+      : (entry.fields || entry.details?.fields || '')
+          .toString()
+          .split(',')
+          .map((field) => field.trim())
+          .filter(Boolean),
+    matchId: entry.matchId == null ? context.matchId || null : String(entry.matchId),
+    tournamentId:
+      entry.tournamentId == null ? context.tournamentId || null : String(entry.tournamentId),
+    providerMatchId:
+      entry.providerMatchId == null
+        ? context.providerMatchId || null
+        : String(entry.providerMatchId),
+    matchLabel: entry.matchLabel || context.matchLabel || '',
+    message: entry.message || '',
+    details: safeDetails(entry.details),
+  }
+  if (Array.isArray(context.dbWrites)) {
+    context.dbWrites.push(dbWrite)
+  }
+  return recordLiveScoreLog(context, {
     step: 'db-write',
     status: 'written',
     ...entry,
@@ -83,5 +109,6 @@ const recordLiveScoreDbWrite = async (context = {}, entry = {}) =>
       ...(entry.details || {}),
     },
   })
+}
 
 export { createLiveScoreSyncContext, recordLiveScoreDbWrite, recordLiveScoreLog }

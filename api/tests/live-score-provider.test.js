@@ -294,6 +294,22 @@ describe('live score provider', () => {
     expect(isProviderActiveScorecard({ status: 'Preview', innings: [] })).toBe(false)
   })
 
+  it('treats innings-break scorecards as active when first innings has a total', () => {
+    expect(
+      isProviderActiveScorecard({
+        status: 'Innings Break',
+        innings: [
+          {
+            inningsTitle: 'Mumbai Indians Innings',
+            totalScore: '159/7 (20 Ov)',
+            batting: [],
+            bowling: [],
+          },
+        ],
+      }),
+    ).toBe(true)
+  })
+
   it('expands abbreviated team aliases for discovery', () => {
     expect(getTeamAliases('KKR')).toContain('kolkata knight riders')
     expect(getTeamAliases('LSG')).toContain('lucknow super giants')
