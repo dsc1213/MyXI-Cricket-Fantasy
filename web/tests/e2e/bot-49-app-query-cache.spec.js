@@ -85,3 +85,80 @@ test('shared app query cache reuses repeated GETs in-session and reload fetches 
   expect(secondRun).toEqual([{ id: 'm-1', name: 'MI vs CSK' }])
   expect(matchRequestCount).toBe(2)
 })
+
+test('team copy sources reuses repeated GETs for the same contest match and user', async ({
+  page,
+}) => {
+  let copySourcesRequestCount = 0
+
+  await page.addInitScript(() => {
+    const now = Date.now()
+    window.localStorage.setItem(
+      'myxi-user',
+      JSON.stringify({
+        id: 101,
+        userId: 'HunterCherryXI',
+        gameName: 'HunterCherryXI',
+        name: 'Hunter Cherry',
+        role: 'admin',
+        token: 'e2e-token',
+        tokenExpiresAt: now + 12 * 60 * 60 * 1000,
+      }),
+    )
+    window.localStorage.setItem('myxi-token', 'e2e-token')
+  })
+
+  await page.route('**/health', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true }),
+    })
+  })
+
+  await page.route('**/page-load-data', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        tournaments: [],
+        joinedContests: [],
+        pointsRuleTemplate: {},
+        adminManager: [],
+        masterConsole: [],
+        auditLogs: [],
+      }),
+    })
+  })
+
+  await page.route('**/team-selection/copy-sources**', async (route) => {
+    copySourcesRequestCount += 1
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ sources: [{ id: 'selection-1', contestName: 'Test canada' }] }),
+    })
+  })
+
+  await page.goto('/home', { waitUntil: 'domcontentloaded' })
+
+  const result = await page.evaluate(async () => {
+    const api = await import('/src/lib/api.js')
+    const params = {
+      contestId: '45',
+      matchId: '48',
+      userId: 'HunterCherryXI',
+    }
+    const [first, second, third] = await Promise.all([
+      api.fetchTeamCopySources(params),
+      api.fetchTeamCopySources(params),
+      api.fetchTeamCopySources(params),
+    ])
+    return { first, second, third }
+  })
+
+  expect(result.first.sources).toHaveLength(1)
+  expect(result.second.sources).toHaveLength(1)
+  expect(result.third.sources).toHaveLength(1)
+  expect(copySourcesRequestCount).toBe(1)
+})

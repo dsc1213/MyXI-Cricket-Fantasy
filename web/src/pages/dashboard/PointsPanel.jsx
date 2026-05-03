@@ -14,6 +14,8 @@ function PointsPanel({
     bowling: 'Wickets, maidens, wides/no-balls, and economy slabs.',
     fielding: 'Catches, stumpings, and runout scoring from scorecard text.',
   }
+  const shouldShowStrikeRateNote = (section, rowId) =>
+    section === 'batting' && rowId === 'strikeRate150'
 
   return (
     <section className="dashboard-section">
@@ -44,15 +46,25 @@ function PointsPanel({
             </div>
             <div className="player-list">
               {rows.map((row) => (
-                <label className="points-input-row" key={row.id}>
-                  <span>{row.label}</span>
-                  <input
-                    type="number"
-                    value={row.value}
-                    disabled={!isEditable}
-                    onChange={(event) => updateRuleValue(section, row.id, event.target.value)}
-                  />
-                </label>
+                <div key={row.id}>
+                  {shouldShowStrikeRateNote(section, row.id) ? (
+                    <p className="points-rule-note">
+                      <span className="points-rule-note-icon" aria-hidden="true">
+                        i
+                      </span>
+                      SR points apply only after 15 balls faced.
+                    </p>
+                  ) : null}
+                  <label className="points-input-row">
+                    <span>{row.label}</span>
+                    <input
+                      type="number"
+                      value={row.value}
+                      disabled={!isEditable}
+                      onChange={(event) => updateRuleValue(section, row.id, event.target.value)}
+                    />
+                  </label>
+                </div>
               ))}
             </div>
           </div>

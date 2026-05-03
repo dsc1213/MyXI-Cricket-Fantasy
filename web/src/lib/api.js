@@ -2,11 +2,16 @@ import { updateStoredSession } from './auth.js'
 import {
   clearAllAppQueryCache,
   fetchCachedQuery,
+  getAppQueryCacheEntry,
   invalidateAppQueryCache,
   primeAppQueryCache,
 } from './appQueryCache.js'
+import { sortMatchesForSelection } from './matchSort.js'
 
 export const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
+const DASHBOARD_PAGE_LOAD_CACHE_MS = Number(
+  import.meta.env.VITE_DASHBOARD_PAGE_LOAD_CACHE_MS || 300000,
+)
 const inFlightGetRequests = new Map()
 const apiActivityListeners = new Set()
 let pendingApiRequestCount = 0
@@ -88,7 +93,25 @@ const withSortedParams = (params) => {
   return next.toString()
 }
 
-const cachedGet = (key, loader) => fetchCachedQuery({ key, loader })
+const cachedGet = (key, loader, options = {}) => fetchCachedQuery({ key, loader, ...options })
+
+const getFreshDashboardPageLoadData = () => {
+  const entry = getAppQueryCacheEntry('dashboardPageLoadData')
+  if (entry?.status !== 'success') return null
+  if (Date.now() - Number(entry.updatedAt || 0) >= DASHBOARD_PAGE_LOAD_CACHE_MS) return null
+  return entry.data || null
+}
+
+const hasLiveScoreDbChanges = (data = {}) => {
+  if (Array.isArray(data?.dbWrites) && data.dbWrites.length > 0) return true
+  if (Number(data?.discovery?.lineupsSynced || 0) > 0) return true
+  if (Number(data?.scoreSync?.synced || 0) > 0) return true
+  if (Number(data?.scoreSync?.completed || 0) > 0) return true
+  if (Number(data?.statusMaintenance?.started || 0) > 0) return true
+  if (Number(data?.statusMaintenance?.inprogress || 0) > 0) return true
+  if (Number(data?.statusMaintenance?.completed || 0) > 0) return true
+  return false
+}
 
 const primeCachedGet = async (key, loader) => {
   const data = await loader()
@@ -399,16 +422,20 @@ const logout = async () => {
 }
 
 const fetchDashboardPageLoadData = async () => {
-  return cachedGet('dashboardPageLoadData', async () => {
-    try {
-      return await request('/page-load-data')
-    } catch (error) {
-      if ((error?.message || '').includes('404')) {
-        return request('/bootstrap')
+  return cachedGet(
+    'dashboardPageLoadData',
+    async () => {
+      try {
+        return await request('/page-load-data')
+      } catch (error) {
+        if ((error?.message || '').includes('404')) {
+          return request('/bootstrap')
+        }
+        throw error
       }
-      throw error
-    }
-  })
+    },
+    { maxAgeMs: DASHBOARD_PAGE_LOAD_CACHE_MS },
+  )
 }
 
 const syncLiveScoresNow = async ({ reason = 'ui-refresh' } = {}) => {
@@ -435,7 +462,7 @@ const syncLiveScoresNow = async ({ reason = 'ui-refresh' } = {}) => {
         }
       }
     }
-    if (data?.ok !== false) {
+    if (data?.ok !== false && hasLiveScoreDbChanges(data)) {
       invalidateAppQueryCache((key) =>
         key === 'dashboardPageLoadData' ||
         key.startsWith('contest:') ||
@@ -603,7 +630,9 @@ const fetchContestMatches = ({ contestId, status, team, userId } = {}) => {
   if (team) params.set('team', team)
   if (userId) params.set('userId', userId)
   const query = withSortedParams(params)
-  return request(`/contests/${contestId}/matches${query ? `?${query}` : ''}`)
+  return request(`/contests/${contestId}/matches${query ? `?${query}` : ''}`).then(
+    sortMatchesForSelection,
+  )
 }
 
 const fetchContestParticipants = ({ contestId, matchId, userId, includeMissingTeams = false } = {}) => {
@@ -716,7 +745,9 @@ const fetchTeamCopySources = ({ contestId, matchId, userId } = {}) => {
   if (matchId) params.set('matchId', matchId)
   if (userId) params.set('userId', userId)
   const query = withSortedParams(params)
-  return request(`/team-selection/copy-sources${query ? `?${query}` : ''}`)
+  return cachedGet(`teamCopySources:${query || 'all'}`, () =>
+    request(`/team-selection/copy-sources${query ? `?${query}` : ''}`),
+  )
 }
 
 const copyTeamSelection = async ({
@@ -809,7 +840,8 @@ const fetchPlayerMatchBreakdown = ({ tournamentId, playerId } = {}) => {
     ),
   )
 }
-const fetchMatchOptions = () => cachedGet('matchOptions', () => request('/match-options'))
+const fetchMatchOptions = () =>
+  cachedGet('matchOptions', () => request('/match-options').then(sortMatchesForSelection))
 const fetchPrettyTournaments = () =>
   cachedGet('prettyTournaments', () => request('/tournaments/pretty'))
 const fetchPlayerOverrideContext = ({ contestId, matchId } = {}) => {
@@ -848,8 +880,11 @@ const fetchManualScoreContext = ({ tournamentId } = {}) => {
   const params = new URLSearchParams()
   if (tournamentId) params.set('tournamentId', tournamentId)
   const query = withSortedParams(params)
-  return cachedGet(`manualScoreContext:${query || 'all'}`, () =>
-    request(`/admin/match-score-context${query ? `?${query}` : ''}`),
+  return cachedGet(`manualScoreContext:${query || 'all'}`, async () =>
+    request(`/admin/match-score-context${query ? `?${query}` : ''}`).then((data) => ({
+      ...data,
+      matches: sortMatchesForSelection(data?.matches || []),
+    })),
   )
 }
 const fetchAdminMatchScores = ({ tournamentId, matchId } = {}) =>
@@ -983,7 +1018,9 @@ const fetchTournamentCatalog = () =>
   cachedGet('tournamentCatalog', () => request('/admin/tournaments/catalog'))
 const fetchTournamentMatches = (tournamentId = '') =>
   cachedGet(`tournamentMatches:${tournamentId}`, () =>
-    request(`/tournaments/${encodeURIComponent(tournamentId)}/matches`),
+    request(`/tournaments/${encodeURIComponent(tournamentId)}/matches`).then(
+      sortMatchesForSelection,
+    ),
   )
 const enableTournaments = async (ids = [], actorUserId = '') => {
   const data = await request('/admin/tournaments/enable', {
@@ -1188,7 +1225,9 @@ const fetchContestMatchOptions = (tournamentId = '') => {
   if (tournamentId) params.set('tournamentId', tournamentId)
   const query = withSortedParams(params)
   return cachedGet(`contestMatchOptions:${query || 'all'}`, () =>
-    request(`/admin/contest-match-options${query ? `?${query}` : ''}`),
+    request(`/admin/contest-match-options${query ? `?${query}` : ''}`).then(
+      sortMatchesForSelection,
+    ),
   )
 }
 const fetchAdminContestParticipants = (contestId) =>
@@ -1323,6 +1362,7 @@ export {
   resetPassword,
   changePassword,
   fetchDashboardPageLoadData,
+  getFreshDashboardPageLoadData,
   syncLiveScoresNow,
   deleteAuditLogs,
   processExcelMatchScores,

@@ -199,6 +199,8 @@ body.dark-theme .ipl-team-text {
 }
 
 .points-group-card {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   padding: 0.58rem 0.62rem;
   border: 1px solid var(--panel-border);
   border-radius: 14px;
@@ -262,6 +264,32 @@ body.dark-theme .ipl-team-text {
   min-height: 0;
   overflow: auto;
   padding-right: 0.15rem;
+}
+
+.points-rule-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  margin: 0.08rem 0 0.22rem;
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+.points-rule-note-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 0.82rem;
+  height: 0.82rem;
+  flex: 0 0 auto;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.56rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: lowercase;
 }
 
 .points-reference-grid {

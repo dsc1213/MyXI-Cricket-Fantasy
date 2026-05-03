@@ -9,6 +9,7 @@ import PlayingXiModalLink from '../../components/ui/PlayingXiModalLink.jsx'
 import SelectField from '../../components/ui/SelectField.jsx'
 import StickyTable from '../../components/ui/StickyTable.jsx'
 import { formatCompactMatchLabel } from '../../lib/matchLabels.js'
+import { sortMatchesForSelection } from '../../lib/matchSort.js'
 import {
   getPlayerDisplayRoleRank,
   sortPlayersByDisplayRole,
@@ -184,12 +185,16 @@ function UploadPanel({
     (isManualScorecards && isLoadingManualPool)
   const [activeManualCategory, setActiveManualCategory] = useState('batting')
   const activeColumns = categoryColumns[activeManualCategory] || categoryColumns.batting
+  const sortedManualMatches = useMemo(
+    () => sortMatchesForSelection(manualScoreContext?.matches || []),
+    [manualScoreContext],
+  )
   const selectedMatchMeta = useMemo(
     () =>
-      (manualScoreContext?.matches || []).find(
+      sortedManualMatches.find(
         (row) => String(row?.id) === String(manualMatchId),
       ) || null,
-    [manualMatchId, manualScoreContext],
+    [manualMatchId, sortedManualMatches],
   )
   const canMarkSelectedMatchComplete = Boolean(
     isScorecardsTab &&
@@ -935,7 +940,7 @@ function UploadPanel({
                 }}
               >
                 <option value="">Select match</option>
-                {(manualScoreContext?.matches || []).map((item) => (
+                {sortedManualMatches.map((item) => (
                   <option key={item.id} value={item.id}>
                     {formatCompactMatchLabel(item)}
                   </option>

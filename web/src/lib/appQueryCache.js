@@ -109,11 +109,23 @@ const invalidateAppQueryCache = (matcher) => {
   notify()
 }
 
-const fetchCachedQuery = async ({ key, loader, enabled = ENABLE_APP_QUERY_CACHE }) => {
+const isFreshEntry = (entry, maxAgeMs) => {
+  if (!entry?.updatedAt) return false
+  const numericMaxAge = Number(maxAgeMs)
+  if (!Number.isFinite(numericMaxAge) || numericMaxAge < 0) return true
+  return Date.now() - Number(entry.updatedAt || 0) < numericMaxAge
+}
+
+const fetchCachedQuery = async ({
+  key,
+  loader,
+  enabled = ENABLE_APP_QUERY_CACHE,
+  maxAgeMs = Number.POSITIVE_INFINITY,
+}) => {
   if (!enabled || !key) return loader()
 
   const existing = getEntry(key)
-  if (existing?.status === 'success') return existing.data
+  if (existing?.status === 'success' && isFreshEntry(existing, maxAgeMs)) return existing.data
   if (existing?.promise) return existing.promise
 
   setEntry(key, { status: 'loading', error: null })
