@@ -17,6 +17,7 @@ export const SCORE_JSON_SCHEMA_TEMPLATE = `{
       "runoutDirect": 0,
       "runoutIndirect": 0,
       "hatTrick": 0,
+      "bowledLbw": 0,
       "dismissed": true
     }
   ]
@@ -54,8 +55,9 @@ export const SCORE_AI_PROMPT_TEXT = [
   '- Missing numeric fields should be 0. dismissed should be false when not out/DNB.',
   '- ballsFaced is required for duck and strike-rate rules when the batter faced the ball.',
   '- overs and runsConceded are required for economy rules when the player bowled.',
+  '- bowledLbw is the count of wickets credited to this bowler where dismissalType is bowled or lbw.',
   '',
-  'Score fields: runs, ballsFaced, fours, sixes, wickets, overs, maidens, runsConceded, noBalls, wides, catches, stumpings, runoutDirect, runoutIndirect, hatTrick, dismissed.',
+  'Score fields: runs, ballsFaced, fours, sixes, wickets, overs, maidens, runsConceded, noBalls, wides, catches, stumpings, runoutDirect, runoutIndirect, hatTrick, bowledLbw, dismissed.',
   '',
   'Scorecard JSON:',
   'PASTE_SCORECARD_JSON_HERE',

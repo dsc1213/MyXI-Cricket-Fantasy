@@ -124,6 +124,7 @@ function UploadPanel({
       { key: 'wides', label: 'WD' },
       { key: 'economy', label: 'ECO', derived: true },
       { key: 'hatTrick', label: 'H', type: 'checkbox' },
+      { key: 'bowledLbw', label: 'B/L' },
     ],
     fielding: [
       { key: 'catches', label: 'Catches' },
@@ -410,6 +411,7 @@ function UploadPanel({
       economyAbove10: getRuleValue(pointsRules?.bowling, 'economyAbove10', 0),
       economyAbove12: getRuleValue(pointsRules?.bowling, 'economyAbove12', 0),
       hatTrick: getRuleValue(pointsRules?.bowling, 'hatTrick', 0),
+      bowledLbw: getRuleValue(pointsRules?.bowling, 'bowledLbw', 0),
       catch: getRuleValue(pointsRules?.fielding, 'catch', 10),
       threeCatch: getRuleValue(pointsRules?.fielding, 'threeCatch', 0),
       stumping: getRuleValue(pointsRules?.fielding, 'stumping', 0),
@@ -433,6 +435,7 @@ function UploadPanel({
     const runoutDirect = Number(stats?.runoutDirect || 0)
     const runoutIndirect = Number(stats?.runoutIndirect || 0)
     const hatTrick = Number(stats?.hatTrick || 0)
+    const bowledLbw = Number(stats?.bowledLbw || 0)
 
     let total = 0
     total += runs * rules.run
@@ -446,6 +449,7 @@ function UploadPanel({
     total += runoutDirect * rules.runoutDirect
     total += runoutIndirect * rules.runoutIndirect
     total += hatTrick * rules.hatTrick
+    total += bowledLbw * rules.bowledLbw
 
     if (runs >= 200) total += rules.twoHundred
     else if (runs >= 150) total += rules.oneFifty

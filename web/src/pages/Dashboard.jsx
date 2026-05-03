@@ -910,6 +910,7 @@ function Dashboard({ defaultPanel = 'joined' }) {
       runoutDirect: 0,
       runoutIndirect: 0,
       hatTrick: 0,
+      bowledLbw: 0,
       dismissed: false,
     })
 

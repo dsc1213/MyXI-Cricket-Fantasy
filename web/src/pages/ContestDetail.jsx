@@ -39,17 +39,25 @@ const normalizeContestMatches = (payload) => {
   return []
 }
 
+const sortParticipantsByPoints = (rows = []) =>
+  [...(Array.isArray(rows) ? rows : [])].sort((left, right) => {
+    const pointsDiff = Number(right?.points || 0) - Number(left?.points || 0)
+    if (pointsDiff !== 0) return pointsDiff
+    return getDisplayName(left).localeCompare(getDisplayName(right))
+  })
+
 const normalizeContestParticipants = (payload) => {
   if (Array.isArray(payload)) {
+    const participants = sortParticipantsByPoints(payload)
     return {
-      participants: payload,
-      joinedCount: payload.length,
+      participants,
+      joinedCount: participants.length,
       previewXI: [],
       previewBackups: [],
     }
   }
   return {
-    participants: Array.isArray(payload?.participants) ? payload.participants : [],
+    participants: sortParticipantsByPoints(payload?.participants || []),
     joinedCount: Number(payload?.joinedCount || 0),
     previewXI: Array.isArray(payload?.previewXI) ? payload.previewXI : [],
     previewBackups: Array.isArray(payload?.previewBackups) ? payload.previewBackups : [],

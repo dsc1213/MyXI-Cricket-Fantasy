@@ -21,6 +21,7 @@ const defaultPointsRules = {
     { id: 'threew', label: '3-Wicket Bonus', value: 5 },
     { id: 'fourw', label: '4-Wicket Bonus', value: 10 },
     { id: 'fivew', label: '5-Wicket Bonus', value: 15 },
+    { id: 'bowledLbw', label: 'Bowled / LBW Bonus', value: 5 },
     { id: 'wide', label: 'Wide / No-ball', value: -1 },
     { id: 'economyBelow3', label: 'Economy 3 or Less', value: 0 },
     { id: 'economyBelow5', label: 'Economy 5 or Less', value: 0 },

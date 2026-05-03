@@ -1259,6 +1259,9 @@ const createDbService = (dependencies) => {
           ok: true,
           message: 'Force score sync completed',
           syncId: context.syncId,
+          scraperCalls: context.scraperCalls || [],
+          dbWrites: context.dbWrites || [],
+          liveStatus: context.liveStatus || null,
           ...result,
         })
       } catch (error) {

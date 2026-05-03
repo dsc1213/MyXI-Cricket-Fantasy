@@ -2,7 +2,7 @@ import { cloneDefaultPointsRules } from '../lib/defaultPointsRules.js'
 
 const sectionDescriptions = {
   batting: 'Runs, milestones, duck, and strike-rate slabs sourced from scorecard batting tables.',
-  bowling: 'Wickets, maidens, wides/no-balls, and economy slabs sourced from bowling figures.',
+  bowling: 'Wickets, bowled/LBW bonus, maidens, wides/no-balls, and economy slabs sourced from bowling figures.',
   fielding: 'Catches, stumpings, and runout credits sourced from dismissal details only.',
 }
 

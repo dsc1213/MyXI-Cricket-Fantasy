@@ -36,6 +36,7 @@ const emptyPlayerStats = (playerName) => ({
   runoutDirect: 0,
   runoutIndirect: 0,
   hatTrick: 0,
+  bowledLbw: 0,
   fours: 0,
   sixes: 0,
   overs: 0,
@@ -158,6 +159,7 @@ class MatchScoreService {
         'runoutDirect',
         'runoutIndirect',
         'hatTrick',
+        'bowledLbw',
         'ballsFaced',
         'oversBowled',
         'runsConceded',
@@ -697,6 +699,7 @@ class MatchScoreService {
         Number(row.stumpings || 0),
         Number(row.runoutDirect || 0),
         Number(row.runoutIndirect || 0),
+        Number(row.bowledLbw || 0),
         row.dismissed === true,
         fantasyPoints,
       ])
@@ -706,11 +709,11 @@ class MatchScoreService {
         `INSERT INTO player_match_scores (
            tournament_id, match_id, player_id, raw_stats,
            runs, wickets, catches, fours, sixes, maidens, wides, stumpings,
-           runout_direct, runout_indirect, dismissed, fantasy_points, created_at, updated_at
+           runout_direct, runout_indirect, bowled_lbw, dismissed, fantasy_points, created_at, updated_at
          )
          VALUES ${buildBulkPlaceholders({
            rows: playerScoreRows,
-           columnsPerRow: 16,
+           columnsPerRow: 17,
            extraSql: ['now()', 'now()'],
          })}
          ON CONFLICT (tournament_id, match_id, player_id) DO UPDATE
@@ -725,6 +728,7 @@ class MatchScoreService {
              stumpings = EXCLUDED.stumpings,
              runout_direct = EXCLUDED.runout_direct,
              runout_indirect = EXCLUDED.runout_indirect,
+             bowled_lbw = EXCLUDED.bowled_lbw,
              dismissed = EXCLUDED.dismissed,
              fantasy_points = EXCLUDED.fantasy_points,
              updated_at = now()`,
@@ -739,6 +743,7 @@ class MatchScoreService {
           'runs',
           'wickets',
           'catches',
+          'bowled_lbw',
           'fantasy_points',
         ],
         matchId,

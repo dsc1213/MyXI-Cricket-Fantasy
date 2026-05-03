@@ -37,6 +37,7 @@ create table if not exists player_match_scores (
   stumpings integer not null default 0,
   runout_direct integer not null default 0,
   runout_indirect integer not null default 0,
+  bowled_lbw integer not null default 0,
   dismissed boolean not null default false,
   fantasy_points numeric(10, 2) not null default 0,
   created_at timestamptz not null default now(),

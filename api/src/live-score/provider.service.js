@@ -88,6 +88,23 @@ const dismissalToFieldingStats = (dismissal = '') => {
   return []
 }
 
+const dismissalToBowledLbwStat = (batter = {}) => {
+  const dismissalType = (batter?.dismissalType || '').toString().trim().toLowerCase()
+  const dismissalRaw = (batter?.dismissalRaw || batter?.dismissal || '')
+    .toString()
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+  const bowlerName = cleanFielderName(batter?.bowlerName || '')
+  const isBowledOrLbw =
+    dismissalType === 'bowled' ||
+    dismissalType === 'lbw' ||
+    /^b\s+/.test(dismissalRaw) ||
+    /^lbw\s+b\s+/.test(dismissalRaw)
+  if (!isBowledOrLbw || !bowlerName) return null
+  return { playerName: bowlerName, bowledLbw: 1 }
+}
+
 const normalizeBaseUrl = (value) =>
   (value || '').toString().trim().replace(/\/+$/, '')
 
@@ -270,6 +287,7 @@ const mergePlayerStat = (statsByName, row) => {
       runoutDirect: 0,
       runoutIndirect: 0,
       hatTrick: 0,
+      bowledLbw: 0,
       overs: 0,
       runsConceded: 0,
       dismissed: false,
@@ -304,6 +322,7 @@ const mergePlayerStat = (statsByName, row) => {
     runoutIndirect: current.runoutIndirect + toNumber(row.runoutIndirect),
     hatTrick:
       current.hatTrick + (row.hatTrick === true ? 1 : toNumber(row.hatTrick)),
+    bowledLbw: current.bowledLbw + toNumber(row.bowledLbw),
     overs: current.overs + toNumber(row.overs),
     runsConceded: current.runsConceded + toNumber(row.runsConceded),
     dismissed: current.dismissed || row.dismissed === true,
@@ -351,6 +370,8 @@ const scorecardToPlayerStats = (scorecard = {}) => {
         mergePlayerStat(statsByName, fieldingRow)
         parsedFieldingRows += 1
       }
+      const bowledLbwRow = dismissalToBowledLbwStat(batter)
+      if (bowledLbwRow) mergePlayerStat(statsByName, bowledLbwRow)
     }
     if (!parsedFieldingRows) {
       for (const fieldingRow of innings.fielding || []) {

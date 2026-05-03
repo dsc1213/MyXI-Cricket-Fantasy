@@ -194,6 +194,57 @@ describe('live score provider', () => {
     )
   })
 
+  it('converts structured bowled and lbw dismissals into bowledLbw bowler stats', () => {
+    const rows = scorecardToPlayerStats({
+      innings: [
+        {
+          batting: [
+            {
+              name: 'Shreyas Iyer',
+              dismissal: 'b Jason Holder',
+              dismissalType: 'bowled',
+              bowlerName: 'Jason Holder',
+              isDismissed: true,
+            },
+            {
+              name: 'Xavier Bartlett',
+              dismissal: 'b Jason Holder',
+              dismissalType: 'bowled',
+              bowlerName: 'Jason Holder',
+              isDismissed: true,
+            },
+            {
+              name: 'Pathum Nissanka',
+              dismissal: 'lbw b Rashid Khan',
+              dismissalType: 'lbw',
+              bowlerName: 'Rashid Khan',
+              isDismissed: true,
+            },
+          ],
+          bowling: [
+            { name: 'Jason Holder', wickets: '2' },
+            { name: 'Rashid Khan', wickets: '1' },
+          ],
+        },
+      ],
+    })
+
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          playerName: 'Jason Holder',
+          wickets: 2,
+          bowledLbw: 2,
+        }),
+        expect.objectContaining({
+          playerName: 'Rashid Khan',
+          wickets: 1,
+          bowledLbw: 1,
+        }),
+      ]),
+    )
+  })
+
   it('fetches scorecards through the configured base URL', async () => {
     const fetchCalls = []
     const provider = new LiveScoreProviderService({

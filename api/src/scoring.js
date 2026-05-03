@@ -33,6 +33,7 @@ const getRuleSetForTournament = ({
       threew: findRuleRowValue(rules.bowling, 'threew', 0),
       fourw: findRuleRowValue(rules.bowling, 'fourw', 0),
       fivew: findRuleRowValue(rules.bowling, 'fivew', 0),
+      bowledLbw: findRuleRowValue(rules.bowling, 'bowledLbw', 0),
       wide: findRuleRowValue(rules.bowling, 'wide', 0),
       economyBelow3: findRuleRowValue(rules.bowling, 'economyBelow3', 0),
       economyBelow5: findRuleRowValue(rules.bowling, 'economyBelow5', 0),
@@ -69,6 +70,7 @@ const getRuleSetForTournament = ({
     threew: Number(rules.threew ?? 0),
     fourw: Number(rules.fourw ?? 0),
     fivew: Number(rules.fivew ?? 0),
+    bowledLbw: Number(rules.bowledLbw ?? 0),
     wide: Number(rules.wide ?? 0),
     economyBelow3: Number(rules.economyBelow3 ?? 0),
     economyBelow5: Number(rules.economyBelow5 ?? 0),
@@ -115,6 +117,7 @@ const calculateFantasyPoints = (stats, ruleSet) => {
   const runoutDirect = Number(stats?.runoutDirect || 0)
   const runoutIndirect = Number(stats?.runoutIndirect || 0)
   const hatTrick = Number(stats?.hatTrick || 0)
+  const bowledLbw = Number(stats?.bowledLbw || 0)
 
   let total = 0
   total += runs * ruleSet.run
@@ -128,6 +131,7 @@ const calculateFantasyPoints = (stats, ruleSet) => {
   total += runoutDirect * ruleSet.runoutDirect
   total += runoutIndirect * ruleSet.runoutIndirect
   total += hatTrick * ruleSet.hatTrick
+  total += bowledLbw * ruleSet.bowledLbw
 
   if (runs >= 200) total += ruleSet.twoHundred
   else if (runs >= 150) total += ruleSet.oneFifty
@@ -196,6 +200,7 @@ const calculateFantasyPointBreakdown = (stats, ruleSet) => {
   const runoutDirect = Number(stats?.runoutDirect || 0)
   const runoutIndirect = Number(stats?.runoutIndirect || 0)
   const hatTrick = Number(stats?.hatTrick || 0)
+  const bowledLbw = Number(stats?.bowledLbw || 0)
 
   push('Runs', runs, ruleSet.run)
   push('Fours', fours, ruleSet.four)
@@ -208,6 +213,7 @@ const calculateFantasyPointBreakdown = (stats, ruleSet) => {
   push('Run-out direct', runoutDirect, ruleSet.runoutDirect)
   push('Run-out assist', runoutIndirect, ruleSet.runoutIndirect)
   push('Hat-trick', hatTrick, ruleSet.hatTrick)
+  push('Bowled / LBW bonus', bowledLbw, ruleSet.bowledLbw)
 
   if (runs >= 200 && Number(ruleSet.twoHundred || 0)) {
     rows.push({
@@ -526,6 +532,7 @@ const normalizePlayerStatRows = (rows, players) => {
         runoutDirect: Number(row.runoutDirect || 0),
         runoutIndirect: Number(row.runoutIndirect || 0),
         hatTrick: Number(row.hatTrick || 0),
+        bowledLbw: Number(row.bowledLbw || 0),
         fours: Number(row.fours || 0),
         sixes: Number(row.sixes || 0),
         overs: Number(row.overs || 0),

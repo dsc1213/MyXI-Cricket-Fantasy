@@ -332,7 +332,7 @@ const syncScoreForMatch = async (
         providerStatus,
         message: 'Final score saved and match marked completed',
       }
-      return { completed: true }
+      return { completed: true, result }
     }
     if (result?.skipped) {
       context.liveStatus.latestMatchScores = {
@@ -351,7 +351,7 @@ const syncScoreForMatch = async (
       providerStatus,
       message: 'Latest match scores saved to DB',
     }
-    return { synced: true }
+    return { synced: true, result }
   } catch (error) {
     context.liveStatus.latestMatchScores = {
       status: 'failed',
@@ -548,6 +548,9 @@ const forceSyncScoreForMatch = async ({ matchId, actorUserId = null, context = {
     matchId: String(match.id),
     tournamentId: String(match.tournamentId),
     providerMatchId: String(match.providerMatchId),
+    scraperCalls: context.scraperCalls || [],
+    dbWrites: context.dbWrites || [],
+    liveStatus: context.liveStatus || null,
     result,
   }
 }

@@ -672,7 +672,16 @@ function App() {
         )}
         {!showApiOnlyError && (
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route
+              path="/"
+              element={
+                isRestoringSession ? null : currentUser ? (
+                  <Navigate to="/home" replace />
+                ) : (
+                  <Home />
+                )
+              }
+            />
             <Route path="/home" element={requireAuth(<Dashboard />)} />
             <Route
               path="/dashboard"

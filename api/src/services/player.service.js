@@ -615,6 +615,7 @@ class PlayerService {
               pms.stumpings,
               pms.runout_direct as "runoutDirect",
               pms.runout_indirect as "runoutIndirect",
+              pms.bowled_lbw as "bowledLbw",
               pms.dismissed,
               pms.fantasy_points as "points"
        FROM player_match_scores pms
@@ -645,6 +646,7 @@ class PlayerService {
       stumpings: Number(row.stumpings || 0),
       runoutDirect: Number(row.runoutDirect || 0),
       runoutIndirect: Number(row.runoutIndirect || 0),
+      bowledLbw: Number(row.bowledLbw || 0),
       dismissed: Boolean(row.dismissed),
       points: Number(row.points || 0),
     }))

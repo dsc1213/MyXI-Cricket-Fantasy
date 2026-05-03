@@ -11,7 +11,7 @@ function PointsPanel({
   const isEditable = canEditRules && isEditMode
   const sectionDescriptions = {
     batting: 'Runs, milestones, duck, and strike-rate bonuses.',
-    bowling: 'Wickets, maidens, wides/no-balls, and economy slabs.',
+    bowling: 'Wickets, bowled/LBW bonus, maidens, wides/no-balls, and economy slabs.',
     fielding: 'Catches, stumpings, and runout scoring from scorecard text.',
   }
   const shouldShowStrikeRateNote = (section, rowId) =>
