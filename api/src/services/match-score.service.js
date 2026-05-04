@@ -47,6 +47,64 @@ const emptyPlayerStats = (playerName) => ({
   dismissed: false,
 })
 
+const NUMERIC_SCORE_FIELDS = [
+  'runs',
+  'ballsFaced',
+  'wickets',
+  'catches',
+  'stumpings',
+  'runoutDirect',
+  'runoutIndirect',
+  'hatTrick',
+  'bowledLbw',
+  'fours',
+  'sixes',
+  'overs',
+  'runsConceded',
+  'maidens',
+  'noBalls',
+  'wides',
+  'inningsRuns',
+  'inningsWickets',
+  'inningsBalls',
+]
+
+const hasScoreActivity = (row = {}) =>
+  NUMERIC_SCORE_FIELDS.some((field) => Number(row?.[field] || 0) !== 0) ||
+  row.dismissed === true
+
+const mergeDuplicatePlayerRows = (rows = []) => {
+  const rowsByPlayerId = new Map()
+  for (const row of rows || []) {
+    const playerIdKey = row?.playerId == null ? '' : String(row.playerId)
+    if (!playerIdKey) continue
+    const existing = rowsByPlayerId.get(playerIdKey)
+    if (!existing) {
+      rowsByPlayerId.set(playerIdKey, { ...row })
+      continue
+    }
+
+    const incomingHasActivity = hasScoreActivity(row)
+    const existingHasActivity = hasScoreActivity(existing)
+    const base = existingHasActivity || !incomingHasActivity ? existing : row
+    const overlay = base === existing ? row : existing
+    const merged = {
+      ...base,
+      playerId: existing.playerId,
+      playerName: existing.playerName,
+      team: existing.team || row.team || null,
+      dismissed: existing.dismissed === true || row.dismissed === true,
+    }
+
+    for (const field of NUMERIC_SCORE_FIELDS) {
+      merged[field] = Math.max(Number(existing[field] || 0), Number(row[field] || 0))
+    }
+    if (overlay.battingOrder && !merged.battingOrder) merged.battingOrder = overlay.battingOrder
+    rowsByPlayerId.set(playerIdKey, merged)
+  }
+  return [...rowsByPlayerId.values()]
+}
+
 const buildBulkPlaceholders = ({ rows, columnsPerRow, extraSql = [] }) =>
   rows
     .map((row, rowIndex) => {
@@ -348,11 +406,23 @@ class MatchScoreService {
     for (const playerName of playingXiNames) {
       rowsByName.set(normalizeNameForMatch(playerName), emptyPlayerStats(playerName))
     }
+    const lineupIdentityIndex = buildPlayerIdentityIndex(
+      playingXiNames.map((playerName, index) => ({
+        id: `lineup-${index}`,
+        name: playerName,
+      })),
+    )
 
     const overlayRows = (rows = []) => {
       for (const row of rows) {
         const playerName = (row?.playerName || row?.name || '').toString().trim()
-        const key = normalizeNameForMatch(playerName)
+        const exactKey = normalizeNameForMatch(playerName)
+        const resolvedLineupPlayer = rowsByName.has(exactKey)
+          ? null
+          : resolvePlayerStatPlayer(row, lineupIdentityIndex)
+        const key = resolvedLineupPlayer
+          ? normalizeNameForMatch(resolvedLineupPlayer.name)
+          : exactKey
         if (!key || !rowsByName.has(key)) continue
         rowsByName.set(key, {
           ...rowsByName.get(key),
@@ -510,11 +580,13 @@ class MatchScoreService {
       throw error
     }
 
-    if (!normalizedRows.length) {
+    const mergedRows = mergeDuplicatePlayerRows(normalizedRows)
+
+    if (!mergedRows.length) {
       throw new Error('No valid playerStats rows found for the selected match teams')
     }
 
-    return normalizedRows
+    return mergedRows
   }
 
   // Returns the active saved match score row scoped by tournament.
@@ -660,7 +732,9 @@ class MatchScoreService {
       scoringRules: scoringRule ? [scoringRule] : [],
       dashboardRuleTemplate: globalScoringRules?.rules || cloneDefaultPointsRules(),
     })
-    const normalizedRows = normalizePlayerStatRows(playerStats || [], playerRows)
+    const normalizedRows = mergeDuplicatePlayerRows(
+      normalizePlayerStatRows(playerStats || [], playerRows),
+    )
     const deletedPlayerScores = await dbQuery(
       `DELETE FROM player_match_scores
        WHERE tournament_id = $1 AND match_id = $2`,

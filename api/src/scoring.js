@@ -408,6 +408,8 @@ const normalizeNameKey = (value) =>
 
 const tokenizeName = (value) => normalizeNameKey(value).split(' ').filter(Boolean)
 
+const sortedTokenKey = (tokens = []) => [...tokens].sort().join(' ')
+
 const normalizeFirstNameToken = (token) => FIRST_NAME_ALIASES.get(token) || token
 
 const firstNamesCompatible = (left = '', right = '') => {
@@ -427,6 +429,14 @@ const namesLikelyMatch = (incomingName, playerName) => {
   const playerTokens = tokenizeName(playerName)
   if (!incomingTokens.length || !playerTokens.length) return false
 
+  if (
+    incomingTokens.length >= 2 &&
+    incomingTokens.length === playerTokens.length &&
+    sortedTokenKey(incomingTokens) === sortedTokenKey(playerTokens)
+  ) {
+    return true
+  }
+
   const incomingLast = incomingTokens[incomingTokens.length - 1]
   const playerLast = playerTokens[playerTokens.length - 1]
   if (!incomingLast || incomingLast !== playerLast) return false
@@ -438,6 +448,7 @@ const buildPlayerIdentityIndex = (players = []) => {
   const byId = new Map()
   const byExactName = new Map()
   const byNameKey = new Map()
+  const byTokenSet = new Map()
   const byLastName = new Map()
 
   for (const player of players) {
@@ -447,6 +458,7 @@ const buildPlayerIdentityIndex = (players = []) => {
     const exactNameKey = nameValue.toLowerCase()
     const nameKey = normalizeNameKey(nameValue)
     const tokens = tokenizeName(nameValue)
+    const tokenSetKey = tokens.length >= 2 ? sortedTokenKey(tokens) : ''
     const lastName = tokens[tokens.length - 1] || ''
 
     if (idKey) byId.set(idKey, player)
@@ -456,6 +468,11 @@ const buildPlayerIdentityIndex = (players = []) => {
       current.push(player)
       byNameKey.set(nameKey, current)
     }
+    if (tokenSetKey) {
+      const current = byTokenSet.get(tokenSetKey) || []
+      current.push(player)
+      byTokenSet.set(tokenSetKey, current)
+    }
     if (lastName) {
       const current = byLastName.get(lastName) || []
       current.push(player)
@@ -463,7 +480,7 @@ const buildPlayerIdentityIndex = (players = []) => {
     }
   }
 
-  return { byId, byExactName, byNameKey, byLastName }
+  return { byId, byExactName, byNameKey, byTokenSet, byLastName }
 }
 
 const resolvePlayerStatPlayer = (row, playersOrIndex) => {
@@ -486,6 +503,7 @@ const resolvePlayerStatPlayer = (row, playersOrIndex) => {
   if (exactMatch) return exactMatch
 
   const incomingNameKey = normalizeNameKey(incomingName)
+  const incomingTokens = tokenizeName(incomingName)
   if (incomingNameKey) {
     const normalizedMatches = index.byNameKey.get(incomingNameKey) || []
     if (normalizedMatches.length === 1) return normalizedMatches[0]
@@ -495,7 +513,17 @@ const resolvePlayerStatPlayer = (row, playersOrIndex) => {
     if (uniqueLikely.length === 1) return uniqueLikely[0]
   }
 
-  const incomingTokens = tokenizeName(incomingName)
+  const incomingTokenSetKey =
+    incomingTokens.length >= 2 ? sortedTokenKey(incomingTokens) : ''
+  if (incomingTokenSetKey) {
+    const tokenSetMatches = index.byTokenSet?.get(incomingTokenSetKey) || []
+    if (tokenSetMatches.length === 1) return tokenSetMatches[0]
+    const uniqueLikely = tokenSetMatches.filter((candidate) =>
+      namesLikelyMatch(incomingName, candidate.name),
+    )
+    if (uniqueLikely.length === 1) return uniqueLikely[0]
+  }
+
   const incomingLast = incomingTokens[incomingTokens.length - 1] || ''
   const lastNameCandidates = incomingLast ? index.byLastName.get(incomingLast) || [] : []
   if (

@@ -3,6 +3,7 @@ import { AUTO_SYNC_ACTOR_LABEL } from './settings.js'
 import { recordLiveScoreDbWrite, recordLiveScoreLog } from './logger.js'
 import liveScoreProviderService, { playingXiToMatchLineups } from './provider.service.js'
 import { canonicalizeLineupNamesWithSquad } from './player-name-match.js'
+import { buildPlayerIdentityIndex, resolvePlayerStatPlayer } from '../scoring.js'
 
 const normalizeName = (value = '') =>
   value
@@ -96,27 +97,47 @@ const appendScoredPlayersToLineups = async ({
       .filter(Boolean),
   )
   const teamByPlayerName = new Map()
+  const matchPlayers = []
   for (const player of tournamentContext.tournamentPlayerRows || []) {
     const name = normalizeName(playerDisplayName(player))
     const teamKey = String(player.teamKey || player.team || '').trim()
     if (!name || !teamKeys.has(teamKey)) continue
     if (!teamByPlayerName.has(name)) teamByPlayerName.set(name, teamKey)
+    matchPlayers.push({
+      id: player.id || player.playerId || playerDisplayName(player),
+      name: playerDisplayName(player),
+      team: teamKey,
+    })
   }
+  const matchPlayerIdentityIndex = buildPlayerIdentityIndex(matchPlayers)
 
   const lineupRows = lineupContext.lineupRows || []
-  const lineupNames = new Set(
-    lineupRows.flatMap((row) => parseJsonArray(row.playingXI).map(normalizeName)),
+  const lineupPlayers = lineupRows.flatMap((row, index) =>
+    parseJsonArray(row.playingXI).map((name) => ({
+      id: `lineup-${index}-${name}`,
+      name,
+      team: row.teamCode,
+    })),
   )
+  const lineupNames = new Set(lineupPlayers.map((player) => normalizeName(player.name)))
+  const lineupIdentityIndex = buildPlayerIdentityIndex(lineupPlayers)
   const candidatesByTeam = new Map()
 
   for (const row of playerStats) {
     const playerName = (row?.playerName || row?.name || '').toString().trim()
     const playerKey = normalizeName(playerName)
-    if (!playerKey || lineupNames.has(playerKey)) continue
-    const teamKey = teamByPlayerName.get(playerKey)
+    if (!playerKey) continue
+    const resolvedLineupPlayer = resolvePlayerStatPlayer(row, lineupIdentityIndex)
+    if (lineupNames.has(playerKey) || resolvedLineupPlayer) continue
+    const resolvedMatchPlayer = resolvePlayerStatPlayer(row, matchPlayerIdentityIndex)
+    const teamKey = resolvedMatchPlayer?.team || teamByPlayerName.get(playerKey)
     if (!teamKey) continue
     if (!candidatesByTeam.has(teamKey)) candidatesByTeam.set(teamKey, [])
-    candidatesByTeam.get(teamKey).push({ key: playerKey, name: playerName })
+    candidatesByTeam.get(teamKey).push({
+      key: normalizeName(resolvedMatchPlayer?.name || playerName),
+      name: resolvedMatchPlayer?.name || playerName,
+      providerName: playerName,
+    })
   }
 
   if (!candidatesByTeam.size) return { added: 0, players: [] }
@@ -131,14 +152,23 @@ const appendScoredPlayersToLineups = async ({
 
   for (const [teamKey, candidates] of candidatesByTeam.entries()) {
     const impactPlayers = providerImpactByTeam.get(teamKey) || new Map()
+    const providerImpactIdentityIndex = buildPlayerIdentityIndex(
+      [...impactPlayers.values()].map((name) => ({ id: name, name })),
+    )
     for (const candidate of candidates) {
-      const verifiedName = impactPlayers.get(candidate.key)
+      const verifiedName =
+        impactPlayers.get(candidate.key) ||
+        impactPlayers.get(normalizeName(candidate.providerName)) ||
+        resolvePlayerStatPlayer(
+          { playerName: candidate.providerName || candidate.name },
+          providerImpactIdentityIndex,
+        )?.name
       if (!verifiedName) {
         skippedPlayers.push({ teamCode: teamKey, name: candidate.name })
         continue
       }
       if (!additionsByTeam.has(teamKey)) additionsByTeam.set(teamKey, [])
-      additionsByTeam.get(teamKey).push(verifiedName)
+      additionsByTeam.get(teamKey).push(candidate.name)
       lineupNames.add(candidate.key)
     }
   }

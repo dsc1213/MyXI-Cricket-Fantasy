@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  buildPlayerIdentityIndex,
   calculateFantasyPointBreakdown,
   calculateFantasyPoints,
+  normalizePlayerStatRows,
+  resolvePlayerStatPlayer,
 } from '../src/scoring.js'
 
 describe('bowled/LBW bowling bonus scoring', () => {
@@ -54,6 +57,47 @@ describe('bowled/LBW bowling bonus scoring', () => {
           valuePerUnit: 5,
           points: 5,
         },
+      ]),
+    )
+  })
+
+  it('resolves reversed provider names to the selected local player', () => {
+    const players = [
+      {
+        id: 10486,
+        name: 'Vyshak Vijaykumar',
+        team: 'PBKS',
+      },
+    ]
+    const identityIndex = buildPlayerIdentityIndex(players)
+
+    expect(
+      resolvePlayerStatPlayer(
+        { playerName: 'Vijaykumar Vyshak', wickets: 2 },
+        identityIndex,
+      ),
+    ).toEqual(players[0])
+
+    expect(
+      normalizePlayerStatRows(
+        [
+          { playerName: 'Vijaykumar Vyshak', wickets: 2 },
+          { playerName: 'Vyshak Vijaykumar', catches: 1 },
+        ],
+        players,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          playerId: 10486,
+          playerName: 'Vyshak Vijaykumar',
+          wickets: 2,
+        }),
+        expect.objectContaining({
+          playerId: 10486,
+          playerName: 'Vyshak Vijaykumar',
+          catches: 1,
+        }),
       ]),
     )
   })
