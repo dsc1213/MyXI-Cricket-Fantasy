@@ -6392,7 +6392,8 @@ body:not(.dark-theme) .score-pill.is-negative {
 
 body:not(.dark-theme) .app.app-team .player-avatar-fallback,
 body:not(.dark-theme) .team-preview-modal .player-avatar-fallback {
-  color: rgba(235, 241, 255, 0.94);
+  color: rgba(15, 23, 42, 0.82);
+  text-shadow: none;
 }
 
 .app.app-team .myxi-card .myxi-role-lanes,
@@ -6531,24 +6532,24 @@ body:not(.dark-theme) .team-preview-modal .player-avatar-fallback {
 .app.app-team .tile-actions .tile-btn.is-active-remove {
   display: inline-grid;
   place-items: center;
-  background: transparent;
-  border: 1px solid rgba(239, 68, 68, 0.72);
-  color: #ef4444;
+  background: rgba(255, 35, 35, 0.1);
+  border: 1px solid #ff2d2d;
+  color: #ff2d2d;
   font-weight: 900;
   line-height: 1;
   box-shadow: none;
 }
 
 .app.app-team .tile-actions .tile-btn.is-active-remove:hover {
-  background: rgba(239, 68, 68, 0.08);
-  border-color: rgba(248, 113, 113, 0.9);
-  color: #f87171;
+  background: rgba(255, 35, 35, 0.16);
+  border-color: #ff4d4d;
+  color: #ff4d4d;
 }
 
 body.dark-theme .app.app-team .tile-actions .tile-btn.is-active-remove {
-  background: transparent;
-  border-color: rgba(248, 113, 113, 0.68);
-  color: #f87171;
+  background: rgba(255, 45, 45, 0.12);
+  border-color: #ff3b3b;
+  color: #ff3b3b;
 }
 
 .app.app-team .backups-card .backup-chip-wrap,
@@ -6590,30 +6591,39 @@ body.dark-theme .app.app-team .tile-actions .tile-btn.is-active-remove {
 }
 
 .app.app-team .tile-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: max-content;
   align-items: center;
-  gap: 0.32rem;
+  justify-content: center;
+  justify-items: center;
+  min-width: 1.7rem;
+  gap: 0.28rem;
 }
 
 .app.app-team .tile-actions .tile-btn {
   display: inline-grid;
   place-items: center;
   box-sizing: border-box;
-  flex: 0 0 20px;
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  min-height: 20px;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
   padding: 0;
   border-width: 1px;
   border-style: solid;
-  border-radius: 7px;
-  font-size: 0.72rem;
+  border-radius: 6px;
+  font-size: 0.6rem;
   font-weight: 800;
   line-height: 1;
   text-align: center;
   font-variant-ligatures: none;
   vertical-align: middle;
+}
+
+.app.app-team .tile-actions .tile-btn-label {
+  display: block;
+  transform: translateY(-0.04em);
 }
 
 .app.app-team .tile-actions .tile-btn.backup {
@@ -6623,12 +6633,12 @@ body.dark-theme .app.app-team .tile-actions .tile-btn.is-active-remove {
 
 .app.app-team .tile-actions .tile-btn.is-active-remove,
 .app.app-team .tile-actions .tile-btn.is-active-remove.backup {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  min-height: 20px;
-  flex-basis: 20px;
-  font-size: 0.72rem;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  flex-basis: 16px;
+  font-size: 0.6rem;
 }
 
 .team-preview-modal {

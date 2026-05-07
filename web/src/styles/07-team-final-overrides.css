@@ -82,6 +82,13 @@
   background: var(--team-b-panel-bg);
 }
 
+@media (max-width: 900px) {
+  .team-column {
+    min-height: auto;
+    height: auto;
+  }
+}
+
 .team-column-header h3,
 .myxi-header h3,
 .backups-title h4,
@@ -90,15 +97,23 @@
   letter-spacing: 0.01em;
 }
 
-body.dark-theme .app.app-team .team-column-header h3,
-body.dark-theme .app.app-team .team-column-header .country-text,
-body.dark-theme .app.app-team .team-column-header .country-text > span {
+body.dark-theme .app.app-team .team-column-header h3 {
   color: rgba(245, 248, 255, 0.96);
 }
 
+body.dark-theme .app.app-team .team-column-header .ipl-team-text,
+body.dark-theme .app.app-team .team-column-header .ipl-team-text > span {
+  color: var(--ipl-team-text-dark);
+}
+
+body:not(.dark-theme) .app.app-team .team-column-header .ipl-team-text,
+body:not(.dark-theme) .app.app-team .team-column-header .ipl-team-text > span {
+  color: var(--ipl-team-text-light);
+}
+
 .player-tile {
-  min-height: 44px;
-  padding: 0.3rem 0.36rem 0.3rem 0.44rem;
+  min-height: 48px;
+  padding: 0.34rem 0.4rem;
   border-radius: 12px;
   border: 1px solid var(--tile-border);
   background: var(--tile-bg);
@@ -108,6 +123,43 @@ body.dark-theme .app.app-team .team-column-header .country-text > span {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 0.35rem;
+}
+
+.player-tile-main {
+  display: grid;
+  grid-template-columns: 1.16rem 1.75rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.player-tile-main .player-avatar {
+  width: 28px;
+  height: 28px;
+}
+
+.player-tile-avatar-wrap {
+  position: relative;
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+}
+
+.player-tile-copy {
+  min-width: 0;
+}
+
+.player-tile-name {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.035em;
+  line-height: 1.14;
+  text-transform: capitalize;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .team-column-a .player-tile,
@@ -156,11 +208,10 @@ body.dark-theme .app.app-team .team-column-header .country-text > span {
 
 .lineup-status-light {
   position: absolute;
-  left: 0.32rem;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 9px;
-  height: 9px;
+  left: -2px;
+  top: -1px;
+  width: 7px;
+  height: 7px;
   border-radius: 999px;
   z-index: 2;
 }
@@ -174,20 +225,15 @@ body.dark-theme .app.app-team .team-column-header .country-text > span {
 }
 
 .lineup-status-light.previous-played {
-  background: linear-gradient(135deg, #fff843 0%, #facc15 45%, #f97316 100%);
+  background: linear-gradient(135deg, #fde68a 0%, #facc15 52%, #d97706 100%);
   border: 1px solid rgba(17, 24, 39, 0.72);
-  box-shadow: 0 0 0 1px rgba(255, 248, 67, 0.22);
+  box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.14);
 }
 
 body.dark-theme .app.app-team .lineup-status-light.previous-played {
   background: linear-gradient(135deg, #fff843 0%, #facc15 45%, #f97316 100%);
   border: 1px solid rgba(8, 13, 24, 0.86);
   box-shadow: 0 0 0 1px rgba(255, 248, 67, 0.2);
-}
-
-.player-tile.lineup-playing .player-meta,
-.player-tile.lineup-bench .player-meta {
-  padding-left: 0.65rem;
 }
 
 .player-chip.slot-chip.compact {
@@ -212,42 +258,162 @@ body.dark-theme .app.app-team .lineup-status-light.previous-played {
   gap: 0.3rem;
 }
 
-.player-tile .player-chip.slot-chip.compact .player-chip-identity .player-identity-role,
-.player-tile
-  .player-chip.slot-chip.compact
-  .player-chip-identity
-  .player-tile-total-points {
+.player-role-icon {
+  display: inline-block;
+  width: 1.16rem;
+  height: 1.16rem;
+  flex: 0 0 auto;
+  line-height: 0;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  opacity: 0.86;
+}
+
+.player-role-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.role-icon-stroke {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.85;
+}
+
+.role-icon-bat-wood {
+  stroke: #d97706;
+}
+
+.role-icon-bat-edge {
+  stroke: #713f12;
+}
+
+.role-icon-bat-handle {
+  stroke: #1e3a8a;
+}
+
+.role-icon-ball-white {
+  fill: #f8fafc;
+  stroke: #94a3b8;
+  stroke-width: 0.65;
+}
+
+.role-icon-ball-seam {
+  stroke: #dc2626;
+}
+
+.role-icon-ball-red {
+  fill: #d9232e;
+  stroke: #7f1d1d;
+  stroke-width: 0.65;
+}
+
+.role-icon-ball-stripe,
+.role-icon-ball-white-stripe {
+  stroke: #fff7ed;
+}
+
+.role-icon-wicket {
+  stroke: #ca8a04;
+}
+
+.role-icon-bail {
+  stroke: #78350f;
+}
+
+.role-icon-glove-left,
+.role-icon-glove-right {
+  fill: #0284c7;
+  stroke: #0c4a6e;
+  stroke-width: 0.85;
+}
+
+.player-role-icon-bat {
+  background: transparent;
+}
+
+.player-role-icon-ar {
+  background: transparent;
+}
+
+.player-role-icon-wk {
+  background: transparent;
+}
+
+.player-role-icon-bowl {
+  background: transparent;
+}
+
+body:not(.dark-theme) .app.app-team .team-column .player-avatar-fallback,
+body:not(.dark-theme) .app.app-team .myxi-card .player-avatar-fallback,
+body:not(.dark-theme) .app.app-team .backups-card .player-avatar-fallback {
+  color: rgba(15, 23, 42, 0.82);
+  text-shadow: none;
+}
+
+body.dark-theme .player-role-icon-bat {
+  background: transparent;
+}
+
+body.dark-theme .player-role-icon-ar {
+  background: transparent;
+}
+
+body.dark-theme .player-role-icon-wk {
+  background: transparent;
+}
+
+body.dark-theme .player-role-icon-bowl {
+  background: transparent;
+}
+
+body.dark-theme .role-icon-bat-wood {
+  stroke: #fbbf24;
+}
+
+body.dark-theme .role-icon-bat-edge {
+  stroke: #92400e;
+}
+
+body.dark-theme .role-icon-bat-handle {
+  stroke: #dbeafe;
+}
+
+body.dark-theme .role-icon-wicket {
+  stroke: #facc15;
+}
+
+body.dark-theme .role-icon-bail {
+  stroke: #fef3c7;
+}
+
+body.dark-theme .role-icon-glove-left,
+body.dark-theme .role-icon-glove-right {
+  fill: #38bdf8;
+  stroke: #e0f2fe;
+}
+
+.player-tile-total-points {
   display: inline-flex;
   align-items: center;
-  letter-spacing: normal;
-  text-transform: none;
-  line-height: 1;
-  color: inherit;
-}
-
-.player-tile .player-chip.slot-chip.compact .player-chip-identity .player-identity-role {
-  font-size: 0.35rem;
-  font-weight: 700;
-}
-
-.player-tile
-  .player-chip.slot-chip.compact
-  .player-chip-identity
-  .player-tile-total-points {
+  min-width: 1.42rem;
+  justify-content: center;
   font-size: 0.5rem;
   font-weight: 800;
+  line-height: 1;
   padding: 0.08rem 0.26rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: rgba(248, 251, 255, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(226, 232, 240, 0.92);
+  letter-spacing: normal;
+  text-transform: none;
 }
 
-body:not(.dark-theme)
-  .app.app-team
-  .player-tile
-  .player-chip.slot-chip.compact
-  .player-chip-identity
-  .player-tile-total-points {
+body:not(.dark-theme) .app.app-team .player-tile-total-points {
   border-color: rgba(36, 48, 74, 0.16);
   color: rgba(36, 48, 74, 0.92);
 }
@@ -317,12 +483,27 @@ body.dark-theme
 }
 
 .tile-btn {
-  width: 23px;
-  height: 23px;
+  width: 20px;
+  height: 20px;
   border-radius: 8px;
   background: var(--tile-btn-bg);
   color: var(--tile-btn-text);
   border-color: var(--tile-btn-border);
+}
+
+.app.app-team .tile-actions .tile-btn:not(.backup):not(.is-active-remove) {
+  background: transparent;
+  border-color: #16a34a;
+  color: #16a34a;
+}
+
+body.dark-theme
+  .app.app-team
+  .tile-actions
+  .tile-btn:not(.backup):not(.is-active-remove) {
+  background: transparent;
+  border-color: #22c55e;
+  color: #22c55e;
 }
 
 @media (max-width: 900px) {
@@ -756,20 +937,48 @@ body.dark-theme .app.app-team .backups-card .player-avatar-fallback {
   display: inline-flex;
 }
 
+.team-rule-strip {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+}
+
+.team-rule-label {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.team-rule-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.18rem;
+  padding: 0.12rem 0.34rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.team-rule-chip.is-met {
+  color: #16a34a;
+}
+
+.team-rule-chip.is-missing {
+  color: #dc2626;
+}
+
+body.dark-theme .team-rule-chip.is-met {
+  color: #4ade80;
+}
+
+body.dark-theme .team-rule-chip.is-missing {
+  color: #f87171;
+}
+
 .mobile-preview-save {
   display: none;
-}
-
-.mobile-preview-hint {
-  max-width: 16rem;
-  text-align: right;
-}
-
-.mobile-save-validation {
-  color: #fca5a5;
-  font-weight: 700;
-  white-space: normal;
-  line-height: 1.25;
 }
 
 body.dark-theme .team-bar .show-mobile {

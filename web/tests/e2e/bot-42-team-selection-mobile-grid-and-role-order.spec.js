@@ -143,8 +143,4 @@ test('team selection keeps role ordering and uses single-column player tiles on 
   await modalCard.locator('select').nth(0).selectOption('')
   await modalCard.locator('select').nth(1).selectOption('')
   await modalCard.getByRole('button', { name: 'Close' }).click()
-
-  await expect(page.locator('.team-bar-actions .mobile-save-validation')).toContainText(
-    'Captain and vice captain are required before saving.',
-  )
 })

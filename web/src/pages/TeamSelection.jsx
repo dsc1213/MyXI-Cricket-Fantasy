@@ -284,11 +284,10 @@ function TeamSelection() {
   const counts = useMemo(() => roleCounts(selected), [selected])
   const teamACount = selected.filter((p) => teamAPlayerIds.has(p.id)).length
   const teamBCount = selected.filter((p) => teamBPlayerIds.has(p.id)).length
-  const isMatchLocked =
-    ['inprogress', 'completed'].includes(
-      (activeMatch?.status || '').toString().trim().toLowerCase().replace(/\s+/g, '') ||
-        'notstarted',
-    )
+  const isMatchLocked = ['inprogress', 'completed'].includes(
+    (activeMatch?.status || '').toString().trim().toLowerCase().replace(/\s+/g, '') ||
+      'notstarted',
+  )
   const teamALineupPlaying = useMemo(
     () =>
       new Set(
@@ -405,6 +404,38 @@ function TeamSelection() {
       : ''
   const validationMessage =
     selectionError || liveSelectionRuleMessage || roleRequirementMessage
+  const ruleChips = [
+    {
+      label: 'Batter',
+      value: `${Math.min(counts.BAT, limits.minBAT)}/${limits.minBAT}`,
+      met: counts.BAT >= limits.minBAT,
+    },
+    {
+      label: 'Bowler',
+      value: `${Math.min(counts.BOWL, limits.minBOWL)}/${limits.minBOWL}`,
+      met: counts.BOWL >= limits.minBOWL,
+    },
+    {
+      label: 'WK',
+      value: `${Math.min(counts.WK, limits.minWK)}/${limits.minWK}`,
+      met: counts.WK >= limits.minWK,
+    },
+    {
+      label: 'Per team',
+      value: `max ${limits.maxPerTeam}`,
+      met: teamACount <= limits.maxPerTeam && teamBCount <= limits.maxPerTeam,
+    },
+    {
+      label: 'C',
+      value: '2x',
+      met: Boolean(captainIdRef.current),
+    },
+    {
+      label: 'VC',
+      value: '1.5x',
+      met: Boolean(viceCaptainIdRef.current),
+    },
+  ]
   const previewSaveCountLabel = `${Math.min(selected.length, limits.maxXI)}/${limits.maxXI}`
   const canShowSaveAllButton = !isViewMode && saveAllContests.length > 0
   const saveAllContestOptions = useMemo(
@@ -420,12 +451,7 @@ function TeamSelection() {
     ],
     [contest, contestMeta?.name, saveAllContests],
   )
-  const mobileActionValidationMessage =
-    validationMessage ||
-    (selected.length === limits.maxXI &&
-    (!captainIdRef.current || !viceCaptainIdRef.current)
-      ? 'Open Preview, choose C and VC, then tap Save Team.'
-      : '')
+  const mobileActionValidationMessage = validationMessage
 
   const backToHref = contestMeta?.tournamentId
     ? `/tournaments/${contestMeta.tournamentId}/contests/${contest}`
@@ -665,6 +691,7 @@ function TeamSelection() {
         isSelected={!!isSelected}
         isBackup={!!isBackup}
         lineupStatus={lineupStatus}
+        showBackupAction={selected.length >= limits.maxXI || !!isBackup}
         disabled={isViewMode || (isMatchLocked && !isMasterAdmin && !allowLockedEdit)}
         onToggle={() => (isSelected ? removePlayer(player) : addPlayer(player))}
         onBackup={() => (isBackup ? removeBackup(player) : addBackup(player))}
@@ -710,8 +737,17 @@ function TeamSelection() {
             </>
           )}
           <span className="team-bar-divider">•</span>
-          <span className="team-bar-rules">
-            Min 1 Bat, 1 Bowl, 1 Wk • Max 8 per team • C 2x • VC 1.5x
+          <span className="team-bar-rules team-rule-strip" aria-label="Team requirements">
+            <span className="team-rule-label">Requirements</span>
+            {ruleChips.map((rule) => (
+              <span
+                key={rule.label}
+                className={`team-rule-chip ${rule.met ? 'is-met' : 'is-missing'}`.trim()}
+              >
+                <strong>{rule.label}</strong>
+                <span>{rule.value}</span>
+              </span>
+            ))}
           </span>
           {!!matchSummary && (
             <>
@@ -779,27 +815,20 @@ function TeamSelection() {
               ) : null}
             </>
           )}
-          {!!mobileActionValidationMessage && (
-            <span className="team-bar-rules show-mobile mobile-preview-hint mobile-save-validation">
-              {mobileActionValidationMessage}
-            </span>
-          )}
           <Button
             variant="ghost"
             size="small"
             className="show-mobile"
-            onClick={() => {
-              if (
-                selected.length === limits.maxXI &&
-                (!captainIdRef.current || !viceCaptainIdRef.current)
-              ) {
-                setSelectionError('Open Preview, choose C and VC, then tap Save Team.')
-              }
-              setShowSidebar(true)
-            }}
+            onClick={() => setShowSidebar(true)}
           >
             <PreviewActionIcon />
-            <span>{`Preview (${previewSaveCountLabel})`}</span>
+            <span>
+              {mobileActionValidationMessage ? (
+                <span className="error-text">{`Pick C / VC (${previewSaveCountLabel})`}</span>
+              ) : (
+                `Show C / VC (${previewSaveCountLabel})`
+              )}
+            </span>
           </Button>
         </div>
       </header>

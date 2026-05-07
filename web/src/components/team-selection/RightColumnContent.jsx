@@ -188,7 +188,7 @@ function RightColumnContent({
       <div className="backups-card">
         <div className="backups-title">
           <h4>Backups</h4>
-          <span className="backup-note">Select B to add</span>
+          <span className="backup-note">Select B after XI is full</span>
         </div>
         <div className="backups-grid">
           {[...Array(6)].map((_, index) => {
