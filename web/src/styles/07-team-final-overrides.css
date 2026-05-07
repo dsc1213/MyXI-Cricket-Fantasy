@@ -97,6 +97,32 @@
   letter-spacing: 0.01em;
 }
 
+.team-column-header h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+}
+
+.team-selected-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.7rem;
+  padding: 0.1rem 0.34rem;
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+body.dark-theme .team-selected-count {
+  border-color: rgba(226, 232, 240, 0.22);
+}
+
 body.dark-theme .app.app-team .team-column-header h3 {
   color: rgba(245, 248, 255, 0.96);
 }

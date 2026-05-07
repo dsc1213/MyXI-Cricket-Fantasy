@@ -435,8 +435,12 @@ function TeamSelection() {
       value: '1.5x',
       met: Boolean(viceCaptainIdRef.current),
     },
+    {
+      label: 'Playing XI:',
+      value: `${Math.min(selected.length, limits.maxXI)}/${limits.maxXI}`,
+      met: selected.length === limits.maxXI,
+    },
   ]
-  const previewSaveCountLabel = `${Math.min(selected.length, limits.maxXI)}/${limits.maxXI}`
   const canShowSaveAllButton = !isViewMode && saveAllContests.length > 0
   const saveAllContestOptions = useMemo(
     () => [
@@ -451,8 +455,6 @@ function TeamSelection() {
     ],
     [contest, contestMeta?.name, saveAllContests],
   )
-  const mobileActionValidationMessage = validationMessage
-
   const backToHref = contestMeta?.tournamentId
     ? `/tournaments/${contestMeta.tournamentId}/contests/${contest}`
     : '/fantasy'
@@ -810,7 +812,7 @@ function TeamSelection() {
                   }
                   onClick={openSaveAllModal}
                 >
-                  {isSavingAll ? 'Saving...' : 'Save to all'}
+                  {isSavingAll ? 'Saving...' : 'Save all'}
                 </Button>
               ) : null}
             </>
@@ -822,13 +824,7 @@ function TeamSelection() {
             onClick={() => setShowSidebar(true)}
           >
             <PreviewActionIcon />
-            <span>
-              {mobileActionValidationMessage ? (
-                <span className="error-text">{`Pick C / VC (${previewSaveCountLabel})`}</span>
-              ) : (
-                `Show C / VC (${previewSaveCountLabel})`
-              )}
-            </span>
+            <span>Show C / VC</span>
           </Button>
         </div>
       </header>
@@ -850,6 +846,7 @@ function TeamSelection() {
           <div className="team-column-header">
             <h3>
               <CountryText value={playerPool.teamAName} />
+              <span className="team-selected-count">{`${teamACount}/${limits.maxPerTeam}`}</span>
             </h3>
             <span className="badge light">{sortedTeamAPlayers.length} players</span>
           </div>
@@ -860,6 +857,7 @@ function TeamSelection() {
           <div className="team-column-header">
             <h3>
               <CountryText value={playerPool.teamBName} />
+              <span className="team-selected-count">{`${teamBCount}/${limits.maxPerTeam}`}</span>
             </h3>
             <span className="badge light">{sortedTeamBPlayers.length} players</span>
           </div>
