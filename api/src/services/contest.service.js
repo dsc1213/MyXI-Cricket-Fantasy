@@ -1236,6 +1236,20 @@ class ContestService {
         Number(row.count || 0),
       ]),
     )
+    const lineupCountsResult = await dbQuery(
+      `SELECT match_id as "matchId", COUNT(*)::int as count
+       FROM match_lineups
+       WHERE tournament_id = $1
+         AND match_id = ANY($2::bigint[])
+       GROUP BY match_id`,
+      [contest.tournamentId, filteredRows.map((row) => row.id)],
+    )
+    const lineupCountByMatch = new Map(
+      lineupCountsResult.rows.map((row) => [
+        String(row.matchId),
+        Number(row.count || 0),
+      ]),
+    )
     const scoreRepo = await factory.getMatchScoreRepository()
     const playerRepo = await factory.getPlayerRepository()
     const [scoreRows, tournamentPlayers] = await Promise.all([
@@ -1295,6 +1309,7 @@ class ContestService {
       submittedCount: Number(submittedCountByMatch.get(String(row.id)) || 0),
       joinedCount,
       viewerJoined,
+      lineupAnnounced: Number(lineupCountByMatch.get(String(row.id)) || 0) > 0,
       liveScoreSummary: buildLiveScoreSummary({
         match: row,
         score: scoreByMatchId.get(String(row.id)),

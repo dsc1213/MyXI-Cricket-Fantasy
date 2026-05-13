@@ -12,6 +12,12 @@ export const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/,
 const DASHBOARD_PAGE_LOAD_CACHE_MS = Number(
   import.meta.env.VITE_DASHBOARD_PAGE_LOAD_CACHE_MS || 300000,
 )
+const LIVE_SCORE_SYNC_MIN_INTERVAL_MS = Number(
+  import.meta.env.VITE_LIVE_SCORE_ON_DEMAND_MIN_INTERVAL_MS ||
+    import.meta.env.VITE_LIVE_SCORE_SYNC_MIN_INTERVAL_MS ||
+    300000,
+)
+const LIVE_SCORE_SYNC_GATE_KEY = 'myxi-live-score-sync-gate'
 const inFlightGetRequests = new Map()
 const apiActivityListeners = new Set()
 let pendingApiRequestCount = 0
@@ -113,6 +119,60 @@ const hasLiveScoreDbChanges = (data = {}) => {
   return false
 }
 
+const getStoredLiveScoreSyncGate = () => {
+  if (typeof window === 'undefined') return null
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(LIVE_SCORE_SYNC_GATE_KEY) || 'null')
+    const syncedAt = Number(parsed?.syncedAt || 0)
+    const minIntervalMs = Number(parsed?.minIntervalMs || LIVE_SCORE_SYNC_MIN_INTERVAL_MS)
+    if (!syncedAt || !Number.isFinite(minIntervalMs) || minIntervalMs <= 0) return null
+    return { syncedAt, minIntervalMs }
+  } catch {
+    return null
+  }
+}
+
+const setStoredLiveScoreSyncGate = (data = {}) => {
+  if (typeof window === 'undefined') return
+  if (data?.scraperSkipped?.reason === 'live-tracking-disabled') {
+    window.localStorage.removeItem(LIVE_SCORE_SYNC_GATE_KEY)
+    return
+  }
+  const minIntervalMs = Number(
+    data?.scraperSkipped?.minIntervalMs || LIVE_SCORE_SYNC_MIN_INTERVAL_MS,
+  )
+  if (!Number.isFinite(minIntervalMs) || minIntervalMs <= 0) {
+    window.localStorage.removeItem(LIVE_SCORE_SYNC_GATE_KEY)
+    return
+  }
+  window.localStorage.setItem(
+    LIVE_SCORE_SYNC_GATE_KEY,
+    JSON.stringify({ syncedAt: Date.now(), minIntervalMs }),
+  )
+}
+
+const getLiveScoreSyncGateSkip = () => {
+  const gate = getStoredLiveScoreSyncGate()
+  if (!gate) return null
+  const nextAllowedAt = gate.syncedAt + gate.minIntervalMs
+  if (Date.now() >= nextAllowedAt) return null
+  return {
+    ok: true,
+    message: 'Live score sync skipped by UI throttle',
+    reason: 'ui-throttled',
+    scraperSkipped: {
+      reason: 'ui-throttled',
+      minIntervalMs: gate.minIntervalMs,
+      nextAllowedAt: new Date(nextAllowedAt).toISOString(),
+    },
+    liveStatus: {
+      matchId: { status: 'throttled', message: 'UI skipped live sync inside throttle window' },
+      pxi: { status: 'throttled', message: 'UI skipped Playing XI sync inside throttle window' },
+      latestMatchScores: { status: 'throttled', message: 'UI skipped score sync inside throttle window' },
+    },
+  }
+}
+
 const primeCachedGet = async (key, loader) => {
   const data = await loader()
   primeAppQueryCache(key, data)
@@ -125,7 +185,7 @@ const refreshContestScopedData = async ({ contestId, matchId, userId } = {}) => 
     tasks.push(
       primeCachedGet(`contest:${contestId}`, () => request(`/contests/${contestId}`)),
       primeCachedGet(`contestMatches:${contestId}:all`, () =>
-        request(`/contests/${contestId}/matches`),
+        request(`/contests/${contestId}/matches`).then(sortMatchesForSelection),
       ),
       primeCachedGet(`contestParticipants:${contestId}:all`, () =>
         request(`/contests/${contestId}/participants`),
@@ -141,7 +201,9 @@ const refreshContestScopedData = async ({ contestId, matchId, userId } = {}) => 
       const matchQuery = withSortedParams(new URLSearchParams([['userId', userId]]))
       tasks.push(
         primeCachedGet(`contestMatches:${contestId}:${matchQuery}`, () =>
-          request(`/contests/${contestId}/matches?${matchQuery}`),
+          request(`/contests/${contestId}/matches?${matchQuery}`).then(
+            sortMatchesForSelection,
+          ),
         ),
       )
     }
@@ -439,6 +501,8 @@ const fetchDashboardPageLoadData = async () => {
 }
 
 const syncLiveScoresNow = async ({ reason = 'ui-refresh' } = {}) => {
+  const gatedResponse = getLiveScoreSyncGateSkip()
+  if (gatedResponse) return gatedResponse
   if (pendingLiveScoreSyncRequest) return pendingLiveScoreSyncRequest
 
   const options = {
@@ -461,6 +525,9 @@ const syncLiveScoresNow = async ({ reason = 'ui-refresh' } = {}) => {
           reason,
         }
       }
+    }
+    if (data?.ok !== false) {
+      setStoredLiveScoreSyncGate(data)
     }
     if (data?.ok !== false && hasLiveScoreDbChanges(data)) {
       invalidateAppQueryCache((key) =>
@@ -626,12 +693,16 @@ const fetchContest = (contestId) =>
 
 const fetchContestMatches = ({ contestId, status, team, userId } = {}) => {
   const params = new URLSearchParams()
-  if (status) params.set('status', status)
-  if (team) params.set('team', team)
+  if (status && status !== 'all') params.set('status', status)
+  if (team && team !== 'all') params.set('team', team)
   if (userId) params.set('userId', userId)
   const query = withSortedParams(params)
-  return request(`/contests/${contestId}/matches${query ? `?${query}` : ''}`).then(
-    sortMatchesForSelection,
+  return cachedGet(
+    `contestMatches:${contestId}:${query || 'all'}`,
+    () =>
+      request(`/contests/${contestId}/matches${query ? `?${query}` : ''}`).then(
+        sortMatchesForSelection,
+      ),
   )
 }
 
@@ -1114,6 +1185,16 @@ const updateAdminMatchStatus = async ({ id, status }) => {
   )
   return data
 }
+const updateAdminMatchStartTime = async ({ id, startTime }) => {
+  const data = await request(`/admin/matches/${id}/start-time`, {
+    method: 'POST',
+    body: JSON.stringify({ startTime }),
+  })
+  invalidateAppQueryCache((key) =>
+    key.startsWith('tournamentMatches:') || key.startsWith('contestMatches:'),
+  )
+  return data
+}
 const updateAdminMatchEditLock = async ({ id, override }) => {
   const data = await request(`/admin/matches/${id}/edit-lock`, {
     method: 'POST',
@@ -1426,6 +1507,7 @@ export {
   confirmPendingTournamentRemoval,
   rejectPendingTournamentRemoval,
   updateAdminMatchStatus,
+  updateAdminMatchStartTime,
   updateAdminMatchEditLock,
   forceAdminLiveScoreSync,
   replaceAdminMatchBackups,

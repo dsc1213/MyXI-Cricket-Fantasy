@@ -48,6 +48,27 @@ class MatchService {
     return updated
   }
 
+  async updateMatchStartTime(id, startTime) {
+    const parsed = new Date(startTime || '')
+    if (Number.isNaN(parsed.getTime())) {
+      const error = new Error('Valid match start time is required')
+      error.statusCode = 400
+      throw error
+    }
+    const match = await this.getMatch(id)
+    if (!match) return null
+    const currentStatus = (match.status || '').toString().trim().toLowerCase()
+    let nextStatus = null
+    if (currentStatus !== 'completed') {
+      const msUntilStart = parsed.getTime() - Date.now()
+      if (msUntilStart <= 0) nextStatus = 'inprogress'
+      else if (msUntilStart <= 30 * 60 * 1000) nextStatus = 'started'
+      else nextStatus = 'notstarted'
+    }
+    const repo = await factory.getMatchRepository()
+    return await repo.updateStartTime(id, parsed.toISOString(), nextStatus)
+  }
+
   async updateMatchEditLockOverride(id, override) {
     const repo = await factory.getMatchRepository()
     return await repo.updateTeamEditLockOverride(id, override || null)

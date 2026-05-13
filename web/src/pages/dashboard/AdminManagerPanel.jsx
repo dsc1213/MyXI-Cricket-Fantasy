@@ -29,6 +29,7 @@ import {
   startAdminContest,
   syncContestSelections,
   updateAdminMatchEditLock,
+  updateAdminMatchStartTime,
   updateAdminMatchStatus,
   updateAdminContest,
   updateAdminUser,
@@ -48,6 +49,14 @@ const formatSafeDate = (value, formatter = 'date') => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '-'
   return formatter === 'datetime' ? date.toLocaleString() : date.toLocaleDateString()
+}
+
+const toDateTimeLocalValue = (value = '') => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const offsetMs = date.getTimezoneOffset() * 60000
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16)
 }
 
 const formatMatchStatusLabel = (value = '') => {
@@ -877,7 +886,36 @@ function AdminManagerPanel({
     {
       key: 'startAt',
       label: 'Starts',
-      render: (row) => formatSafeDate(row.startAt || row.startTime, 'datetime'),
+      render: (row) => (
+        <input
+          key={`${row.id}-${row.startAt || row.startTime || ''}`}
+          aria-label={`Match start time ${row.name || row.id}`}
+          className="create-contest-input"
+          type="datetime-local"
+          defaultValue={toDateTimeLocalValue(row.startAt || row.startTime)}
+          disabled={isSaving}
+          onClick={(event) => event.stopPropagation()}
+          onBlur={async (event) => {
+            try {
+              const nextValue = event.target.value
+              if (nextValue === toDateTimeLocalValue(row.startAt || row.startTime)) return
+              setIsSaving(true)
+              setErrorText('')
+              setNotice('')
+              await updateAdminMatchStartTime({
+                id: row.id,
+                startTime: nextValue,
+              })
+              await loadTournamentMatches(selectedTournamentId)
+              setNotice('Match start time updated')
+            } catch (error) {
+              setErrorText(error.message || 'Failed to update match start time')
+            } finally {
+              setIsSaving(false)
+            }
+          }}
+        />
+      ),
     },
     {
       key: 'status',

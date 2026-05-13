@@ -99,7 +99,7 @@
   align-items: center;
 }
 
-.app.app-lower-content .admin-grid {
+.app.app-lower-content:not(.is-contest-detail) .admin-grid {
   grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.8fr);
   gap: 0.75rem;
 }
@@ -154,7 +154,7 @@ body.dark-theme .leaderboard-card .leaderboard-row:not(.header):nth-child(even) 
 }
 
 @media (max-width: 900px) {
-  .app.app-lower-content .admin-grid {
+  .app.app-lower-content:not(.is-contest-detail) .admin-grid {
     grid-template-columns: 1fr;
   }
 

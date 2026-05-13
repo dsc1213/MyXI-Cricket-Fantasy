@@ -1629,6 +1629,34 @@ const registerMockProviderRoutes = (router, ctx) => {
     return res.status(404).json({ message: 'Match not found' })
   })
 
+  router.post('/admin/matches/:id/start-time', (req, res) => {
+    const matchId = (req.params.id || '').toString()
+    const parsed = new Date(req.body?.startTime || '')
+    if (Number.isNaN(parsed.getTime())) {
+      return res.status(400).json({ message: 'Valid match start time is required' })
+    }
+    for (const [tournamentId, matches] of Object.entries(customTournamentMatches)) {
+      if (!Array.isArray(matches)) continue
+      const target = matches.find((match) => String(match.id) === matchId)
+      if (!target) continue
+      target.startAt = parsed.toISOString()
+      target.date = parsed.toISOString().slice(0, 10)
+      if (normalizeMatchStatus(target.status) !== 'completed') {
+        const msUntilStart = parsed.getTime() - Date.now()
+        target.status =
+          msUntilStart <= 0
+            ? 'inprogress'
+            : msUntilStart <= 30 * 60 * 1000
+              ? 'started'
+              : 'notstarted'
+        target.locked = ['inprogress', 'completed'].includes(target.status)
+      }
+      persistState()
+      return res.json({ ...target, tournamentId })
+    }
+    return res.status(404).json({ message: 'Match not found' })
+  })
+
   router.post('/admin/matches/:id/edit-lock', (req, res) => {
     const matchId = (req.params.id || '').toString()
     const override = (req.body?.override || '').toString().trim().toLowerCase()
@@ -1866,6 +1894,15 @@ const registerMockProviderRoutes = (router, ctx) => {
             userId,
             seedFromDefaultHasTeam: true,
           })
+      const savedLineup = mockMatchLineups.get(
+        lineupKey({
+          tournamentId: contest.tournamentId,
+          matchId: match.id,
+        }),
+      )
+      const lineupAnnounced = Object.values(savedLineup?.lineups || {}).some(
+        (lineup) => Array.isArray(lineup?.playingXI) && lineup.playingXI.length > 0,
+      )
       return {
         ...match,
         hasTeam: isFixedRosterContest(contest)
@@ -1874,6 +1911,7 @@ const registerMockProviderRoutes = (router, ctx) => {
         submittedCount,
         joinedCount,
         viewerJoined,
+        lineupAnnounced,
       }
     })
     return res.json(rows)

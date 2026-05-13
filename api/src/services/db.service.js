@@ -105,6 +105,8 @@ const dbHandlers = {
   '/admin/matches/import-fixtures': (data) =>
     matchService.importFixtures(data.tournamentId, data.fixtures),
   '/admin/matches/:id/status': (id, status) => matchService.updateMatchStatus(id, status),
+  '/admin/matches/:id/start-time': (id, data) =>
+    matchService.updateMatchStartTime(id, data.startTime),
   '/admin/matches/:id/edit-lock': (id, data) =>
     matchService.updateMatchEditLockOverride(id, data.override || null),
   '/admin/matches/:id/replace-backups': (id) =>
@@ -1185,6 +1187,25 @@ const createDbService = (dependencies) => {
           return res.status(400).json({ message: 'Valid status is required' })
         }
         const result = await matchService.updateMatchStatus(req.params.id, status)
+        return res.json(result)
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.post('/admin/matches/:id/start-time', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can update match start time' })
+        }
+        const result = await matchService.updateMatchStartTime(
+          req.params.id,
+          req.body?.startTime,
+        )
+        if (!result) return res.status(404).json({ message: 'Match not found' })
         return res.json(result)
       } catch (error) {
         return next(error)

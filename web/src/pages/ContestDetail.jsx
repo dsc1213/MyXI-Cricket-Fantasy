@@ -4,7 +4,6 @@ import ResourceRemovalModal from '../components/admin/ResourceRemovalModal.jsx'
 import ContestTopBar from '../components/contest-detail/ContestTopBar.jsx'
 import CopyTeamModal from '../components/contest-detail/CopyTeamModal.jsx'
 import MatchesCard from '../components/contest-detail/MatchesCard.jsx'
-import ParticipantsCard from '../components/contest-detail/ParticipantsCard.jsx'
 import TeamCompareModal from '../components/contest-detail/TeamCompareModal.jsx'
 import {
   buildTeamComparison,
@@ -31,7 +30,6 @@ import {
 import { getStoredUser } from '../lib/auth.js'
 import { getDisplayName } from '../lib/displayName.js'
 import { sortMatchesForSelection } from '../lib/matchSort.js'
-import { normalizeMatchStatus } from '../lib/matchStatus.js'
 
 const normalizeContestMatches = (payload) => {
   if (Array.isArray(payload)) return payload
@@ -63,6 +61,15 @@ const normalizeContestParticipants = (payload) => {
     previewBackups: Array.isArray(payload?.previewBackups) ? payload.previewBackups : [],
   }
 }
+
+const liveSyncUpdatedDb = (payload = {}) =>
+  (Array.isArray(payload?.dbWrites) && payload.dbWrites.length > 0) ||
+  Number(payload?.discovery?.lineupsSynced || 0) > 0 ||
+  Number(payload?.scoreSync?.synced || 0) > 0 ||
+  Number(payload?.scoreSync?.completed || 0) > 0 ||
+  Number(payload?.statusMaintenance?.started || 0) > 0 ||
+  Number(payload?.statusMaintenance?.inprogress || 0) > 0 ||
+  Number(payload?.statusMaintenance?.completed || 0) > 0
 
 const getDefaultSelectedMatchId = (rows = [], currentSelectedMatchId = '') => {
   const sortedRows = sortMatchesForSelection(rows)
@@ -129,7 +136,6 @@ function ContestDetail() {
   const [isLoadingCopySources, setIsLoadingCopySources] = useState(false)
   const [isSavingCopiedTeam, setIsSavingCopiedTeam] = useState(false)
   const [copyError, setCopyError] = useState('')
-  const [copyableMatchIds, setCopyableMatchIds] = useState(new Set())
   const [comparePlayer, setComparePlayer] = useState(null)
   const [compareData, setCompareData] = useState({
     common: [],
@@ -147,14 +153,16 @@ function ContestDetail() {
 
     const runInitialLiveSync = async () => {
       try {
-        await syncLiveScoresNow({ reason: 'contest-page' })
+        const result = await syncLiveScoresNow({ reason: 'contest-page' })
+        if (active && liveSyncUpdatedDb(result)) {
+          setLiveSyncRevision((value) => value + 1)
+        }
       } catch (error) {
         if (!active) return
         setErrorText(error.message || 'Live score sync failed')
       } finally {
         if (active) {
           setLiveSyncContestId(contestId)
-          setLiveSyncRevision((value) => value + 1)
           setIsLiveSyncing(false)
         }
       }
@@ -260,7 +268,13 @@ function ContestDetail() {
   ])
 
   useEffect(() => {
-    if (!isLiveSyncReady || !selectedMatchId) return
+    if (!isLiveSyncReady || !selectedMatchId) {
+      setParticipants([])
+      setJoinedParticipantsCount(0)
+      setPreviewXI([])
+      setPreviewBackups([])
+      return
+    }
     let active = true
 
     setParticipants([])
@@ -330,52 +344,11 @@ function ContestDetail() {
     [sortedMatches],
   )
 
-  useEffect(() => {
-    if (!isLiveSyncReady) return
-    let active = true
-    const candidates = sortedMatches.filter(
-      (match) =>
-        isLoggedIn &&
-        ['notstarted', 'started'].includes(normalizeMatchStatus(match.status)) &&
-        match.viewerJoined &&
-        !match.hasTeam,
+  const onToggleMatchParticipants = (matchId) => {
+    setSelectedMatchId((current) =>
+      String(current) === String(matchId) ? '' : String(matchId || ''),
     )
-    if (!candidates.length) {
-      setCopyableMatchIds(new Set())
-      return () => {
-        active = false
-      }
-    }
-
-    const loadCopyAvailability = async () => {
-      const results = await Promise.allSettled(
-        candidates.map(async (match) => {
-          const payload = await fetchTeamCopySources({
-            contestId,
-            matchId: match.id,
-            userId: currentUserGameName,
-          })
-          return {
-            matchId: String(match.id),
-            hasSources: Array.isArray(payload?.sources) && payload.sources.length > 0,
-          }
-        }),
-      )
-      if (!active) return
-      setCopyableMatchIds(
-        new Set(
-          results
-            .filter((result) => result.status === 'fulfilled' && result.value.hasSources)
-            .map((result) => result.value.matchId),
-        ),
-      )
-    }
-
-    loadCopyAvailability()
-    return () => {
-      active = false
-    }
-  }, [contestId, currentUserGameName, isLoggedIn, sortedMatches, isLiveSyncReady])
+  }
 
   const onPreviewPlayer = async (player) => {
     try {
@@ -612,7 +585,7 @@ function ContestDetail() {
           matches={sortedMatches}
           isLoadingMatches={isLoading}
           selectedMatchId={selectedMatchId}
-          onSelectMatch={setSelectedMatchId}
+          onSelectMatch={onToggleMatchParticipants}
           matchFilter={matchFilter}
           onChangeMatchFilter={setMatchFilter}
           teamFilter={teamFilter}
@@ -622,24 +595,15 @@ function ContestDetail() {
           onPreviewLeaderboard={() => setShowLeaderboardPreview(true)}
           onPreviewTeam={onPreviewMyTeamFromMatch}
           onCopyTeam={onOpenCopyTeamModal}
-          copyableMatchIds={copyableMatchIds}
           isLoggedIn={isLoggedIn}
-        />
-
-        <ParticipantsCard
-          contestMode={contestMode}
-          contestId={contestId}
-          activeMatch={activeSortedMatch}
           participants={participants}
-          isLoading={isLoadingParticipants}
-          joinedCount={joinedParticipantsCount}
+          isLoadingParticipants={isLoadingParticipants}
+          joinedParticipantsCount={joinedParticipantsCount}
           onPreviewPlayer={onPreviewPlayer}
           onComparePlayer={onComparePlayer}
           canEditFullTeams={canEditFullTeams}
           canSeeMissingTeams={canSeeMissingTeams}
-          isLoggedIn={isLoggedIn}
           viewerUserId={currentUserGameName}
-          viewerJoined={Boolean(activeSortedMatch?.viewerJoined)}
         />
       </div>
 

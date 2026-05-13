@@ -1539,10 +1539,14 @@ test.describe('15) JSON uploads and UI validation', () => {
 
       const matchRow = page.locator('.match-table tbody tr').first()
       await expect(matchRow).toBeVisible()
-      await expect(matchRow).toContainText('Added')
 
       await matchRow.click()
+      await expect(page.locator('.match-participants-expanded-row')).toHaveCount(1)
       await expect(page.locator('.participants-table tbody tr')).toHaveCount(1)
+      await matchRow.click()
+      await expect(page.locator('.match-participants-expanded-row')).toHaveCount(0)
+      await matchRow.click()
+      await expect(page.locator('.match-participants-expanded-row')).toHaveCount(1)
       await page.route('**/users/player/picks**', async (route) => {
         const response = await route.fetch()
         const payload = await response.json()

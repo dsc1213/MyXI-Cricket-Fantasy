@@ -155,6 +155,23 @@ class MatchRepository {
     return result.rows[0] ? mapMatchRow(result.rows[0]) : null
   }
 
+  async updateStartTime(id, startTime, status = null) {
+    const result = await dbQuery(
+      `UPDATE matches
+       SET start_time = $1,
+           status = COALESCE($3, status),
+           updated_at = now()
+       WHERE id = $2
+       RETURNING id, tournament_id as "tournamentId", name, team_a as "teamA", team_b as "teamB",
+                 team_a_key as "teamAKey", team_b_key as "teamBKey",
+                 start_time as "startTime", source_key as "sourceKey", status,
+                 team_edit_lock_override as "teamEditLockOverride",
+                 created_at as "createdAt", updated_at as "updatedAt"`,
+      [startTime, id, status],
+    )
+    return result.rows[0] ? mapMatchRow(result.rows[0]) : null
+  }
+
   async updateTeamEditLockOverride(id, override) {
     const normalizedOverride = override || null
     const result = await dbQuery(

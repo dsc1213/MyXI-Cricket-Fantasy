@@ -1215,7 +1215,9 @@ class PlayerService {
         resolvedSelection.resolvedCaptainId ?? selection?.captainId
       const resolvedViceCaptainId =
         resolvedSelection.resolvedViceCaptainId ?? selection?.viceCaptainId
-      if (!forcePlainMultiplier) {
+      const isResolvedCaptain = Number(resolvedCaptainId) === numericId
+      const isResolvedViceCaptain = Number(resolvedViceCaptainId) === numericId
+      if (!forcePlainMultiplier || isResolvedCaptain || isResolvedViceCaptain) {
         if (resolvedSelection.captainApplies && Number(resolvedCaptainId) === numericId) {
           multiplier = 2
           roleTag = 'C'

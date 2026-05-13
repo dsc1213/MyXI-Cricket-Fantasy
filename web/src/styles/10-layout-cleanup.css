@@ -35,7 +35,9 @@
 
 .app.is-contest-detail .main.main-lower-content {
   padding-top: 0.3rem;
-  overflow: hidden;
+  overflow: visible;
+  width: 100%;
+  align-items: stretch;
 }
 
 .app.is-contest-detail .footer {
@@ -329,9 +331,10 @@ body.dark-theme .ipl-team-text {
 }
 
 .contest-grid {
-  grid-template-columns: 1.2fr 0.8fr;
+  grid-template-columns: 1fr;
   align-items: start;
   min-height: 0;
+  width: 100%;
 }
 
 .contest-detail {
@@ -339,6 +342,8 @@ body.dark-theme .ipl-team-text {
   grid-template-rows: auto minmax(0, 1fr);
   gap: 0.5rem;
   min-height: calc(100svh - 225px);
+  width: 100%;
+  max-width: none;
 }
 
 .contest-detail .admin-grid.contest-grid {
@@ -352,10 +357,9 @@ body.dark-theme .ipl-team-text {
   min-height: 0;
 }
 
-.contest-detail .matches-card,
-.contest-detail .participants-card {
+.contest-detail .matches-card {
   height: 100%;
-  overflow: hidden;
+  overflow: visible;
   min-height: 0;
 }
 
@@ -373,8 +377,8 @@ body.dark-theme .ipl-team-text {
 }
 
 .matches-card {
-  --match-cols: minmax(170px, 1.35fr) minmax(96px, 0.72fr) minmax(90px, 0.58fr)
-    minmax(90px, 0.62fr) minmax(108px, 0.54fr);
+  --match-cols: minmax(132px, 1.4fr) minmax(92px, 0.78fr) minmax(92px, 0.74fr)
+    minmax(104px, 0.72fr) 34px;
   grid-template-rows: auto auto minmax(0, 1fr);
 }
 
@@ -519,9 +523,10 @@ body.dark-theme .contest-live-score-row.team-side-b span {
 
 .match-table-wrap {
   min-height: 0;
-  height: 100%;
-  overflow: auto;
-  overscroll-behavior: contain;
+  height: auto;
+  overflow-x: auto;
+  overflow-y: visible;
+  overscroll-behavior: auto;
   scrollbar-gutter: stable;
   border: 1px solid var(--panel-border);
   border-radius: 12px;
@@ -591,6 +596,45 @@ body.dark-theme .match-table tbody tr.active {
   min-width: 0;
 }
 
+.match-name-copy {
+  display: grid;
+  gap: 0.06rem;
+  min-width: 0;
+}
+
+.match-expand-icon {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 1rem;
+  color: var(--text-muted);
+  transition: transform 0.16s ease;
+}
+
+.match-expand-cell {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.match-expand-btn {
+  width: 1.55rem;
+  height: 1.55rem;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  margin: 0 auto;
+  padding: 0;
+  vertical-align: middle;
+}
+
+.match-expand-icon.expanded {
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+
 .match-name-btn strong {
   font-size: 0.86rem;
   max-width: 100%;
@@ -624,6 +668,34 @@ body.dark-theme .match-table tbody tr.active {
   align-content: start;
   grid-template-rows: auto auto auto minmax(0, 1fr);
   min-height: 0;
+}
+
+.match-participants-expanded-row > td {
+  padding: 0.52rem !important;
+  background: rgba(15, 23, 42, 0.03);
+}
+
+body.dark-theme .match-participants-expanded-row > td {
+  background: rgba(2, 6, 23, 0.22);
+}
+
+.participants-card.inline-participants-card {
+  height: auto;
+  min-height: 0;
+  padding: 0.78rem;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.participants-card.inline-participants-card .participants-table-wrap {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  overscroll-behavior: auto;
+}
+
+.participants-card.inline-participants-card.prestart .participants-table-wrap {
+  max-height: none;
 }
 
 .contest-detail .participants-card.prestart {

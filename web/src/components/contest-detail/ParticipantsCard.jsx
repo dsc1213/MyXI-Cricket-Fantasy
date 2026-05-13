@@ -67,6 +67,7 @@ function ParticipantsCard({
   viewerUserId = '',
   viewerJoined = false,
   isLoading = false,
+  inline = false,
 }) {
   const hasNoRows = participants.length === 0
   const isFixedRosterContest = contestMode === 'fixed_roster'
@@ -207,7 +208,7 @@ function ParticipantsCard({
     <article
       className={`admin-card participants-card ${isFixedRosterContest ? 'fixed-roster' : ''} ${!canViewTeams ? 'prestart' : ''} ${
         hasNoRows ? 'no-rows' : ''
-      }`.trim()}
+      } ${inline ? 'inline-participants-card' : ''}`.trim()}
     >
       <h3>{`Participants (${participants.length} / ${Number(joinedCount || 0)} joined)`}</h3>
       <p className="team-note participants-subhead">

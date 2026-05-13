@@ -1599,6 +1599,25 @@ body.dark-theme .squad-manager-success {
   }
 }
 
+.app.is-contest-detail .main.main-lower-content {
+  display: block;
+  width: 100%;
+  max-width: none;
+}
+
+.app.is-contest-detail .main.main-lower-content > .contest-detail,
+.app.is-contest-detail .contest-grid,
+.app.is-contest-detail .matches-card,
+.app.is-contest-detail .match-table-wrap {
+  width: 100%;
+  max-width: none;
+}
+
+.app.is-contest-detail .match-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
 @media (max-width: 340px) {
   .dashboard-panel-view .catalog-table {
     min-width: 680px;
@@ -4354,11 +4373,6 @@ body:not(.dark-theme) .backup-priority-badge {
   box-shadow: none;
 }
 
-.matches-card {
-  --match-cols: minmax(170px, 1.35fr) minmax(96px, 0.72fr) minmax(90px, 0.58fr)
-    minmax(90px, 0.62fr) minmax(108px, 0.54fr);
-}
-
 .matches-card .match-row,
 .matches-card .match-row.header {
   display: grid;
@@ -4376,7 +4390,7 @@ body:not(.dark-theme) .backup-priority-badge {
 }
 
 .participants-card {
-  --participant-cols: minmax(0, 1fr) 72px 48px;
+  --participant-cols: minmax(0, 1fr) 25% 25%;
 }
 
 .participants-card .participants-grid-head,
@@ -5343,13 +5357,22 @@ body.dark-theme .app.app-lower-content select {
 
   .app.is-contest-detail .match-table {
     width: 100%;
-    min-width: 320px;
+    min-width: 0;
     table-layout: fixed;
+  }
+
+  .app.is-contest-detail .match-table-wrap {
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+
+  .app.is-contest-detail .participants-card.inline-participants-card .participants-table-wrap {
+    overflow: visible;
   }
 
   .app.is-contest-detail .participants-table {
     width: 100%;
-    min-width: 320px;
+    min-width: 0;
     table-layout: fixed;
   }
 
@@ -5378,35 +5401,49 @@ body.dark-theme .app.app-lower-content select {
     font-size: 0.76rem;
   }
 
-  .app.is-contest-detail .match-table thead th:first-child,
   .app.is-contest-detail .match-table tbody td:first-child {
     position: static;
     left: auto;
     box-shadow: none;
   }
 
+  .app.is-contest-detail .match-table thead th:first-child {
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 9;
+    box-shadow: none;
+  }
+
   .app.is-contest-detail .match-table thead th:nth-child(1),
   .app.is-contest-detail .match-table tbody td:nth-child(1) {
     width: 30%;
-    min-width: 96px;
+    min-width: 0;
   }
 
   .app.is-contest-detail .match-table thead th:nth-child(2),
   .app.is-contest-detail .match-table tbody td:nth-child(2) {
-    width: 24%;
-    min-width: 84px;
+    width: 22%;
+    min-width: 0;
   }
 
   .app.is-contest-detail .match-table thead th:nth-child(3),
   .app.is-contest-detail .match-table tbody td:nth-child(3) {
-    width: 20%;
-    min-width: 72px;
+    width: 22%;
+    min-width: 0;
   }
 
   .app.is-contest-detail .match-table thead th:nth-child(4),
   .app.is-contest-detail .match-table tbody td:nth-child(4) {
-    width: 26%;
-    min-width: 84px;
+    width: 17%;
+    min-width: 0;
+  }
+
+  .app.is-contest-detail .match-table thead th:nth-child(5),
+  .app.is-contest-detail .match-table tbody td:nth-child(5) {
+    width: 9%;
+    min-width: 0;
+    text-align: center;
   }
 
   .app.is-contest-detail .participants-table thead th,
@@ -5418,20 +5455,20 @@ body.dark-theme .app.app-lower-content select {
   .app.is-contest-detail .participants-table thead th:nth-child(1),
   .app.is-contest-detail .participants-table tbody td:nth-child(1) {
     width: 50%;
-    min-width: 108px;
+    min-width: 0;
   }
 
   .app.is-contest-detail .participants-table thead th:nth-child(2),
   .app.is-contest-detail .participants-table tbody td:nth-child(2) {
-    width: 22%;
-    min-width: 72px;
+    width: 25%;
+    min-width: 0;
     text-align: center;
   }
 
   .app.is-contest-detail .participants-table thead th:nth-child(3),
   .app.is-contest-detail .participants-table tbody td:nth-child(3) {
-    width: 28%;
-    min-width: 88px;
+    width: 25%;
+    min-width: 0;
   }
 
   .app.is-contest-detail .participants-table thead th:nth-child(2),
@@ -5443,7 +5480,8 @@ body.dark-theme .app.app-lower-content select {
 
   .app.is-contest-detail .participants-table thead th:nth-child(3),
   .app.is-contest-detail .participants-table tbody td:nth-child(3) {
-    padding-left: 0.46rem;
+    padding-left: 0.22rem;
+    padding-right: 0.22rem;
   }
 
   .app.is-contest-detail .participants-table .participant-name {
@@ -5453,6 +5491,12 @@ body.dark-theme .app.app-lower-content select {
   .app.is-contest-detail .participants-table .participant-row-score {
     width: auto;
     font-size: 0.72rem;
+  }
+
+  .app.is-contest-detail .participants-table .top-actions {
+    gap: 0.16rem;
+    justify-content: center;
+    white-space: nowrap;
   }
 
   .app.is-contest-detail .leaderboard-table thead th,
@@ -5502,20 +5546,45 @@ body.dark-theme .app.app-lower-content select {
   }
 
   .app.is-contest-detail .match-table .match-action-icon-btn {
-    min-height: 26px;
-    min-width: 26px;
-    padding: 0.2rem;
+    min-height: 22px;
+    min-width: 22px;
+    padding: 0.08rem !important;
     border-radius: 8px;
+  }
+
+  .app.is-contest-detail .match-table .top-actions {
+    justify-content: center;
+    gap: 0.22rem;
+    white-space: nowrap;
   }
 
   .app.is-contest-detail .match-table .join-action-btn {
     min-width: 0;
-    padding: 0.16rem 0.34rem !important;
-    gap: 0.18rem;
+    padding: 0.08rem 0.18rem !important;
+    gap: 0.12rem;
+  }
+
+  .app.is-contest-detail .match-table .join-action-btn + .match-action-icon-btn {
+    margin-left: 0.16rem;
   }
 
   .app.is-contest-detail .match-table .join-action-label {
-    font-size: 0.64rem;
+    font-size: 0.6rem;
+  }
+
+  .app.is-contest-detail .match-table .action-icon {
+    width: 14px;
+    height: 14px;
+  }
+
+  .app.is-contest-detail .match-table .match-expand-btn {
+    width: 1.45rem;
+    height: 1.45rem;
+  }
+
+  .app.is-contest-detail .match-table .match-expand-icon {
+    width: 0.82rem;
+    height: 0.82rem;
   }
 
   .app.is-contest-detail .participants-table .match-action-icon-btn {
@@ -5756,11 +5825,6 @@ body.dark-theme .app.app-lower-content select {
       'actions';
   }
 
-  .matches-card {
-    --match-cols: minmax(120px, 1.1fr) minmax(86px, 0.62fr) minmax(78px, 0.55fr)
-      minmax(78px, 0.58fr) minmax(88px, 0.5fr);
-  }
-
   .matches-card .match-row,
   .matches-card .match-row.header {
     gap: 0.35rem;
@@ -5768,7 +5832,7 @@ body.dark-theme .app.app-lower-content select {
   }
 
   .participants-card {
-    --participant-cols: minmax(0, 1fr) 56px 40px;
+    --participant-cols: minmax(0, 1fr) 25% 25%;
   }
 
   .participants-card .player-list.compact {

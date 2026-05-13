@@ -4,6 +4,7 @@ import { getCountryFlag } from '../ui/countryFlagUtils.js'
 import LoadingNote from '../ui/LoadingNote.jsx'
 import SelectField from '../ui/SelectField.jsx'
 import StickyTable from '../ui/StickyTable.jsx'
+import ParticipantsCard from './ParticipantsCard.jsx'
 import { formatMatchStatus, normalizeMatchStatus } from '../../lib/matchStatus.js'
 
 const monthShort = [
@@ -85,6 +86,22 @@ function CopyActionIcon() {
   )
 }
 
+function ExpandActionIcon({ expanded = false }) {
+  return (
+    <svg
+      className={`match-expand-icon ${expanded ? 'expanded' : ''}`.trim()}
+      viewBox="0 0 20 20"
+      role="presentation"
+      aria-hidden="true"
+    >
+      <path
+        fill="currentColor"
+        d="M6.2 7.3a1 1 0 0 1 1.4 0L10 9.7l2.4-2.4a1 1 0 1 1 1.4 1.4l-3.1 3.1a1 1 0 0 1-1.4 0L6.2 8.7a1 1 0 0 1 0-1.4Z"
+      />
+    </svg>
+  )
+}
+
 function formatShortDate(value) {
   if (typeof value !== 'string') return value
   const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
@@ -127,8 +144,15 @@ function MatchesCard({
   onPreviewLeaderboard,
   onPreviewTeam,
   onCopyTeam,
-  copyableMatchIds = new Set(),
   isLoggedIn = false,
+  participants = [],
+  joinedParticipantsCount = 0,
+  isLoadingParticipants = false,
+  onPreviewPlayer,
+  onComparePlayer,
+  canEditFullTeams = false,
+  canSeeMissingTeams = false,
+  viewerUserId = '',
 }) {
   const isFixedRosterContest = contestMode === 'fixed_roster'
   const columns = [
@@ -139,12 +163,17 @@ function MatchesCard({
         <button
           type="button"
           className="match-name-btn"
-          onClick={() => onSelectMatch(match.id)}
+          onClick={(event) => {
+            event.stopPropagation()
+            onSelectMatch(match.id)
+          }}
         >
-          <strong>
-            <MatchLabel home={match.home} away={match.away} />
-          </strong>
-          <span>{`Match ${match.matchNo}`}</span>
+          <span className="match-name-copy">
+            <strong>
+              <MatchLabel home={match.home} away={match.away} />
+            </strong>
+            <span>{`Match ${match.matchNo}`}</span>
+          </span>
         </button>
       ),
     },
@@ -204,45 +233,52 @@ function MatchesCard({
             ? !match.teamEditingLocked
             : normalizedStatus === 'notstarted' || normalizedStatus === 'started'
         const canManageOwnTeam = Boolean(match.viewerJoined)
-        const canCopyTeam = copyableMatchIds.has(String(match.id))
+        const canCopyTeam = Boolean(onCopyTeam)
         const canView =
           normalizedStatus === 'notstarted' ||
           normalizedStatus === 'started' ||
           normalizedStatus === 'inprogress' ||
           normalizedStatus === 'completed'
         const loginRequired = !isLoggedIn
+        if (match.hasTeam) {
+          const ActionIcon = canEdit ? EditActionIcon : ViewActionIcon
+          const label = canEdit ? 'Edit team' : 'View team'
+          const disabled = loginRequired || (!canEdit && !canView)
+          return (
+            <div className="top-actions">
+              <Button
+                variant="ghost"
+                size="small"
+                className={`match-action-icon-btn ${canEdit ? 'icon-edit-btn' : 'icon-eye-btn'}`}
+                disabled={disabled}
+                to={
+                  canEdit && !disabled
+                    ? `/fantasy/select?contest=${contestId}&match=${match.id}&mode=edit`
+                    : undefined
+                }
+                aria-label={loginRequired ? 'Login required' : label}
+                title={loginRequired ? 'Login required' : label}
+                onClick={
+                  canEdit
+                    ? (event) => event.stopPropagation()
+                    : (event) => {
+                        event.stopPropagation()
+                        onPreviewTeam?.(match)
+                      }
+                }
+              >
+                <ActionIcon />
+                <span>{` (${Number(match.submittedCount || 0)})`}</span>
+              </Button>
+            </div>
+          )
+        }
         return (
           <div className="top-actions">
             {canEdit ? (
               <>
                 {canManageOwnTeam &&
-                  (match.hasTeam ? (
-                    loginRequired ? (
-                      <Button
-                        variant="ghost"
-                        size="small"
-                        className="icon-edit-btn match-action-icon-btn"
-                        disabled
-                        aria-label="Login required"
-                        title="Login required to edit team"
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <EditActionIcon />
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="small"
-                        className="icon-edit-btn match-action-icon-btn"
-                        to={`/fantasy/select?contest=${contestId}&match=${match.id}&mode=edit`}
-                        aria-label="Edit team"
-                        title="Edit team"
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <EditActionIcon />
-                      </Button>
-                    )
-                  ) : loginRequired ? (
+                  (loginRequired ? (
                     <Button
                       variant="ghost"
                       size="small"
@@ -286,23 +322,6 @@ function MatchesCard({
                       ) : null}
                     </>
                   ))}
-                {match.hasTeam && (
-                  <Button
-                    variant="ghost"
-                    size="small"
-                    className="icon-eye-btn match-action-icon-btn"
-                    disabled={loginRequired}
-                    aria-label="View team"
-                    title={loginRequired ? 'Login required to view team' : 'View team'}
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      onPreviewTeam?.(match)
-                    }}
-                  >
-                    <ViewActionIcon />
-                    <span>{` (${Number(match.submittedCount || 0)})`}</span>
-                  </Button>
-                )}
               </>
             ) : canView ? (
               <Button
@@ -342,6 +361,29 @@ function MatchesCard({
           </div>
         )
       },
+    },
+    {
+      key: 'expand',
+      label: '',
+      sortable: false,
+      cellClassName: 'match-expand-cell',
+      render: (match) => (
+        <button
+          type="button"
+          className="match-expand-btn"
+          aria-label={
+            String(selectedMatchId) === String(match.id)
+              ? 'Hide participants'
+              : 'Show participants'
+          }
+          onClick={(event) => {
+            event.stopPropagation()
+            onSelectMatch(match.id)
+          }}
+        >
+          <ExpandActionIcon expanded={String(selectedMatchId) === String(match.id)} />
+        </button>
+      ),
     },
   ]
   const loadingEmptyState = <LoadingNote loading loadingText="Loading matches..." />
@@ -391,8 +433,30 @@ function MatchesCard({
         columns={columns}
         rows={matches}
         rowKey={(row) => row.id}
-        rowClassName={(row) => (selectedMatchId === row.id ? 'active' : '')}
+        rowClassName={(row) =>
+          String(selectedMatchId) === String(row.id) ? 'active' : ''
+        }
         onRowClick={(row) => onSelectMatch(row.id)}
+        isRowExpanded={(row) => String(selectedMatchId) === String(row.id)}
+        expandedRowClassName="match-participants-expanded-row"
+        renderExpandedRow={(row) => (
+          <ParticipantsCard
+            contestMode={contestMode}
+            contestId={contestId}
+            activeMatch={row}
+            participants={participants}
+            isLoading={isLoadingParticipants}
+            joinedCount={joinedParticipantsCount}
+            onPreviewPlayer={onPreviewPlayer}
+            onComparePlayer={onComparePlayer}
+            canEditFullTeams={canEditFullTeams}
+            canSeeMissingTeams={canSeeMissingTeams}
+            isLoggedIn={isLoggedIn}
+            viewerUserId={viewerUserId}
+            viewerJoined={Boolean(row?.viewerJoined)}
+            inline
+          />
+        )}
         emptyText={isLoadingMatches ? loadingEmptyState : 'No matches found'}
         wrapperClassName="match-table-wrap"
         tableClassName="match-table"
