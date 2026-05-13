@@ -284,10 +284,13 @@ function TeamSelection() {
   const counts = useMemo(() => roleCounts(selected), [selected])
   const teamACount = selected.filter((p) => teamAPlayerIds.has(p.id)).length
   const teamBCount = selected.filter((p) => teamBPlayerIds.has(p.id)).length
-  const isMatchLocked = ['inprogress', 'completed'].includes(
-    (activeMatch?.status || '').toString().trim().toLowerCase().replace(/\s+/g, '') ||
-      'notstarted',
-  )
+  const isMatchLocked =
+    typeof activeMatch?.teamEditingLocked === 'boolean'
+      ? activeMatch.teamEditingLocked
+      : ['inprogress', 'completed'].includes(
+          (activeMatch?.status || '').toString().trim().toLowerCase().replace(/\s+/g, '') ||
+            'notstarted',
+        )
   const teamALineupPlaying = useMemo(
     () =>
       new Set(

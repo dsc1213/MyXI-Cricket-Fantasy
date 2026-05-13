@@ -72,7 +72,10 @@ function ParticipantsCard({
   const isFixedRosterContest = contestMode === 'fixed_roster'
   const normalizedStatus = normalizeMatchStatus(activeMatch?.status)
   const isNotStarted = normalizedStatus === 'notstarted'
-  const isEditableStatus = isNotStarted || normalizedStatus === 'started'
+  const isEditableStatus =
+    typeof activeMatch?.teamEditingLocked === 'boolean'
+      ? !activeMatch.teamEditingLocked
+      : isNotStarted || normalizedStatus === 'started'
   const canViewAllTeams =
     isLoggedIn &&
     (normalizedStatus === 'inprogress' ||

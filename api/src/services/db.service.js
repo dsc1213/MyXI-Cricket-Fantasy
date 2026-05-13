@@ -105,6 +105,8 @@ const dbHandlers = {
   '/admin/matches/import-fixtures': (data) =>
     matchService.importFixtures(data.tournamentId, data.fixtures),
   '/admin/matches/:id/status': (id, status) => matchService.updateMatchStatus(id, status),
+  '/admin/matches/:id/edit-lock': (id, data) =>
+    matchService.updateMatchEditLockOverride(id, data.override || null),
   '/admin/matches/:id/replace-backups': (id) =>
     matchService.forceApplyBackupReplacement(id),
   '/admin/matches/:id/score-upload': (id, data) =>
@@ -1183,6 +1185,29 @@ const createDbService = (dependencies) => {
           return res.status(400).json({ message: 'Valid status is required' })
         }
         const result = await matchService.updateMatchStatus(req.params.id, status)
+        return res.json(result)
+      } catch (error) {
+        return next(error)
+      }
+    })
+
+    router.post('/admin/matches/:id/edit-lock', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can update match edit lock' })
+        }
+        const override = (req.body?.override || '').toString().trim().toLowerCase()
+        if (!['', 'default', 'force_open', 'force_locked'].includes(override)) {
+          return res.status(400).json({ message: 'Valid edit lock override is required' })
+        }
+        const result = await matchService.updateMatchEditLockOverride(
+          req.params.id,
+          override === 'default' ? '' : override,
+        )
+        if (!result) return res.status(404).json({ message: 'Match not found' })
         return res.json(result)
       } catch (error) {
         return next(error)

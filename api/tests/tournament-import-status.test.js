@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   deriveMatchStatus,
+  isMatchEditingLocked,
+  mapMatchWithDerivedStatus,
   normalizeImportedStartAt,
 } from '../src/services/tournamentImport.service.js'
 
@@ -52,5 +54,39 @@ describe('deriveMatchStatus', () => {
         explicitStatus: 'inprogress',
       }),
     ).toBe('notstarted')
+  })
+})
+
+describe('match edit lock override', () => {
+  it('keeps inprogress matches editable when admin forces edits open', () => {
+    expect(isMatchEditingLocked('inprogress', 'force_open')).toBe(false)
+
+    expect(
+      mapMatchWithDerivedStatus({
+        status: 'inprogress',
+        teamEditLockOverride: 'force_open',
+      }),
+    ).toMatchObject({
+      status: 'inprogress',
+      teamEditLockOverride: 'force_open',
+      teamEditingLocked: false,
+      locked: false,
+    })
+  })
+
+  it('locks pre-match team edits when admin forces edits closed', () => {
+    expect(isMatchEditingLocked('started', 'force_locked')).toBe(true)
+
+    expect(
+      mapMatchWithDerivedStatus({
+        status: 'started',
+        teamEditLockOverride: 'force_locked',
+      }),
+    ).toMatchObject({
+      status: 'started',
+      teamEditLockOverride: 'force_locked',
+      teamEditingLocked: true,
+      locked: true,
+    })
   })
 })

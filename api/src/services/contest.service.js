@@ -1177,7 +1177,8 @@ class ContestService {
       `SELECT id, name,
               team_a as "teamA", team_b as "teamB",
               team_a_key as "teamAKey", team_b_key as "teamBKey",
-              start_time as "startTime", status
+              start_time as "startTime", status,
+              team_edit_lock_override as "teamEditLockOverride"
        FROM matches
        WHERE id = ANY($1::bigint[])
        ORDER BY start_time ASC`,

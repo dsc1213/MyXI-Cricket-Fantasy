@@ -832,6 +832,8 @@ class PlayerService {
         teamBKey: activeMatch.teamBKey,
         startAt: activeMatch.startTime,
         status: activeMatch.status,
+        teamEditLockOverride: activeMatch.teamEditLockOverride || null,
+        teamEditingLocked: activeMatch.teamEditingLocked,
       },
       selection: selection || null,
       teams: {

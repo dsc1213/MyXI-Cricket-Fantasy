@@ -1,5 +1,6 @@
 import {
   buildImportedTournamentPayload,
+  isMatchEditingLocked,
   normalizeMatchStatus,
   normalizeTeamCode,
   normalizeTournamentId,
@@ -1628,6 +1629,23 @@ const registerMockProviderRoutes = (router, ctx) => {
     return res.status(404).json({ message: 'Match not found' })
   })
 
+  router.post('/admin/matches/:id/edit-lock', (req, res) => {
+    const matchId = (req.params.id || '').toString()
+    const override = (req.body?.override || '').toString().trim().toLowerCase()
+    if (!['', 'default', 'force_open', 'force_locked'].includes(override)) {
+      return res.status(400).json({ message: 'Valid edit lock override is required' })
+    }
+    for (const [tournamentId, matches] of Object.entries(customTournamentMatches)) {
+      if (!Array.isArray(matches)) continue
+      const target = matches.find((match) => String(match.id) === matchId)
+      if (!target) continue
+      target.teamEditLockOverride = override === 'default' ? '' : override
+      persistState()
+      return res.json({ ...target, tournamentId })
+    }
+    return res.status(404).json({ message: 'Match not found' })
+  })
+
   router.post('/admin/matches/:id/replace-backups', (req, res) => {
     const matchId = (req.params.id || '').toString()
     for (const [tournamentId, matches] of Object.entries(customTournamentMatches)) {
@@ -2456,7 +2474,7 @@ const registerMockProviderRoutes = (router, ctx) => {
       })
     }
     if (
-      ['inprogress', 'completed'].includes(normalizeMatchStatus(activeMatch.status)) &&
+      isMatchEditingLocked(activeMatch.status, activeMatch.teamEditLockOverride) &&
       actor.role !== 'master_admin'
     ) {
       return res

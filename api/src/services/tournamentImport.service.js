@@ -213,12 +213,29 @@ const getDerivedMatchStatus = (match) =>
     explicitStatus: match?.status || '',
   })
 
+const normalizeTeamEditLockOverride = (value = '') => {
+  const normalized = (value || '').toString().trim().toLowerCase()
+  return ['force_open', 'force_locked'].includes(normalized) ? normalized : ''
+}
+
+const isMatchEditingLocked = (status = '', teamEditLockOverride = '') => {
+  const override = normalizeTeamEditLockOverride(teamEditLockOverride)
+  if (override === 'force_open') return false
+  if (override === 'force_locked') return true
+  return status === 'inprogress' || status === 'completed'
+}
+
 const mapMatchWithDerivedStatus = (match) => {
   const status = getDerivedMatchStatus(match)
+  const teamEditLockOverride = normalizeTeamEditLockOverride(
+    match?.teamEditLockOverride,
+  )
   return {
     ...match,
     status,
-    locked: status === 'inprogress' || status === 'completed',
+    teamEditLockOverride: teamEditLockOverride || null,
+    teamEditingLocked: isMatchEditingLocked(status, teamEditLockOverride),
+    locked: isMatchEditingLocked(status, teamEditLockOverride),
   }
 }
 
@@ -226,7 +243,9 @@ export {
   buildImportedTournamentPayload,
   deriveMatchStatus,
   getDerivedMatchStatus,
+  isMatchEditingLocked,
   mapMatchWithDerivedStatus,
+  normalizeTeamEditLockOverride,
   normalizeImportedStartAt,
   normalizeMatchStatus,
   normalizeTeamCode,

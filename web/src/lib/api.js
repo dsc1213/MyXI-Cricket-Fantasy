@@ -1114,6 +1114,16 @@ const updateAdminMatchStatus = async ({ id, status }) => {
   )
   return data
 }
+const updateAdminMatchEditLock = async ({ id, override }) => {
+  const data = await request(`/admin/matches/${id}/edit-lock`, {
+    method: 'POST',
+    body: JSON.stringify({ override: override || '' }),
+  })
+  invalidateAppQueryCache((key) =>
+    key.startsWith('tournamentMatches:') || key.startsWith('contestMatches:'),
+  )
+  return data
+}
 const forceAdminLiveScoreSync = async ({ id }) => {
   const data = await request(`/admin/matches/${id}/live-score/force-sync`, {
     method: 'POST',
@@ -1416,6 +1426,7 @@ export {
   confirmPendingTournamentRemoval,
   rejectPendingTournamentRemoval,
   updateAdminMatchStatus,
+  updateAdminMatchEditLock,
   forceAdminLiveScoreSync,
   replaceAdminMatchBackups,
   fetchAdminTeamSquads,

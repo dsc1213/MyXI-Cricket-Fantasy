@@ -2,6 +2,7 @@ import { dbQuery } from '../db.js'
 
 const mapMatchRow = (row) => ({
   ...row,
+  teamEditLockOverride: row.teamEditLockOverride || null,
   liveSync: {
     enabled: row.liveSyncEnabled !== false,
     provider: row.liveSyncProvider || 'cricbuzz',
@@ -24,6 +25,7 @@ const matchSelect = `
   m.start_time as "startTime",
   m.source_key as "sourceKey",
   m.status,
+  m.team_edit_lock_override as "teamEditLockOverride",
   m.created_at as "createdAt",
   m.updated_at as "updatedAt",
   mls.provider as "liveSyncProvider",
@@ -78,6 +80,7 @@ class MatchRepository {
        RETURNING id, tournament_id as "tournamentId", name, team_a as "teamA", team_b as "teamB",
                  team_a_key as "teamAKey", team_b_key as "teamBKey",
                  start_time as "startTime", source_key as "sourceKey", status,
+                 team_edit_lock_override as "teamEditLockOverride",
                  created_at as "createdAt", updated_at as "updatedAt"`,
       [
         tournamentId,
@@ -130,6 +133,7 @@ class MatchRepository {
        RETURNING id, tournament_id as "tournamentId", name, team_a as "teamA", team_b as "teamB",
                  team_a_key as "teamAKey", team_b_key as "teamBKey",
                  start_time as "startTime", source_key as "sourceKey", status,
+                 team_edit_lock_override as "teamEditLockOverride",
                  created_at as "createdAt", updated_at as "updatedAt"`,
       values,
     )
@@ -143,8 +147,26 @@ class MatchRepository {
        WHERE id = $2
        RETURNING id, tournament_id as "tournamentId", name, team_a as "teamA", team_b as "teamB",
                  team_a_key as "teamAKey", team_b_key as "teamBKey",
-                 start_time as "startTime", source_key as "sourceKey", status, created_at as "createdAt", updated_at as "updatedAt"`,
+                 start_time as "startTime", source_key as "sourceKey", status,
+                 team_edit_lock_override as "teamEditLockOverride",
+                 created_at as "createdAt", updated_at as "updatedAt"`,
       [status, id],
+    )
+    return result.rows[0] ? mapMatchRow(result.rows[0]) : null
+  }
+
+  async updateTeamEditLockOverride(id, override) {
+    const normalizedOverride = override || null
+    const result = await dbQuery(
+      `UPDATE matches
+       SET team_edit_lock_override = $1, updated_at = now()
+       WHERE id = $2
+       RETURNING id, tournament_id as "tournamentId", name, team_a as "teamA", team_b as "teamB",
+                 team_a_key as "teamAKey", team_b_key as "teamBKey",
+                 start_time as "startTime", source_key as "sourceKey", status,
+                 team_edit_lock_override as "teamEditLockOverride",
+                 created_at as "createdAt", updated_at as "updatedAt"`,
+      [normalizedOverride, id],
     )
     return result.rows[0] ? mapMatchRow(result.rows[0]) : null
   }

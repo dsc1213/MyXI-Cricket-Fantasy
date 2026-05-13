@@ -48,6 +48,11 @@ class MatchService {
     return updated
   }
 
+  async updateMatchEditLockOverride(id, override) {
+    const repo = await factory.getMatchRepository()
+    return await repo.updateTeamEditLockOverride(id, override || null)
+  }
+
   // Manually triggers backup replacement for all team selections in a match.
   async forceApplyBackupReplacement(matchId) {
     const match = await this.getMatch(matchId)

@@ -28,6 +28,7 @@ import {
   replaceAdminMatchBackups,
   startAdminContest,
   syncContestSelections,
+  updateAdminMatchEditLock,
   updateAdminMatchStatus,
   updateAdminContest,
   updateAdminUser,
@@ -913,6 +914,39 @@ function AdminManagerPanel({
       key: 'statusPreview',
       label: 'Display',
       render: (row) => formatMatchStatusLabel(row.status),
+    },
+    {
+      key: 'teamEditLockOverride',
+      label: 'Team Edits',
+      render: (row) => (
+        <select
+          aria-label={`Team edit lock ${row.name || row.id}`}
+          value={(row.teamEditLockOverride || '').toString().trim().toLowerCase()}
+          disabled={isSaving}
+          onClick={(event) => event.stopPropagation()}
+          onChange={async (event) => {
+            try {
+              setIsSaving(true)
+              setErrorText('')
+              setNotice('')
+              await updateAdminMatchEditLock({
+                id: row.id,
+                override: event.target.value,
+              })
+              await loadTournamentMatches(selectedTournamentId)
+              setNotice('Match edit lock updated')
+            } catch (error) {
+              setErrorText(error.message || 'Failed to update match edit lock')
+            } finally {
+              setIsSaving(false)
+            }
+          }}
+        >
+          <option value="">Default</option>
+          <option value="force_open">Force Open</option>
+          <option value="force_locked">Force Locked</option>
+        </select>
+      ),
     },
     {
       key: 'scoresUpdated',
