@@ -686,6 +686,8 @@ class ContestService {
   // Updates contest fields by id.
   async updateContest(id, data) {
     const repo = await factory.getContestRepository()
+    const existing = await repo.findById(id)
+    if (!existing) return null
     const payload = { ...data }
     if (payload.status !== undefined) {
       payload.status = normalizeContestStatusInput(payload.status)
@@ -699,6 +701,25 @@ class ContestService {
       payload.startedAt = payload.startedAt
         ? normalizeContestDateInput(payload.startedAt)
         : null
+    }
+    if (payload.matchIds !== undefined) {
+      const matchRepo = await factory.getMatchRepository()
+      const tournamentMatches = await matchRepo.findByTournament(existing.tournamentId)
+      const validSet = new Set(tournamentMatches.map((match) => String(match.id)))
+      const requestedMatchIds = Array.isArray(payload.matchIds) ? payload.matchIds : []
+      const normalizedMatchIds = Array.from(
+        new Set(
+          requestedMatchIds
+            .map((matchId) => String(matchId))
+            .filter((matchId) => validSet.has(matchId)),
+        ),
+      )
+      if (!normalizedMatchIds.length) {
+        const error = new Error('Select at least one tournament match for the contest')
+        error.statusCode = 400
+        throw error
+      }
+      payload.matchIds = normalizedMatchIds
     }
     return await repo.update(id, payload)
   }

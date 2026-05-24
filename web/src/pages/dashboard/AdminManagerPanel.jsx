@@ -36,6 +36,7 @@ import {
 } from '../../lib/api.js'
 import { getStoredUser } from '../../lib/auth.js'
 import { parseNormalizedJsonInput } from '../../lib/jsonInput.js'
+import AddTournamentMatchesModal from './AddTournamentMatchesModal.jsx'
 
 const normalizeUsersPayload = (value) => {
   if (Array.isArray(value)) return value
@@ -90,6 +91,7 @@ function AdminManagerPanel({
   const [selectedTournamentId, setSelectedTournamentId] = useState('')
   const [tournamentMatches, setTournamentMatches] = useState([])
   const [isLoadingTournamentMatches, setIsLoadingTournamentMatches] = useState(false)
+  const [showAddMatchesModal, setShowAddMatchesModal] = useState(false)
   const [pendingDisableIds, setPendingDisableIds] = useState([])
   const [contestCatalog, setContestCatalog] = useState([])
   const [selectedContestTournamentId, setSelectedContestTournamentId] = useState('')
@@ -128,6 +130,9 @@ function AdminManagerPanel({
     teams: '',
     startAt: '',
   })
+  const [editContestMatchOptions, setEditContestMatchOptions] = useState([])
+  const [editContestMatchIds, setEditContestMatchIds] = useState([])
+  const [isLoadingEditContestMatches, setIsLoadingEditContestMatches] = useState(false)
   const [contestParticipants, setContestParticipants] = useState([])
   const [editContestParticipantIds, setEditContestParticipantIds] = useState([])
   const [editContestAddUserId, setEditContestAddUserId] = useState('')
@@ -502,13 +507,28 @@ function AdminManagerPanel({
       startAt: contest?.startAt ? new Date(contest.startAt).toISOString().slice(0, 16) : '',
     })
     setEditContestAddUserId('')
-    const rows = await loadContestParticipants(contest)
+    setEditContestMatchIds(
+      Array.isArray(contest?.matchIds) ? contest.matchIds.map((id) => String(id)) : [],
+    )
+    setIsLoadingEditContestMatches(true)
+    const [rows, matchOptions] = await Promise.all([
+      loadContestParticipants(contest),
+      fetchContestMatchOptions(contest?.tournamentId || '').catch((error) => {
+        setErrorText(error.message || 'Failed to load contest matches')
+        return []
+      }),
+    ])
+    setEditContestMatchOptions(Array.isArray(matchOptions) ? matchOptions : [])
+    setIsLoadingEditContestMatches(false)
     setEditContestParticipantIds(rows.map((row) => String(row.id)))
   }
 
   const closeContestEditModal = () => {
     setEditContest(null)
     setEditContestForm({ name: '', teams: '', startAt: '' })
+    setEditContestMatchOptions([])
+    setEditContestMatchIds([])
+    setIsLoadingEditContestMatches(false)
     setContestParticipants([])
     setEditContestParticipantIds([])
     setEditContestAddUserId('')
@@ -548,6 +568,7 @@ function AdminManagerPanel({
         startAt: editContestForm.startAt
           ? new Date(editContestForm.startAt).toISOString()
           : null,
+        matchIds: editContestMatchIds,
       })
       const originalIds = new Set(contestParticipants.map((row) => String(row.id)))
       const nextIds = new Set(editContestParticipantIds.map((id) => String(id)))
@@ -1071,6 +1092,10 @@ function AdminManagerPanel({
     () => new Set(editContestParticipantIds.map((id) => String(id))),
     [editContestParticipantIds],
   )
+  const normalizedEditContestMatchIds = useMemo(
+    () => editContestMatchIds.map((id) => String(id)),
+    [editContestMatchIds],
+  )
   const editParticipantRows = useMemo(() => {
     const userMap = new Map(users.map((row) => [String(row.id), row]))
     const participantMap = new Map(contestParticipants.map((row) => [String(row.id), row]))
@@ -1238,8 +1263,16 @@ function AdminManagerPanel({
           </div>
         )}
 
-        {!!errorText && <p className="error-text">{errorText}</p>}
-        {!!notice && <p className="success-text">{notice}</p>}
+        {!!errorText && (
+          <p className="admin-manager-feedback error-text" role="alert">
+            {errorText}
+          </p>
+        )}
+        {!!notice && (
+          <p className="admin-manager-feedback success-text" role="status" aria-live="polite">
+            {notice}
+          </p>
+        )}
 
         {tab === 'users' ? (
           <>
@@ -1376,6 +1409,14 @@ function AdminManagerPanel({
                     <h3>{`Matches${selectedTournament?.name ? ` • ${selectedTournament.name}` : ''}`}</h3>
                     <div className="top-actions">
                       <Button
+                        variant="secondary"
+                        size="small"
+                        disabled={!selectedTournamentId}
+                        onClick={() => setShowAddMatchesModal(true)}
+                      >
+                        + Add matches
+                      </Button>
+                      <Button
                         variant="ghost"
                         size="small"
                         disabled={!selectedTournamentId}
@@ -1487,6 +1528,20 @@ function AdminManagerPanel({
         onChangeSelectedMatchIds={setCreateContestMatchIds}
         lockedTournamentId={selectedContestTournamentId}
       />
+      <AddTournamentMatchesModal
+        open={showAddMatchesModal}
+        tournament={selectedTournament}
+        onClose={() => setShowAddMatchesModal(false)}
+        onImported={async (result) => {
+          await Promise.all([
+            loadTournamentCatalog(),
+            loadTournamentMatches(selectedTournamentId),
+          ])
+          setNotice(
+            `Added ${Number(result?.matchesImported || 0)} matches; updated ${Number(result?.contestsUpdated || 0)} contests`,
+          )
+        }}
+      />
       <Modal
         open={Boolean(editContest)}
         onClose={closeContestEditModal}
@@ -1517,7 +1572,9 @@ function AdminManagerPanel({
               disabled={
                 isSavingContestEdit ||
                 isLoadingContestParticipants ||
+                isLoadingEditContestMatches ||
                 !editContestForm.name.trim() ||
+                !editContestMatchIds.length ||
                 Number(editContestForm.teams || 0) < 2 ||
                 Number(editContestForm.teams || 0) < editContestParticipantIds.length
               }
@@ -1571,6 +1628,82 @@ function AdminManagerPanel({
               Leave empty to keep this contest on manual start.
             </small>
           </label>
+          <div className="create-contest-field create-contest-matches-field">
+            <span>Matches in this contest</span>
+            <div className="create-contest-match-actions">
+              <Button
+                variant="ghost"
+                size="small"
+                disabled={!editContestMatchOptions.length || isSavingContestEdit}
+                onClick={() =>
+                  setEditContestMatchIds(
+                    editContestMatchOptions.map((match) => String(match.id)),
+                  )
+                }
+              >
+                Select all
+              </Button>
+              <Button
+                variant="ghost"
+                size="small"
+                disabled={!editContestMatchIds.length || isSavingContestEdit}
+                onClick={() => setEditContestMatchIds([])}
+              >
+                Clear
+              </Button>
+              <small className="team-note">
+                Selected {editContestMatchIds.length} / {editContestMatchOptions.length}
+              </small>
+            </div>
+            <div
+              className="create-contest-match-grid"
+              role="group"
+              aria-label="Edit contest matches"
+            >
+              {isLoadingEditContestMatches ? (
+                <p className="team-note">Loading matches...</p>
+              ) : editContestMatchOptions.length ? (
+                editContestMatchOptions.map((match) => {
+                  const matchId = String(match.id)
+                  const checked = normalizedEditContestMatchIds.includes(matchId)
+                  return (
+                    <label key={matchId} className="create-contest-match-row">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={isSavingContestEdit}
+                        onChange={(event) =>
+                          setEditContestMatchIds((prev) => {
+                            const current = prev.map((id) => String(id))
+                            if (event.target.checked) {
+                              return current.includes(matchId)
+                                ? current
+                                : [...current, matchId]
+                            }
+                            return current.filter((id) => id !== matchId)
+                          })
+                        }
+                      />
+                      <span>
+                        {match.name || matchId}
+                        <small>
+                          {formatSafeDate(match.startAt || match.date, 'datetime')} -{' '}
+                          {match.status}
+                        </small>
+                      </span>
+                    </label>
+                  )
+                })
+              ) : (
+                <p className="team-note">No matches available for this tournament.</p>
+              )}
+            </div>
+            {!editContestMatchIds.length ? (
+              <small className="error-text">
+                Select at least one match for this contest.
+              </small>
+            ) : null}
+          </div>
           <div className="create-contest-field">
             <span>Add participant</span>
             <div className="top-actions">

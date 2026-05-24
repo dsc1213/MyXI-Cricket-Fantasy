@@ -1123,6 +1123,21 @@ const createAdminTournament = async (payload) => {
   )
   return data
 }
+const importAdminTournamentMatches = async (tournamentId, payload) => {
+  const data = await request(`/admin/tournaments/${tournamentId}/matches/import`, {
+    method: 'POST',
+    body: JSON.stringify(payload || {}),
+  })
+  invalidateAppQueryCache((key) =>
+    key === 'tournaments' ||
+    key === 'prettyTournaments' ||
+    key === 'tournamentCatalog' ||
+    key.startsWith('contestMatchOptions:') ||
+    key.startsWith('contestCatalog:') ||
+    key.startsWith('contests:'),
+  )
+  return data
+}
 const createAdminAuctionImport = (payload) =>
   request('/admin/auctions/import', {
     method: 'POST',
@@ -1500,6 +1515,7 @@ export {
   enableTournaments,
   disableTournaments,
   createAdminTournament,
+  importAdminTournamentMatches,
   createAdminAuctionImport,
   fetchTournamentRemovalPreview,
   removeAdminTournament,

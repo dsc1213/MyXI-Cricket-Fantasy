@@ -68,6 +68,36 @@ test('tournament manager create flow has generate button for JSON and Auction pa
     })
   })
 
+  await page.route('**/tournaments/ipl-2026-custom/matches', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: '65',
+          name: 'Match 65: KKR vs MI',
+          startAt: '2026-05-20T14:00:00.000Z',
+          status: 'completed',
+        },
+      ]),
+    })
+  })
+
+  await page.route('**/admin/tournaments/ipl-2026-custom/matches/import', async (route) => {
+    const payload = route.request().postDataJSON()
+    expect(payload.updateExistingContests).toBe(true)
+    expect(payload.matches).toHaveLength(1)
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        matchesImported: 1,
+        contestsUpdated: 1,
+      }),
+    })
+  })
+
   await page.addInitScript(() => {
     const now = Date.now()
     window.localStorage.setItem(
@@ -87,10 +117,26 @@ test('tournament manager create flow has generate button for JSON and Auction pa
 
   await page.goto('/home?panel=tournamentManager', { waitUntil: 'domcontentloaded' })
 
+  await page.getByRole('button', { name: '+ Add matches' }).click()
+  await page.getByRole('button', { name: 'Generate JSON' }).click()
+  const matchesDialog = page.getByRole('dialog', { name: 'Generated Matches JSON' })
+  await expect(matchesDialog).toBeVisible()
+  await expect(matchesDialog.locator('.score-preview-textarea').first()).toContainText(
+    '"matches"',
+  )
+  await expect(matchesDialog.locator('.score-preview-textarea-prompt')).toContainText(
+    '/admin/tournaments/:id/matches/import',
+  )
+  await matchesDialog.getByRole('button', { name: 'Use Template' }).click()
+  await page.getByRole('button', { name: 'Add matches', exact: true }).click()
+  await expect(page.getByText('Added 1 matches; updated 1 contests')).toBeVisible()
+
   await page.getByRole('tab', { name: 'Create' }).click()
 
   const sectionHead = page.locator('.create-tournament-card .contest-section-head')
-  const tabs = page.locator('.create-tournament-card .create-tournament-input-tabs')
+  const tabs = page
+    .locator('.create-tournament-card .create-tournament-input-tabs')
+    .first()
   await expect(sectionHead).toBeVisible()
   await expect(tabs).toBeVisible()
   const [headBox, tabsBox] = await Promise.all([
@@ -108,7 +154,7 @@ test('tournament manager create flow has generate button for JSON and Auction pa
   await page.getByRole('button', { name: 'Generate JSON' }).click()
   const tournamentDialog = page.getByRole('dialog', { name: 'Generated Tournament JSON' })
   await expect(tournamentDialog).toBeVisible()
-  await expect(tournamentDialog.locator('.score-preview-textarea')).toContainText(
+  await expect(tournamentDialog.locator('.score-preview-textarea').first()).toContainText(
     '"name": "IPL 2026"',
   )
   await expect(tournamentDialog.getByText('AI Prompt For Tournament JSON')).toBeVisible()
@@ -125,7 +171,7 @@ test('tournament manager create flow has generate button for JSON and Auction pa
   await page.getByRole('button', { name: 'Generate JSON' }).click()
   const auctionDialog = page.getByRole('dialog', { name: 'Generated Auction JSON' })
   await expect(auctionDialog).toBeVisible()
-  await expect(auctionDialog.locator('.score-preview-textarea')).toContainText(
+  await expect(auctionDialog.locator('.score-preview-textarea').first()).toContainText(
     '"contestName"',
   )
   await expect(auctionDialog.getByText('AI Prompt For Auction JSON')).toBeVisible()

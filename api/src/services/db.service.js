@@ -1085,6 +1085,31 @@ const createDbService = (dependencies) => {
       }
     })
 
+    // Appends imported matches to an existing tournament.
+    router.post('/admin/tournaments/:id/matches/import', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can update tournaments' })
+        }
+        const result = await tournamentService.appendImportedMatches(
+          req.params.id,
+          req.body || {},
+        )
+        return res.status(201).json(result)
+      } catch (error) {
+        const statusCode = Number(error?.statusCode || 0)
+        if (statusCode >= 400) {
+          return res
+            .status(statusCode)
+            .json({ message: error.message || 'Failed to add tournament matches' })
+        }
+        return next(error)
+      }
+    })
+
     // Creates a new contest from admin payload data.
     router.post('/admin/contests', async (req, res, next) => {
       try {

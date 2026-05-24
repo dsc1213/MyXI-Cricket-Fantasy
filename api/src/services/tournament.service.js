@@ -117,6 +117,92 @@ class TournamentService {
     }
   }
 
+  // Appends imported matches to an existing tournament and optionally expands its contests.
+  async appendImportedMatches(tournamentId, payload = {}) {
+    const repo = await factory.getTournamentRepository()
+    const matchRepo = await factory.getMatchRepository()
+    const contestRepo = await factory.getContestRepository()
+    const tournament = await repo.findById(tournamentId)
+    if (!tournament) {
+      const error = new Error('Tournament not found')
+      error.statusCode = 404
+      throw error
+    }
+
+    const existingMatches = await matchRepo.findByTournament(tournament.id)
+    const existingSourceKeys = new Set(
+      existingMatches.map((match) => (match.sourceKey || '').toString()).filter(Boolean),
+    )
+    const sourcePrefix = tournament.sourceKey || tournament.id
+    const { matches } = buildImportedTournamentPayload({
+      payload: {
+        ...payload,
+        name: payload?.name || tournament.name,
+        season: payload?.season || tournament.season,
+        tournamentId: tournament.sourceKey || tournament.id,
+        source: payload?.source || 'json',
+      },
+      fallbackSeason: tournament.season || '2026',
+      fallbackSource: payload?.source || 'json',
+      requestedTournamentId: tournament.sourceKey || tournament.id,
+      getFallbackSquad: () => null,
+    })
+
+    const duplicateSourceKeys = matches
+      .map((match) => `${sourcePrefix}:${match.sourceKey || match.id}`)
+      .filter((sourceKey) => existingSourceKeys.has(sourceKey))
+    if (duplicateSourceKeys.length) {
+      const error = new Error('One or more matches already exist in this tournament')
+      error.statusCode = 409
+      throw error
+    }
+
+    const persistedMatches = await matchRepo.bulkCreate(
+      matches.map((match) => ({
+        tournamentId: tournament.id,
+        name: match.name,
+        teamA: match.home,
+        teamB: match.away,
+        teamAKey: match.home,
+        teamBKey: match.away,
+        startTime: match.startAt,
+        sourceKey: `${sourcePrefix}:${match.sourceKey || match.id}`,
+        status: match.status,
+      })),
+    )
+
+    let contestsUpdated = 0
+    if (payload?.updateExistingContests !== false) {
+      const contests = await contestRepo.findByTournament(tournament.id)
+      const newMatchIds = persistedMatches.map((match) => String(match.id))
+      for (const contest of contests) {
+        const currentIds = Array.isArray(contest.matchIds)
+          ? contest.matchIds.map((id) => String(id))
+          : []
+        const nextMatchIds = [...new Set([...currentIds, ...newMatchIds])]
+        if (nextMatchIds.length === currentIds.length) continue
+        await contestRepo.update(contest.id, { matchIds: nextMatchIds })
+        contestsUpdated += 1
+      }
+    }
+
+    const selectedTeams = [
+      ...new Set([
+        ...(Array.isArray(tournament.selectedTeams) ? tournament.selectedTeams : []),
+        ...matches.flatMap((match) => [match.home, match.away]),
+      ]),
+    ]
+    await repo.update(tournament.id, { selectedTeams })
+
+    return {
+      ok: true,
+      tournamentId: String(tournament.id),
+      matchesImported: persistedMatches.length,
+      contestsUpdated,
+      matches: persistedMatches,
+    }
+  }
+
   // Updates tournament metadata fields by id.
   async updateTournament(id, data) {
     const repo = await factory.getTournamentRepository()
