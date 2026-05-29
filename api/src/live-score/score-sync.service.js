@@ -503,14 +503,26 @@ const discoverProviderMatchIdForForceSync = async (match, context = {}) => {
   context.liveStatus.matchId = {
     status: 'checking',
     matchId: match.id,
-    message: 'Checking provider match id from /matches/live',
+    message: 'Checking provider match id from /matches/live and /matches/recent',
   }
 
-  const discovery = await liveScoreProviderService.discoverMatch(match, {
+  const discoveryContext = {
     ...context,
     matchId: match.id,
     tournamentId: match.tournamentId,
-  })
+  }
+  const discoveryOptions = { allowAnyStatus: true }
+  const liveDiscovery = await liveScoreProviderService.discoverMatch(
+    match,
+    discoveryContext,
+    { ...discoveryOptions, route: '/matches/live' },
+  )
+  const discovery = liveDiscovery.ok
+    ? liveDiscovery
+    : await liveScoreProviderService.discoverMatch(match, discoveryContext, {
+        ...discoveryOptions,
+        route: '/matches/recent',
+      })
   if (!discovery.ok) {
     const message = `Provider match ID is required before force score sync; ${discovery.reason}`
     context.liveStatus.matchId = {
@@ -521,7 +533,7 @@ const discoverProviderMatchIdForForceSync = async (match, context = {}) => {
     await matchLiveSyncRepository.updateError(match.id, message, {
       step: 'provider-match-discovery',
       fn: 'forceSyncScoreForMatch',
-      route: '/matches/live',
+      route: discovery.route || '/matches/recent',
       matchLabel: matchLabel(match),
       syncId: context.syncId,
     })

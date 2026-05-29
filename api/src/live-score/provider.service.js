@@ -689,19 +689,29 @@ class LiveScoreProviderService {
     return this.request('/matches/live', context)
   }
 
+  async getRecentMatches(context = {}) {
+    return this.request('/matches/recent', context)
+  }
+
   async discoverMatch(
     { teamA, teamB, teamAKey, teamBKey, teamAName, teamBName, startTime },
     context = {},
+    options = {},
   ) {
-    const matches = await this.getLiveMatches(context)
+    const route = options.route || '/matches/live'
+    const matches =
+      route === '/matches/recent'
+        ? await this.getRecentMatches(context)
+        : await this.getLiveMatches(context)
     const teamAAliases = getTeamAliases(teamA, teamAKey, teamAName)
     const teamBAliases = getTeamAliases(teamB, teamBKey, teamBName)
+    const allowAnyStatus = Boolean(options.allowAnyStatus)
     const candidates = (Array.isArray(matches) ? matches : []).filter((match) => {
       const status = (match?.status || '').toString().trim()
       const titleText = getProviderTitleText(match)
       return (
         match?.matchId &&
-        isProviderDiscoverableMatchStatus(status) &&
+        (allowAnyStatus || isProviderDiscoverableMatchStatus(status)) &&
         titleContainsTeam(titleText, teamAAliases) &&
         titleContainsTeam(titleText, teamBAliases) &&
         isWithinHours(match.startTime, startTime, 12)
@@ -722,6 +732,7 @@ class LiveScoreProviderService {
         ? 'multiple provider matches matched this fixture'
         : 'no high-confidence provider match found',
       candidates,
+      route,
     }
   }
 

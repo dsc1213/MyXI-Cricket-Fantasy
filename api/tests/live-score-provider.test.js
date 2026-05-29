@@ -403,6 +403,85 @@ describe('live score provider', () => {
     expect(result.providerMatchId).toBe('151924')
   })
 
+  it('can relax provider status filtering for admin force sync discovery', async () => {
+    const provider = new LiveScoreProviderService({
+      baseUrl: 'https://example.test/api',
+      fetchImpl: async () => ({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              matchId: '155398',
+              title: 'Gujarat Titans vs RR',
+              shortTitle: 'GT vs RR',
+              status: 'Preview',
+              startTime: '',
+            },
+          ],
+        }),
+      }),
+    })
+
+    const strictResult = await provider.discoverMatch({
+      teamAKey: 'GT',
+      teamBKey: 'RR',
+      startTime: '',
+    })
+    expect(strictResult.ok).toBe(false)
+
+    const forceResult = await provider.discoverMatch(
+      {
+        teamAKey: 'GT',
+        teamBKey: 'RR',
+        startTime: '',
+      },
+      {},
+      { allowAnyStatus: true },
+    )
+    expect(forceResult.ok).toBe(true)
+    expect(forceResult.providerMatchId).toBe('155398')
+  })
+
+  it('can discover a match from the recent matches route', async () => {
+    const calledUrls = []
+    const provider = new LiveScoreProviderService({
+      baseUrl: 'https://example.test/api',
+      fetchImpl: async (url) => {
+        calledUrls.push(url)
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                matchId: '155397',
+                title: 'Sunrisers Hyderabad vs Rajasthan Royals',
+                shortTitle: 'SRH vs RR',
+                status: 'Complete',
+                startTime: '',
+              },
+            ],
+          }),
+        }
+      },
+    })
+
+    const result = await provider.discoverMatch(
+      {
+        teamAKey: 'SRH',
+        teamBKey: 'RR',
+        startTime: '',
+      },
+      {},
+      { allowAnyStatus: true, route: '/matches/recent' },
+    )
+
+    expect(calledUrls).toEqual(['https://example.test/api/matches/recent'])
+    expect(result.ok).toBe(true)
+    expect(result.providerMatchId).toBe('155397')
+  })
+
   it('includes route, status, and response summary on provider request failure', async () => {
     const context = { scraperCalls: [], providerMatchId: '151924' }
     const provider = new LiveScoreProviderService({
