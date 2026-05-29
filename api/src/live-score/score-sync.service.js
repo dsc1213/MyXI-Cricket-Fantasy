@@ -498,11 +498,63 @@ const getForceScoreSyncMatch = async (matchId) => {
   return result.rows?.[0] || null
 }
 
+const discoverProviderMatchIdForForceSync = async (match, context = {}) => {
+  context.liveStatus = context.liveStatus || {}
+  context.liveStatus.matchId = {
+    status: 'checking',
+    matchId: match.id,
+    message: 'Checking provider match id from /matches/live',
+  }
+
+  const discovery = await liveScoreProviderService.discoverMatch(match, {
+    ...context,
+    matchId: match.id,
+    tournamentId: match.tournamentId,
+  })
+  if (!discovery.ok) {
+    const message = `Provider match ID is required before force score sync; ${discovery.reason}`
+    context.liveStatus.matchId = {
+      status: 'failed',
+      matchId: match.id,
+      message,
+    }
+    await matchLiveSyncRepository.updateError(match.id, message, {
+      step: 'provider-match-discovery',
+      fn: 'forceSyncScoreForMatch',
+      route: '/matches/live',
+      matchLabel: matchLabel(match),
+      syncId: context.syncId,
+    })
+    throw new Error(message)
+  }
+
+  await matchLiveSyncRepository.upsert(match.id, {
+    providerMatchId: discovery.providerMatchId,
+    lastProviderStatus: discovery.match?.status || '',
+    lastError: '',
+  }, {
+    ...context,
+    matchId: match.id,
+    tournamentId: match.tournamentId,
+    providerMatchId: discovery.providerMatchId,
+    matchLabel: matchLabel(match),
+  })
+
+  context.liveStatus.matchId = {
+    status: 'saved',
+    matchId: match.id,
+    providerMatchId: discovery.providerMatchId,
+    message: 'Provider match id saved to DB',
+  }
+
+  return discovery.providerMatchId
+}
+
 const forceSyncScoreForMatch = async ({ matchId, actorUserId = null, context = {} }) => {
   const match = await getForceScoreSyncMatch(matchId)
   if (!match) throw new Error('Match not found')
   if (!match.providerMatchId) {
-    throw new Error('Provider match ID is required before force score sync')
+    match.providerMatchId = await discoverProviderMatchIdForForceSync(match, context)
   }
 
   await recordLiveScoreLog(context, {
