@@ -6,6 +6,7 @@ const getScorecardMock = vi.fn()
 const buildTournamentScoreContextMock = vi.fn()
 const syncLiveMatchScoresMock = vi.fn()
 const upsertLiveSyncMock = vi.fn()
+const appendScoredPlayersToLineupsMock = vi.fn()
 
 vi.mock('../src/db.js', () => ({
   dbQuery: dbQueryMock,
@@ -33,7 +34,7 @@ vi.mock('../src/services/match-score.service.js', () => ({
 }))
 
 vi.mock('../src/live-score/lineup-impact.service.js', () => ({
-  appendScoredPlayersToLineups: vi.fn(async () => ({ added: 0, players: [] })),
+  appendScoredPlayersToLineups: appendScoredPlayersToLineupsMock,
   parseJsonArray: (value) => (typeof value === 'string' ? JSON.parse(value) : value),
 }))
 
@@ -63,12 +64,14 @@ describe('force score sync lineup hydration', () => {
     buildTournamentScoreContextMock.mockReset()
     syncLiveMatchScoresMock.mockReset()
     upsertLiveSyncMock.mockReset()
+    appendScoredPlayersToLineupsMock.mockReset()
 
     syncPlayingXiMock.mockResolvedValue({ synced: true })
     getScorecardMock.mockResolvedValue({ status: 'Live', innings: [] })
     buildTournamentScoreContextMock.mockResolvedValue({ tournamentPlayerRows: [] })
     syncLiveMatchScoresMock.mockResolvedValue({ savedPlayers: 1, fetchedPlayers: 1 })
     upsertLiveSyncMock.mockResolvedValue({})
+    appendScoredPlayersToLineupsMock.mockResolvedValue({ added: 0, players: [] })
   })
 
   it('fetches Playing XI before scorecard when admin force sync has no saved lineups', async () => {
@@ -120,6 +123,12 @@ describe('force score sync lineup hydration', () => {
     expect(getScorecardMock).toHaveBeenCalledWith(
       '155387',
       expect.objectContaining({ matchId: '108', tournamentId: '2' }),
+    )
+    expect(appendScoredPlayersToLineupsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        match: expect.objectContaining({ id: '108', teamAKey: 'SRH', teamBKey: 'RR' }),
+        lineupContext: expect.objectContaining({ hasLineups: true }),
+      }),
     )
     expect(syncLiveMatchScoresMock).toHaveBeenCalled()
     expect(result.ok).toBe(true)

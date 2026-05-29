@@ -212,6 +212,7 @@ const syncScoreForMatch = async (
     }
 
     const impactResult = await appendScoredPlayersToLineups({
+      match,
       lineupContext,
       playerStats,
       tournamentContext,
