@@ -381,4 +381,4 @@ const discoverProviderIdsForStartedMatches = async (context = {}) => {
   return summary
 }
 
-export { discoverProviderIdsForStartedMatches }
+export { discoverProviderIdsForStartedMatches, syncPlayingXiForStartedMatch }

@@ -7,6 +7,7 @@ import liveScoreProviderService, {
 } from './provider.service.js'
 import matchScoreService from '../services/match-score.service.js'
 import { appendScoredPlayersToLineups, parseJsonArray } from './lineup-impact.service.js'
+import { syncPlayingXiForStartedMatch } from './lineup-sync.service.js'
 import { logAutoSyncActivity } from './activity.service.js'
 import { recordLiveScoreDbWrite, recordLiveScoreLog } from './logger.js'
 import { getOnDemandMinIntervalMs, warnLiveScore } from './settings.js'
@@ -107,7 +108,31 @@ const syncScoreForMatch = async (
   runningMatchIds.add(matchKey)
 
   try {
-    const lineupContext = await getMatchLineupContext(match.id, match.tournamentId)
+    let lineupContext = await getMatchLineupContext(match.id, match.tournamentId)
+    if (!lineupContext.hasLineups && isForceSync) {
+      await recordLiveScoreLog(context, {
+        step: 'force-score-sync',
+        status: 'checking',
+        matchId: match.id,
+        tournamentId: match.tournamentId,
+        providerMatchId: match.providerMatchId,
+        matchLabel: matchLabel(match),
+        message: 'Playing XI missing; fetching provider Playing XI before scorecard',
+        details: {
+          fn: 'syncScoreForMatch',
+          route: `/playing-xi/${match.providerMatchId}`,
+        },
+      })
+      const lineupResult = await syncPlayingXiForStartedMatch(
+        match,
+        match.providerMatchId,
+        null,
+        context,
+      )
+      if (lineupResult?.synced) {
+        lineupContext = await getMatchLineupContext(match.id, match.tournamentId)
+      }
+    }
     if (!lineupContext.hasLineups) {
       context.liveStatus.latestMatchScores = {
         status: 'skipped',
@@ -187,7 +212,6 @@ const syncScoreForMatch = async (
     }
 
     const impactResult = await appendScoredPlayersToLineups({
-      match,
       lineupContext,
       playerStats,
       tournamentContext,
