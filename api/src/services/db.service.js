@@ -1297,6 +1297,7 @@ const createDbService = (dependencies) => {
 
     // Admin-only recovery path: refetches scraper scorecard even for completed matches.
     router.post('/admin/matches/:id/live-score/force-sync', async (req, res, next) => {
+      const context = createLiveScoreSyncContext('admin-force-score-sync')
       try {
         const actor = await resolveCatalogActor(req)
         if (!canManageCatalog(actor)) {
@@ -1304,7 +1305,6 @@ const createDbService = (dependencies) => {
             .status(403)
             .json({ message: 'Only admin/master can force live score sync' })
         }
-        const context = createLiveScoreSyncContext('admin-force-score-sync')
         const result = await forceSyncScoreForMatch({
           matchId: req.params.id,
           actorUserId: actor?.id || null,
@@ -1336,6 +1336,23 @@ const createDbService = (dependencies) => {
           ...result,
         })
       } catch (error) {
+        const scraperCalls = context.scraperCalls || []
+        if (scraperCalls.length || error?.providerRoute || error?.providerResponse) {
+          return res.status(error?.statusCode || 502).json({
+            message: error?.message || 'Live score API request failed',
+            syncId: context.syncId,
+            matchId: String(req.params.id),
+            providerRoute: error?.providerRoute || scraperCalls.at(-1)?.route || '',
+            providerHttpStatus:
+              error?.providerHttpStatus || scraperCalls.at(-1)?.httpStatus || null,
+            providerError: scraperCalls.at(-1)?.error || error?.message || '',
+            providerResponse: error?.providerResponse || scraperCalls.at(-1)?.response || null,
+            scraperCalls,
+            liveStatus: context.liveStatus || null,
+            dbWrites: context.dbWrites || [],
+            mockData: false,
+          })
+        }
         return next(error)
       }
     })

@@ -403,6 +403,42 @@ describe('live score provider', () => {
     expect(result.providerMatchId).toBe('151924')
   })
 
+  it('includes route, status, and response summary on provider request failure', async () => {
+    const context = { scraperCalls: [], providerMatchId: '151924' }
+    const provider = new LiveScoreProviderService({
+      baseUrl: 'https://example.test/api',
+      fetchImpl: async () => ({
+        ok: false,
+        status: 503,
+        json: async () => ({
+          success: false,
+          message: 'upstream unavailable',
+          data: { matchId: '151924', status: 'error' },
+        }),
+      }),
+    })
+
+    await expect(provider.getScorecard('151924', context)).rejects.toMatchObject({
+      message: 'upstream unavailable',
+      statusCode: 502,
+      providerRoute: '/scorecard/151924',
+      providerHttpStatus: 503,
+      providerResponse: expect.objectContaining({
+        success: false,
+        message: 'upstream unavailable',
+        matchId: '151924',
+      }),
+    })
+    expect(context.scraperCalls).toEqual([
+      expect.objectContaining({
+        route: '/scorecard/151924',
+        status: 'failed',
+        httpStatus: 503,
+        error: 'upstream unavailable',
+      }),
+    ])
+  })
+
   it('maps provider playing XI rows to local match team keys', () => {
     const lineups = playingXiToMatchLineups(
       {

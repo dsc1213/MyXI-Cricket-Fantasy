@@ -581,13 +581,16 @@ class LiveScoreProviderService {
       const payload = await response.json().catch(() => null)
       const durationMs = Date.now() - startedAt
       if (!response.ok || payload?.success === false) {
+        const errorMessage =
+          payload?.error || payload?.message || 'Live score API request failed'
+        const responseSummary = summarizeScraperPayload(payload)
         recordScraperCall(context, {
           route: path,
           status: 'failed',
           httpStatus: response.status,
           durationMs,
-          error: payload?.error || payload?.message || 'Live score API request failed',
-          response: summarizeScraperPayload(payload),
+          error: errorMessage,
+          response: responseSummary,
         })
         await recordLiveScoreLog(context, {
           level: 'warn',
@@ -596,7 +599,7 @@ class LiveScoreProviderService {
           matchId: context.matchId,
           tournamentId: context.tournamentId,
           providerMatchId: context.providerMatchId,
-          message: payload?.error || payload?.message || 'Live score API request failed',
+          message: errorMessage,
           details: {
             fn: 'LiveScoreProviderService.request',
             method: 'GET',
@@ -611,7 +614,13 @@ class LiveScoreProviderService {
             responseBody: stringifyForLog(payload),
           },
         })
-        throw new Error(payload?.error || payload?.message || 'Live score API request failed')
+        const error = new Error(errorMessage)
+        error.statusCode = 502
+        error.providerRoute = path
+        error.providerHttpStatus = response.status
+        error.providerResponse = responseSummary
+        error.providerFailureRecorded = true
+        throw error
       }
       recordScraperCall(context, {
         route: path,
@@ -643,7 +652,7 @@ class LiveScoreProviderService {
       })
       return payload?.data ?? payload
     } catch (error) {
-      if (!error?.message?.includes('Live score API request failed')) {
+      if (!error?.providerFailureRecorded) {
         recordScraperCall(context, {
           route: path,
           status: 'failed',
