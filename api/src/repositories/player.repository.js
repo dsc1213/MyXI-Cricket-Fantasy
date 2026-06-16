@@ -29,6 +29,15 @@ const buildCanonicalSourceKey = ({
   return [nameKey, countryKey].filter(Boolean).join('-')
 }
 
+const normalizeNullableText = (value) => {
+  const normalized = (value ?? '').toString().trim()
+  return normalized || null
+}
+
+const isCanonicalDuplicateError = (error) =>
+  error?.code === '23505' &&
+  ['players_player_id_key', 'idx_players_source_key'].includes(error?.constraint)
+
 class PlayerRepository {
   async findByDisplayNameAndCountry(displayName, country) {
     const result = await dbQuery(
@@ -207,7 +216,7 @@ class PlayerRepository {
         role,
         resolvedTeamKey,
         resolvedTeamName,
-        playerId,
+        normalizeNullableText(playerId),
         displayName || [firstName, lastName].filter(Boolean).join(' '),
         country || '',
         imageUrl || '',
@@ -312,10 +321,20 @@ class PlayerRepository {
     const existing = await this.findCanonical(data)
     const canonicalSourceKey = buildCanonicalSourceKey(data)
     if (!existing) {
-      return this.create({
-        ...data,
-        sourceKey: canonicalSourceKey || data.sourceKey || null,
-      })
+      try {
+        return await this.create({
+          ...data,
+          sourceKey: canonicalSourceKey || data.sourceKey || null,
+        })
+      } catch (error) {
+        if (!isCanonicalDuplicateError(error)) throw error
+        const duplicate = await this.findCanonical({
+          ...data,
+          sourceKey: canonicalSourceKey || data.sourceKey || null,
+        })
+        if (duplicate) return duplicate
+        throw error
+      }
     }
 
     const {
@@ -434,7 +453,7 @@ class PlayerRepository {
           p.role,
           p.teamKey,
           p.teamName || p.teamKey,
-          p.playerId,
+          normalizeNullableText(p.playerId),
           p.displayName || [p.firstName, p.lastName].filter(Boolean).join(' '),
           p.country || '',
           p.imageUrl || '',

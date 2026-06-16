@@ -121,6 +121,8 @@ const formatCountryLabel = (value = '') =>
       .join(' ')
   })()
 
+const normalizeCatalogKey = (value = '') => value.toString().trim().toLowerCase()
+
 function buildPlayerRow(index, seed = {}) {
   return {
     id: `player-${Date.now()}-${index + 1}`,
@@ -154,6 +156,8 @@ function SquadManagerPanel() {
   const [generatedJsonText, setGeneratedJsonText] = useState('')
   const [copyJsonLabel, setCopyJsonLabel] = useState('Copy JSON')
   const [copyPromptLabel, setCopyPromptLabel] = useState('Copy AI Prompt')
+  const [missingJsonPlayers, setMissingJsonPlayers] = useState([])
+  const [pendingJsonImport, setPendingJsonImport] = useState(null)
 
   const [tournamentId, setTournamentId] = useState('')
   const [team, setTeam] = useState('')
@@ -447,6 +451,104 @@ function SquadManagerPanel() {
       .map((item) => ({ value: item, label: formatCountryLabel(item) }))
   }, [playerCatalog, players])
 
+  const playerCatalogLookup = useMemo(() => {
+    const ids = new Set()
+    const nameCountries = new Set()
+    const names = new Set()
+    ;(playerCatalog || []).forEach((item) => {
+      ;[item.id, item.sourceKey, item.playerId]
+        .map((value) => (value ?? '').toString().trim())
+        .filter(Boolean)
+        .forEach((value) => ids.add(value))
+      const name = (
+        item.displayName ||
+        item.name ||
+        [item.firstName, item.lastName].filter(Boolean).join(' ')
+      )
+        .toString()
+        .trim()
+      if (!name) return
+      names.add(normalizeCatalogKey(name))
+      nameCountries.add(
+        `${normalizeCatalogKey(name)}|${normalizeCatalogKey(item.country || '')}`,
+      )
+    })
+    return { ids, nameCountries, names }
+  }, [playerCatalog])
+
+  const collectMissingJsonPlayers = (payload = {}) => {
+    const rows = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload.teamSquads)
+        ? payload.teamSquads
+        : [
+            {
+              teamCode: payload.teamCode,
+              teamName: payload.teamName,
+              squad: Array.isArray(payload.players) ? payload.players : payload.squad,
+            },
+          ]
+    const hasBaseTournamentRef = Boolean(
+      (payload?.tournamentId || payload?.tournament || '').toString().trim(),
+    )
+    const missing = []
+    const seen = new Set()
+    rows.forEach((teamRow, teamIndex) => {
+      const hasTournamentRef = Boolean(
+        hasBaseTournamentRef ||
+          (teamRow?.tournamentId || teamRow?.tournament || '').toString().trim(),
+      )
+      if (!hasTournamentRef) return
+      const squad = Array.isArray(teamRow?.players) ? teamRow.players : teamRow?.squad
+      if (!Array.isArray(squad)) return
+      squad.forEach((player, playerIndex) => {
+        const ref = (
+          player?.canonicalPlayerId ||
+          player?.playerRowId ||
+          player?.id ||
+          player?.sourceKey ||
+          player?.source_key ||
+          player?.playerId ||
+          player?.player_id ||
+          ''
+        )
+          .toString()
+          .trim()
+        if (ref && playerCatalogLookup.ids.has(ref)) return
+        const name = (player?.name || player?.displayName || '').toString().trim()
+        const country = (player?.country || player?.nationality || '').toString().trim()
+        if (!name) return
+        const nameKey = normalizeCatalogKey(name)
+        const nameCountryKey = `${nameKey}|${normalizeCatalogKey(country)}`
+        if (
+          (country && playerCatalogLookup.nameCountries.has(nameCountryKey)) ||
+          playerCatalogLookup.names.has(nameKey)
+        ) {
+          return
+        }
+        const dedupeKey = `${nameCountryKey}|${teamRow?.teamCode || teamIndex}`
+        if (seen.has(dedupeKey)) return
+        seen.add(dedupeKey)
+        missing.push({
+          teamCode: (teamRow?.teamCode || '').toString().trim().toUpperCase(),
+          teamName: (teamRow?.teamName || '').toString().trim(),
+          name,
+          country,
+          role: (player?.role || '').toString().trim().toUpperCase(),
+          battingStyle: (player?.battingStyle || player?.batting_style || '')
+            .toString()
+            .trim(),
+          bowlingStyle: (player?.bowlingStyle || player?.bowling_style || '')
+            .toString()
+            .trim(),
+          imageUrl: (player?.imageUrl || player?.player_img || '').toString().trim(),
+          path: `teamSquads[${teamIndex}].squad[${playerIndex}]`,
+        })
+      })
+    })
+    return missing
+  }
+
   const selectedExistingPlayers = useMemo(() => {
     const selectedSet = new Set(selectedExistingPlayerIds)
     return (playerCatalog || [])
@@ -600,6 +702,24 @@ function SquadManagerPanel() {
     },
   ]
 
+  const saveJsonImport = async (parsed, normalizedText, { allowCreateMissing = false } = {}) => {
+    if (normalizedText !== jsonPayload) {
+      setJsonPayload(JSON.stringify(parsed, null, 2))
+    }
+    const missing = collectMissingJsonPlayers(parsed)
+    if (missing.length && !allowCreateMissing) {
+      setMissingJsonPlayers(missing)
+      setPendingJsonImport({ parsed, normalizedText })
+      setIsSaving(false)
+      return false
+    }
+    await upsertAdminTeamSquad({ ...parsed, actorUserId })
+    setJsonPayload('')
+    setMissingJsonPlayers([])
+    setPendingJsonImport(null)
+    return true
+  }
+
   const onSave = async () => {
     try {
       setIsSaving(true)
@@ -607,11 +727,8 @@ function SquadManagerPanel() {
       setNotice('')
       if (mode === 'json') {
         const { parsed, normalizedText } = parseNormalizedJsonInput(jsonPayload || '{}')
-        if (normalizedText !== jsonPayload) {
-          setJsonPayload(JSON.stringify(parsed, null, 2))
-        }
-        await upsertAdminTeamSquad({ ...parsed, actorUserId })
-        setJsonPayload('')
+        const didSave = await saveJsonImport(parsed, normalizedText)
+        if (!didSave) return
       } else {
         const normalizedTeamCode = (displayTeamCode || '').toUpperCase()
         if (!normalizedTeamCode) {
@@ -650,6 +767,25 @@ function SquadManagerPanel() {
         })
         setTeam(normalizedTeamCode)
       }
+      setNotice('Squad saved')
+      await loadSquads()
+    } catch (error) {
+      setErrorText(error.message || 'Failed to save squad')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const onConfirmAddMissingPlayers = async () => {
+    if (!pendingJsonImport) return
+    try {
+      setIsSaving(true)
+      setErrorText('')
+      setNotice('')
+      const didSave = await saveJsonImport(pendingJsonImport.parsed, pendingJsonImport.normalizedText, {
+        allowCreateMissing: true,
+      })
+      if (!didSave) return
       setNotice('Squad saved')
       await loadSquads()
     } catch (error) {
@@ -740,7 +876,8 @@ function SquadManagerPanel() {
       '- Keep top-level keys compatible with squad import payload.',
       '- Include: tournamentId, tournament, country, league, teamSquads.',
       '- Each teamSquads item must include teamCode, teamName, tournamentId, tournament, tournamentType, source, squad.',
-      '- Each squad player should include name, country, role and optional canonicalPlayerId/imageUrl/battingStyle/bowlingStyle/active.',
+      '- Each squad player must include name, country, role. Add optional canonicalPlayerId/playerId/sourceKey/imageUrl/battingStyle/bowlingStyle/active when known.',
+      '- Missing players will be added to Player Manager from these squad player fields after admin confirmation.',
       '',
       'Template JSON:',
       templateJson,
@@ -942,6 +1079,70 @@ function SquadManagerPanel() {
               ]}
               onClose={() => setIsJsonAssistantOpen(false)}
             />
+            <Modal
+              open={missingJsonPlayers.length > 0}
+              title="Add Missing Players?"
+              size="lg"
+              className="squad-missing-players-modal"
+              onClose={() => {
+                if (isSaving) return
+                setMissingJsonPlayers([])
+                setPendingJsonImport(null)
+              }}
+              footer={
+                <>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="small"
+                    disabled={isSaving}
+                    onClick={() => {
+                      setMissingJsonPlayers([])
+                      setPendingJsonImport(null)
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="small"
+                    disabled={isSaving || !pendingJsonImport}
+                    onClick={() => void onConfirmAddMissingPlayers()}
+                  >
+                    {isSaving
+                      ? 'Adding...'
+                      : `Add ${missingJsonPlayers.length} and save`}
+                  </Button>
+                </>
+              }
+            >
+              <p className="form-help-text">
+                These players were not found in Player Manager. Add them from the
+                JSON details, then save this squad.
+              </p>
+              <StickyTable
+                columns={[
+                  { key: 'name', label: 'Player' },
+                  {
+                    key: 'team',
+                    label: 'Team',
+                    render: (row) => row.teamName || row.teamCode || '-',
+                  },
+                  {
+                    key: 'country',
+                    label: 'Country',
+                    render: (row) => formatCountryLabel(row.country || ''),
+                  },
+                  { key: 'role', label: 'Role', render: (row) => row.role || '-' },
+                ]}
+                rows={missingJsonPlayers}
+                rowKey={(row) => `${row.teamCode}-${row.name}-${row.country}`}
+                emptyText="No missing players"
+                wrapperClassName="catalog-table-wrap"
+                tableClassName="catalog-table"
+              />
+            </Modal>
           </>
         ) : (
           <>

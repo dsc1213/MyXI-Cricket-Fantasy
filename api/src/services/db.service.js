@@ -18,6 +18,16 @@ import { dbQuery } from '../db.js'
 
 const TEAM_LOCK_BYPASS_ROLES = new Set(['master_admin'])
 
+const formatSquadSaveError = (error) => {
+  if (error?.code === '23505' && error?.constraint === 'players_player_id_key') {
+    const duplicatePlayerId = error?.detail?.match(/\(player_id\)=\(([^)]*)\)/)?.[1]
+    return duplicatePlayerId
+      ? `Duplicate playerId "${duplicatePlayerId}" already exists. Remove it or use canonicalPlayerId for the existing player.`
+      : 'Duplicate playerId already exists. Remove it or use canonicalPlayerId for the existing player.'
+  }
+  return error?.message || 'Failed to save squad'
+}
+
 const resolveDbUser = async (rawIdentifier) => {
   const value = (rawIdentifier ?? '').toString().trim()
   if (!value) return null
@@ -1508,7 +1518,7 @@ const createDbService = (dependencies) => {
           createdCount: Array.isArray(created) ? created.length : 0,
         })
       } catch (error) {
-        return res.status(400).json({ message: error.message || 'Failed to save squad' })
+        return res.status(400).json({ message: formatSquadSaveError(error) })
       }
     })
 

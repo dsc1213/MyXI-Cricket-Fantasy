@@ -1376,7 +1376,7 @@ class PlayerService {
         teamKey,
         teamName: teamMeta.teamName || p.teamName || teamKey,
         playerId:
-          p.playerId || p.player_id || existingCanonical?.playerId || canonicalRef,
+          p.playerId || p.player_id || existingCanonical?.playerId || canonicalRef || null,
         country: p.country || existingCanonical?.country || teamMeta.country || '',
         imageUrl: p.imageUrl || p.player_img || existingCanonical?.imageUrl || '',
         battingStyle:
