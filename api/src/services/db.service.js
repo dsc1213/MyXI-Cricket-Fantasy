@@ -1270,6 +1270,25 @@ const createDbService = (dependencies) => {
       }
     })
 
+    router.post('/admin/matches/:id/provider-match-id', async (req, res, next) => {
+      try {
+        const actor = await resolveCatalogActor(req)
+        if (!canManageCatalog(actor)) {
+          return res
+            .status(403)
+            .json({ message: 'Only admin/master can update scraper match id' })
+        }
+        const result = await matchService.updateProviderMatchId(
+          req.params.id,
+          req.body?.providerMatchId,
+        )
+        if (!result) return res.status(404).json({ message: 'Match not found' })
+        return res.json(result)
+      } catch (error) {
+        return next(error)
+      }
+    })
+
     // Updates live-sync metadata for a match.
     router.post('/admin/matches/:id/live-sync', async (req, res, next) => {
       try {

@@ -1674,6 +1674,28 @@ const registerMockProviderRoutes = (router, ctx) => {
     return res.status(404).json({ message: 'Match not found' })
   })
 
+  router.post('/admin/matches/:id/provider-match-id', (req, res) => {
+    const matchId = (req.params.id || '').toString()
+    const providerMatchId =
+      (req.body?.providerMatchId || req.body?.sourceMatchId || '').toString().trim() ||
+      null
+    for (const [tournamentId, matches] of Object.entries(customTournamentMatches)) {
+      if (!Array.isArray(matches)) continue
+      const target = matches.find((match) => String(match.id) === matchId)
+      if (!target) continue
+      target.sourceKey = providerMatchId
+      target.liveSync = {
+        ...(target.liveSync || {}),
+        enabled: true,
+        provider: 'cricbuzz',
+        providerMatchId,
+      }
+      persistState()
+      return res.json({ ...target, tournamentId })
+    }
+    return res.status(404).json({ message: 'Match not found' })
+  })
+
   router.post('/admin/matches/:id/replace-backups', (req, res) => {
     const matchId = (req.params.id || '').toString()
     for (const [tournamentId, matches] of Object.entries(customTournamentMatches)) {

@@ -74,6 +74,23 @@ class MatchService {
     return await repo.updateTeamEditLockOverride(id, override || null)
   }
 
+  async updateProviderMatchId(id, providerMatchId) {
+    const repo = await factory.getMatchRepository()
+    if (typeof repo.updateProviderMatchId === 'function') {
+      return await repo.updateProviderMatchId(id, providerMatchId, 'cricbuzz')
+    }
+    const match = await repo.findById(id)
+    if (!match) return null
+    match.sourceKey = (providerMatchId || '').toString().trim() || null
+    match.liveSync = {
+      ...(match.liveSync || {}),
+      enabled: true,
+      provider: 'cricbuzz',
+      providerMatchId: match.sourceKey,
+    }
+    return match
+  }
+
   // Manually triggers backup replacement for all team selections in a match.
   async forceApplyBackupReplacement(matchId) {
     const match = await this.getMatch(matchId)

@@ -78,8 +78,31 @@ test('tournament manager create flow has generate button for JSON and Auction pa
           name: 'Match 65: KKR vs MI',
           startAt: '2026-05-20T14:00:00.000Z',
           status: 'completed',
+          sourceKey: '',
+          liveSync: {
+            provider: 'cricbuzz',
+            providerMatchId: '',
+          },
         },
       ]),
+    })
+  })
+
+  await page.route('**/admin/matches/65/provider-match-id', async (route) => {
+    const payload = route.request().postDataJSON()
+    expect(payload.providerMatchId).toBe('105757')
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: '65',
+        name: 'Match 65: KKR vs MI',
+        sourceKey: '105757',
+        liveSync: {
+          provider: 'cricbuzz',
+          providerMatchId: '105757',
+        },
+      }),
     })
   })
 
@@ -116,6 +139,12 @@ test('tournament manager create flow has generate button for JSON and Auction pa
   })
 
   await page.goto('/home?panel=tournamentManager', { waitUntil: 'domcontentloaded' })
+
+  await expect(page.getByRole('columnheader', { name: 'Match ID' })).toBeVisible()
+  const scraperIdInput = page.getByLabel('Scraper match id Match 65: KKR vs MI')
+  await scraperIdInput.fill('105757')
+  await scraperIdInput.blur()
+  await expect(page.getByText('Scraper match id updated')).toBeVisible()
 
   await page.getByRole('button', { name: '+ Add matches' }).click()
   await page.getByRole('button', { name: 'Generate JSON' }).click()

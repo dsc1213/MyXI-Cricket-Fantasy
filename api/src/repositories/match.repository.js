@@ -188,6 +188,60 @@ class MatchRepository {
     return result.rows[0] ? mapMatchRow(result.rows[0]) : null
   }
 
+  async updateProviderMatchId(id, providerMatchId, provider = 'cricbuzz') {
+    const normalizedProviderMatchId = (providerMatchId || '').toString().trim() || null
+    const result = await dbQuery(
+      `WITH updated_match AS (
+         UPDATE matches
+         SET source_key = $2,
+             updated_at = now()
+         WHERE id = $1
+         RETURNING id, tournament_id, name, team_a, team_b, team_a_key, team_b_key,
+                   start_time, source_key, status, team_edit_lock_override,
+                   created_at, updated_at
+       ),
+       upsert_sync AS (
+         INSERT INTO match_live_syncs (
+           match_id, provider, provider_match_id, live_sync_enabled, created_at, updated_at
+         )
+         SELECT id, $3, $2, true, now(), now()
+         FROM updated_match
+         ON CONFLICT (match_id) DO UPDATE
+         SET provider_match_id = excluded.provider_match_id,
+             provider = excluded.provider,
+             live_sync_enabled = true,
+             updated_at = now()
+         RETURNING match_id, provider, provider_match_id, live_sync_enabled,
+                   lineup_synced_at, last_score_sync_at, last_provider_status, last_error
+       )
+       SELECT
+         um.id,
+         um.tournament_id as "tournamentId",
+         um.name,
+         um.team_a as "teamA",
+         um.team_b as "teamB",
+         um.team_a_key as "teamAKey",
+         um.team_b_key as "teamBKey",
+         um.start_time as "startTime",
+         um.source_key as "sourceKey",
+         um.status,
+         um.team_edit_lock_override as "teamEditLockOverride",
+         um.created_at as "createdAt",
+         um.updated_at as "updatedAt",
+         us.provider as "liveSyncProvider",
+         us.provider_match_id as "liveSyncProviderMatchId",
+         us.live_sync_enabled as "liveSyncEnabled",
+         us.lineup_synced_at as "liveSyncLineupSyncedAt",
+         us.last_score_sync_at as "liveSyncLastScoreSyncAt",
+         us.last_provider_status as "liveSyncLastProviderStatus",
+         us.last_error as "liveSyncLastError"
+       FROM updated_match um
+       LEFT JOIN upsert_sync us ON us.match_id = um.id`,
+      [id, normalizedProviderMatchId, provider || 'cricbuzz'],
+    )
+    return result.rows[0] ? mapMatchRow(result.rows[0]) : null
+  }
+
   async delete(id) {
     const result = await dbQuery(
       `DELETE FROM matches WHERE id = $1

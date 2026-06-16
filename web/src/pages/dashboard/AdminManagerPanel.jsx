@@ -29,6 +29,7 @@ import {
   startAdminContest,
   syncContestSelections,
   updateAdminMatchEditLock,
+  updateAdminMatchProviderId,
   updateAdminMatchStartTime,
   updateAdminMatchStatus,
   updateAdminContest,
@@ -937,6 +938,52 @@ function AdminManagerPanel({
           }}
         />
       ),
+    },
+    {
+      key: 'providerMatchId',
+      label: 'Match ID',
+      render: (row) => {
+        const currentValue = (
+          row?.liveSync?.providerMatchId ||
+          row?.providerMatchId ||
+          row?.sourceKey ||
+          ''
+        )
+          .toString()
+          .trim()
+        return (
+          <input
+            key={`${row.id}-${currentValue}`}
+            aria-label={`Scraper match id ${row.name || row.id}`}
+            className="create-contest-input"
+            type="text"
+            inputMode="numeric"
+            defaultValue={currentValue}
+            placeholder="Cricbuzz ID"
+            disabled={isSaving}
+            onClick={(event) => event.stopPropagation()}
+            onBlur={async (event) => {
+              try {
+                const nextValue = event.target.value.toString().trim()
+                if (nextValue === currentValue) return
+                setIsSaving(true)
+                setErrorText('')
+                setNotice('')
+                await updateAdminMatchProviderId({
+                  id: row.id,
+                  providerMatchId: nextValue,
+                })
+                await loadTournamentMatches(selectedTournamentId)
+                setNotice('Scraper match id updated')
+              } catch (error) {
+                setErrorText(error.message || 'Failed to update scraper match id')
+              } finally {
+                setIsSaving(false)
+              }
+            }}
+          />
+        )
+      },
     },
     {
       key: 'status',

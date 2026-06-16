@@ -1220,6 +1220,16 @@ const updateAdminMatchEditLock = async ({ id, override }) => {
   )
   return data
 }
+const updateAdminMatchProviderId = async ({ id, providerMatchId }) => {
+  const data = await request(`/admin/matches/${id}/provider-match-id`, {
+    method: 'POST',
+    body: JSON.stringify({ providerMatchId: providerMatchId || '' }),
+  })
+  invalidateAppQueryCache((key) =>
+    key.startsWith('tournamentMatches:') || key.startsWith('contestMatches:'),
+  )
+  return data
+}
 const forceAdminLiveScoreSync = async ({ id }) => {
   const data = await request(`/admin/matches/${id}/live-score/force-sync`, {
     method: 'POST',
@@ -1525,6 +1535,7 @@ export {
   updateAdminMatchStatus,
   updateAdminMatchStartTime,
   updateAdminMatchEditLock,
+  updateAdminMatchProviderId,
   forceAdminLiveScoreSync,
   replaceAdminMatchBackups,
   fetchAdminTeamSquads,

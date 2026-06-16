@@ -93,6 +93,25 @@ class MatchMockRepository {
     return null
   }
 
+  async updateProviderMatchId(id, providerMatchId) {
+    const normalizedProviderMatchId = (providerMatchId || '').toString().trim() || null
+    for (const matches of Object.values(this.customTournamentMatches)) {
+      if (!Array.isArray(matches)) continue
+      const match = matches.find((item) => String(item.id) === String(id))
+      if (!match) continue
+      match.sourceKey = normalizedProviderMatchId
+      match.liveSync = {
+        ...(match.liveSync || {}),
+        enabled: true,
+        provider: 'cricbuzz',
+        providerMatchId: normalizedProviderMatchId,
+      }
+      match.updatedAt = new Date().toISOString()
+      return this._toDto(match)
+    }
+    return null
+  }
+
   async delete(id) {
     for (const [tournamentId, matches] of Object.entries(this.customTournamentMatches)) {
       if (Array.isArray(matches)) {
