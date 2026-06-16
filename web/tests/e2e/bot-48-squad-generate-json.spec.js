@@ -20,10 +20,23 @@ test('squad manager json mode has generate json button and fills payload', async
 
   const generateButton = page.getByRole('button', { name: 'Generate JSON' })
   await expect(generateButton).toBeVisible()
+  await expect(page.locator('.squad-manager-json-team-name')).toContainText(
+    'Chennai Super Kings',
+  )
 
   const jsonTextarea = page.locator('.squad-manager-json-textarea')
   await expect(jsonTextarea).toBeVisible()
   await generateButton.click()
+  const modal = page.locator('.score-preview-modal', {
+    has: page.getByRole('heading', { name: 'Generated Squad JSON' }),
+  })
+  await expect(modal).toBeVisible()
+  await expect(modal.getByText('AI Prompt For Squad JSON')).toBeVisible()
+  await expect(modal.locator('.score-preview-textarea-prompt')).toContainText(
+    '/admin/team-squads',
+  )
+  await modal.getByRole('button', { name: 'Use Template' }).click()
   await expect(jsonTextarea).toContainText('"teamSquads": [')
   await expect(jsonTextarea).toContainText('"source": "json"')
+  await expect(jsonTextarea).toContainText('"teamName":')
 })

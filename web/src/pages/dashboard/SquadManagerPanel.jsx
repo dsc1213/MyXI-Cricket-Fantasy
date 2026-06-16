@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import Button from '../../components/ui/Button.jsx'
+import JsonAssistantModal from '../../components/ui/JsonAssistantModal.jsx'
 import JsonTextareaField from '../../components/ui/JsonTextareaField.jsx'
 import Modal from '../../components/ui/Modal.jsx'
 import PlayerIdentity from '../../components/ui/PlayerIdentity.jsx'
@@ -149,6 +150,10 @@ function SquadManagerPanel() {
   const [isSaving, setIsSaving] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
   const [jsonPayload, setJsonPayload] = useState('')
+  const [isJsonAssistantOpen, setIsJsonAssistantOpen] = useState(false)
+  const [generatedJsonText, setGeneratedJsonText] = useState('')
+  const [copyJsonLabel, setCopyJsonLabel] = useState('Copy JSON')
+  const [copyPromptLabel, setCopyPromptLabel] = useState('Copy AI Prompt')
 
   const [tournamentId, setTournamentId] = useState('')
   const [team, setTeam] = useState('')
@@ -294,6 +299,22 @@ function SquadManagerPanel() {
   }, [isEditMode])
 
   const displayTeamCode = team
+
+  const selectedTeamOption = teamOptions.find((item) => item.value === team)
+  const displayTeamName =
+    (teamName || selectedTeamOption?.label || displayTeamCode || '').toString().trim()
+  const jsonTeamCode =
+    (displayTeamCode || team || 'CSK').toString().trim().toUpperCase() || 'CSK'
+  const jsonTeamName =
+    (
+      displayTeamName ||
+      LEAGUE_TEAM_MAP[(selectedTournament?.league || 'IPL').toString().trim()]?.[
+        jsonTeamCode
+      ] ||
+      jsonTeamCode
+    )
+      .toString()
+      .trim() || jsonTeamCode
 
   const filteredPlayers = useMemo(() => {
     const q = (playerSearch || '').toString().trim().toLowerCase()
@@ -638,9 +659,8 @@ function SquadManagerPanel() {
     }
   }
 
-  const onGenerateJson = () => {
+  const buildSquadJsonTemplate = () => {
     setErrorText('')
-    setNotice('')
     const resolvedTournamentId =
       (tournamentId || selectedTournament?.id || 'ipl-2026').toString().trim() ||
       'ipl-2026'
@@ -703,14 +723,95 @@ function SquadManagerPanel() {
       ],
     }
 
-    setMode('json')
-    setJsonPayload(JSON.stringify(payload, null, 2))
+    return {
+      payload,
+      hasCurrentSquad: mappedSquad.length > 0,
+    }
+  }
+
+  const generatedJsonAiPromptText = useMemo(() => {
+    const templateJson = generatedJsonText || SQUAD_JSON_EXAMPLE
+    return [
+      'Convert source notes into the exact JSON format used by /admin/team-squads.',
+      '',
+      'Rules:',
+      '- Return valid JSON only.',
+      '- Do not include markdown, code fences, or explanations.',
+      '- Keep top-level keys compatible with squad import payload.',
+      '- Include: tournamentId, tournament, country, league, teamSquads.',
+      '- Each teamSquads item must include teamCode, teamName, tournamentId, tournament, tournamentType, source, squad.',
+      '- Each squad player should include name, country, role and optional canonicalPlayerId/imageUrl/battingStyle/bowlingStyle/active.',
+      '',
+      'Template JSON:',
+      templateJson,
+      '',
+      'Source squad notes:',
+      'PASTE_SQUAD_NOTES_HERE',
+    ].join('\n')
+  }, [generatedJsonText])
+
+  const onCopy = async (text, setLabel, resetLabel) => {
+    if (!text) return
+    try {
+      await navigator.clipboard.writeText(text)
+      setLabel('Copied')
+      window.setTimeout(() => setLabel(resetLabel), 1200)
+    } catch {
+      setLabel('Copy failed')
+      window.setTimeout(() => setLabel(resetLabel), 1600)
+    }
+  }
+
+  const onGenerateJson = () => {
+    setErrorText('')
+    const { payload, hasCurrentSquad } = buildSquadJsonTemplate()
+    const nextJson = JSON.stringify(payload, null, 2)
+    setGeneratedJsonText(nextJson)
+    setIsJsonAssistantOpen(true)
+    setCopyJsonLabel('Copy JSON')
+    setCopyPromptLabel('Copy AI Prompt')
     setNotice(
-      mappedSquad.length
-        ? 'Generated JSON from current squad'
-        : 'Generated JSON template',
+      hasCurrentSquad
+        ? 'Squad JSON template generated from current squad.'
+        : 'Squad JSON template generated. Use the AI prompt or template.',
     )
   }
+
+  const useGeneratedJsonTemplate = () => {
+    setMode('json')
+    setJsonPayload(generatedJsonText)
+    setIsJsonAssistantOpen(false)
+  }
+
+  const scopeControls = (
+    <div className="manual-scope-row">
+      <label>
+        Tournament
+        <SelectField
+          value={tournamentId}
+          onChange={(event) => {
+            setTournamentId(event.target.value)
+            setTeam('')
+            setPlayers([])
+          }}
+          options={[{ value: '', label: 'Select tournament' }, ...tournamentOptions]}
+        />
+      </label>
+      {tournamentId && (
+        <label>
+          Team
+          <SelectField
+            value={team}
+            onChange={(event) => setTeam(event.target.value)}
+            options={[{ value: '', label: 'Select team' }, ...teamOptions]}
+          />
+        </label>
+      )}
+      {mode === 'json' && jsonTeamName && (
+        <span className="squad-manager-json-team-name">Team: {jsonTeamName}</span>
+      )}
+    </div>
+  )
 
   return (
     <section className="dashboard-section">
@@ -779,6 +880,7 @@ function SquadManagerPanel() {
 
         {canManageSquads && isEditMode && mode === 'json' ? (
           <>
+            {scopeControls}
             <div className="squad-manager-json-actions">
               <Button
                 type="button"
@@ -801,36 +903,49 @@ function SquadManagerPanel() {
               onClear={() => setJsonPayload('')}
               clearDisabled={!jsonPayload.trim()}
             />
+            <JsonAssistantModal
+              open={isJsonAssistantOpen}
+              ariaLabel="Generated Squad JSON"
+              title="Generated Squad JSON"
+              description="Use this template with an AI prompt, then paste the final JSON into the squad payload."
+              jsonLabel="Squad JSON"
+              jsonText={generatedJsonText}
+              jsonFallback={SQUAD_JSON_EXAMPLE}
+              onCopyJson={() =>
+                void onCopy(generatedJsonText, setCopyJsonLabel, 'Copy JSON')
+              }
+              copyJsonLabel={copyJsonLabel}
+              disableCopyJson={!generatedJsonText}
+              promptLabel="AI Prompt For Squad JSON"
+              promptText={generatedJsonAiPromptText}
+              onCopyPrompt={() =>
+                void onCopy(
+                  generatedJsonAiPromptText,
+                  setCopyPromptLabel,
+                  'Copy AI Prompt',
+                )
+              }
+              copyPromptLabel={copyPromptLabel}
+              disableCopyPrompt={!generatedJsonAiPromptText}
+              footerActions={[
+                {
+                  label: 'Use Template',
+                  variant: 'primary',
+                  onClick: useGeneratedJsonTemplate,
+                  disabled: !generatedJsonText,
+                },
+                {
+                  label: 'Close',
+                  variant: 'ghost',
+                  onClick: () => setIsJsonAssistantOpen(false),
+                },
+              ]}
+              onClose={() => setIsJsonAssistantOpen(false)}
+            />
           </>
         ) : (
           <>
-            <div className="manual-scope-row">
-              <label>
-                Tournament
-                <SelectField
-                  value={tournamentId}
-                  onChange={(event) => {
-                    setTournamentId(event.target.value)
-                    setTeam('')
-                    setPlayers([])
-                  }}
-                  options={[
-                    { value: '', label: 'Select tournament' },
-                    ...tournamentOptions,
-                  ]}
-                />
-              </label>
-              {tournamentId && (
-                <label>
-                  Team
-                  <SelectField
-                    value={team}
-                    onChange={(event) => setTeam(event.target.value)}
-                    options={[{ value: '', label: 'Select team' }, ...teamOptions]}
-                  />
-                </label>
-              )}
-            </div>
+            {scopeControls}
 
             <div className="contest-section-head">
               <h3>{displayTeamCode ? `${displayTeamCode} Squad` : 'Team Squad'}</h3>

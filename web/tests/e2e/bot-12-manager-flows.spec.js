@@ -645,7 +645,17 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     const jsonTextarea = page.locator('.squad-manager-json-textarea')
     await expect(jsonTextarea).toBeVisible()
     await generateJsonButton.click()
+    const modal = page.locator('.score-preview-modal', {
+      has: page.getByRole('heading', { name: 'Generated Squad JSON' }),
+    })
+    await expect(modal).toBeVisible()
+    await expect(modal.getByText('AI Prompt For Squad JSON')).toBeVisible()
+    await expect(modal.locator('.score-preview-textarea-prompt')).toContainText(
+      '/admin/team-squads',
+    )
+    await modal.getByRole('button', { name: 'Use Template' }).click()
     await expect(jsonTextarea).toContainText('"teamSquads": [')
+    await expect(jsonTextarea).toContainText('"teamName":')
 
     const textareaHeight = await jsonTextarea.evaluate((node) => {
       return window.getComputedStyle(node).minHeight
