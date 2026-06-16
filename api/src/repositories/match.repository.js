@@ -192,13 +192,11 @@ class MatchRepository {
     const normalizedProviderMatchId = (providerMatchId || '').toString().trim() || null
     const result = await dbQuery(
       `WITH updated_match AS (
-         UPDATE matches
-         SET source_key = $2,
-             updated_at = now()
+         SELECT id, tournament_id, name, team_a, team_b, team_a_key, team_b_key,
+                start_time, source_key, status, team_edit_lock_override,
+                created_at, updated_at
+         FROM matches
          WHERE id = $1
-         RETURNING id, tournament_id, name, team_a, team_b, team_a_key, team_b_key,
-                   start_time, source_key, status, team_edit_lock_override,
-                   created_at, updated_at
        ),
        upsert_sync AS (
          INSERT INTO match_live_syncs (

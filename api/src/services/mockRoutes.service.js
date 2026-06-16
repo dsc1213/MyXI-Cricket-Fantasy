@@ -1683,7 +1683,6 @@ const registerMockProviderRoutes = (router, ctx) => {
       if (!Array.isArray(matches)) continue
       const target = matches.find((match) => String(match.id) === matchId)
       if (!target) continue
-      target.sourceKey = providerMatchId
       target.liveSync = {
         ...(target.liveSync || {}),
         enabled: true,

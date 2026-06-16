@@ -941,12 +941,11 @@ function AdminManagerPanel({
     },
     {
       key: 'providerMatchId',
-      label: 'Match ID',
+      label: 'Provider Match ID',
       render: (row) => {
         const currentValue = (
           row?.liveSync?.providerMatchId ||
           row?.providerMatchId ||
-          row?.sourceKey ||
           ''
         )
           .toString()

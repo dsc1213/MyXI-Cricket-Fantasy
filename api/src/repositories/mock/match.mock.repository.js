@@ -99,7 +99,6 @@ class MatchMockRepository {
       if (!Array.isArray(matches)) continue
       const match = matches.find((item) => String(item.id) === String(id))
       if (!match) continue
-      match.sourceKey = normalizedProviderMatchId
       match.liveSync = {
         ...(match.liveSync || {}),
         enabled: true,
