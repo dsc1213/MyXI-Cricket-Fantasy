@@ -6,7 +6,7 @@ const mapMatchRow = (row) => ({
   liveSync: {
     enabled: row.liveSyncEnabled !== false,
     provider: row.liveSyncProvider || 'cricbuzz',
-    providerMatchId: row.liveSyncProviderMatchId || row.sourceKey || null,
+    providerMatchId: row.liveSyncProviderMatchId || null,
     lineupSyncedAt: row.liveSyncLineupSyncedAt || null,
     lastScoreSyncAt: row.liveSyncLastScoreSyncAt || null,
     lastProviderStatus: row.liveSyncLastProviderStatus || '',

@@ -144,7 +144,7 @@ class MatchMockRepository {
       liveSync: match.liveSync || {
         enabled: true,
         provider: 'cricbuzz',
-        providerMatchId: match.sourceKey || match.source_key || null,
+        providerMatchId: null,
         lineupSyncedAt: null,
         lastScoreSyncAt: null,
         lastProviderStatus: '',
