@@ -1,6 +1,8 @@
 import { createRepositoryFactory } from '../repositories/repository.factory.js'
 import { dbQuery } from '../db.js'
 import { resolveEffectiveSelection } from '../scoring.js'
+import matchLiveSyncRepository from '../live-score/repository.js'
+import liveScoreProviderService from '../live-score/provider.service.js'
 
 const factory = createRepositoryFactory()
 
@@ -81,14 +83,86 @@ class MatchService {
     }
     const match = await repo.findById(id)
     if (!match) return null
-    match.sourceKey = (providerMatchId || '').toString().trim() || null
     match.liveSync = {
       ...(match.liveSync || {}),
       enabled: true,
       provider: 'cricbuzz',
-      providerMatchId: match.sourceKey,
+      providerMatchId: (providerMatchId || '').toString().trim() || null,
     }
     return match
+  }
+
+  async discoverProviderMatchIdsForTournament(tournamentId) {
+    const repo = await factory.getMatchRepository()
+    const matches = await repo.findByTournament(tournamentId)
+    const missing = (matches || []).filter(
+      (match) => !(match?.liveSync?.providerMatchId || match?.providerMatchId),
+    )
+    const summary = {
+      checked: missing.length,
+      updated: 0,
+      skipped: 0,
+      failed: 0,
+      rows: [],
+    }
+    for (const match of missing) {
+      try {
+        const context = { matchId: match.id, tournamentId }
+        const options = { allowAnyStatus: true }
+        const liveDiscovery = await liveScoreProviderService.discoverMatch(
+          match,
+          context,
+          { ...options, route: '/matches/live' },
+        )
+        const discovery = liveDiscovery.ok
+          ? liveDiscovery
+          : await liveScoreProviderService.discoverMatch(match, context, {
+              ...options,
+              route: '/matches/recent',
+            })
+        if (!discovery.ok) {
+          summary.skipped += 1
+          summary.rows.push({
+            matchId: match.id,
+            name: match.name,
+            status: 'skipped',
+            reason: discovery.reason,
+          })
+          continue
+        }
+        await matchLiveSyncRepository.upsert(
+          match.id,
+          {
+            provider: 'cricbuzz',
+            providerMatchId: discovery.providerMatchId,
+            liveSyncEnabled: true,
+            lastProviderStatus: discovery.match?.status || '',
+            lastError: '',
+          },
+          {
+            matchId: match.id,
+            tournamentId,
+            providerMatchId: discovery.providerMatchId,
+          },
+        )
+        summary.updated += 1
+        summary.rows.push({
+          matchId: match.id,
+          name: match.name,
+          status: 'updated',
+          providerMatchId: discovery.providerMatchId,
+        })
+      } catch (error) {
+        summary.failed += 1
+        summary.rows.push({
+          matchId: match.id,
+          name: match.name,
+          status: 'failed',
+          reason: error.message || 'Provider discovery failed',
+        })
+      }
+    }
+    return summary
   }
 
   // Manually triggers backup replacement for all team selections in a match.

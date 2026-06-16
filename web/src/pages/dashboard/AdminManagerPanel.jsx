@@ -12,6 +12,7 @@ import {
   createAdminContest,
   addAdminContestParticipant,
   deleteAdminUser,
+  discoverAdminTournamentProviderIds,
   fetchAdminContestParticipants,
   fetchContestRemovalPreview,
   fetchTournamentRemovalPreview,
@@ -379,6 +380,26 @@ function AdminManagerPanel({
     }
   }
 
+  const onDiscoverProviderMatchIds = async () => {
+    if (!selectedTournamentId) return
+    try {
+      setIsSaving(true)
+      setErrorText('')
+      setNotice('')
+      const result = await discoverAdminTournamentProviderIds({
+        tournamentId: selectedTournamentId,
+      })
+      await loadTournamentMatches(selectedTournamentId)
+      setNotice(
+        `Provider IDs found: ${Number(result?.updated || 0)} updated, ${Number(result?.skipped || 0)} skipped`,
+      )
+    } catch (error) {
+      setErrorText(error.message || 'Failed to find provider match IDs')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const onCreateTournament = async () => {
     try {
       setErrorText('')
@@ -435,7 +456,9 @@ function AdminManagerPanel({
   }
 
   const getUserDisplayName = (row = {}) =>
-    (row.gameName || row.name || row.userId || row.email || row.id || '').toString().trim()
+    (row.gameName || row.name || row.userId || row.email || row.id || '')
+      .toString()
+      .trim()
 
   const openCreateContestModal = async () => {
     if (!selectedContestTournamentId) return
@@ -504,8 +527,12 @@ function AdminManagerPanel({
     setEditContest(contest)
     setEditContestForm({
       name: contest?.name || '',
-      teams: String(contest?.maxPlayers || contest?.maxParticipants || contest?.teams || ''),
-      startAt: contest?.startAt ? new Date(contest.startAt).toISOString().slice(0, 16) : '',
+      teams: String(
+        contest?.maxPlayers || contest?.maxParticipants || contest?.teams || '',
+      ),
+      startAt: contest?.startAt
+        ? new Date(contest.startAt).toISOString().slice(0, 16)
+        : '',
     })
     setEditContestAddUserId('')
     setEditContestMatchIds(
@@ -550,9 +577,7 @@ function AdminManagerPanel({
       setEditContestAddUserId('')
     }
     if (pendingParticipantAction.type === 'remove') {
-      setEditContestParticipantIds((prev) =>
-        prev.filter((id) => String(id) !== userId),
-      )
+      setEditContestParticipantIds((prev) => prev.filter((id) => String(id) !== userId))
     }
     setPendingParticipantAction(null)
   }
@@ -1144,7 +1169,9 @@ function AdminManagerPanel({
   )
   const editParticipantRows = useMemo(() => {
     const userMap = new Map(users.map((row) => [String(row.id), row]))
-    const participantMap = new Map(contestParticipants.map((row) => [String(row.id), row]))
+    const participantMap = new Map(
+      contestParticipants.map((row) => [String(row.id), row]),
+    )
     return editContestParticipantIds.map((id) => {
       const key = String(id)
       return {
@@ -1262,7 +1289,9 @@ function AdminManagerPanel({
             event.stopPropagation()
             void openContestEditModal(row)
           }}
-          title={canEditContestRow(row) ? 'Edit contest' : 'Auction contests are master-only'}
+          title={
+            canEditContestRow(row) ? 'Edit contest' : 'Auction contests are master-only'
+          }
         >
           Edit
         </Button>
@@ -1315,7 +1344,11 @@ function AdminManagerPanel({
           </p>
         )}
         {!!notice && (
-          <p className="admin-manager-feedback success-text" role="status" aria-live="polite">
+          <p
+            className="admin-manager-feedback success-text"
+            role="status"
+            aria-live="polite"
+          >
             {notice}
           </p>
         )}
@@ -1469,6 +1502,14 @@ function AdminManagerPanel({
                         onClick={() => void loadTournamentMatches(selectedTournamentId)}
                       >
                         Refresh matches
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="small"
+                        disabled={!selectedTournamentId || isSaving}
+                        onClick={() => void onDiscoverProviderMatchIds()}
+                      >
+                        Find provider IDs
                       </Button>
                     </div>
                   </div>

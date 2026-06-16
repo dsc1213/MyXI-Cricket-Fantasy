@@ -186,11 +186,7 @@ const dbHandlers = {
       data?.playerStats
 
     if (data?.dryRun === true) {
-      return matchScoreService.previewMatchScores(
-        data.matchId,
-        data.tournamentId,
-        rows,
-      )
+      return matchScoreService.previewMatchScores(data.matchId, data.tournamentId, rows)
     }
 
     return matchScoreService.saveExcelProcessedScores(
@@ -1120,6 +1116,26 @@ const createDbService = (dependencies) => {
       }
     })
 
+    router.post(
+      '/admin/tournaments/:id/provider-match-ids/discover',
+      async (req, res, next) => {
+        try {
+          const actor = await resolveCatalogActor(req)
+          if (!canManageCatalog(actor)) {
+            return res
+              .status(403)
+              .json({ message: 'Only admin/master can update scraper match ids' })
+          }
+          const result = await matchService.discoverProviderMatchIdsForTournament(
+            req.params.id,
+          )
+          return res.json(result)
+        } catch (error) {
+          return next(error)
+        }
+      },
+    )
+
     // Creates a new contest from admin payload data.
     router.post('/admin/contests', async (req, res, next) => {
       try {
@@ -1375,7 +1391,8 @@ const createDbService = (dependencies) => {
             providerHttpStatus:
               error?.providerHttpStatus || scraperCalls.at(-1)?.httpStatus || null,
             providerError: scraperCalls.at(-1)?.error || error?.message || '',
-            providerResponse: error?.providerResponse || scraperCalls.at(-1)?.response || null,
+            providerResponse:
+              error?.providerResponse || scraperCalls.at(-1)?.response || null,
             scraperCalls,
             liveStatus: context.liveStatus || null,
             dbWrites: context.dbWrites || [],
@@ -1680,7 +1697,9 @@ const createDbService = (dependencies) => {
           actor?.id && targetUser?.id && Number(actor.id) === Number(targetUser.id),
         )
         if (!isSelfRead && !TEAM_LOCK_BYPASS_ROLES.has(actor?.role)) {
-          return res.status(403).json({ message: 'Only master admin can inspect another user team.' })
+          return res
+            .status(403)
+            .json({ message: 'Only master admin can inspect another user team.' })
         }
         const sources = await teamSelectionService.getCopySources({
           matchId: req.query?.matchId,
@@ -1708,7 +1727,9 @@ const createDbService = (dependencies) => {
         )
         const canBypassTeamLock = TEAM_LOCK_BYPASS_ROLES.has(actor?.role)
         if (!isSelfWrite && !canBypassTeamLock) {
-          return res.status(403).json({ message: 'Only master admin can edit another user team.' })
+          return res
+            .status(403)
+            .json({ message: 'Only master admin can edit another user team.' })
         }
         const result = await teamSelectionService.copyTeamSelection({
           sourceSelectionId: req.body?.sourceSelectionId,

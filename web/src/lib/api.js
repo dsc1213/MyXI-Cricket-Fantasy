@@ -99,12 +99,14 @@ const withSortedParams = (params) => {
   return next.toString()
 }
 
-const cachedGet = (key, loader, options = {}) => fetchCachedQuery({ key, loader, ...options })
+const cachedGet = (key, loader, options = {}) =>
+  fetchCachedQuery({ key, loader, ...options })
 
 const getFreshDashboardPageLoadData = () => {
   const entry = getAppQueryCacheEntry('dashboardPageLoadData')
   if (entry?.status !== 'success') return null
-  if (Date.now() - Number(entry.updatedAt || 0) >= DASHBOARD_PAGE_LOAD_CACHE_MS) return null
+  if (Date.now() - Number(entry.updatedAt || 0) >= DASHBOARD_PAGE_LOAD_CACHE_MS)
+    return null
   return entry.data || null
 }
 
@@ -122,7 +124,9 @@ const hasLiveScoreDbChanges = (data = {}) => {
 const getStoredLiveScoreSyncGate = () => {
   if (typeof window === 'undefined') return null
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(LIVE_SCORE_SYNC_GATE_KEY) || 'null')
+    const parsed = JSON.parse(
+      window.localStorage.getItem(LIVE_SCORE_SYNC_GATE_KEY) || 'null',
+    )
     const syncedAt = Number(parsed?.syncedAt || 0)
     const minIntervalMs = Number(parsed?.minIntervalMs || LIVE_SCORE_SYNC_MIN_INTERVAL_MS)
     if (!syncedAt || !Number.isFinite(minIntervalMs) || minIntervalMs <= 0) return null
@@ -166,9 +170,18 @@ const getLiveScoreSyncGateSkip = () => {
       nextAllowedAt: new Date(nextAllowedAt).toISOString(),
     },
     liveStatus: {
-      matchId: { status: 'throttled', message: 'UI skipped live sync inside throttle window' },
-      pxi: { status: 'throttled', message: 'UI skipped Playing XI sync inside throttle window' },
-      latestMatchScores: { status: 'throttled', message: 'UI skipped score sync inside throttle window' },
+      matchId: {
+        status: 'throttled',
+        message: 'UI skipped live sync inside throttle window',
+      },
+      pxi: {
+        status: 'throttled',
+        message: 'UI skipped Playing XI sync inside throttle window',
+      },
+      latestMatchScores: {
+        status: 'throttled',
+        message: 'UI skipped score sync inside throttle window',
+      },
     },
   }
 }
@@ -210,19 +223,24 @@ const refreshContestScopedData = async ({ contestId, matchId, userId } = {}) => 
     if (matchId) {
       tasks.push(
         primeCachedGet(`contestParticipants:${contestId}:matchId=${matchId}`, () =>
-          request(`/contests/${contestId}/participants?matchId=${encodeURIComponent(matchId)}`),
+          request(
+            `/contests/${contestId}/participants?matchId=${encodeURIComponent(matchId)}`,
+          ),
         ),
       )
     }
   }
   if (userId && contestId) {
     tasks.push(
-      primeCachedGet(`userPicks:${userId}:contestId=${contestId}&matchId=${matchId || ''}`, () => {
-        const params = new URLSearchParams()
-        params.set('contestId', contestId)
-        if (matchId) params.set('matchId', matchId)
-        return request(`/users/${userId}/picks?${withSortedParams(params)}`)
-      }),
+      primeCachedGet(
+        `userPicks:${userId}:contestId=${contestId}&matchId=${matchId || ''}`,
+        () => {
+          const params = new URLSearchParams()
+          params.set('contestId', contestId)
+          if (matchId) params.set('matchId', matchId)
+          return request(`/users/${userId}/picks?${withSortedParams(params)}`)
+        },
+      ),
     )
   }
   await Promise.allSettled(tasks)
@@ -244,9 +262,7 @@ const refreshMatchAdminData = async ({ tournamentId, matchId, contestId } = {}) 
     params.set('matchId', matchId)
     if (contestId) params.set('contestId', contestId)
     const query = withSortedParams(params)
-    tasks.push(
-      primeCachedGet(`teamPool:${query}`, () => request(`/team-pool?${query}`)),
-    )
+    tasks.push(primeCachedGet(`teamPool:${query}`, () => request(`/team-pool?${query}`)))
   }
   await Promise.allSettled(tasks)
 }
@@ -520,7 +536,8 @@ const syncLiveScoresNow = async ({ reason = 'ui-refresh' } = {}) => {
       } catch (secondError) {
         return {
           ok: false,
-          message: secondError?.message || firstError?.message || 'Live score sync failed',
+          message:
+            secondError?.message || firstError?.message || 'Live score sync failed',
           error: secondError?.message || firstError?.message || 'Live score sync failed',
           reason,
         }
@@ -530,19 +547,20 @@ const syncLiveScoresNow = async ({ reason = 'ui-refresh' } = {}) => {
       setStoredLiveScoreSyncGate(data)
     }
     if (data?.ok !== false && hasLiveScoreDbChanges(data)) {
-      invalidateAppQueryCache((key) =>
-        key === 'dashboardPageLoadData' ||
-        key.startsWith('contest:') ||
-        key.startsWith('contestMatches:') ||
-        key.startsWith('contestParticipants:') ||
-        key.startsWith('contestLeaderboard:') ||
-        key.startsWith('contestUserMatchScores:') ||
-        key.startsWith('contestUserPlayerBreakdown:') ||
-        key.startsWith('matchLineups:') ||
-        key.startsWith('teamPool:') ||
-        key.startsWith('userPicks:') ||
-        key.startsWith('adminMatchScores:') ||
-        key.startsWith('tournamentMatches:'),
+      invalidateAppQueryCache(
+        (key) =>
+          key === 'dashboardPageLoadData' ||
+          key.startsWith('contest:') ||
+          key.startsWith('contestMatches:') ||
+          key.startsWith('contestParticipants:') ||
+          key.startsWith('contestLeaderboard:') ||
+          key.startsWith('contestUserMatchScores:') ||
+          key.startsWith('contestUserPlayerBreakdown:') ||
+          key.startsWith('matchLineups:') ||
+          key.startsWith('teamPool:') ||
+          key.startsWith('userPicks:') ||
+          key.startsWith('adminMatchScores:') ||
+          key.startsWith('tournamentMatches:'),
       )
     }
     return data
@@ -574,7 +592,9 @@ const saveScoringRules = async ({ rules, actorUserId }) => {
     body: JSON.stringify({ rules, ...(actorUserId ? { actorUserId } : {}) }),
   })
   invalidateAppQueryCache('dashboardPageLoadData')
-  await Promise.allSettled([primeCachedGet('dashboardPageLoadData', () => request('/page-load-data'))])
+  await Promise.allSettled([
+    primeCachedGet('dashboardPageLoadData', () => request('/page-load-data')),
+  ])
   return data
 }
 
@@ -611,17 +631,18 @@ const saveMatchScores = ({
       teamScore,
     }),
   }).finally(() => {
-    invalidateAppQueryCache((key) =>
-      key === 'dashboardPageLoadData' ||
-      key.startsWith('contestLeaderboard:') ||
-      key.startsWith('contestParticipants:') ||
-      key.startsWith('contestMatches:') ||
-      key.startsWith('contestUserMatchScores:') ||
-      key.startsWith('tournamentMatches:') ||
-      key.startsWith('contestUserPlayerBreakdown:') ||
-      key.startsWith('matchLineups:') ||
-      key.startsWith('teamPool:') ||
-      key.startsWith('userPicks:'),
+    invalidateAppQueryCache(
+      (key) =>
+        key === 'dashboardPageLoadData' ||
+        key.startsWith('contestLeaderboard:') ||
+        key.startsWith('contestParticipants:') ||
+        key.startsWith('contestMatches:') ||
+        key.startsWith('contestUserMatchScores:') ||
+        key.startsWith('tournamentMatches:') ||
+        key.startsWith('contestUserPlayerBreakdown:') ||
+        key.startsWith('matchLineups:') ||
+        key.startsWith('teamPool:') ||
+        key.startsWith('userPicks:'),
     )
   })
 
@@ -697,16 +718,19 @@ const fetchContestMatches = ({ contestId, status, team, userId } = {}) => {
   if (team && team !== 'all') params.set('team', team)
   if (userId) params.set('userId', userId)
   const query = withSortedParams(params)
-  return cachedGet(
-    `contestMatches:${contestId}:${query || 'all'}`,
-    () =>
-      request(`/contests/${contestId}/matches${query ? `?${query}` : ''}`).then(
-        sortMatchesForSelection,
-      ),
+  return cachedGet(`contestMatches:${contestId}:${query || 'all'}`, () =>
+    request(`/contests/${contestId}/matches${query ? `?${query}` : ''}`).then(
+      sortMatchesForSelection,
+    ),
   )
 }
 
-const fetchContestParticipants = ({ contestId, matchId, userId, includeMissingTeams = false } = {}) => {
+const fetchContestParticipants = ({
+  contestId,
+  matchId,
+  userId,
+  includeMissingTeams = false,
+} = {}) => {
   const params = new URLSearchParams()
   if (matchId) params.set('matchId', matchId)
   if (userId) params.set('userId', userId)
@@ -790,11 +814,12 @@ const saveTeamSelection = async ({
       viceCaptainId,
     }),
   })
-  invalidateAppQueryCache((key) =>
-    key.startsWith('teamPool:') ||
-    key.startsWith('userPicks:') ||
-    key.startsWith(`contestMatches:${contestId}:`) ||
-    key.startsWith(`contestParticipants:${contestId}:`) ||
+  invalidateAppQueryCache(
+    (key) =>
+      key.startsWith('teamPool:') ||
+      key.startsWith('userPicks:') ||
+      key.startsWith(`contestMatches:${contestId}:`) ||
+      key.startsWith(`contestParticipants:${contestId}:`) ||
       key === `contest:${contestId}`,
   )
   await Promise.allSettled([
@@ -836,12 +861,13 @@ const copyTeamSelection = async ({
       userId,
     }),
   })
-  invalidateAppQueryCache((key) =>
-    key.startsWith('teamPool:') ||
-    key.startsWith('userPicks:') ||
-    key.startsWith(`contestMatches:${targetContestId}:`) ||
-    key.startsWith(`contestParticipants:${targetContestId}:`) ||
-    key === `contest:${targetContestId}`,
+  invalidateAppQueryCache(
+    (key) =>
+      key.startsWith('teamPool:') ||
+      key.startsWith('userPicks:') ||
+      key.startsWith(`contestMatches:${targetContestId}:`) ||
+      key.startsWith(`contestParticipants:${targetContestId}:`) ||
+      key === `contest:${targetContestId}`,
   )
   return data
 }
@@ -943,8 +969,8 @@ const savePlayerOverride = ({
       actorUserId,
     }),
   }).finally(() => {
-    invalidateAppQueryCache((key) =>
-      key.startsWith('playerOverrideContext:') || key.startsWith('teamPool:'),
+    invalidateAppQueryCache(
+      (key) => key.startsWith('playerOverrideContext:') || key.startsWith('teamPool:'),
     )
   })
 const fetchManualScoreContext = ({ tournamentId } = {}) => {
@@ -996,11 +1022,12 @@ const upsertMatchLineups = async ({
     }),
   })
   if (!dryRun) {
-    invalidateAppQueryCache((key) =>
-      key === 'dashboardPageLoadData' ||
-      key.startsWith(`matchLineups:${tournamentId}:${matchId}:`) ||
-      key.startsWith('teamPool:') ||
-      key.startsWith('contestParticipants:') ||
+    invalidateAppQueryCache(
+      (key) =>
+        key === 'dashboardPageLoadData' ||
+        key.startsWith(`matchLineups:${tournamentId}:${matchId}:`) ||
+        key.startsWith('teamPool:') ||
+        key.startsWith('contestParticipants:') ||
         key.startsWith('userPicks:'),
     )
     await Promise.allSettled([
@@ -1034,14 +1061,15 @@ const upsertManualMatchScores = async ({
       playerStats,
     }),
   })
-  invalidateAppQueryCache((key) =>
-    key === `adminMatchScores:${tournamentId}:${matchId}` ||
-    key.startsWith('dashboardPageLoadData') ||
-    key.startsWith('contestLeaderboard:') ||
-    key.startsWith('contestUserMatchScores:') ||
-    key.startsWith('tournamentMatches:') ||
-    key.startsWith('contestUserPlayerBreakdown:') ||
-    key.startsWith('userPicks:'),
+  invalidateAppQueryCache(
+    (key) =>
+      key === `adminMatchScores:${tournamentId}:${matchId}` ||
+      key.startsWith('dashboardPageLoadData') ||
+      key.startsWith('contestLeaderboard:') ||
+      key.startsWith('contestUserMatchScores:') ||
+      key.startsWith('tournamentMatches:') ||
+      key.startsWith('contestUserPlayerBreakdown:') ||
+      key.startsWith('userPicks:'),
   )
   await Promise.allSettled([
     refreshMatchAdminData({ tournamentId, matchId, contestId }),
@@ -1054,13 +1082,14 @@ const resetManualMatchScores = async ({ tournamentId, matchId, userId }) => {
     method: 'POST',
     body: JSON.stringify({ tournamentId, matchId, userId }),
   })
-  invalidateAppQueryCache((key) =>
-    key === `adminMatchScores:${tournamentId}:${matchId}` ||
-    key.startsWith('contestLeaderboard:') ||
-    key.startsWith('contestUserMatchScores:') ||
-    key.startsWith('tournamentMatches:') ||
-    key.startsWith('contestUserPlayerBreakdown:') ||
-    key.startsWith('userPicks:'),
+  invalidateAppQueryCache(
+    (key) =>
+      key === `adminMatchScores:${tournamentId}:${matchId}` ||
+      key.startsWith('contestLeaderboard:') ||
+      key.startsWith('contestUserMatchScores:') ||
+      key.startsWith('tournamentMatches:') ||
+      key.startsWith('contestUserPlayerBreakdown:') ||
+      key.startsWith('userPicks:'),
   )
   await Promise.allSettled([
     refreshMatchAdminData({ tournamentId, matchId }),
@@ -1098,8 +1127,9 @@ const enableTournaments = async (ids = [], actorUserId = '') => {
     method: 'POST',
     body: JSON.stringify({ ids, ...(actorUserId ? { actorUserId } : {}) }),
   })
-  invalidateAppQueryCache((key) =>
-    key === 'tournaments' || key === 'prettyTournaments' || key === 'tournamentCatalog',
+  invalidateAppQueryCache(
+    (key) =>
+      key === 'tournaments' || key === 'prettyTournaments' || key === 'tournamentCatalog',
   )
   return data
 }
@@ -1108,8 +1138,9 @@ const disableTournaments = async (ids = [], actorUserId = '') => {
     method: 'POST',
     body: JSON.stringify({ ids, ...(actorUserId ? { actorUserId } : {}) }),
   })
-  invalidateAppQueryCache((key) =>
-    key === 'tournaments' || key === 'prettyTournaments' || key === 'tournamentCatalog',
+  invalidateAppQueryCache(
+    (key) =>
+      key === 'tournaments' || key === 'prettyTournaments' || key === 'tournamentCatalog',
   )
   return data
 }
@@ -1118,8 +1149,9 @@ const createAdminTournament = async (payload) => {
     method: 'POST',
     body: JSON.stringify(payload || {}),
   })
-  invalidateAppQueryCache((key) =>
-    key === 'tournaments' || key === 'prettyTournaments' || key === 'tournamentCatalog',
+  invalidateAppQueryCache(
+    (key) =>
+      key === 'tournaments' || key === 'prettyTournaments' || key === 'tournamentCatalog',
   )
   return data
 }
@@ -1128,13 +1160,14 @@ const importAdminTournamentMatches = async (tournamentId, payload) => {
     method: 'POST',
     body: JSON.stringify(payload || {}),
   })
-  invalidateAppQueryCache((key) =>
-    key === 'tournaments' ||
-    key === 'prettyTournaments' ||
-    key === 'tournamentCatalog' ||
-    key.startsWith('contestMatchOptions:') ||
-    key.startsWith('contestCatalog:') ||
-    key.startsWith('contests:'),
+  invalidateAppQueryCache(
+    (key) =>
+      key === 'tournaments' ||
+      key === 'prettyTournaments' ||
+      key === 'tournamentCatalog' ||
+      key.startsWith('contestMatchOptions:') ||
+      key.startsWith('contestCatalog:') ||
+      key.startsWith('contests:'),
   )
   return data
 }
@@ -1151,42 +1184,53 @@ const removeAdminTournament = async ({ id, actorUserId }) => {
     method: 'POST',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
-  invalidateAppQueryCache((key) =>
-    key === 'tournaments' ||
-    key === 'prettyTournaments' ||
-    key === 'tournamentCatalog' ||
-    key === 'dashboardPageLoadData',
+  invalidateAppQueryCache(
+    (key) =>
+      key === 'tournaments' ||
+      key === 'prettyTournaments' ||
+      key === 'tournamentCatalog' ||
+      key === 'dashboardPageLoadData',
   )
-  await Promise.allSettled([primeCachedGet('dashboardPageLoadData', () => request('/page-load-data'))])
+  await Promise.allSettled([
+    primeCachedGet('dashboardPageLoadData', () => request('/page-load-data')),
+  ])
   return data
 }
 const fetchPendingTournamentRemovals = () =>
   request('/admin/pending-removals/tournaments')
 
 const confirmPendingTournamentRemoval = async (tournamentId, actorUserId = '') => {
-  const data = await request(`/admin/pending-removals/tournaments/${tournamentId}/confirm`, {
-    method: 'POST',
-    body: JSON.stringify(actorUserId ? { actorUserId } : {}),
-  })
-  invalidateAppQueryCache((key) =>
-    key === 'tournaments' ||
-    key === 'prettyTournaments' ||
-    key === 'tournamentCatalog' ||
-    key.startsWith('dashboardPageLoadData:'),
+  const data = await request(
+    `/admin/pending-removals/tournaments/${tournamentId}/confirm`,
+    {
+      method: 'POST',
+      body: JSON.stringify(actorUserId ? { actorUserId } : {}),
+    },
+  )
+  invalidateAppQueryCache(
+    (key) =>
+      key === 'tournaments' ||
+      key === 'prettyTournaments' ||
+      key === 'tournamentCatalog' ||
+      key.startsWith('dashboardPageLoadData:'),
   )
   return data
 }
 
 const rejectPendingTournamentRemoval = async (tournamentId, actorUserId = '') => {
-  const data = await request(`/admin/pending-removals/tournaments/${tournamentId}/reject`, {
-    method: 'POST',
-    body: JSON.stringify(actorUserId ? { actorUserId } : {}),
-  })
-  invalidateAppQueryCache((key) =>
-    key === 'tournaments' ||
-    key === 'prettyTournaments' ||
-    key === 'tournamentCatalog' ||
-    key.startsWith('dashboardPageLoadData:'),
+  const data = await request(
+    `/admin/pending-removals/tournaments/${tournamentId}/reject`,
+    {
+      method: 'POST',
+      body: JSON.stringify(actorUserId ? { actorUserId } : {}),
+    },
+  )
+  invalidateAppQueryCache(
+    (key) =>
+      key === 'tournaments' ||
+      key === 'prettyTournaments' ||
+      key === 'tournamentCatalog' ||
+      key.startsWith('dashboardPageLoadData:'),
   )
   return data
 }
@@ -1195,8 +1239,8 @@ const updateAdminMatchStatus = async ({ id, status }) => {
     method: 'POST',
     body: JSON.stringify({ status }),
   })
-  invalidateAppQueryCache((key) =>
-    key.startsWith('tournamentMatches:') || key.startsWith('contestMatches:'),
+  invalidateAppQueryCache(
+    (key) => key.startsWith('tournamentMatches:') || key.startsWith('contestMatches:'),
   )
   return data
 }
@@ -1205,8 +1249,8 @@ const updateAdminMatchStartTime = async ({ id, startTime }) => {
     method: 'POST',
     body: JSON.stringify({ startTime }),
   })
-  invalidateAppQueryCache((key) =>
-    key.startsWith('tournamentMatches:') || key.startsWith('contestMatches:'),
+  invalidateAppQueryCache(
+    (key) => key.startsWith('tournamentMatches:') || key.startsWith('contestMatches:'),
   )
   return data
 }
@@ -1215,8 +1259,8 @@ const updateAdminMatchEditLock = async ({ id, override }) => {
     method: 'POST',
     body: JSON.stringify({ override: override || '' }),
   })
-  invalidateAppQueryCache((key) =>
-    key.startsWith('tournamentMatches:') || key.startsWith('contestMatches:'),
+  invalidateAppQueryCache(
+    (key) => key.startsWith('tournamentMatches:') || key.startsWith('contestMatches:'),
   )
   return data
 }
@@ -1225,8 +1269,20 @@ const updateAdminMatchProviderId = async ({ id, providerMatchId }) => {
     method: 'POST',
     body: JSON.stringify({ providerMatchId: providerMatchId || '' }),
   })
-  invalidateAppQueryCache((key) =>
-    key.startsWith('tournamentMatches:') || key.startsWith('contestMatches:'),
+  invalidateAppQueryCache(
+    (key) => key.startsWith('tournamentMatches:') || key.startsWith('contestMatches:'),
+  )
+  return data
+}
+const discoverAdminTournamentProviderIds = async ({ tournamentId }) => {
+  const data = await request(
+    `/admin/tournaments/${tournamentId}/provider-match-ids/discover`,
+    { method: 'POST' },
+  )
+  invalidateAppQueryCache(
+    (key) =>
+      key.startsWith(`tournamentMatches:${tournamentId}`) ||
+      key.startsWith('contestMatches:'),
   )
   return data
 }
@@ -1234,17 +1290,18 @@ const forceAdminLiveScoreSync = async ({ id }) => {
   const data = await request(`/admin/matches/${id}/live-score/force-sync`, {
     method: 'POST',
   })
-  invalidateAppQueryCache((key) =>
-    key === 'dashboardPageLoadData' ||
-    key.startsWith('adminMatchScores:') ||
-    key.startsWith('tournamentMatches:') ||
-    key.startsWith('contestMatches:') ||
-    key.startsWith('contestParticipants:') ||
-    key.startsWith('contestLeaderboard:') ||
-    key.startsWith('contestUserMatchScores:') ||
-    key.startsWith('contestUserPlayerBreakdown:') ||
-    key.startsWith('teamPool:') ||
-    key.startsWith('userPicks:'),
+  invalidateAppQueryCache(
+    (key) =>
+      key === 'dashboardPageLoadData' ||
+      key.startsWith('adminMatchScores:') ||
+      key.startsWith('tournamentMatches:') ||
+      key.startsWith('contestMatches:') ||
+      key.startsWith('contestParticipants:') ||
+      key.startsWith('contestLeaderboard:') ||
+      key.startsWith('contestUserMatchScores:') ||
+      key.startsWith('contestUserPlayerBreakdown:') ||
+      key.startsWith('teamPool:') ||
+      key.startsWith('userPicks:'),
   )
   await Promise.allSettled([
     primeCachedGet('dashboardPageLoadData', () => request('/page-load-data')),
@@ -1273,7 +1330,8 @@ const fetchAdminTeamSquads = (args = '') => {
     typeof args === 'string' ? args : (args?.teamCode || '').toString().trim()
   const tournamentId =
     typeof args === 'object' && args ? (args.tournamentId || '').toString().trim() : ''
-  const forceRefresh = typeof args === 'object' && args ? Boolean(args.forceRefresh) : false
+  const forceRefresh =
+    typeof args === 'object' && args ? Boolean(args.forceRefresh) : false
   const params = new URLSearchParams()
   if (teamCode) params.set('teamCode', teamCode)
   if (tournamentId) params.set('tournamentId', tournamentId)
@@ -1309,7 +1367,9 @@ const createAdminContest = async (payload) => {
     method: 'POST',
     body: JSON.stringify(payload || {}),
   })
-  invalidateAppQueryCache((key) => key.startsWith('contestCatalog:') || key.startsWith('contests:'))
+  invalidateAppQueryCache(
+    (key) => key.startsWith('contestCatalog:') || key.startsWith('contests:'),
+  )
   return data
 }
 const updateAdminContest = async (contestId, payload = {}) => {
@@ -1317,10 +1377,11 @@ const updateAdminContest = async (contestId, payload = {}) => {
     method: 'PATCH',
     body: JSON.stringify(payload || {}),
   })
-  invalidateAppQueryCache((key) =>
-    key.startsWith('contestCatalog:') ||
-    key.startsWith('contests:') ||
-    key === `contest:${contestId}`,
+  invalidateAppQueryCache(
+    (key) =>
+      key.startsWith('contestCatalog:') ||
+      key.startsWith('contests:') ||
+      key === `contest:${contestId}`,
   )
   return data
 }
@@ -1329,10 +1390,11 @@ const startAdminContest = async (contestId, actorUserId = '') => {
     method: 'POST',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
-  invalidateAppQueryCache((key) =>
-    key.startsWith('contestCatalog:') ||
-    key.startsWith('contests:') ||
-    key === `contest:${contestId}`,
+  invalidateAppQueryCache(
+    (key) =>
+      key.startsWith('contestCatalog:') ||
+      key.startsWith('contests:') ||
+      key === `contest:${contestId}`,
   )
   return data
 }
@@ -1354,12 +1416,13 @@ const addAdminContestParticipant = async ({ contestId, userId }) => {
     method: 'POST',
     body: JSON.stringify({ userId }),
   })
-  invalidateAppQueryCache((key) =>
-    key.startsWith('contestCatalog:') ||
-    key.startsWith('contests:') ||
-    key.startsWith(`contestParticipants:${contestId}:`) ||
-    key.startsWith(`contestLeaderboard:${contestId}`) ||
-    key === `contest:${contestId}`,
+  invalidateAppQueryCache(
+    (key) =>
+      key.startsWith('contestCatalog:') ||
+      key.startsWith('contests:') ||
+      key.startsWith(`contestParticipants:${contestId}:`) ||
+      key.startsWith(`contestLeaderboard:${contestId}`) ||
+      key === `contest:${contestId}`,
   )
   return data
 }
@@ -1371,12 +1434,13 @@ const removeAdminContestParticipant = async ({ contestId, userId }) => {
       method: 'DELETE',
     },
   )
-  invalidateAppQueryCache((key) =>
-    key.startsWith('contestCatalog:') ||
-    key.startsWith('contests:') ||
-    key.startsWith(`contestParticipants:${contestId}:`) ||
-    key.startsWith(`contestLeaderboard:${contestId}`) ||
-    key === `contest:${contestId}`,
+  invalidateAppQueryCache(
+    (key) =>
+      key.startsWith('contestCatalog:') ||
+      key.startsWith('contests:') ||
+      key.startsWith(`contestParticipants:${contestId}:`) ||
+      key.startsWith(`contestLeaderboard:${contestId}`) ||
+      key === `contest:${contestId}`,
   )
   return data
 }
@@ -1388,28 +1452,29 @@ const removeAdminContest = async (contestId, actorUserId = '') => {
     method: 'POST',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
-  invalidateAppQueryCache((key) =>
-    key.startsWith('contestCatalog:') ||
-    key.startsWith('contests:') ||
-    key === `contest:${contestId}` ||
-    key.startsWith('dashboardPageLoadData:'),
+  invalidateAppQueryCache(
+    (key) =>
+      key.startsWith('contestCatalog:') ||
+      key.startsWith('contests:') ||
+      key === `contest:${contestId}` ||
+      key.startsWith('dashboardPageLoadData:'),
   )
   return data
 }
 
-const fetchPendingContestRemovals = () =>
-  request('/admin/pending-removals/contests')
+const fetchPendingContestRemovals = () => request('/admin/pending-removals/contests')
 
 const confirmPendingContestRemoval = async (contestId, actorUserId = '') => {
   const data = await request(`/admin/pending-removals/contests/${contestId}/confirm`, {
     method: 'POST',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
-  invalidateAppQueryCache((key) =>
-    key.startsWith('contestCatalog:') ||
-    key.startsWith('contests:') ||
-    key.startsWith('dashboardPageLoadData:') ||
-    key === `contest:${contestId}`,
+  invalidateAppQueryCache(
+    (key) =>
+      key.startsWith('contestCatalog:') ||
+      key.startsWith('contests:') ||
+      key.startsWith('dashboardPageLoadData:') ||
+      key === `contest:${contestId}`,
   )
   return data
 }
@@ -1419,11 +1484,12 @@ const rejectPendingContestRemoval = async (contestId, actorUserId = '') => {
     method: 'POST',
     body: JSON.stringify(actorUserId ? { actorUserId } : {}),
   })
-  invalidateAppQueryCache((key) =>
-    key.startsWith('contestCatalog:') ||
-    key.startsWith('contests:') ||
-    key.startsWith('dashboardPageLoadData:') ||
-    key === `contest:${contestId}`,
+  invalidateAppQueryCache(
+    (key) =>
+      key.startsWith('contestCatalog:') ||
+      key.startsWith('contests:') ||
+      key.startsWith('dashboardPageLoadData:') ||
+      key === `contest:${contestId}`,
   )
   return data
 }
@@ -1536,6 +1602,7 @@ export {
   updateAdminMatchStartTime,
   updateAdminMatchEditLock,
   updateAdminMatchProviderId,
+  discoverAdminTournamentProviderIds,
   forceAdminLiveScoreSync,
   replaceAdminMatchBackups,
   fetchAdminTeamSquads,

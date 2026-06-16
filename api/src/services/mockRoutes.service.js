@@ -339,9 +339,7 @@ const registerMockProviderRoutes = (router, ctx) => {
             const replacedPlayerId = replacementMap.get(String(playerId))
             return [
               String(playerId),
-              replacedPlayerId
-                ? `selection-auto-swap:${replacedPlayerId}`
-                : 'selection',
+              replacedPlayerId ? `selection-auto-swap:${replacedPlayerId}` : 'selection',
             ]
           }),
         ),
@@ -1019,6 +1017,49 @@ const registerMockProviderRoutes = (router, ctx) => {
       ok: true,
       tournament: tournamentRow,
       matchesImported: normalizedMatches.length,
+    })
+  })
+
+  router.post('/admin/tournaments/:id/provider-match-ids/discover', (req, res) => {
+    const tournamentId = (req.params.id || '').toString()
+    const matches = Array.isArray(customTournamentMatches[tournamentId])
+      ? customTournamentMatches[tournamentId]
+      : []
+    const rows = []
+    let updated = 0
+    matches.forEach((match) => {
+      const providerMatchId =
+        match?.liveSync?.providerMatchId || match?.providerMatchId || null
+      if (!providerMatchId) {
+        rows.push({
+          matchId: match.id,
+          name: match.name,
+          status: 'skipped',
+          reason: 'no provider match id available in mock data',
+        })
+        return
+      }
+      match.liveSync = {
+        ...(match.liveSync || {}),
+        enabled: true,
+        provider: 'cricbuzz',
+        providerMatchId,
+      }
+      updated += 1
+      rows.push({
+        matchId: match.id,
+        name: match.name,
+        status: 'updated',
+        providerMatchId,
+      })
+    })
+    persistState()
+    return res.json({
+      checked: matches.length,
+      updated,
+      skipped: Math.max(0, matches.length - updated),
+      failed: 0,
+      rows,
     })
   })
 
@@ -1993,9 +2034,7 @@ const registerMockProviderRoutes = (router, ctx) => {
           userId,
           name: seededUser.name,
           points: computedPoints,
-          canView: isFixedRosterContest(contest)
-            ? true
-            : activeMatchLocked,
+          canView: isFixedRosterContest(contest) ? true : activeMatchLocked,
           hasTeam: isFixedRosterContest(contest) ? true : pickNames.length > 0,
         }
       })
@@ -2114,7 +2153,9 @@ const registerMockProviderRoutes = (router, ctx) => {
     const playerId = (req.params.playerId || '').toString()
     const aggregateIndex = getTournamentPlayerStatsIndex(tournamentId)
     const target = aggregateIndex[playerId] || null
-    const matchesById = new Map(tournamentMatches.map((match) => [String(match.id), match]))
+    const matchesById = new Map(
+      tournamentMatches.map((match) => [String(match.id), match]),
+    )
     const rows = Object.entries(target?.byMatch || {})
       .map(([matchId, breakdown]) => {
         const match = matchesById.get(String(matchId)) || null
@@ -2187,7 +2228,8 @@ const registerMockProviderRoutes = (router, ctx) => {
       seedFromDefaultHasTeam: true,
     })
     const matchRosters = getMatchRosters(activeMatch)
-    const tournamentPlayerPointsIndex = getTournamentPlayerStatsIndex(resolvedTournamentId)
+    const tournamentPlayerPointsIndex =
+      getTournamentPlayerStatsIndex(resolvedTournamentId)
     const resolveMatchStartTimestamp = (match) => {
       const raw = match?.startAt || match?.date || null
       const parsed = raw ? new Date(raw).getTime() : Number.NaN
@@ -2195,39 +2237,46 @@ const registerMockProviderRoutes = (router, ctx) => {
     }
     const activeMatchStart = resolveMatchStartTimestamp(activeMatch)
     const resolvePreviousMatch = (teamCode) => {
-      const normalizedTeamCode = String(teamCode || '').trim().toUpperCase()
+      const normalizedTeamCode = String(teamCode || '')
+        .trim()
+        .toUpperCase()
       if (!normalizedTeamCode || !activeMatchStart) return null
       return [...tournamentMatches]
         .filter((match) => {
-          const homeCode = String(match?.home || '').trim().toUpperCase()
-          const awayCode = String(match?.away || '').trim().toUpperCase()
+          const homeCode = String(match?.home || '')
+            .trim()
+            .toUpperCase()
+          const awayCode = String(match?.away || '')
+            .trim()
+            .toUpperCase()
           return (
             [homeCode, awayCode].includes(normalizedTeamCode) &&
             resolveMatchStartTimestamp(match) < activeMatchStart
           )
         })
-        .sort((left, right) => resolveMatchStartTimestamp(right) - resolveMatchStartTimestamp(left))[0]
+        .sort(
+          (left, right) =>
+            resolveMatchStartTimestamp(right) - resolveMatchStartTimestamp(left),
+        )[0]
     }
     const previousTeamAMatch = resolvePreviousMatch(activeMatch.home)
     const previousTeamBMatch = resolvePreviousMatch(activeMatch.away)
-    const previousTeamALineup =
-      previousTeamAMatch
-        ? mockMatchLineups.get(
-            lineupKey({
-              tournamentId: contest?.tournamentId || resolvedTournamentId,
-              matchId: previousTeamAMatch.id,
-            }),
-          )?.lineups?.[activeMatch.home] || null
-        : null
-    const previousTeamBLineup =
-      previousTeamBMatch
-        ? mockMatchLineups.get(
-            lineupKey({
-              tournamentId: contest?.tournamentId || resolvedTournamentId,
-              matchId: previousTeamBMatch.id,
-            }),
-          )?.lineups?.[activeMatch.away] || null
-        : null
+    const previousTeamALineup = previousTeamAMatch
+      ? mockMatchLineups.get(
+          lineupKey({
+            tournamentId: contest?.tournamentId || resolvedTournamentId,
+            matchId: previousTeamAMatch.id,
+          }),
+        )?.lineups?.[activeMatch.home] || null
+      : null
+    const previousTeamBLineup = previousTeamBMatch
+      ? mockMatchLineups.get(
+          lineupKey({
+            tournamentId: contest?.tournamentId || resolvedTournamentId,
+            matchId: previousTeamBMatch.id,
+          }),
+        )?.lineups?.[activeMatch.away] || null
+      : null
     const previousTeamAPlayingSet = new Set(
       (previousTeamALineup?.playingXI || []).map((name) => normalizeLineupNameKey(name)),
     )
@@ -2236,17 +2285,31 @@ const registerMockProviderRoutes = (router, ctx) => {
     )
     const decoratePoolPlayer = (player) => {
       const normalizedName = normalizeLineupNameKey(player.name)
-      const normalizedTeamCode = String(player.team || '').trim().toUpperCase()
+      const normalizedTeamCode = String(player.team || '')
+        .trim()
+        .toUpperCase()
       const previousMatch =
-        normalizedTeamCode === String(activeMatch.home || '').trim().toUpperCase()
+        normalizedTeamCode ===
+        String(activeMatch.home || '')
+          .trim()
+          .toUpperCase()
           ? previousTeamAMatch
-          : normalizedTeamCode === String(activeMatch.away || '').trim().toUpperCase()
+          : normalizedTeamCode ===
+              String(activeMatch.away || '')
+                .trim()
+                .toUpperCase()
             ? previousTeamBMatch
             : null
       const playedLastMatch =
-        normalizedTeamCode === String(activeMatch.home || '').trim().toUpperCase()
+        normalizedTeamCode ===
+        String(activeMatch.home || '')
+          .trim()
+          .toUpperCase()
           ? previousTeamAPlayingSet.has(normalizedName)
-          : normalizedTeamCode === String(activeMatch.away || '').trim().toUpperCase()
+          : normalizedTeamCode ===
+              String(activeMatch.away || '')
+                .trim()
+                .toUpperCase()
             ? previousTeamBPlayingSet.has(normalizedName)
             : false
       return {

@@ -106,20 +106,34 @@ test('tournament manager create flow has generate button for JSON and Auction pa
     })
   })
 
-  await page.route('**/admin/tournaments/ipl-2026-custom/matches/import', async (route) => {
-    const payload = route.request().postDataJSON()
-    expect(payload.updateExistingContests).toBe(true)
-    expect(payload.matches).toHaveLength(1)
-    await route.fulfill({
-      status: 201,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        ok: true,
-        matchesImported: 1,
-        contestsUpdated: 1,
-      }),
-    })
-  })
+  await page.route(
+    '**/admin/tournaments/ipl-2026-custom/provider-match-ids/discover',
+    async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ checked: 1, updated: 1, skipped: 0, failed: 0 }),
+      })
+    },
+  )
+
+  await page.route(
+    '**/admin/tournaments/ipl-2026-custom/matches/import',
+    async (route) => {
+      const payload = route.request().postDataJSON()
+      expect(payload.updateExistingContests).toBe(true)
+      expect(payload.matches).toHaveLength(1)
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          matchesImported: 1,
+          contestsUpdated: 1,
+        }),
+      })
+    },
+  )
 
   await page.addInitScript(() => {
     const now = Date.now()
@@ -140,11 +154,15 @@ test('tournament manager create flow has generate button for JSON and Auction pa
 
   await page.goto('/home?panel=tournamentManager', { waitUntil: 'domcontentloaded' })
 
-  await expect(page.getByRole('columnheader', { name: 'Provider Match ID' })).toBeVisible()
+  await expect(
+    page.getByRole('columnheader', { name: 'Provider Match ID' }),
+  ).toBeVisible()
   const scraperIdInput = page.getByLabel('Scraper match id Match 65: KKR vs MI')
   await scraperIdInput.fill('105757')
   await scraperIdInput.blur()
   await expect(page.getByText('Scraper match id updated')).toBeVisible()
+  await page.getByRole('button', { name: 'Find provider IDs' }).click()
+  await expect(page.getByText('Provider IDs found: 1 updated, 0 skipped')).toBeVisible()
 
   await page.getByRole('button', { name: '+ Add matches' }).click()
   await page.getByRole('button', { name: 'Generate JSON' }).click()
