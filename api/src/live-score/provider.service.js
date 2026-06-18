@@ -693,6 +693,10 @@ class LiveScoreProviderService {
     return this.request('/matches/recent', context)
   }
 
+  async getUpcomingMatches(context = {}) {
+    return this.request('/matches/upcoming', context)
+  }
+
   async discoverMatch(
     { teamA, teamB, teamAKey, teamBKey, teamAName, teamBName, startTime },
     context = {},
@@ -702,7 +706,9 @@ class LiveScoreProviderService {
     const matches =
       route === '/matches/recent'
         ? await this.getRecentMatches(context)
-        : await this.getLiveMatches(context)
+        : route === '/matches/upcoming'
+          ? await this.getUpcomingMatches(context)
+          : await this.getLiveMatches(context)
     const teamAAliases = getTeamAliases(teamA, teamAKey, teamAName)
     const teamBAliases = getTeamAliases(teamB, teamBKey, teamBName)
     const allowAnyStatus = Boolean(options.allowAnyStatus)

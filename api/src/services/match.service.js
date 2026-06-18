@@ -114,8 +114,14 @@ class MatchService {
           context,
           { ...options, route: '/matches/live' },
         )
-        const discovery = liveDiscovery.ok
+        const upcomingDiscovery = liveDiscovery.ok
           ? liveDiscovery
+          : await liveScoreProviderService.discoverMatch(match, context, {
+              ...options,
+              route: '/matches/upcoming',
+            })
+        const discovery = upcomingDiscovery.ok
+          ? upcomingDiscovery
           : await liveScoreProviderService.discoverMatch(match, context, {
               ...options,
               route: '/matches/recent',

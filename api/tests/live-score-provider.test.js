@@ -482,6 +482,45 @@ describe('live score provider', () => {
     expect(result.providerMatchId).toBe('155397')
   })
 
+  it('can discover a match from the upcoming matches route', async () => {
+    const calledUrls = []
+    const provider = new LiveScoreProviderService({
+      baseUrl: 'https://example.test/api',
+      fetchImpl: async (url) => {
+        calledUrls.push(url)
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                matchId: '155399',
+                title: 'Texas Super Kings vs Seattle Orcas',
+                shortTitle: 'TSK vs SEA',
+                status: 'Upcoming Match',
+                startTime: '2026-06-19T00:30:00.000Z',
+              },
+            ],
+          }),
+        }
+      },
+    })
+
+    const result = await provider.discoverMatch(
+      {
+        teamAKey: 'TSK',
+        teamBKey: 'SEA',
+        startTime: '2026-06-19T00:30:00.000Z',
+      },
+      {},
+      { allowAnyStatus: true, route: '/matches/upcoming' },
+    )
+
+    expect(calledUrls).toEqual(['https://example.test/api/matches/upcoming'])
+    expect(result.ok).toBe(true)
+    expect(result.providerMatchId).toBe('155399')
+  })
+
   it('includes route, status, and response summary on provider request failure', async () => {
     const context = { scraperCalls: [], providerMatchId: '151924' }
     const provider = new LiveScoreProviderService({
