@@ -913,6 +913,18 @@ body.dark-theme .admin-manager-panel .catalog-table tbody tr.active:hover {
   border: 1px solid var(--input-border);
   border-radius: 12px;
   background: var(--panel-bg);
+  overflow: hidden;
+}
+
+.create-contest-input {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+/* iOS renders datetime-local with a spelled-out, centered value — keep it left
+   aligned and sized so it never overruns the field/card border. */
+.mc-field .create-contest-input[type='datetime-local'] {
+  text-align: left;
 }
 
 .match-card-head {
@@ -5433,11 +5445,28 @@ body.dark-theme .app.app-lower-content select {
   }
 
   /* Tabbed view flows in the page scroll instead of an inner clipped region,
-     so the tab bar no longer collides with the Manage/Create row above it. */
+     so there is a single scroll, no empty bottom padding, and the tab bar no
+     longer collides with the Manage/Create row above it. */
+  .dashboard-shell.panel-tournamentManager
+    .dashboard-panel-view
+    .admin-manager-panel,
   .dashboard-panel-view .admin-manager-panel:has(.tm-grid--tabbed) {
     height: auto;
     min-height: 0;
     overflow: visible;
+  }
+
+  .admin-manager-panel .tm-grid--tabbed .match-card-grid {
+    flex: 0 1 auto;
+    overflow: visible;
+    min-height: 0;
+  }
+
+  /* Smaller date text on phones so the value clears the picker icon. */
+  .admin-manager-panel .match-card .create-contest-input[type='datetime-local'] {
+    font-size: 0.72rem;
+    padding-left: 0.45rem;
+    padding-right: 0.3rem;
   }
 
   .admin-manager-panel .tm-grid--tabbed {
