@@ -32,6 +32,16 @@ describe('deriveMatchStatus', () => {
     ).toBe('notstarted')
   })
 
+  it('preserves a Postgres Date timestamp when deriving a future match status', () => {
+    vi.setSystemTime(new Date('2026-06-18T20:53:00.000Z'))
+    const startAt = new Date('2026-06-19T00:30:00.000Z')
+
+    expect(normalizeImportedStartAt(startAt)).toBe('2026-06-19T00:30:00.000Z')
+    expect(deriveMatchStatus({ startAt, explicitStatus: 'notstarted' })).toBe(
+      'notstarted',
+    )
+  })
+
   it('promotes notstarted to inprogress only after the start time passes', () => {
     vi.setSystemTime(new Date('2026-04-25T10:01:00.000Z'))
 

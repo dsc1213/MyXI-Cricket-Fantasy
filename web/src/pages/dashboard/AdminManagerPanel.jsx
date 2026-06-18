@@ -960,20 +960,33 @@ function AdminManagerPanel({
           disabled={isSaving}
           onClick={(event) => event.stopPropagation()}
           onChange={async (event) => {
+            const nextValue = event.target.value
+            if (!nextValue) return
+            if (nextValue === toDateTimeLocalValue(row.startAt || row.startTime)) return
+            const nextStartTime = new Date(nextValue).toISOString()
+            const previousStartTime = row.startAt || row.startTime
+            applyUpdatedTournamentMatch({
+              id: row.id,
+              startAt: nextStartTime,
+              startTime: nextStartTime,
+            })
             try {
-              const nextValue = event.target.value
-              if (!nextValue) return
-              if (nextValue === toDateTimeLocalValue(row.startAt || row.startTime)) return
               setIsSaving(true)
               setErrorText('')
               setNotice('')
               const updatedMatch = await updateAdminMatchStartTime({
                 id: row.id,
-                startTime: nextValue,
+                startTime: nextStartTime,
               })
+              if (!updatedMatch?.id) throw new Error('Match not found')
               applyUpdatedTournamentMatch(updatedMatch)
               setNotice('Match start time updated')
             } catch (error) {
+              applyUpdatedTournamentMatch({
+                id: row.id,
+                startAt: previousStartTime,
+                startTime: previousStartTime,
+              })
               setErrorText(error.message || 'Failed to update match start time')
             } finally {
               setIsSaving(false)
@@ -1037,17 +1050,22 @@ function AdminManagerPanel({
           disabled={isSaving}
           onClick={(event) => event.stopPropagation()}
           onChange={async (event) => {
+            const nextStatus = event.target.value
+            const previousStatus = row.status
+            applyUpdatedTournamentMatch({ id: row.id, status: nextStatus })
             try {
               setIsSaving(true)
               setErrorText('')
               setNotice('')
               const updatedMatch = await updateAdminMatchStatus({
                 id: row.id,
-                status: event.target.value,
+                status: nextStatus,
               })
+              if (!updatedMatch?.id) throw new Error('Match not found')
               applyUpdatedTournamentMatch(updatedMatch)
               setNotice('Match status updated')
             } catch (error) {
+              applyUpdatedTournamentMatch({ id: row.id, status: previousStatus })
               setErrorText(error.message || 'Failed to update match status')
             } finally {
               setIsSaving(false)

@@ -1,9 +1,11 @@
 import { expect, test } from '@playwright/test'
 
+test.use({ timezoneId: 'America/Chicago' })
+
 test('tournament manager uses search filter and hides selector row', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   let matchStartTime = '2099-03-10T14:00:00.000Z'
-  let matchStatus = 'notstarted'
+  let matchStatus = 'inprogress'
   let providerMatchId = ''
   let teamEditLockOverride = ''
   let updateStartTimeRequest = null
@@ -189,7 +191,9 @@ test('tournament manager uses search filter and hides selector row', async ({ pa
   await startTimeInput.fill('2099-03-11T16:30')
   await expect(page.getByText('Match start time updated')).toBeVisible()
   await expect(startTimeInput).toHaveValue('2099-03-11T16:30')
-  expect(updateStartTimeRequest).toEqual({ startTime: '2099-03-11T16:30' })
+  expect(updateStartTimeRequest).toEqual({
+    startTime: '2099-03-11T21:30:00.000Z',
+  })
 
   const providerInput = page.getByLabel('Scraper match id RCB vs SRH')
   await providerInput.fill('123456')
@@ -198,9 +202,14 @@ test('tournament manager uses search filter and hides selector row', async ({ pa
   await expect(providerInput).toHaveValue('123456')
 
   const statusSelect = page.getByLabel('Match status RCB vs SRH')
-  await statusSelect.selectOption('completed')
+  await expect(statusSelect).toHaveValue('inprogress')
+  await statusSelect.selectOption('notstarted')
   await expect(page.getByText('Match status updated')).toBeVisible()
-  await expect(statusSelect).toHaveValue('completed')
+  await expect(statusSelect).toHaveValue('notstarted')
+  const matchRow = page.locator('.catalog-table tbody tr', { hasText: 'RCB vs SRH' })
+  await expect(
+    matchRow.locator('td').filter({ hasText: /^Not Started$/ }),
+  ).toBeVisible()
 
   const teamEditSelect = page.getByLabel('Team edit lock RCB vs SRH')
   await teamEditSelect.selectOption('force_open')

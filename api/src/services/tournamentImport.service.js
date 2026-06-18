@@ -30,6 +30,9 @@ const normalizeMatchStatus = (value = '') => {
 }
 
 const normalizeImportedStartAt = (startAt = '', timezone = 'UTC') => {
+  if (startAt instanceof Date) {
+    return Number.isNaN(startAt.getTime()) ? '' : startAt.toISOString()
+  }
   const raw = (startAt || '').toString().trim()
   if (!raw) return ''
   if (raw.endsWith('Z') || /[+-]\d\d:\d\d$/.test(raw)) {
