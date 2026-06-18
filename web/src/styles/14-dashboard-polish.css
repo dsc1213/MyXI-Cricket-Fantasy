@@ -927,6 +927,12 @@ body.dark-theme .admin-manager-panel .catalog-table tbody tr.active:hover {
   text-align: left;
 }
 
+/* Safari/iOS ignore text-align on the input; the value sits in this pseudo. */
+.create-contest-input::-webkit-date-and-time-value {
+  text-align: left;
+  padding-right: 0.4rem;
+}
+
 .match-card-head {
   display: flex;
   align-items: center;
