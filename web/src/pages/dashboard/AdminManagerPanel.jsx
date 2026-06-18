@@ -209,6 +209,23 @@ function AdminManagerPanel({
     [selectedTournamentId],
   )
 
+  const applyUpdatedTournamentMatch = useCallback((updatedMatch) => {
+    if (!updatedMatch?.id) return
+    setTournamentMatches((prev) =>
+      prev.map((match) =>
+        String(match.id) === String(updatedMatch.id)
+          ? {
+              ...match,
+              ...updatedMatch,
+              liveSync: updatedMatch.liveSync
+                ? { ...(match.liveSync || {}), ...updatedMatch.liveSync }
+                : match.liveSync,
+            }
+          : match,
+      ),
+    )
+  }, [])
+
   const loadContestCatalog = useCallback(
     async (tournamentId = selectedContestTournamentId) => {
       try {
@@ -942,18 +959,19 @@ function AdminManagerPanel({
           defaultValue={toDateTimeLocalValue(row.startAt || row.startTime)}
           disabled={isSaving}
           onClick={(event) => event.stopPropagation()}
-          onBlur={async (event) => {
+          onChange={async (event) => {
             try {
               const nextValue = event.target.value
+              if (!nextValue) return
               if (nextValue === toDateTimeLocalValue(row.startAt || row.startTime)) return
               setIsSaving(true)
               setErrorText('')
               setNotice('')
-              await updateAdminMatchStartTime({
+              const updatedMatch = await updateAdminMatchStartTime({
                 id: row.id,
                 startTime: nextValue,
               })
-              await loadTournamentMatches(selectedTournamentId)
+              applyUpdatedTournamentMatch(updatedMatch)
               setNotice('Match start time updated')
             } catch (error) {
               setErrorText(error.message || 'Failed to update match start time')
@@ -993,11 +1011,11 @@ function AdminManagerPanel({
                 setIsSaving(true)
                 setErrorText('')
                 setNotice('')
-                await updateAdminMatchProviderId({
+                const updatedMatch = await updateAdminMatchProviderId({
                   id: row.id,
                   providerMatchId: nextValue,
                 })
-                await loadTournamentMatches(selectedTournamentId)
+                applyUpdatedTournamentMatch(updatedMatch)
                 setNotice('Scraper match id updated')
               } catch (error) {
                 setErrorText(error.message || 'Failed to update scraper match id')
@@ -1023,8 +1041,11 @@ function AdminManagerPanel({
               setIsSaving(true)
               setErrorText('')
               setNotice('')
-              await updateAdminMatchStatus({ id: row.id, status: event.target.value })
-              await loadTournamentMatches(selectedTournamentId)
+              const updatedMatch = await updateAdminMatchStatus({
+                id: row.id,
+                status: event.target.value,
+              })
+              applyUpdatedTournamentMatch(updatedMatch)
               setNotice('Match status updated')
             } catch (error) {
               setErrorText(error.message || 'Failed to update match status')
@@ -1059,11 +1080,11 @@ function AdminManagerPanel({
               setIsSaving(true)
               setErrorText('')
               setNotice('')
-              await updateAdminMatchEditLock({
+              const updatedMatch = await updateAdminMatchEditLock({
                 id: row.id,
                 override: event.target.value,
               })
-              await loadTournamentMatches(selectedTournamentId)
+              applyUpdatedTournamentMatch(updatedMatch)
               setNotice('Match edit lock updated')
             } catch (error) {
               setErrorText(error.message || 'Failed to update match edit lock')

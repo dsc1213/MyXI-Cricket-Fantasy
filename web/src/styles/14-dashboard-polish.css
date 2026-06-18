@@ -5156,6 +5156,22 @@ body.dark-theme .app.app-lower-content select {
     -webkit-overflow-scrolling: touch;
   }
 
+  .dashboard-shell.panel-tournamentManager .tournament-manager-shell {
+    grid-template-rows: auto auto;
+    height: auto;
+  }
+
+  .dashboard-shell.panel-tournamentManager
+    .tournament-manager-shell
+    > .dashboard-section,
+  .dashboard-shell.panel-tournamentManager
+    .tournament-manager-shell
+    > .dashboard-section
+    > .admin-manager-panel {
+    height: auto;
+    overflow: visible;
+  }
+
   .upload-tab-row {
     display: flex;
     flex-wrap: wrap;
