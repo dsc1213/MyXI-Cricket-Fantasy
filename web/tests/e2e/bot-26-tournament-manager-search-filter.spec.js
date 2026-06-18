@@ -184,8 +184,13 @@ test('tournament manager uses search filter and hides selector row', async ({ pa
   await expect(page.locator('.admin-manager-tournament-selector-row')).toHaveCount(0)
 
   await searchInput.fill('ipl')
-  await expect(page.getByRole('cell', { name: 'IPL 2026' })).toBeVisible()
-  await expect(page.getByRole('cell', { name: 'DBG 1775436903793' })).toHaveCount(0)
+  await expect(page.locator('.tm-card-title', { hasText: 'IPL 2026' })).toBeVisible()
+  await expect(
+    page.locator('.tm-card', { hasText: 'DBG 1775436903793' }),
+  ).toHaveCount(0)
+
+  // Mobile master-detail: switch to the Matches tab to manage the selected tournament.
+  await page.getByRole('tab', { name: /^Matches/ }).click()
 
   const startTimeInput = page.getByLabel('Match start time RCB vs SRH')
   await startTimeInput.fill('2099-03-11T16:30')
@@ -206,9 +211,9 @@ test('tournament manager uses search filter and hides selector row', async ({ pa
   await statusSelect.selectOption('notstarted')
   await expect(page.getByText('Match status updated')).toBeVisible()
   await expect(statusSelect).toHaveValue('notstarted')
-  const matchRow = page.locator('.catalog-table tbody tr', { hasText: 'RCB vs SRH' })
+  const matchCard = page.locator('.match-card', { hasText: 'RCB vs SRH' })
   await expect(
-    matchRow.locator('td').filter({ hasText: /^Not Started$/ }),
+    matchCard.locator('.match-status-badge').filter({ hasText: /^Not Started$/ }),
   ).toBeVisible()
 
   const teamEditSelect = page.getByLabel('Team edit lock RCB vs SRH')

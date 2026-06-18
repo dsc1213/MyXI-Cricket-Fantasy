@@ -393,7 +393,7 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await tournamentRow.click()
     await expect(page.getByRole('heading', { name: 'Matches • IPL 2026' })).toBeVisible()
     await expect(
-      page.locator('.admin-manager-matches-pane .catalog-table tbody tr').first(),
+      page.locator('.admin-manager-matches-pane .match-card').first(),
     ).toBeVisible()
     const sectionHeight = await page
       .locator('.dashboard-panel-view .dashboard-section')

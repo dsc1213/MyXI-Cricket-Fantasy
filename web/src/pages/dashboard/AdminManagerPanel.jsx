@@ -94,6 +94,7 @@ function AdminManagerPanel({
   const [tournamentMatches, setTournamentMatches] = useState([])
   const [isLoadingTournamentMatches, setIsLoadingTournamentMatches] = useState(false)
   const [showAddMatchesModal, setShowAddMatchesModal] = useState(false)
+  const [mobileTmSection, setMobileTmSection] = useState('tournaments')
   const [pendingDisableIds, setPendingDisableIds] = useState([])
   const [contestCatalog, setContestCatalog] = useState([])
   const [selectedContestTournamentId, setSelectedContestTournamentId] = useState('')
@@ -373,6 +374,7 @@ function AdminManagerPanel({
 
   const onSelectTournament = (row) => {
     setSelectedTournamentId(String(row.id))
+    setMobileTmSection('matches')
   }
 
   const onToggleTournamentEnabled = async (row) => {
@@ -940,229 +942,204 @@ function AdminManagerPanel({
       ),
     },
   ]
-  const tournamentMatchColumns = [
-    {
-      key: 'name',
-      label: 'Match',
-      render: (row) =>
-        row.name || `${row.home || row.teamA || ''} vs ${row.away || row.teamB || ''}`,
-    },
-    {
-      key: 'startAt',
-      label: 'Starts',
-      render: (row) => (
-        <input
-          key={`${row.id}-${row.startAt || row.startTime || ''}`}
-          aria-label={`Match start time ${row.name || row.id}`}
-          className="create-contest-input"
-          type="datetime-local"
-          defaultValue={toDateTimeLocalValue(row.startAt || row.startTime)}
-          disabled={isSaving}
-          onClick={(event) => event.stopPropagation()}
-          onChange={async (event) => {
-            const nextValue = event.target.value
-            if (!nextValue) return
-            if (nextValue === toDateTimeLocalValue(row.startAt || row.startTime)) return
-            const nextStartTime = new Date(nextValue).toISOString()
-            const previousStartTime = row.startAt || row.startTime
-            applyUpdatedTournamentMatch({
+  const getMatchTitle = (row) =>
+    row.name || `${row.home || row.teamA || ''} vs ${row.away || row.teamB || ''}`
+  const renderMatchStartInput = (row) => (
+    <input
+      key={`${row.id}-${row.startAt || row.startTime || ''}`}
+      aria-label={`Match start time ${row.name || row.id}`}
+      className="create-contest-input"
+      type="datetime-local"
+      defaultValue={toDateTimeLocalValue(row.startAt || row.startTime)}
+      disabled={isSaving}
+      onClick={(event) => event.stopPropagation()}
+      onChange={async (event) => {
+        const nextValue = event.target.value
+        if (!nextValue) return
+        if (nextValue === toDateTimeLocalValue(row.startAt || row.startTime)) return
+        const nextStartTime = new Date(nextValue).toISOString()
+        const previousStartTime = row.startAt || row.startTime
+        applyUpdatedTournamentMatch({
+          id: row.id,
+          startAt: nextStartTime,
+          startTime: nextStartTime,
+        })
+        try {
+          setIsSaving(true)
+          setErrorText('')
+          setNotice('')
+          const updatedMatch = await updateAdminMatchStartTime({
+            id: row.id,
+            startTime: nextStartTime,
+          })
+          if (!updatedMatch?.id) throw new Error('Match not found')
+          applyUpdatedTournamentMatch(updatedMatch)
+          setNotice('Match start time updated')
+        } catch (error) {
+          applyUpdatedTournamentMatch({
+            id: row.id,
+            startAt: previousStartTime,
+            startTime: previousStartTime,
+          })
+          setErrorText(error.message || 'Failed to update match start time')
+        } finally {
+          setIsSaving(false)
+        }
+      }}
+    />
+  )
+  const renderMatchProviderInput = (row) => {
+    const currentValue = (row?.liveSync?.providerMatchId || row?.providerMatchId || '')
+      .toString()
+      .trim()
+    return (
+      <input
+        key={`${row.id}-${currentValue}`}
+        aria-label={`Scraper match id ${row.name || row.id}`}
+        className="create-contest-input"
+        type="text"
+        inputMode="numeric"
+        defaultValue={currentValue}
+        placeholder="Cricbuzz ID"
+        disabled={isSaving}
+        onClick={(event) => event.stopPropagation()}
+        onBlur={async (event) => {
+          try {
+            const nextValue = event.target.value.toString().trim()
+            if (nextValue === currentValue) return
+            setIsSaving(true)
+            setErrorText('')
+            setNotice('')
+            const updatedMatch = await updateAdminMatchProviderId({
               id: row.id,
-              startAt: nextStartTime,
-              startTime: nextStartTime,
+              providerMatchId: nextValue,
             })
-            try {
-              setIsSaving(true)
-              setErrorText('')
-              setNotice('')
-              const updatedMatch = await updateAdminMatchStartTime({
-                id: row.id,
-                startTime: nextStartTime,
-              })
-              if (!updatedMatch?.id) throw new Error('Match not found')
-              applyUpdatedTournamentMatch(updatedMatch)
-              setNotice('Match start time updated')
-            } catch (error) {
-              applyUpdatedTournamentMatch({
-                id: row.id,
-                startAt: previousStartTime,
-                startTime: previousStartTime,
-              })
-              setErrorText(error.message || 'Failed to update match start time')
-            } finally {
-              setIsSaving(false)
-            }
-          }}
-        />
-      ),
-    },
-    {
-      key: 'providerMatchId',
-      label: 'Provider Match ID',
-      render: (row) => {
-        const currentValue = (
-          row?.liveSync?.providerMatchId ||
-          row?.providerMatchId ||
-          ''
-        )
-          .toString()
-          .trim()
-        return (
-          <input
-            key={`${row.id}-${currentValue}`}
-            aria-label={`Scraper match id ${row.name || row.id}`}
-            className="create-contest-input"
-            type="text"
-            inputMode="numeric"
-            defaultValue={currentValue}
-            placeholder="Cricbuzz ID"
-            disabled={isSaving}
-            onClick={(event) => event.stopPropagation()}
-            onBlur={async (event) => {
-              try {
-                const nextValue = event.target.value.toString().trim()
-                if (nextValue === currentValue) return
-                setIsSaving(true)
-                setErrorText('')
-                setNotice('')
-                const updatedMatch = await updateAdminMatchProviderId({
-                  id: row.id,
-                  providerMatchId: nextValue,
-                })
-                applyUpdatedTournamentMatch(updatedMatch)
-                setNotice('Scraper match id updated')
-              } catch (error) {
-                setErrorText(error.message || 'Failed to update scraper match id')
-              } finally {
-                setIsSaving(false)
-              }
-            }}
-          />
-        )
-      },
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (row) => (
-        <select
-          aria-label={`Match status ${row.name || row.id}`}
-          value={(row.status || '').toString().trim().toLowerCase()}
-          disabled={isSaving}
-          onClick={(event) => event.stopPropagation()}
-          onChange={async (event) => {
-            const nextStatus = event.target.value
-            const previousStatus = row.status
-            applyUpdatedTournamentMatch({ id: row.id, status: nextStatus })
-            try {
-              setIsSaving(true)
-              setErrorText('')
-              setNotice('')
-              const updatedMatch = await updateAdminMatchStatus({
-                id: row.id,
-                status: nextStatus,
-              })
-              if (!updatedMatch?.id) throw new Error('Match not found')
-              applyUpdatedTournamentMatch(updatedMatch)
-              setNotice('Match status updated')
-            } catch (error) {
-              applyUpdatedTournamentMatch({ id: row.id, status: previousStatus })
-              setErrorText(error.message || 'Failed to update match status')
-            } finally {
-              setIsSaving(false)
-            }
-          }}
-        >
-          <option value="notstarted">Not Started</option>
-          <option value="started">Started</option>
-          <option value="inprogress">In Progress</option>
-          <option value="completed">Completed</option>
-        </select>
-      ),
-    },
-    {
-      key: 'statusPreview',
-      label: 'Display',
-      render: (row) => formatMatchStatusLabel(row.status),
-    },
-    {
-      key: 'teamEditLockOverride',
-      label: 'Team Edits',
-      render: (row) => (
-        <select
-          aria-label={`Team edit lock ${row.name || row.id}`}
-          value={(row.teamEditLockOverride || '').toString().trim().toLowerCase()}
-          disabled={isSaving}
-          onClick={(event) => event.stopPropagation()}
-          onChange={async (event) => {
-            try {
-              setIsSaving(true)
-              setErrorText('')
-              setNotice('')
-              const updatedMatch = await updateAdminMatchEditLock({
-                id: row.id,
-                override: event.target.value,
-              })
-              applyUpdatedTournamentMatch(updatedMatch)
-              setNotice('Match edit lock updated')
-            } catch (error) {
-              setErrorText(error.message || 'Failed to update match edit lock')
-            } finally {
-              setIsSaving(false)
-            }
-          }}
-        >
-          <option value="">Default</option>
-          <option value="force_open">Force Open</option>
-          <option value="force_locked">Force Locked</option>
-        </select>
-      ),
-    },
-    {
-      key: 'scoresUpdated',
-      label: 'Scores Updated',
-      render: (row) => (row?.scoresUpdated ? 'Yes' : 'No'),
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (row) => (
-        <Button
-          variant="ghost"
-          size="small"
-          disabled={isSaving}
-          onClick={async (event) => {
-            event.stopPropagation()
-            try {
-              setIsSaving(true)
-              setErrorText('')
-              setNotice('')
-              const result = await replaceAdminMatchBackups({ id: row.id })
-              await loadTournamentMatches(selectedTournamentId)
-              const updatedSelections = Number(
-                result?.autoReplacement?.updatedSelections || 0,
-              )
-              const skippedSelections = Number(
-                result?.autoReplacement?.skippedSelections || 0,
-              )
-              setNotice(
-                `Backups replaced (${updatedSelections} updated, ${skippedSelections} skipped)`,
-              )
-            } catch (error) {
-              setErrorText(error.message || 'Failed to replace backups')
-            } finally {
-              setIsSaving(false)
-            }
-          }}
-        >
-          Replace Backups
-        </Button>
-      ),
-    },
-  ]
+            applyUpdatedTournamentMatch(updatedMatch)
+            setNotice('Scraper match id updated')
+          } catch (error) {
+            setErrorText(error.message || 'Failed to update scraper match id')
+          } finally {
+            setIsSaving(false)
+          }
+        }}
+      />
+    )
+  }
+  const renderMatchStatusSelect = (row) => (
+    <select
+      aria-label={`Match status ${row.name || row.id}`}
+      value={(row.status || '').toString().trim().toLowerCase()}
+      disabled={isSaving}
+      onClick={(event) => event.stopPropagation()}
+      onChange={async (event) => {
+        const nextStatus = event.target.value
+        const previousStatus = row.status
+        applyUpdatedTournamentMatch({ id: row.id, status: nextStatus })
+        try {
+          setIsSaving(true)
+          setErrorText('')
+          setNotice('')
+          const updatedMatch = await updateAdminMatchStatus({
+            id: row.id,
+            status: nextStatus,
+          })
+          if (!updatedMatch?.id) throw new Error('Match not found')
+          applyUpdatedTournamentMatch(updatedMatch)
+          setNotice('Match status updated')
+        } catch (error) {
+          applyUpdatedTournamentMatch({ id: row.id, status: previousStatus })
+          setErrorText(error.message || 'Failed to update match status')
+        } finally {
+          setIsSaving(false)
+        }
+      }}
+    >
+      <option value="notstarted">Not Started</option>
+      <option value="started">Started</option>
+      <option value="inprogress">In Progress</option>
+      <option value="completed">Completed</option>
+    </select>
+  )
+  const renderMatchEditLockSelect = (row) => (
+    <select
+      aria-label={`Team edit lock ${row.name || row.id}`}
+      value={(row.teamEditLockOverride || '').toString().trim().toLowerCase()}
+      disabled={isSaving}
+      onClick={(event) => event.stopPropagation()}
+      onChange={async (event) => {
+        try {
+          setIsSaving(true)
+          setErrorText('')
+          setNotice('')
+          const updatedMatch = await updateAdminMatchEditLock({
+            id: row.id,
+            override: event.target.value,
+          })
+          applyUpdatedTournamentMatch(updatedMatch)
+          setNotice('Match edit lock updated')
+        } catch (error) {
+          setErrorText(error.message || 'Failed to update match edit lock')
+        } finally {
+          setIsSaving(false)
+        }
+      }}
+    >
+      <option value="">Default</option>
+      <option value="force_open">Force Open</option>
+      <option value="force_locked">Force Locked</option>
+    </select>
+  )
+  const renderMatchReplaceBackupsButton = (row) => (
+    <Button
+      variant="ghost"
+      size="small"
+      disabled={isSaving}
+      onClick={async (event) => {
+        event.stopPropagation()
+        try {
+          setIsSaving(true)
+          setErrorText('')
+          setNotice('')
+          const result = await replaceAdminMatchBackups({ id: row.id })
+          await loadTournamentMatches(selectedTournamentId)
+          const updatedSelections = Number(result?.autoReplacement?.updatedSelections || 0)
+          const skippedSelections = Number(result?.autoReplacement?.skippedSelections || 0)
+          setNotice(
+            `Backups replaced (${updatedSelections} updated, ${skippedSelections} skipped)`,
+          )
+        } catch (error) {
+          setErrorText(error.message || 'Failed to replace backups')
+        } finally {
+          setIsSaving(false)
+        }
+      }}
+    >
+      Replace Backups
+    </Button>
+  )
   const dirtyRoleCount = useMemo(
     () => users.filter((row) => userDrafts[row.id]?.dirty).length,
     [users, userDrafts],
   )
+  // Keep active/upcoming matches on top; push completed ones to the bottom.
+  const sortedTournamentMatches = useMemo(() => {
+    const rank = (row) =>
+      (row?.status || '').toString().trim().toLowerCase() === 'completed' ? 1 : 0
+    const time = (row) => {
+      const value = new Date(row?.startAt || row?.startTime || 0).getTime()
+      return Number.isNaN(value) ? 0 : value
+    }
+    return [...tournamentMatches]
+      .map((row, index) => ({ row, index }))
+      .sort((a, b) => {
+        const rankDiff = rank(a.row) - rank(b.row)
+        if (rankDiff !== 0) return rankDiff
+        const timeDiff = time(a.row) - time(b.row)
+        if (timeDiff !== 0) return timeDiff
+        return a.index - b.index
+      })
+      .map((item) => item.row)
+  }, [tournamentMatches])
   const contestTournamentOptions = useMemo(
     () =>
       tournamentCatalog.map((row) => ({
@@ -1444,9 +1421,36 @@ function AdminManagerPanel({
             {isLoadingTournaments ? (
               <p className="team-note">Loading tournaments...</p>
             ) : (
-              <>
+              <div
+                className={`tm-grid${tournamentSelectorOnly ? ' tm-grid--tabbed' : ''}`}
+                data-tm-section={mobileTmSection}
+              >
+                {tournamentSelectorOnly && (
+                  <div className="tm-mobile-tabs" role="tablist">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={mobileTmSection === 'tournaments'}
+                      className={mobileTmSection === 'tournaments' ? 'active' : ''}
+                      onClick={() => setMobileTmSection('tournaments')}
+                    >
+                      Tournaments
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={mobileTmSection === 'matches'}
+                      className={mobileTmSection === 'matches' ? 'active' : ''}
+                      disabled={!selectedTournamentId}
+                      onClick={() => setMobileTmSection('matches')}
+                    >
+                      Matches
+                      {selectedTournamentId ? ` (${tournamentMatches.length})` : ''}
+                    </button>
+                  </div>
+                )}
                 {tournamentSelectorOnly ? (
-                  <div className="admin-manager-tournament-selector-shell">
+                  <div className="admin-manager-tournament-selector-shell tm-pane tm-pane-tournaments">
                     <div className="contest-section-head">
                       <h3>Manage tournaments</h3>
                       <div className="top-actions">
@@ -1478,13 +1482,87 @@ function AdminManagerPanel({
                           ? 'No tournaments match this search'
                           : 'No tournaments found'
                       }
-                      wrapperClassName="catalog-table-wrap"
+                      wrapperClassName="catalog-table-wrap tm-table-wrap"
                       tableClassName="catalog-table"
                       rowClassName={(row) =>
                         String(row.id) === String(selectedTournamentId) ? 'active' : ''
                       }
                       onRowClick={onSelectTournament}
                     />
+                    <div className="tm-card-list" role="list">
+                      {filteredTournamentCatalog.length ? (
+                        filteredTournamentCatalog.map((row) => {
+                          const active =
+                            String(row.id) === String(selectedTournamentId)
+                          return (
+                            <div
+                              key={row.id}
+                              role="listitem"
+                              className={`tm-card${active ? ' active' : ''}`}
+                              onClick={() => onSelectTournament(row)}
+                            >
+                              <div className="tm-card-head">
+                                <input
+                                  type="checkbox"
+                                  aria-label={`Select ${row.name}`}
+                                  checked={pendingDisableIds.includes(row.id)}
+                                  onClick={(event) => event.stopPropagation()}
+                                  onChange={() => onToggleTournament(row)}
+                                />
+                                <span className="tm-card-title">{row.name}</span>
+                                <span
+                                  className={`tm-status-badge ${row.enabled ? 'is-on' : 'is-off'}`}
+                                >
+                                  {row.enabled ? 'Enabled' : 'Available'}
+                                </span>
+                              </div>
+                              <div className="tm-card-meta">
+                                <span>{row.season}</span>
+                                <span>{Number(row.matchesCount || 0)} matches</span>
+                                <span>{Number(row.contestsCount || 0)} contests</span>
+                              </div>
+                              <div className="tm-card-meta tm-card-updated">
+                                Updated {formatSafeDate(row.lastUpdatedAt, 'datetime')}
+                              </div>
+                              <div className="tm-card-actions">
+                                <Button
+                                  variant={row.enabled ? 'danger' : 'primary'}
+                                  size="small"
+                                  disabled={isSaving}
+                                  onClick={(event) => {
+                                    event.stopPropagation()
+                                    void onToggleTournamentEnabled(row)
+                                  }}
+                                >
+                                  {row.enabled ? 'Disable' : 'Enable'}
+                                </Button>
+                                <Button
+                                  variant="danger"
+                                  size="small"
+                                  disabled={!canDeleteTournaments || isSaving}
+                                  onClick={(event) => {
+                                    event.stopPropagation()
+                                    setRemovalTarget({
+                                      type: 'tournament',
+                                      id: row.id,
+                                      name: row.name,
+                                    })
+                                  }}
+                                >
+                                  Remove
+                                </Button>
+                              </div>
+                            </div>
+                          )
+                        })
+                      ) : (
+                        <p className="team-note">
+                          {normalizedTournamentFilterQuery
+                            ? 'No tournaments match this search'
+                            : 'No tournaments found'}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="admin-manager-tournaments-pane">
@@ -1522,7 +1600,7 @@ function AdminManagerPanel({
                     />
                   </div>
                 )}
-                <div className="admin-manager-matches-pane">
+                <div className="admin-manager-matches-pane tm-pane tm-pane-matches">
                   <div className="contest-section-head">
                     <h3>{`Matches${selectedTournament?.name ? ` • ${selectedTournament.name}` : ''}`}</h3>
                     <div className="top-actions">
@@ -1558,18 +1636,61 @@ function AdminManagerPanel({
                     </p>
                   ) : isLoadingTournamentMatches ? (
                     <p className="team-note">Loading matches...</p>
+                  ) : !tournamentMatches.length ? (
+                    <p className="team-note">No matches found for this tournament</p>
                   ) : (
-                    <StickyTable
-                      columns={tournamentMatchColumns}
-                      rows={tournamentMatches}
-                      rowKey={(row) => row.id}
-                      emptyText="No matches found for this tournament"
-                      wrapperClassName="catalog-table-wrap"
-                      tableClassName="catalog-table"
-                    />
+                    <div className="match-card-grid">
+                      {sortedTournamentMatches.map((row) => {
+                        const statusKey = (row.status || '')
+                          .toString()
+                          .trim()
+                          .toLowerCase()
+                        return (
+                          <div className="match-card" key={row.id}>
+                            <div className="match-card-head">
+                              <span className="match-card-title">
+                                {getMatchTitle(row)}
+                              </span>
+                              <span
+                                className={`match-status-badge status-${statusKey || 'unknown'}`}
+                              >
+                                {formatMatchStatusLabel(row.status)}
+                              </span>
+                            </div>
+                            <div className="match-card-fields">
+                              <label className="mc-field mc-field-wide">
+                                <span className="mc-field-label">Starts</span>
+                                {renderMatchStartInput(row)}
+                              </label>
+                              <label className="mc-field">
+                                <span className="mc-field-label">Provider ID</span>
+                                {renderMatchProviderInput(row)}
+                              </label>
+                              <label className="mc-field">
+                                <span className="mc-field-label">Status</span>
+                                {renderMatchStatusSelect(row)}
+                              </label>
+                              <label className="mc-field">
+                                <span className="mc-field-label">Team Edits</span>
+                                {renderMatchEditLockSelect(row)}
+                              </label>
+                              <div className="mc-field mc-field-static">
+                                <span className="mc-field-label">Scores Updated</span>
+                                <span className="mc-field-value">
+                                  {row?.scoresUpdated ? 'Yes' : 'No'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="match-card-foot">
+                              {renderMatchReplaceBackupsButton(row)}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
                   )}
                 </div>
-              </>
+              </div>
             )}
           </>
         ) : (

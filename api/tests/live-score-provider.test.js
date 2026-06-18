@@ -494,11 +494,11 @@ describe('live score provider', () => {
             success: true,
             data: [
               {
-                matchId: '155399',
-                title: 'Texas Super Kings vs Seattle Orcas',
-                shortTitle: 'TSK vs SEA',
+                matchId: '150623',
+                title: 'Texas Super Kings vs Seattle Orcas, 1st Match',
+                shortTitle: 'Texas Super Kings vs Seattle Orcas',
                 status: 'Upcoming Match',
-                startTime: '2026-06-19T00:30:00.000Z',
+                startTime: '',
               },
             ],
           }),
@@ -518,7 +518,7 @@ describe('live score provider', () => {
 
     expect(calledUrls).toEqual(['https://example.test/api/matches/upcoming'])
     expect(result.ok).toBe(true)
-    expect(result.providerMatchId).toBe('155399')
+    expect(result.providerMatchId).toBe('150623')
   })
 
   it('includes route, status, and response summary on provider request failure', async () => {
