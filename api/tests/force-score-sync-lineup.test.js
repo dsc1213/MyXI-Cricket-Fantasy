@@ -68,7 +68,12 @@ describe('force score sync lineup hydration', () => {
 
     syncPlayingXiMock.mockResolvedValue({ synced: true })
     getScorecardMock.mockResolvedValue({ status: 'Live', innings: [] })
-    buildTournamentScoreContextMock.mockResolvedValue({ tournamentPlayerRows: [] })
+    buildTournamentScoreContextMock.mockResolvedValue({
+      tournamentPlayerRows: [
+        { id: 'srh-1', displayName: 'SRH Batter', teamKey: 'SRH' },
+        { id: 'rr-1', displayName: 'Cameron Gannon', teamKey: 'RR' },
+      ],
+    })
     syncLiveMatchScoresMock.mockResolvedValue({ savedPlayers: 1, fetchedPlayers: 1 })
     upsertLiveSyncMock.mockResolvedValue({})
     appendScoredPlayersToLineupsMock.mockResolvedValue({ added: 0, players: [] })
@@ -96,7 +101,7 @@ describe('force score sync lineup hydration', () => {
       .mockResolvedValueOnce({
         rows: [
           { teamCode: 'SRH', playingXI: JSON.stringify(['SRH Batter']) },
-          { teamCode: 'RR', playingXI: JSON.stringify(['RR Bowler']) },
+          { teamCode: 'RR', playingXI: JSON.stringify(['Gannon']) },
         ],
       })
 
@@ -131,6 +136,16 @@ describe('force score sync lineup hydration', () => {
       }),
     )
     expect(syncLiveMatchScoresMock).toHaveBeenCalled()
+    expect(syncLiveMatchScoresMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({
+          playingXiNames: expect.arrayContaining(['Cameron Gannon']),
+          lineupRows: expect.arrayContaining([
+            expect.objectContaining({ playingXI: ['Cameron Gannon'] }),
+          ]),
+        }),
+      }),
+    )
     expect(result.ok).toBe(true)
   })
 })

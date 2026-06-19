@@ -11,7 +11,10 @@ import { syncPlayingXiForStartedMatch } from './lineup-sync.service.js'
 import { logAutoSyncActivity } from './activity.service.js'
 import { recordLiveScoreDbWrite, recordLiveScoreLog } from './logger.js'
 import { getOnDemandMinIntervalMs, warnLiveScore } from './settings.js'
-import { canonicalizePlayerStatsWithSquad } from './player-name-match.js'
+import {
+  canonicalizeLineupNamesWithSquad,
+  canonicalizePlayerStatsWithSquad,
+} from './player-name-match.js'
 
 const runningMatchIds = new Set()
 
@@ -169,10 +172,21 @@ const syncScoreForMatch = async (
       tournamentId: match.tournamentId,
     })
     const providerStatus = scorecard?.status || ''
+    const matchPlayers = getMatchTournamentPlayers(match, tournamentContext)
     const playerStats = canonicalizePlayerStatsWithSquad(
       scorecardToPlayerStats(scorecard),
-      getMatchTournamentPlayers(match, tournamentContext),
+      matchPlayers,
     )
+    for (const row of lineupContext.lineupRows) {
+      const lineup = { playingXI: parseJsonArray(row.playingXI) }
+      canonicalizeLineupNamesWithSquad(lineup, matchPlayers)
+      row.playingXI = lineup.playingXI
+    }
+    lineupContext.playingXiNames = [
+      ...new Set(
+        lineupContext.lineupRows.flatMap((row) => parseJsonArray(row.playingXI)),
+      ),
+    ]
     await matchLiveSyncRepository.upsert(match.id, {
       providerMatchId: match.providerMatchId,
       lastProviderStatus: providerStatus,

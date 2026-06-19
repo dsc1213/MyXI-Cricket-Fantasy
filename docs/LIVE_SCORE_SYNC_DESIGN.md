@@ -57,7 +57,7 @@ Completion detection:
 ## Environment Variables
 
 ```env
-LIVE_SCORE_API_URL=https://livescoreapi.azurewebsites.net/api
+LIVE_SCORE_API_URL=https://your-live-score-provider.example/api
 LIVE_SCORE_AUTO_UPDATE=OFF
 LIVE_SCORE_PROVIDER_LIVE_STATUS=Live
 LIVE_SCORE_AUTO_COMPLETE_AFTER_HOURS=24

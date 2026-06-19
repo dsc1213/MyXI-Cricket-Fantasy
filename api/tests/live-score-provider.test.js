@@ -76,6 +76,27 @@ describe('live score provider', () => {
     )
   })
 
+  it('does not mark an active MLC batter as dismissed', () => {
+    const rows = scorecardToPlayerStats({
+      innings: [
+        {
+          batting: [
+            {
+              name: 'Tim Seifert',
+              dismissal: 'batting',
+              isDismissed: true,
+              runs: '26',
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(rows).toEqual([
+      expect.objectContaining({ playerName: 'Tim Seifert', dismissed: false }),
+    ])
+  })
+
   it('converts dismissal text into fielding stats', () => {
     const rows = scorecardToPlayerStats({
       innings: [

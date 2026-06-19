@@ -32,7 +32,7 @@ const parseTotalScore = (value = '') => {
 const isDismissed = (dismissal = '') => {
   const value = dismissal.toString().trim().toLowerCase()
   if (!value) return false
-  return !['not out', 'retired hurt', 'retired out'].includes(value)
+  return !['batting', 'not out', 'retired hurt', 'retired out'].includes(value)
 }
 
 const cleanFielderName = (value = '') =>
@@ -362,9 +362,11 @@ const scorecardToPlayerStats = (scorecard = {}) => {
         fours: batter.fours,
         sixes: batter.sixes,
         dismissed:
-          typeof batter.isDismissed === 'boolean'
-            ? batter.isDismissed
-            : isDismissed(batter.dismissal),
+          (batter.dismissal || '').toString().trim().toLowerCase() === 'batting'
+            ? false
+            : typeof batter.isDismissed === 'boolean'
+              ? batter.isDismissed
+              : isDismissed(batter.dismissal),
       })
       for (const fieldingRow of dismissalToFieldingStats(batter.dismissal)) {
         mergePlayerStat(statsByName, fieldingRow)
