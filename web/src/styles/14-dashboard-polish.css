@@ -897,6 +897,7 @@ body.dark-theme .admin-manager-panel .catalog-table tbody tr.active:hover {
 .match-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-auto-rows: max-content;
   gap: 0.7rem;
   align-content: start;
   overflow: auto;
