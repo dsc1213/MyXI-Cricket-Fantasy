@@ -122,11 +122,12 @@ function formatMatchDateTime(match) {
   if (Number.isNaN(parsed.getTime())) {
     return { dateText: shortDate, timeText: '' }
   }
+  const formattedDate = `${String(parsed.getDate()).padStart(2, '0')} ${monthShort[parsed.getMonth()]}`
   const formattedTime = new Intl.DateTimeFormat(undefined, {
     hour: 'numeric',
     minute: '2-digit',
   }).format(parsed)
-  return { dateText: shortDate, timeText: formattedTime }
+  return { dateText: formattedDate, timeText: formattedTime }
 }
 
 function MatchesCard({

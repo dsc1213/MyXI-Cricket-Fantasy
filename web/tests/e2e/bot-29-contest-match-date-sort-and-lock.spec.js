@@ -22,6 +22,8 @@ const createTournamentViaApi = async ({ request, tournamentId, name, matches }) 
     201,
   )
 
+test.use({ timezoneId: 'America/Chicago' })
+
 test('contest detail sorts matches by date bucket and locks edit when start time has passed', async ({
   page,
   request,
@@ -34,7 +36,9 @@ test('contest detail sorts matches by date bucket and locks edit when start time
 
   const now = new Date()
   const todayStarted = new Date(now.getTime() - 22 * 60 * 1000)
-  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+  const tomorrow = new Date(now)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  tomorrow.setHours(19, 30, 0, 0)
   const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
 
   const matches = [
@@ -125,6 +129,13 @@ test('contest detail sorts matches by date bucket and locks edit when start time
     await expect(startedRow).toBeVisible()
     await expect(startedRow).toContainText(/In Progress/i)
     await expect(startedRow.getByLabel(/Edit team|Add team/i)).toHaveCount(0)
+
+    const tomorrowRow = page
+      .locator('.match-table tbody tr', { hasText: /rcb\s*vs\s*gt/i })
+      .first()
+    const expectedLocalDate = `${String(tomorrow.getDate()).padStart(2, '0')} ${tomorrow.toLocaleString('en-US', { month: 'short' })}`
+    await expect(tomorrowRow.locator('.match-date-main')).toHaveText(expectedLocalDate)
+    await expect(tomorrowRow.locator('.match-date-time')).toHaveText('7:30 PM')
   } finally {
     await deleteContestIfPresent(request, contestId, 'master')
     await request.fetch(`http://127.0.0.1:4000/admin/tournaments/${tournamentId}`, {
