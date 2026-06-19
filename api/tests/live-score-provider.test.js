@@ -608,6 +608,50 @@ describe('live score provider', () => {
     expect(lineup.providerPlayers[0].name).toBe('Vaibhav Suryavanshi')
   })
 
+  it('maps abbreviated provider names (initials, particles, surname-only) to squad players', () => {
+    const squad = [
+      { id: 'p1', displayName: 'Tanveer Sangha', teamKey: 'SOR' },
+      { id: 'p2', displayName: 'Faf du Plessis', teamKey: 'TSK' },
+      { id: 'p3', displayName: 'Hardus Viljoen', teamKey: 'TSK' },
+      { id: 'p4', displayName: 'Marcus Stoinis', teamKey: 'SOR' },
+      { id: 'p5', displayName: 'Wiaan Mulder', teamKey: 'TSK' },
+    ]
+
+    expect(resolvePlayerNameFromSquad('T Sangha', squad)?.name).toBe('Tanveer Sangha')
+    expect(resolvePlayerNameFromSquad('du Plessis', squad)?.name).toBe('Faf du Plessis')
+    expect(resolvePlayerNameFromSquad('Viljoen', squad)?.name).toBe('Hardus Viljoen')
+    expect(resolvePlayerNameFromSquad('M Stoinis', squad)?.name).toBe('Marcus Stoinis')
+    expect(resolvePlayerNameFromSquad('Mulder', squad)?.name).toBe('Wiaan Mulder')
+  })
+
+  it('canonicalizes abbreviated scorecard names while preserving live stats', () => {
+    const rows = canonicalizePlayerStatsWithSquad(
+      [
+        { playerName: 'Mulder', runs: 42, wickets: 1 },
+        { playerName: 'T Sangha', runs: 0, wickets: 3 },
+      ],
+      [
+        { id: 'p5', displayName: 'Wiaan Mulder', teamKey: 'TSK' },
+        { id: 'p1', displayName: 'Tanveer Sangha', teamKey: 'SOR' },
+      ],
+    )
+
+    expect(rows).toEqual([
+      expect.objectContaining({ playerName: 'Wiaan Mulder', runs: 42, wickets: 1 }),
+      expect.objectContaining({ playerName: 'Tanveer Sangha', runs: 0, wickets: 3 }),
+    ])
+  })
+
+  it('does not merge ambiguous surname-only names into the wrong player', () => {
+    const squad = [
+      { id: 'p1', displayName: 'Harmeet Singh', teamKey: 'SOR' },
+      { id: 'p2', displayName: 'Jasdeep Singh', teamKey: 'SOR' },
+    ]
+
+    expect(resolvePlayerNameFromSquad('Singh', squad)).toBeNull()
+    expect(resolvePlayerNameFromSquad('Robinson', squad)).toBeNull()
+  })
+
   it('maps misleading scraper scorecard names before score validation', () => {
     const rows = canonicalizePlayerStatsWithSquad(
       [{ playerName: 'Vaibhav Sooryavanshi', runs: 34 }],

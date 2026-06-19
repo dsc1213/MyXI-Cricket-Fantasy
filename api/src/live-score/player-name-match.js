@@ -54,6 +54,23 @@ const tokensLikelyMatch = (left = '', right = '') => {
   return distance <= 1
 }
 
+// "t" matches "tanveer", "f" matches "faf" — a single-letter initial against a full token.
+const tokenInitialMatch = (left = '', right = '') => {
+  if (!left || !right) return false
+  if (left.length === 1 && right.length > 1) return right.startsWith(left)
+  if (right.length === 1 && left.length > 1) return left.startsWith(right)
+  return false
+}
+
+const tokensCompatible = (left = '', right = '') =>
+  tokensLikelyMatch(left, right) || tokenInitialMatch(left, right)
+
+// Every token of `small` has a compatible token in `big` (handles particle/short
+// surnames such as "du Plessis" against "Faf du Plessis").
+const tokensSubsetOf = (small = [], big = []) =>
+  small.length > 0 &&
+  small.every((token) => big.some((other) => tokensCompatible(token, other)))
+
 const playerNamesLikelyMatch = (incomingName, existingName) => {
   const incomingKey = normalizePlayerNameKey(incomingName)
   const existingKey = normalizePlayerNameKey(existingName)
@@ -62,16 +79,25 @@ const playerNamesLikelyMatch = (incomingName, existingName) => {
 
   const incomingTokens = tokenizeName(incomingName)
   const existingTokens = tokenizeName(existingName)
-  if (incomingTokens.length < 2 || existingTokens.length < 2) return false
+  if (!incomingTokens.length || !existingTokens.length) return false
 
-  const incomingFirst = incomingTokens[0]
-  const existingFirst = existingTokens[0]
   const incomingLast = incomingTokens[incomingTokens.length - 1]
   const existingLast = existingTokens[existingTokens.length - 1]
 
+  // Surname (last token) is the anchor and must be compatible.
+  if (!tokensLikelyMatch(incomingLast, existingLast)) return false
+
+  // Surname-only on either side ("Savage", "Viljoen") — defer to the caller's
+  // uniqueness guard so we only merge when exactly one squad player matches.
+  if (incomingTokens.length === 1 || existingTokens.length === 1) return true
+
+  // First names compatible, allowing initials ("T Sangha" ~ "Tanveer Sangha").
+  if (tokensCompatible(incomingTokens[0], existingTokens[0])) return true
+
+  // One name's tokens are a subset of the other's ("du Plessis" ~ "Faf du Plessis").
   return (
-    tokensLikelyMatch(incomingFirst, existingFirst) &&
-    tokensLikelyMatch(incomingLast, existingLast)
+    tokensSubsetOf(incomingTokens, existingTokens) ||
+    tokensSubsetOf(existingTokens, incomingTokens)
   )
 }
 
