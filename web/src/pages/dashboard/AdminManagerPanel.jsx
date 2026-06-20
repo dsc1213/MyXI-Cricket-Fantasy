@@ -89,12 +89,10 @@ function AdminManagerPanel({
   const [userFilterQuery, setUserFilterQuery] = useState('')
   const [userDrafts, setUserDrafts] = useState({})
   const [tournamentCatalog, setTournamentCatalog] = useState([])
-  const [tournamentFilterQuery, setTournamentFilterQuery] = useState('')
   const [selectedTournamentId, setSelectedTournamentId] = useState('')
   const [tournamentMatches, setTournamentMatches] = useState([])
   const [isLoadingTournamentMatches, setIsLoadingTournamentMatches] = useState(false)
   const [showAddMatchesModal, setShowAddMatchesModal] = useState(false)
-  const [mobileTmSection, setMobileTmSection] = useState('tournaments')
   const [pendingDisableIds, setPendingDisableIds] = useState([])
   const [contestCatalog, setContestCatalog] = useState([])
   const [selectedContestTournamentId, setSelectedContestTournamentId] = useState('')
@@ -374,7 +372,6 @@ function AdminManagerPanel({
 
   const onSelectTournament = (row) => {
     setSelectedTournamentId(String(row.id))
-    setMobileTmSection('matches')
   }
 
   const onToggleTournamentEnabled = async (row) => {
@@ -769,18 +766,6 @@ function AdminManagerPanel({
     [selectedTournamentId, tournamentCatalog],
   )
 
-  const normalizedTournamentFilterQuery = tournamentFilterQuery.trim().toLowerCase()
-  const filteredTournamentCatalog = useMemo(() => {
-    if (!normalizedTournamentFilterQuery) return tournamentCatalog
-    return tournamentCatalog.filter((row) =>
-      [row.name, row.season, row.status, row.enabled ? 'enabled' : 'available'].some(
-        (value) =>
-          String(value || '')
-            .toLowerCase()
-            .includes(normalizedTournamentFilterQuery),
-      ),
-    )
-  }, [normalizedTournamentFilterQuery, tournamentCatalog])
 
   const onStartContestNow = async (contestId) => {
     try {
@@ -944,6 +929,17 @@ function AdminManagerPanel({
   ]
   const getMatchTitle = (row) =>
     row.name || `${row.home || row.teamA || ''} vs ${row.away || row.teamB || ''}`
+  const renderMatchHeadingTitle = (row) => {
+    const title = getMatchTitle(row)
+    const match = title.match(/^(match\s*\d+)\s*[:\-–]?\s*(.*)$/i)
+    if (!match) return <span className="match-card-title">{title}</span>
+    return (
+      <span className="match-card-title">
+        <span className="match-card-num">{match[1]}</span>
+        <span className="match-card-vs">{match[2]}</span>
+      </span>
+    )
+  }
   const renderMatchStartInput = (row) => (
     <input
       key={`${row.id}-${row.startAt || row.startTime || ''}`}
@@ -1422,33 +1418,8 @@ function AdminManagerPanel({
               <p className="team-note">Loading tournaments...</p>
             ) : (
               <div
-                className={`tm-grid${tournamentSelectorOnly ? ' tm-grid--tabbed' : ''}`}
-                data-tm-section={mobileTmSection}
+                className={`tm-grid${tournamentSelectorOnly ? ' tm-grid--selector' : ''}`}
               >
-                {tournamentSelectorOnly && (
-                  <div className="tm-mobile-tabs" role="tablist">
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={mobileTmSection === 'tournaments'}
-                      className={mobileTmSection === 'tournaments' ? 'active' : ''}
-                      onClick={() => setMobileTmSection('tournaments')}
-                    >
-                      Tournaments
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={mobileTmSection === 'matches'}
-                      className={mobileTmSection === 'matches' ? 'active' : ''}
-                      disabled={!selectedTournamentId}
-                      onClick={() => setMobileTmSection('matches')}
-                    >
-                      Matches
-                      {selectedTournamentId ? ` (${tournamentMatches.length})` : ''}
-                    </button>
-                  </div>
-                )}
                 {tournamentSelectorOnly ? (
                   <div className="admin-manager-tournament-selector-shell tm-pane tm-pane-tournaments">
                     <div className="contest-section-head">
@@ -1463,106 +1434,76 @@ function AdminManagerPanel({
                         </Button>
                       </div>
                     </div>
-                    <div className="admin-tournament-filter-row">
-                      <input
-                        type="search"
-                        className="dashboard-text-input"
-                        placeholder="Search tournaments by name, season, or status"
-                        value={tournamentFilterQuery}
-                        onChange={(event) => setTournamentFilterQuery(event.target.value)}
-                        aria-label="Search tournaments"
-                      />
-                    </div>
-                    <StickyTable
-                      columns={tournamentColumns}
-                      rows={filteredTournamentCatalog}
-                      rowKey={(row) => row.id}
-                      emptyText={
-                        normalizedTournamentFilterQuery
-                          ? 'No tournaments match this search'
-                          : 'No tournaments found'
-                      }
-                      wrapperClassName="catalog-table-wrap tm-table-wrap"
-                      tableClassName="catalog-table"
-                      rowClassName={(row) =>
-                        String(row.id) === String(selectedTournamentId) ? 'active' : ''
-                      }
-                      onRowClick={onSelectTournament}
-                    />
-                    <div className="tm-card-list" role="list">
-                      {filteredTournamentCatalog.length ? (
-                        filteredTournamentCatalog.map((row) => {
-                          const active =
-                            String(row.id) === String(selectedTournamentId)
-                          return (
-                            <div
-                              key={row.id}
-                              role="listitem"
-                              className={`tm-card${active ? ' active' : ''}`}
-                              onClick={() => onSelectTournament(row)}
+                    {tournamentCatalog.length ? (
+                      <div className="tm-selector-row">
+                        <select
+                          className="tm-tournament-select"
+                          aria-label="Select tournament"
+                          value={selectedTournamentId}
+                          onChange={(event) =>
+                            setSelectedTournamentId(event.target.value)
+                          }
+                        >
+                          {!selectedTournamentId && (
+                            <option value="" disabled>
+                              Select a tournament
+                            </option>
+                          )}
+                          {tournamentCatalog.map((row) => (
+                            <option key={row.id} value={row.id}>
+                              {row.name} • {row.season}
+                            </option>
+                          ))}
+                        </select>
+                        {selectedTournament && (
+                          <div className="tm-selected-summary">
+                            <span
+                              className={`tm-status-badge ${selectedTournament.enabled ? 'is-on' : 'is-off'}`}
                             >
-                              <div className="tm-card-head">
-                                <input
-                                  type="checkbox"
-                                  aria-label={`Select ${row.name}`}
-                                  checked={pendingDisableIds.includes(row.id)}
-                                  onClick={(event) => event.stopPropagation()}
-                                  onChange={() => onToggleTournament(row)}
-                                />
-                                <span className="tm-card-title">{row.name}</span>
-                                <span
-                                  className={`tm-status-badge ${row.enabled ? 'is-on' : 'is-off'}`}
-                                >
-                                  {row.enabled ? 'Enabled' : 'Available'}
-                                </span>
-                              </div>
-                              <div className="tm-card-meta">
-                                <span>{row.season}</span>
-                                <span>{Number(row.matchesCount || 0)} matches</span>
-                                <span>{Number(row.contestsCount || 0)} contests</span>
-                              </div>
-                              <div className="tm-card-meta tm-card-updated">
-                                Updated {formatSafeDate(row.lastUpdatedAt, 'datetime')}
-                              </div>
-                              <div className="tm-card-actions">
-                                <Button
-                                  variant={row.enabled ? 'danger' : 'primary'}
-                                  size="small"
-                                  disabled={isSaving}
-                                  onClick={(event) => {
-                                    event.stopPropagation()
-                                    void onToggleTournamentEnabled(row)
-                                  }}
-                                >
-                                  {row.enabled ? 'Disable' : 'Enable'}
-                                </Button>
-                                <Button
-                                  variant="danger"
-                                  size="small"
-                                  disabled={!canDeleteTournaments || isSaving}
-                                  onClick={(event) => {
-                                    event.stopPropagation()
-                                    setRemovalTarget({
-                                      type: 'tournament',
-                                      id: row.id,
-                                      name: row.name,
-                                    })
-                                  }}
-                                >
-                                  Remove
-                                </Button>
-                              </div>
+                              {selectedTournament.enabled ? 'Enabled' : 'Available'}
+                            </span>
+                            <span className="tm-summary-stat">
+                              {Number(selectedTournament.matchesCount || 0)} matches
+                            </span>
+                            <span className="tm-summary-stat">
+                              {Number(selectedTournament.contestsCount || 0)} contests
+                            </span>
+                            <span className="tm-summary-stat tm-summary-updated">
+                              Updated{' '}
+                              {formatSafeDate(selectedTournament.lastUpdatedAt, 'datetime')}
+                            </span>
+                            <div className="tm-selected-actions">
+                              <Button
+                                variant={selectedTournament.enabled ? 'danger' : 'primary'}
+                                size="small"
+                                disabled={isSaving}
+                                onClick={() =>
+                                  void onToggleTournamentEnabled(selectedTournament)
+                                }
+                              >
+                                {selectedTournament.enabled ? 'Disable' : 'Enable'}
+                              </Button>
+                              <Button
+                                variant="danger"
+                                size="small"
+                                disabled={!canDeleteTournaments || isSaving}
+                                onClick={() =>
+                                  setRemovalTarget({
+                                    type: 'tournament',
+                                    id: selectedTournament.id,
+                                    name: selectedTournament.name,
+                                  })
+                                }
+                              >
+                                Remove
+                              </Button>
                             </div>
-                          )
-                        })
-                      ) : (
-                        <p className="team-note">
-                          {normalizedTournamentFilterQuery
-                            ? 'No tournaments match this search'
-                            : 'No tournaments found'}
-                        </p>
-                      )}
-                    </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="team-note">No tournaments found</p>
+                    )}
                   </div>
                 ) : (
                   <div className="admin-manager-tournaments-pane">
@@ -1648,9 +1589,7 @@ function AdminManagerPanel({
                         return (
                           <div className="match-card" key={row.id}>
                             <div className="match-card-head">
-                              <span className="match-card-title">
-                                {getMatchTitle(row)}
-                              </span>
+                              {renderMatchHeadingTitle(row)}
                               <span
                                 className={`match-status-badge status-${statusKey || 'unknown'}`}
                               >

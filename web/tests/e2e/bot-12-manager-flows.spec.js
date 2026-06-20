@@ -385,12 +385,12 @@ test.describe('12) Squad manager + tournament manager flows', () => {
       'true',
     )
 
-    const tournamentRow = page
-      .locator('.admin-manager-panel .catalog-table tbody tr')
-      .filter({ hasText: 'IPL 2026' })
-      .first()
-    await expect(tournamentRow).toBeVisible()
-    await tournamentRow.click()
+    const tournamentSelect = page.locator('.admin-manager-panel .tm-tournament-select')
+    await expect(tournamentSelect).toBeVisible()
+    const iplValue = await tournamentSelect
+      .locator('option', { hasText: 'IPL 2026' })
+      .getAttribute('value')
+    await tournamentSelect.selectOption(iplValue)
     await expect(page.getByRole('heading', { name: 'Matches • IPL 2026' })).toBeVisible()
     await expect(
       page.locator('.admin-manager-matches-pane .match-card').first(),
@@ -1104,13 +1104,17 @@ test.describe('12) Squad manager + tournament manager flows', () => {
     await expect(page.getByText('Remove contest')).toHaveCount(0)
 
     await page.getByRole('button', { name: 'Tournament Manager' }).click()
-    const tournamentRow = page.locator('.catalog-table tbody tr', {
-      hasText: 'T20 World Cup 2026',
-    })
-    await expect(tournamentRow).toBeVisible()
-    await expect(tournamentRow.getByRole('button', { name: 'Remove' })).toBeVisible()
-    await expect(tournamentRow.locator('input[type="checkbox"]')).toBeVisible()
-    await expect(tournamentRow.getByRole('button', { name: 'Disable' })).toBeVisible()
+    const tournamentSelect = page.locator('.tm-tournament-select')
+    await expect(tournamentSelect).toBeVisible()
+    const tournamentValue = await tournamentSelect
+      .locator('option', { hasText: 'T20 World Cup 2026' })
+      .getAttribute('value')
+    await tournamentSelect.selectOption(tournamentValue)
+    const tournamentActions = page.locator('.tm-selected-actions')
+    await expect(tournamentActions.getByRole('button', { name: 'Remove' })).toBeVisible()
+    await expect(
+      tournamentActions.getByRole('button', { name: /Disable|Enable/ }),
+    ).toBeVisible()
     await expect(page.getByRole('button', { name: 'Remove selected' })).toHaveCount(0)
     await page.getByRole('button', { name: 'Pending Removes' }).click()
     await expect(page).toHaveURL(/\/home\?panel=pendingRemovals$/)

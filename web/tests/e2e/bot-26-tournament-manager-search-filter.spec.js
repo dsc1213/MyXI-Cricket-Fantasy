@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 test.use({ timezoneId: 'America/Chicago' })
 
-test('tournament manager uses search filter and hides selector row', async ({ page }) => {
+test('tournament manager selects via dropdown and manages matches', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   let matchStartTime = '2099-03-10T14:00:00.000Z'
   let matchStatus = 'inprogress'
@@ -179,18 +179,17 @@ test('tournament manager uses search filter and hides selector row', async ({ pa
 
   await page.goto('/home?panel=tournamentManager', { waitUntil: 'domcontentloaded' })
 
-  const searchInput = page.getByRole('searchbox', { name: 'Search tournaments' })
-  await expect(searchInput).toBeVisible()
-  await expect(page.locator('.admin-manager-tournament-selector-row')).toHaveCount(0)
-
-  await searchInput.fill('ipl')
-  await expect(page.locator('.tm-card-title', { hasText: 'IPL 2026' })).toBeVisible()
+  // Tournaments are chosen from a dropdown; the first row is auto-selected.
+  const tournamentSelect = page.locator('.tm-tournament-select')
+  await expect(tournamentSelect).toBeVisible()
   await expect(
-    page.locator('.tm-card', { hasText: 'DBG 1775436903793' }),
-  ).toHaveCount(0)
-
-  // Mobile master-detail: switch to the Matches tab to manage the selected tournament.
-  await page.getByRole('tab', { name: /^Matches/ }).click()
+    tournamentSelect.locator('option', { hasText: 'IPL 2026' }),
+  ).toHaveCount(1)
+  await expect(
+    tournamentSelect.locator('option', { hasText: 'DBG 1775436903793' }),
+  ).toHaveCount(1)
+  await expect(tournamentSelect).toHaveValue('t1')
+  await expect(page.locator('.tm-selected-summary .tm-status-badge')).toBeVisible()
 
   const startTimeInput = page.getByLabel('Match start time RCB vs SRH')
   await startTimeInput.fill('2099-03-11T16:30')
